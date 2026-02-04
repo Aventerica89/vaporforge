@@ -81,22 +81,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
           </button>
         </form>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or</span>
-          </div>
-        </div>
-
-        <div className="text-center">
+        <div className="mt-6 text-center text-xs text-muted-foreground">
+          <p>Get your API key from</p>
           <a
-            href="/api/auth/login"
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            href="https://console.anthropic.com/settings/keys"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
           >
-            Sign in with Claude OAuth
-            <span className="rounded bg-muted px-1.5 py-0.5 text-xs">Beta</span>
+            console.anthropic.com
           </a>
         </div>
       </div>

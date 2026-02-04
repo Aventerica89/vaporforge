@@ -1,8 +1,9 @@
 import { createRouter } from './router';
 import { SessionDurableObject } from './websocket';
-import { SandboxContainer } from './container';
+// Sandbox class is provided by @cloudflare/sandbox SDK
+export { Sandbox } from '@cloudflare/sandbox';
 
-export { SessionDurableObject, SandboxContainer };
+export { SessionDurableObject };
 
 export default {
   async fetch(

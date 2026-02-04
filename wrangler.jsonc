@@ -6,16 +6,16 @@
   "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
 
-  // Cloudflare Containers configuration
+  // Cloudflare Containers configuration (using @cloudflare/sandbox SDK)
   "containers": [
     {
-      "class_name": "SandboxContainer",
+      "class_name": "Sandbox",
       "image": "./Dockerfile",
       "max_instances": 10
     }
   ],
 
-  // Durable Objects for session persistence
+  // Durable Objects for session persistence and sandbox
   "durable_objects": {
     "bindings": [
       {
@@ -24,12 +24,12 @@
       },
       {
         "name": "SANDBOX_CONTAINER",
-        "class_name": "SandboxContainer"
+        "class_name": "Sandbox"
       }
     ]
   },
 
-  // Durable Objects migrations (SQLite-backed for free plan)
+  // Durable Objects migrations (SQLite-backed)
   "migrations": [
     {
       "tag": "v1",
@@ -38,6 +38,15 @@
     {
       "tag": "v2",
       "new_sqlite_classes": ["SandboxContainer"]
+    },
+    {
+      "tag": "v3",
+      "renamed_classes": [
+        {
+          "from": "SandboxContainer",
+          "to": "Sandbox"
+        }
+      ]
     }
   ],
 
