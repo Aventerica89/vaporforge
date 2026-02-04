@@ -1,0 +1,394 @@
+import { create } from 'zustand';
+import { sessionsApi, filesApi, gitApi, chatApi } from '@/lib/api';
+import type { Session, FileInfo, Message, GitStatus } from '@/lib/types';
+
+interface SandboxState {
+  // Session state
+  currentSession: Session | null;
+  sessions: Session[];
+  isLoadingSessions: boolean;
+
+  // File state
+  files: FileInfo[];
+  currentFile: FileInfo | null;
+  fileContent: string;
+  isLoadingFiles: boolean;
+
+  // Editor state
+  openFiles: Array<{ path: string; content: string; isDirty: boolean }>;
+  activeFileIndex: number;
+
+  // Chat state
+  messages: Message[];
+  isStreaming: boolean;
+  streamingContent: string;
+
+  // Git state
+  gitStatus: GitStatus | null;
+
+  // Terminal state
+  terminalOutput: string[];
+
+  // Actions
+  loadSessions: () => Promise<void>;
+  createSession: (name?: string, gitRepo?: string) => Promise<Session | null>;
+  selectSession: (sessionId: string) => Promise<void>;
+  terminateSession: (sessionId: string) => Promise<void>;
+
+  loadFiles: (path?: string) => Promise<void>;
+  openFile: (path: string) => Promise<void>;
+  closeFile: (index: number) => void;
+  setActiveFile: (index: number) => void;
+  updateFileContent: (content: string) => void;
+  saveFile: () => Promise<void>;
+
+  sendMessage: (message: string) => Promise<void>;
+  clearMessages: () => void;
+
+  loadGitStatus: () => Promise<void>;
+  stageFiles: (files: string[]) => Promise<void>;
+  commitChanges: (message: string) => Promise<void>;
+
+  execCommand: (command: string) => Promise<void>;
+  clearTerminal: () => void;
+}
+
+export const useSandboxStore = create<SandboxState>((set, get) => ({
+  currentSession: null,
+  sessions: [],
+  isLoadingSessions: false,
+
+  files: [],
+  currentFile: null,
+  fileContent: '',
+  isLoadingFiles: false,
+
+  openFiles: [],
+  activeFileIndex: -1,
+
+  messages: [],
+  isStreaming: false,
+  streamingContent: '',
+
+  gitStatus: null,
+
+  terminalOutput: [],
+
+  loadSessions: async () => {
+    set({ isLoadingSessions: true });
+    try {
+      const result = await sessionsApi.list();
+      if (result.success && result.data) {
+        set({ sessions: result.data });
+      }
+    } finally {
+      set({ isLoadingSessions: false });
+    }
+  },
+
+  createSession: async (name?: string, gitRepo?: string) => {
+    try {
+      const result = await sessionsApi.create({ name, gitRepo });
+      if (result.success && result.data) {
+        const session = result.data;
+        set((state) => ({
+          sessions: [session, ...state.sessions],
+          currentSession: session,
+        }));
+        return session;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  selectSession: async (sessionId: string) => {
+    try {
+      const result = await sessionsApi.resume(sessionId);
+      if (result.success && result.data) {
+        set({
+          currentSession: result.data,
+          files: [],
+          openFiles: [],
+          activeFileIndex: -1,
+          messages: [],
+          terminalOutput: [],
+        });
+
+        // Load files and git status
+        get().loadFiles();
+        get().loadGitStatus();
+
+        // Load chat history
+        const historyResult = await chatApi.history(sessionId);
+        if (historyResult.success && historyResult.data) {
+          set({ messages: historyResult.data });
+        }
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  terminateSession: async (sessionId: string) => {
+    try {
+      await sessionsApi.terminate(sessionId);
+      set((state) => ({
+        sessions: state.sessions.filter((s) => s.id !== sessionId),
+        currentSession:
+          state.currentSession?.id === sessionId ? null : state.currentSession,
+      }));
+    } catch {
+      // Handle error
+    }
+  },
+
+  loadFiles: async (path: string = '/workspace') => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    set({ isLoadingFiles: true });
+    try {
+      const result = await filesApi.list(session.id, path);
+      if (result.success && result.data) {
+        set({ files: result.data });
+      }
+    } finally {
+      set({ isLoadingFiles: false });
+    }
+  },
+
+  openFile: async (path: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    // Check if already open
+    const existingIndex = get().openFiles.findIndex((f) => f.path === path);
+    if (existingIndex !== -1) {
+      set({ activeFileIndex: existingIndex });
+      return;
+    }
+
+    try {
+      const result = await filesApi.read(session.id, path);
+      if (result.success && result.data) {
+        set((state) => ({
+          openFiles: [
+            ...state.openFiles,
+            { path, content: result.data!.content, isDirty: false },
+          ],
+          activeFileIndex: state.openFiles.length,
+          fileContent: result.data!.content,
+          currentFile: { path, name: path.split('/').pop() || '', type: 'file' },
+        }));
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  closeFile: (index: number) => {
+    set((state) => {
+      const newOpenFiles = [...state.openFiles];
+      newOpenFiles.splice(index, 1);
+
+      let newActiveIndex = state.activeFileIndex;
+      if (newOpenFiles.length === 0) {
+        newActiveIndex = -1;
+      } else if (index <= state.activeFileIndex) {
+        newActiveIndex = Math.max(0, state.activeFileIndex - 1);
+      }
+
+      return {
+        openFiles: newOpenFiles,
+        activeFileIndex: newActiveIndex,
+        fileContent:
+          newActiveIndex >= 0 ? newOpenFiles[newActiveIndex].content : '',
+      };
+    });
+  },
+
+  setActiveFile: (index: number) => {
+    const state = get();
+    if (index >= 0 && index < state.openFiles.length) {
+      set({
+        activeFileIndex: index,
+        fileContent: state.openFiles[index].content,
+        currentFile: {
+          path: state.openFiles[index].path,
+          name: state.openFiles[index].path.split('/').pop() || '',
+          type: 'file',
+        },
+      });
+    }
+  },
+
+  updateFileContent: (content: string) => {
+    set((state) => {
+      if (state.activeFileIndex < 0) return state;
+
+      const newOpenFiles = [...state.openFiles];
+      newOpenFiles[state.activeFileIndex] = {
+        ...newOpenFiles[state.activeFileIndex],
+        content,
+        isDirty: true,
+      };
+
+      return {
+        openFiles: newOpenFiles,
+        fileContent: content,
+      };
+    });
+  },
+
+  saveFile: async () => {
+    const state = get();
+    const session = state.currentSession;
+    const activeFile = state.openFiles[state.activeFileIndex];
+
+    if (!session || !activeFile) return;
+
+    try {
+      await filesApi.write(session.id, activeFile.path, activeFile.content);
+
+      set((prevState) => {
+        const newOpenFiles = [...prevState.openFiles];
+        newOpenFiles[prevState.activeFileIndex] = {
+          ...newOpenFiles[prevState.activeFileIndex],
+          isDirty: false,
+        };
+        return { openFiles: newOpenFiles };
+      });
+
+      // Refresh git status
+      get().loadGitStatus();
+    } catch {
+      // Handle error
+    }
+  },
+
+  sendMessage: async (message: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      sessionId: session.id,
+      role: 'user',
+      content: message,
+      timestamp: new Date().toISOString(),
+    };
+
+    set((state) => ({
+      messages: [...state.messages, userMessage],
+      isStreaming: true,
+      streamingContent: '',
+    }));
+
+    try {
+      // Use streaming API
+      let content = '';
+      for await (const chunk of chatApi.stream(session.id, message, {
+        currentFile: get().currentFile?.path,
+      })) {
+        if (chunk.content) {
+          content += chunk.content;
+          set({ streamingContent: content });
+        }
+      }
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        sessionId: session.id,
+        role: 'assistant',
+        content,
+        timestamp: new Date().toISOString(),
+      };
+
+      set((state) => ({
+        messages: [...state.messages, assistantMessage],
+        isStreaming: false,
+        streamingContent: '',
+      }));
+
+      // Refresh files in case Claude made changes
+      get().loadFiles();
+      get().loadGitStatus();
+    } catch {
+      set({ isStreaming: false, streamingContent: '' });
+    }
+  },
+
+  clearMessages: () => set({ messages: [] }),
+
+  loadGitStatus: async () => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    try {
+      const result = await gitApi.status(session.id);
+      if (result.success && result.data) {
+        set({ gitStatus: result.data });
+      }
+    } catch {
+      // Not a git repo, ignore
+    }
+  },
+
+  stageFiles: async (files: string[]) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    try {
+      await gitApi.stage(session.id, files);
+      get().loadGitStatus();
+    } catch {
+      // Handle error
+    }
+  },
+
+  commitChanges: async (message: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    try {
+      await gitApi.commit(session.id, message);
+      get().loadGitStatus();
+    } catch {
+      // Handle error
+    }
+  },
+
+  execCommand: async (command: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    set((state) => ({
+      terminalOutput: [...state.terminalOutput, `$ ${command}`],
+    }));
+
+    try {
+      const result = await sessionsApi.exec(session.id, command);
+      if (result.success && result.data) {
+        const { stdout, stderr } = result.data;
+        set((state) => ({
+          terminalOutput: [
+            ...state.terminalOutput,
+            ...(stdout ? [stdout] : []),
+            ...(stderr ? [`[stderr] ${stderr}`] : []),
+          ],
+        }));
+      }
+    } catch (error) {
+      set((state) => ({
+        terminalOutput: [
+          ...state.terminalOutput,
+          `Error: ${error instanceof Error ? error.message : 'Command failed'}`,
+        ],
+      }));
+    }
+  },
+
+  clearTerminal: () => set({ terminalOutput: [] }),
+}));

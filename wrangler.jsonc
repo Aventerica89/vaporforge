@@ -1,0 +1,62 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vaporforge",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Cloudflare Sandbox configuration
+  "containers": {
+    "claude_sandbox": {
+      "image": "docker.io/cloudflare/sandbox:0.7.0",
+      "instance_type": "default",
+      "max_instances": 10
+    }
+  },
+
+  // Durable Objects for session persistence
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SESSIONS",
+        "class_name": "SessionDurableObject"
+      }
+    ]
+  },
+
+  // KV for auth tokens and metadata
+  "kv_namespaces": [
+    {
+      "binding": "AUTH_KV",
+      "id": "placeholder-auth-kv-id"
+    },
+    {
+      "binding": "SESSIONS_KV",
+      "id": "placeholder-sessions-kv-id"
+    }
+  ],
+
+  // R2 for file persistence
+  "r2_buckets": [
+    {
+      "binding": "FILES_BUCKET",
+      "bucket_name": "vaporforge-files"
+    }
+  ],
+
+  // Environment variables (set via wrangler secret)
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+
+  // Static assets for UI
+  "assets": {
+    "directory": "./ui/dist"
+  },
+
+  // Dev settings
+  "dev": {
+    "port": 8787,
+    "local_protocol": "http"
+  }
+}
