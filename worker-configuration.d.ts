@@ -6,8 +6,8 @@ interface Env {
   AUTH_KV: KVNamespace;
   SESSIONS_KV: KVNamespace;
 
-  // R2 Buckets (optional - enable R2 in dashboard first)
-  FILES_BUCKET?: R2Bucket;
+  // R2 Buckets
+  FILES_BUCKET: R2Bucket;
 
   // Durable Objects
   SESSIONS: DurableObjectNamespace;

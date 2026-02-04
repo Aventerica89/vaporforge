@@ -45,13 +45,13 @@
     }
   ],
 
-  // R2 for file persistence (enable R2 in dashboard first)
-  // "r2_buckets": [
-  //   {
-  //     "binding": "FILES_BUCKET",
-  //     "bucket_name": "vaporforge-files"
-  //   }
-  // ],
+  // R2 for file persistence
+  "r2_buckets": [
+    {
+      "binding": "FILES_BUCKET",
+      "bucket_name": "vaporforge-files"
+    }
+  ],
 
   // Environment variables (set via wrangler secret)
   "vars": {
