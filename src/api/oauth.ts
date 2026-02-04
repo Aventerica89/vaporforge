@@ -11,7 +11,7 @@ const POLL_INTERVAL_MS = 1000;
 
 // Rate limiting constants
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 10;
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
 
 // Credentials file path in the container
 const CREDENTIALS_PATH = '/root/.claude/.credentials.json';

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi } from '@/lib/api';
 import type { Session, FileInfo, Message, GitStatus } from '@/lib/types';
 
@@ -53,7 +53,7 @@ interface SandboxState {
   clearTerminal: () => void;
 }
 
-export const useSandboxStore = create<SandboxState>((set, get) => ({
+const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   currentSession: null,
   sessions: [],
   isLoadingSessions: false,
@@ -391,4 +391,6 @@ export const useSandboxStore = create<SandboxState>((set, get) => ({
   },
 
   clearTerminal: () => set({ terminalOutput: [] }),
-}));
+});
+
+export const useSandboxStore = create<SandboxState>()(createSandboxStore);
