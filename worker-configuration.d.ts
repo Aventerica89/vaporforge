@@ -13,7 +13,7 @@ interface Env {
   SESSIONS: DurableObjectNamespace;
 
   // Containers (Sandboxes)
-  claude_sandbox: Container;
+  SANDBOX_CONTAINER: DurableObjectNamespace;
 
   // Secrets (set via wrangler secret put)
   CLAUDE_API_KEY?: string;

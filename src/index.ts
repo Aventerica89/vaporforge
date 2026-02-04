@@ -1,7 +1,8 @@
 import { createRouter } from './router';
 import { SessionDurableObject } from './websocket';
+import { SandboxContainer } from './container';
 
-export { SessionDurableObject };
+export { SessionDurableObject, SandboxContainer };
 
 export default {
   async fetch(
