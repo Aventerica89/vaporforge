@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vaporforge",
+  "account_id": "e2613c1c17024c32ab14618614e2b309",
   "main": "src/index.ts",
   "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -24,25 +25,33 @@
     ]
   },
 
+  // Durable Objects migrations (SQLite-backed for free plan)
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SessionDurableObject"]
+    }
+  ],
+
   // KV for auth tokens and metadata
   "kv_namespaces": [
     {
       "binding": "AUTH_KV",
-      "id": "placeholder-auth-kv-id"
+      "id": "6f6c399216d24cb0845c15ede1a19aac"
     },
     {
       "binding": "SESSIONS_KV",
-      "id": "placeholder-sessions-kv-id"
+      "id": "90fcfe826a174349b9c599e0138d9dbf"
     }
   ],
 
-  // R2 for file persistence
-  "r2_buckets": [
-    {
-      "binding": "FILES_BUCKET",
-      "bucket_name": "vaporforge-files"
-    }
-  ],
+  // R2 for file persistence (enable R2 in dashboard first)
+  // "r2_buckets": [
+  //   {
+  //     "binding": "FILES_BUCKET",
+  //     "bucket_name": "vaporforge-files"
+  //   }
+  // ],
 
   // Environment variables (set via wrangler secret)
   "vars": {
@@ -53,6 +62,14 @@
   "assets": {
     "directory": "./ui/dist"
   },
+
+  // Custom domain
+  "routes": [
+    {
+      "pattern": "vaporforge.jbcloud.app/*",
+      "zone_name": "jbcloud.app"
+    }
+  ],
 
   // Dev settings
   "dev": {
