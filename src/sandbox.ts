@@ -11,7 +11,7 @@ export interface SandboxConfig {
 
 export class SandboxManager {
   constructor(
-    private sandboxNamespace: DurableObjectNamespace,
+    private sandboxNamespace: DurableObjectNamespace<Sandbox>,
     private sessionsKv: KVNamespace,
     private filesBucket: R2Bucket
   ) {}
@@ -231,7 +231,8 @@ export class SandboxManager {
     const sandbox = this.getSandboxInstance(sessionId);
 
     try {
-      return await sandbox.exists(path);
+      const result = await sandbox.exists(path);
+      return result.exists;
     } catch {
       return false;
     }

@@ -7,6 +7,7 @@ import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';
 import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
+import { oauthRoutes } from './api/oauth';
 import type { User } from './types';
 
 // Extend Hono context
@@ -21,12 +22,33 @@ export function createRouter(env: Env) {
 
   // Middleware
   app.use('*', logger());
+
+  // CORS with restricted origins
   app.use(
     '*',
     cors({
-      origin: '*',
+      origin: (origin) => {
+        // Allow requests with no origin (same-origin, mobile apps)
+        if (!origin) return '*';
+
+        const allowedOrigins = [
+          'https://vaporforge.jbcloud.app',
+        ];
+
+        // Allow localhost in development
+        if (env.ENVIRONMENT === 'development') {
+          allowedOrigins.push(
+            'http://localhost:5173',
+            'http://localhost:8787',
+            'http://127.0.0.1:5173',
+            'http://127.0.0.1:8787'
+          );
+        }
+
+        return allowedOrigins.includes(origin) ? origin : null;
+      },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-Client-Secret'],
       credentials: true,
     })
   );
@@ -63,68 +85,8 @@ export function createRouter(env: Env) {
     });
   });
 
-  // Auth routes (no auth required)
-  app.get('/api/auth/login', async (c) => {
-    const authService = c.get('authService');
-    const redirectUri = c.req.query('redirect_uri') || `${new URL(c.req.url).origin}/api/auth/callback`;
-    const state = crypto.randomUUID();
-
-    // Store state for CSRF protection
-    await env.AUTH_KV.put(`oauth_state:${state}`, 'pending', {
-      expirationTtl: 300, // 5 minutes
-    });
-
-    const url = authService.getOAuthUrl(redirectUri, state);
-    return c.redirect(url);
-  });
-
-  app.get('/api/auth/callback', async (c) => {
-    const authService = c.get('authService');
-    const code = c.req.query('code');
-    const state = c.req.query('state');
-
-    if (!code || !state) {
-      return c.json({ success: false, error: 'Missing code or state' }, 400);
-    }
-
-    // Verify state
-    const storedState = await env.AUTH_KV.get(`oauth_state:${state}`);
-    if (!storedState) {
-      return c.json({ success: false, error: 'Invalid state' }, 400);
-    }
-
-    await env.AUTH_KV.delete(`oauth_state:${state}`);
-
-    const redirectUri = `${new URL(c.req.url).origin}/api/auth/callback`;
-    const tokens = await authService.exchangeCode(code, redirectUri);
-
-    if (!tokens) {
-      return c.json(
-        { success: false, error: 'Failed to exchange code' },
-        400
-      );
-    }
-
-    const user = await authService.getOrCreateUser(tokens.accessToken);
-    if (!user) {
-      return c.json({ success: false, error: 'Failed to create user' }, 500);
-    }
-
-    const sessionToken = await authService.createSessionToken(user);
-
-    // Set cookie and redirect
-    return c.html(`
-      <html>
-        <head>
-          <script>
-            document.cookie = "session=${sessionToken}; path=/; max-age=${24 * 60 * 60}; samesite=lax";
-            window.location.href = "/";
-          </script>
-        </head>
-        <body>Redirecting...</body>
-      </html>
-    `);
-  });
+  // OAuth routes (no auth required - for 1Code-style login)
+  app.route('/api/oauth', oauthRoutes);
 
   // API key auth endpoint
   app.post('/api/auth/api-key', async (c) => {
@@ -138,6 +100,43 @@ export function createRouter(env: Env) {
     const user = await authService.authenticateWithApiKey(body.apiKey);
     if (!user) {
       return c.json({ success: false, error: 'Invalid API key' }, 401);
+    }
+
+    const sessionToken = await authService.createSessionToken(user);
+
+    return c.json({
+      success: true,
+      data: {
+        token: sessionToken,
+        user: {
+          id: user.id,
+          email: user.email,
+        },
+      },
+    });
+  });
+
+  // Claude OAuth token auth endpoint (for 1Code-style login)
+  app.post('/api/auth/claude-token', async (c) => {
+    const authService = c.get('authService');
+    const body = await c.req.json<{
+      accessToken: string;
+      refreshToken?: string;
+      expiresAt?: number;
+    }>();
+
+    if (!body.accessToken) {
+      return c.json({ success: false, error: 'Missing access token' }, 400);
+    }
+
+    const user = await authService.authenticateWithClaudeToken(
+      body.accessToken,
+      body.refreshToken,
+      body.expiresAt
+    );
+
+    if (!user) {
+      return c.json({ success: false, error: 'Authentication failed' }, 401);
     }
 
     const sessionToken = await authService.createSessionToken(user);
