@@ -67,6 +67,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   // Render OAuth URL and code input
   const renderOAuthFlow = () => {
     if (oauthFlow.step === 'starting' || oauthFlow.step === 'waiting_url') {
+      const debugInfo = oauthFlow.step === 'waiting_url' ? oauthFlow.debug : undefined;
       return (
         <div className="space-y-4">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -76,6 +77,16 @@ export function AuthGuard({ children }: AuthGuardProps) {
           <p className="text-center text-xs text-muted-foreground">
             This may take a few seconds
           </p>
+          {debugInfo && (
+            <details className="rounded-md border border-border p-2">
+              <summary className="cursor-pointer text-xs text-muted-foreground">
+                Debug Info
+              </summary>
+              <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap text-xs text-muted-foreground">
+                {debugInfo}
+              </pre>
+            </details>
+          )}
           <button
             type="button"
             onClick={cancelOAuth}
@@ -170,9 +181,21 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (oauthFlow.step === 'error') {
       return (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 rounded-md bg-red-500/10 p-3 text-sm text-red-500">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {oauthFlow.message}
+          <div className="rounded-md bg-red-500/10 p-3 text-sm text-red-500">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {oauthFlow.message}
+            </div>
+            {oauthFlow.debug && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs opacity-70">
+                  Debug Info
+                </summary>
+                <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap text-xs opacity-70">
+                  {oauthFlow.debug}
+                </pre>
+              </details>
+            )}
           </div>
           <button
             type="button"

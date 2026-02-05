@@ -6,12 +6,12 @@ import type { User } from '@/lib/types';
 type OAuthFlowState =
   | { step: 'idle' }
   | { step: 'starting' }
-  | { step: 'waiting_url'; sessionId: string }
+  | { step: 'waiting_url'; sessionId: string; debug?: string }
   | { step: 'has_url'; sessionId: string; url: string }
   | { step: 'waiting_code'; sessionId: string; url: string }
   | { step: 'submitting'; sessionId: string }
   | { step: 'success' }
-  | { step: 'error'; message: string };
+  | { step: 'error'; message: string; debug?: string };
 
 interface AuthState {
   user: User | null;
@@ -184,7 +184,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const result = await authApi.pollOAuthStatus(sessionId);
 
         if (result.success && result.data) {
-          const session = result.data;
+          const session = result.data as {
+            state: string;
+            oauthUrl?: string;
+            error?: string;
+            debug?: { output?: string; claudeCheck?: string; error?: string };
+          };
 
           if (session.state === 'has_url' && session.oauthUrl) {
             set({
@@ -198,13 +203,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           }
 
           if (session.state === 'error') {
+            const debugStr = session.debug
+              ? JSON.stringify(session.debug, null, 2)
+              : undefined;
             set({
               oauthFlow: {
                 step: 'error',
                 message: session.error || 'OAuth failed',
+                debug: debugStr,
               },
             });
             return;
+          }
+
+          // Update debug info while waiting
+          if (session.debug) {
+            const currentState = get().oauthFlow;
+            if (currentState.step === 'waiting_url') {
+              set({
+                oauthFlow: {
+                  ...currentState,
+                  debug: JSON.stringify(session.debug, null, 2),
+                },
+              });
+            }
           }
         }
 
@@ -212,10 +234,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (attempts < MAX_POLL_ATTEMPTS) {
           setTimeout(poll, POLL_INTERVAL_MS);
         } else {
+          const currentState = get().oauthFlow;
+          const debugInfo = currentState.step === 'waiting_url'
+            ? currentState.debug
+            : undefined;
           set({
             oauthFlow: {
               step: 'error',
-              message: 'Timeout waiting for OAuth URL',
+              message: 'Timeout waiting for OAuth URL. The Claude CLI may not be available.',
+              debug: debugInfo,
             },
           });
         }

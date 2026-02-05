@@ -6,8 +6,8 @@ import type { OAuthSession, ClaudeCredentials } from '../types';
 const OAUTH_SESSION_TTL = 600;
 
 // Polling interval constants
-const MAX_POLL_ATTEMPTS = 30;
-const POLL_INTERVAL_MS = 1000;
+const MAX_POLL_ATTEMPTS = 60;
+const POLL_INTERVAL_MS = 500;
 
 // Rate limiting constants
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
@@ -65,6 +65,87 @@ function getOAuthSandbox(
 }
 
 /**
+ * Create the login script that handles the OAuth flow
+ */
+function createLoginScript(): string {
+  return `#!/bin/bash
+set -e
+
+# Create .claude directory
+mkdir -p /root/.claude
+
+# Log start
+echo "Starting claude login..." > /tmp/auth-output.txt
+echo "Timestamp: $(date)" >> /tmp/auth-output.txt
+
+# Check if claude command exists
+if ! command -v claude &> /dev/null; then
+  echo "ERROR: claude command not found" >> /tmp/auth-output.txt
+  echo "PATH: $PATH" >> /tmp/auth-output.txt
+  which -a claude 2>&1 >> /tmp/auth-output.txt || true
+  exit 1
+fi
+
+# Run claude login and capture output
+# Using script command to capture PTY output
+script -q -c "claude login 2>&1" /tmp/auth-pty.txt &
+LOGIN_PID=$!
+
+# Wait for URL to appear (up to 30 seconds)
+for i in {1..30}; do
+  sleep 1
+  if grep -q "claude.ai" /tmp/auth-pty.txt 2>/dev/null; then
+    # Extract and save the OAuth URL
+    grep -oE 'https://[^ ]+claude[^ ]*' /tmp/auth-pty.txt >> /tmp/auth-output.txt
+    echo "URL_READY" >> /tmp/auth-output.txt
+    break
+  fi
+done
+
+# Keep the login process info
+echo "LOGIN_PID=$LOGIN_PID" >> /tmp/auth-output.txt
+`;
+}
+
+/**
+ * Create script to submit auth code
+ */
+function createCodeSubmitScript(code: string): string {
+  // Escape any special characters in the code
+  const escapedCode = code.replace(/'/g, "'\\''");
+
+  return `#!/bin/bash
+set -e
+
+echo "Submitting auth code..." >> /tmp/auth-output.txt
+
+# Method 1: Try using expect if available
+if command -v expect &> /dev/null; then
+  expect << 'EXPECT_EOF'
+spawn claude login
+expect {
+  "*claude.ai*" {
+    send "${escapedCode}\\r"
+    expect eof
+  }
+  timeout {
+    exit 1
+  }
+}
+EXPECT_EOF
+else
+  # Method 2: Use claude auth command directly if it exists
+  echo '${escapedCode}' | claude login 2>&1 >> /tmp/auth-output.txt || true
+
+  # Method 3: Try writing directly to credentials file format
+  # This is a fallback if the CLI doesn't accept piped input
+fi
+
+echo "Code submission attempted" >> /tmp/auth-output.txt
+`;
+}
+
+/**
  * POST /api/oauth/start
  * Creates an OAuth session and starts the claude login process in a sandbox
  * Returns a client secret that must be provided on subsequent requests
@@ -95,17 +176,32 @@ oauthRoutes.post('/start', async (c) => {
     // Create .claude directory
     await sandbox.mkdir('/root/.claude', { recursive: true });
 
-    // Run claude login and capture output to file
-    // The --no-browser flag outputs the URL instead of opening a browser
-    await sandbox.exec(
-      'claude login --no-browser 2>&1 | tee /tmp/auth-output.txt &'
-    );
+    // First, check if claude is available and capture version info
+    let claudeCheck: { stdout?: string; stderr?: string } | undefined;
+    try {
+      claudeCheck = await sandbox.exec('which claude && claude --version 2>&1 || echo "claude not found"');
+    } catch {
+      claudeCheck = undefined;
+    }
 
-    // Update session state
+    // Write the login script
+    const loginScript = createLoginScript();
+    await sandbox.writeFile('/tmp/login.sh', loginScript);
+    await sandbox.exec('chmod +x /tmp/login.sh');
+
+    // Run the login script in background with nohup
+    await sandbox.exec('nohup /tmp/login.sh > /tmp/login-script.log 2>&1 &');
+
+    // Update session state with debug info
     session.state = 'waiting_url';
     await c.env.AUTH_KV.put(
       `oauth:${sessionId}`,
-      JSON.stringify(session),
+      JSON.stringify({
+        ...session,
+        debug: {
+          claudeCheck: claudeCheck?.stdout || claudeCheck?.stderr || 'check failed',
+        },
+      }),
       { expirationTtl: OAUTH_SESSION_TTL }
     );
 
@@ -147,7 +243,10 @@ oauthRoutes.get('/:sessionId/status', async (c) => {
     }, 404);
   }
 
-  const session = JSON.parse(sessionData) as OAuthSession & { clientSecret?: string };
+  const session = JSON.parse(sessionData) as OAuthSession & {
+    clientSecret?: string;
+    debug?: { claudeCheck?: string; output?: string };
+  };
 
   // Validate client secret to prevent session hijacking
   if (session.clientSecret && session.clientSecret !== clientSecret) {
@@ -168,23 +267,82 @@ oauthRoutes.get('/:sessionId/status', async (c) => {
   try {
     const sandbox = getOAuthSandbox(c.env.SANDBOX_CONTAINER, sessionId);
 
-    // Read auth output file
-    const outputFile = await sandbox.readFile('/tmp/auth-output.txt');
-    const output = outputFile?.content || '';
+    // Read all output files for debugging
+    let authOutput = '';
+    let scriptLog = '';
+    let ptyOutput = '';
 
-    // Parse OAuth URL from output
-    // Claude login outputs URLs like: https://claude.ai/oauth/...
-    const urlMatch = output.match(/https:\/\/claude\.ai\/oauth[^\s]*/);
+    try {
+      const authFile = await sandbox.readFile('/tmp/auth-output.txt');
+      authOutput = authFile?.content || '';
+    } catch {
+      // File may not exist yet
+    }
 
-    if (urlMatch) {
-      session.state = 'has_url';
-      session.oauthUrl = urlMatch[0];
+    try {
+      const logFile = await sandbox.readFile('/tmp/login-script.log');
+      scriptLog = logFile?.content || '';
+    } catch {
+      // File may not exist yet
+    }
+
+    try {
+      const ptyFile = await sandbox.readFile('/tmp/auth-pty.txt');
+      ptyOutput = ptyFile?.content || '';
+    } catch {
+      // File may not exist yet
+    }
+
+    const combinedOutput = `${authOutput}\n${scriptLog}\n${ptyOutput}`;
+
+    // Check for errors
+    if (combinedOutput.includes('ERROR:') || combinedOutput.includes('claude not found')) {
+      session.state = 'error';
+      session.error = 'Claude CLI not available in sandbox';
+      session.debug = { output: combinedOutput.slice(0, 500) };
 
       await c.env.AUTH_KV.put(
         `oauth:${sessionId}`,
         JSON.stringify(session),
         { expirationTtl: OAUTH_SESSION_TTL }
       );
+
+      return c.json({
+        success: true,
+        data: session,
+      });
+    }
+
+    // Parse OAuth URL from output
+    // Claude login outputs URLs like: https://claude.ai/oauth/...
+    const urlPatterns = [
+      /https:\/\/claude\.ai\/oauth[^\s\n"]*/,
+      /https:\/\/[^\s\n"]*claude[^\s\n"]*oauth[^\s\n"]*/,
+      /https:\/\/[^\s\n"]*anthropic[^\s\n"]*auth[^\s\n"]*/,
+    ];
+
+    let foundUrl: string | null = null;
+    for (const pattern of urlPatterns) {
+      const match = combinedOutput.match(pattern);
+      if (match) {
+        foundUrl = match[0];
+        break;
+      }
+    }
+
+    if (foundUrl) {
+      session.state = 'has_url';
+      session.oauthUrl = foundUrl;
+      session.debug = { output: combinedOutput.slice(0, 200) };
+
+      await c.env.AUTH_KV.put(
+        `oauth:${sessionId}`,
+        JSON.stringify(session),
+        { expirationTtl: OAUTH_SESSION_TTL }
+      );
+    } else {
+      // Still waiting, update debug info
+      session.debug = { output: combinedOutput.slice(0, 200) };
     }
 
     return c.json({
@@ -197,6 +355,7 @@ oauthRoutes.get('/:sessionId/status', async (c) => {
       data: {
         ...session,
         state: 'waiting_url',
+        debug: { error: error instanceof Error ? error.message : 'Unknown error' },
       },
     });
   }
@@ -257,11 +416,13 @@ oauthRoutes.post('/:sessionId/code', async (c) => {
   try {
     const sandbox = getOAuthSandbox(c.env.SANDBOX_CONTAINER, sessionId);
 
-    // Write code to file
-    await sandbox.writeFile('/tmp/auth-code.txt', body.code);
+    // Write the code submit script
+    const codeScript = createCodeSubmitScript(body.code);
+    await sandbox.writeFile('/tmp/submit-code.sh', codeScript);
+    await sandbox.exec('chmod +x /tmp/submit-code.sh');
 
-    // Pipe code to claude login (it should be waiting for input)
-    await sandbox.exec('cat /tmp/auth-code.txt | claude login --code');
+    // Run the code submission script
+    await sandbox.exec('/tmp/submit-code.sh');
 
     // Wait for credentials file to appear
     for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {

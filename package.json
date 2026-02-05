@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "dev:ui": "cd ui && npm run dev",
     "build": "npm run build:ui && wrangler deploy --dry-run",
-    "build:ui": "cd ui && npm run build",
+    "build:ui": "cd ui && npm ci && npm run build",
     "deploy": "npm run build:ui && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
