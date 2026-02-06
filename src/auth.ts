@@ -129,39 +129,93 @@ export class AuthService {
   }
 
   // Authenticate with setup token (from `claude setup-token`)
-  // The token is a long-lived OAuth access token (sk-ant-oat01-...) that
-  // must be used with Authorization: Bearer header (NOT x-api-key).
+  // Tries multiple auth methods since token type determines the header.
   async authenticateWithSetupToken(
     token: string
-  ): Promise<{ user: User; sessionToken: string } | null> {
-    // Validate token by making a lightweight API call to Anthropic
-    // OAuth tokens use Bearer auth, not x-api-key
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+  ): Promise<{ user: User; sessionToken: string; error?: string } | null> {
+    const requestBody = JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    });
+
+    const errors: string[] = [];
+
+    // Method 1: Authorization: Bearer (for OAuth access tokens)
+    const bearerResp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1,
-        messages: [{ role: 'user', content: 'hi' }],
-      }),
+      body: requestBody,
     });
 
-    // 200 = valid token, 400 = valid token but bad request (still valid!)
-    // 401/403 = invalid token
-    if (response.status === 401 || response.status === 403) {
-      return null;
+    if (bearerResp.status !== 401 && bearerResp.status !== 403) {
+      const user = await this.getOrCreateUser(token);
+      if (!user) return null;
+      const sessionToken = await this.createSessionToken(user);
+      return { user, sessionToken };
     }
 
-    // Create user from the token directly
-    const user = await this.getOrCreateUser(token);
-    if (!user) return null;
+    const bearerErr = await bearerResp.text();
+    errors.push(`Bearer: ${bearerResp.status} ${bearerErr}`);
 
-    const sessionToken = await this.createSessionToken(user);
-    return { user, sessionToken };
+    // Method 2: x-api-key (for API keys)
+    const apiKeyResp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': token,
+        'anthropic-version': '2023-06-01',
+      },
+      body: requestBody,
+    });
+
+    if (apiKeyResp.status !== 401 && apiKeyResp.status !== 403) {
+      const user = await this.getOrCreateUser(token);
+      if (!user) return null;
+      const sessionToken = await this.createSessionToken(user);
+      return { user, sessionToken };
+    }
+
+    const apiKeyErr = await apiKeyResp.text();
+    errors.push(`x-api-key: ${apiKeyResp.status} ${apiKeyErr}`);
+
+    // Method 3: Try as refresh token exchange
+    const refreshResp = await fetch('https://api.anthropic.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: token,
+        client_id: 'claude-desktop',
+      }).toString(),
+    });
+
+    if (refreshResp.ok) {
+      const data = await refreshResp.json() as {
+        access_token: string;
+        refresh_token?: string;
+      };
+      // Use the exchanged access token
+      const user = await this.getOrCreateUser(data.access_token);
+      if (!user) return null;
+      const sessionToken = await this.createSessionToken(user);
+      return { user, sessionToken };
+    }
+
+    const refreshErr = await refreshResp.text();
+    errors.push(`refresh: ${refreshResp.status} ${refreshErr}`);
+
+    // All methods failed - return error detail
+    console.error('Auth failed:', errors.join(' | '));
+    return {
+      user: null as unknown as User,
+      sessionToken: '',
+      error: errors.join(' | '),
+    };
   }
 
   // Refresh Claude OAuth token

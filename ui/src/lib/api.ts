@@ -38,10 +38,13 @@ export const authApi = {
     const data = await response.json() as ApiResponse<{
       sessionToken: string;
       user: User;
-    }>;
+    }> & { debug?: string };
 
     if (!response.ok || !data.success || !data.data) {
-      throw new Error(data.error || 'Authentication failed');
+      const msg = data.debug
+        ? `${data.error}: ${data.debug}`
+        : (data.error || 'Authentication failed');
+      throw new Error(msg);
     }
 
     return data.data;
