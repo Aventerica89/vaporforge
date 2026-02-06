@@ -19,7 +19,7 @@ const SendMessageSchema = z.object({
   }).optional(),
 });
 
-// Send a message to Claude
+// Send a message to Claude (via Claude Code in sandbox)
 chatRoutes.post('/send', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
@@ -62,37 +62,24 @@ chatRoutes.post('/send', async (c) => {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
-  // Build system context
-  let systemContext = 'You are Claude, an AI assistant helping with coding tasks.';
+  // Build prompt with context
+  let prompt = message;
 
   if (context?.currentFile) {
-    systemContext += `\n\nThe user is currently viewing: ${context.currentFile}`;
-
-    // Read file content if in sandbox
-    if (session.sandboxId) {
-      const content = await sandboxManager.readFile(
-        session.sandboxId,
-        context.currentFile
-      );
-      if (content) {
-        systemContext += `\n\nFile content:\n\`\`\`\n${content}\n\`\`\``;
-      }
-    }
+    prompt = `I'm currently viewing: ${context.currentFile}\n\n${message}`;
   }
 
   if (context?.selectedCode) {
-    systemContext += `\n\nSelected code:\n\`\`\`\n${context.selectedCode}\n\`\`\``;
+    prompt = `Selected code:\n\`\`\`\n${context.selectedCode}\n\`\`\`\n\n${message}`;
   }
 
   try {
-    // Call Claude API
-    const claudeResponse = await callClaudeAPI(
-      c.env,
-      user,
-      systemContext,
-      message,
+    // Route through Claude Code in the sandbox
+    const claudeResponse = await callClaudeInSandbox(
+      sandboxManager,
       sessionId,
-      sandboxManager
+      user,
+      prompt
     );
 
     // Store assistant message
@@ -100,9 +87,8 @@ chatRoutes.post('/send', async (c) => {
       id: crypto.randomUUID(),
       sessionId,
       role: 'assistant',
-      content: claudeResponse.content,
+      content: claudeResponse,
       timestamp: new Date().toISOString(),
-      toolCalls: claudeResponse.toolCalls,
     };
 
     await c.env.SESSIONS_KV.put(
@@ -142,8 +128,6 @@ chatRoutes.get('/history/:sessionId', async (c) => {
   const messages: Message[] = [];
   const prefix = `message:${sessionId}:`;
 
-  // Note: KV list is eventually consistent
-  // For production, use Durable Objects or D1 for message storage
   const list = await c.env.SESSIONS_KV.list({ prefix });
 
   for (const key of list.keys) {
@@ -193,26 +177,39 @@ chatRoutes.post('/stream', async (c) => {
     }, 404);
   }
 
-  // Create streaming response
+  // Build prompt with context
+  let prompt = message;
+  if (context?.currentFile) {
+    prompt = `I'm currently viewing: ${context.currentFile}\n\n${message}`;
+  }
+
+  // For streaming, use SSE with sandbox exec
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
 
-  // Start streaming in background
   c.executionCtx.waitUntil((async () => {
     try {
-      await streamClaudeResponse(
-        c.env,
-        user,
-        message,
-        sessionId,
+      const response = await callClaudeInSandbox(
         sandboxManager,
-        context,
-        async (chunk) => {
-          await writer.write(
-            encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`)
-          );
-        }
+        sessionId,
+        user,
+        prompt
+      );
+
+      // Send the full response as a single chunk
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({ type: 'text', content: response })}\n\n`
+        )
+      );
+      await writer.write(encoder.encode('data: [DONE]\n\n'));
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      await writer.write(
+        encoder.encode(
+          `data: ${JSON.stringify({ type: 'error', content: msg })}\n\n`
+        )
       );
     } finally {
       await writer.close();
@@ -228,259 +225,93 @@ chatRoutes.post('/stream', async (c) => {
   });
 });
 
-// Helper function to call Claude API
-async function callClaudeAPI(
-  env: Env,
-  user: User,
-  systemContext: string,
-  message: string,
-  sessionId: string,
-  sandboxManager: import('../sandbox').SandboxManager
-): Promise<{ content: string; toolCalls?: Message['toolCalls'] }> {
-  if (!user.claudeToken) {
-    throw new Error('No Claude token available. Please re-authenticate.');
-  }
-
-  // OAuth tokens (sk-ant-oat01-...) use Bearer auth, not x-api-key
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${user.claudeToken}`,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      system: systemContext,
-      messages: [
-        { role: 'user', content: message },
-      ],
-      tools: getAvailableTools(sessionId, sandboxManager),
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error: ${error}`);
-  }
-
-  const data = await response.json() as {
-    content: Array<{ type: string; text?: string; id?: string; name?: string; input?: Record<string, unknown> }>;
-  };
-
-  // Process response
-  let content = '';
-  const toolCalls: Message['toolCalls'] = [];
-
-  for (const block of data.content) {
-    if (block.type === 'text' && block.text) {
-      content += block.text;
-    } else if (block.type === 'tool_use' && block.id && block.name && block.input) {
-      toolCalls.push({
-        id: block.id,
-        name: block.name,
-        input: block.input,
-      });
-    }
-  }
-
-  // Execute tool calls if any
-  for (const tool of toolCalls) {
-    const result = await executeToolCall(
-      tool.name,
-      tool.input,
-      sessionId,
-      sandboxManager
-    );
-    tool.output = result;
-  }
-
-  return { content, toolCalls: toolCalls.length > 0 ? toolCalls : undefined };
-}
-
-// Stream Claude response
-async function streamClaudeResponse(
-  env: Env,
-  user: User,
-  message: string,
-  sessionId: string,
+// Call Claude Code inside the sandbox
+// Uses `claude -p "prompt"` which handles OAuth auth natively
+async function callClaudeInSandbox(
   sandboxManager: import('../sandbox').SandboxManager,
-  context?: { currentFile?: string; selectedCode?: string },
-  onChunk?: (chunk: { type: string; content?: string; tool?: string }) => Promise<void>
-): Promise<void> {
+  sessionId: string,
+  user: User,
+  prompt: string
+): Promise<string> {
   if (!user.claudeToken) {
     throw new Error('No Claude token available. Please re-authenticate.');
   }
 
-  let systemContext = 'You are Claude, an AI assistant helping with coding tasks.';
+  // Escape the prompt for shell safety
+  const escapedPrompt = prompt
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "'\\''");
 
-  if (context?.currentFile) {
-    systemContext += `\n\nThe user is currently viewing: ${context.currentFile}`;
+  // Run claude in print mode inside the sandbox
+  // Pass the OAuth token via CLAUDE_API_KEY env var
+  // Claude Code will handle the authentication
+  const result = await sandboxManager.execInSandbox(
+    sessionId,
+    `CLAUDE_API_KEY='${escapedToken(user.claudeToken)}' claude -p '${escapedPrompt}'`,
+    {
+      cwd: '/workspace',
+      timeout: 120000, // 2 minute timeout for AI responses
+    }
+  );
+
+  if (result.exitCode !== 0) {
+    // If CLAUDE_API_KEY doesn't work, try writing credentials directly
+    if (result.stderr.includes('authentication') || result.stderr.includes('token')) {
+      return await callClaudeWithCredFile(
+        sandboxManager,
+        sessionId,
+        user,
+        prompt,
+        escapedPrompt
+      );
+    }
+    throw new Error(
+      result.stderr || 'Claude Code returned an error'
+    );
   }
 
-  // OAuth tokens (sk-ant-oat01-...) use Bearer auth, not x-api-key
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${user.claudeToken}`,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      stream: true,
-      system: systemContext,
-      messages: [
-        { role: 'user', content: message },
-      ],
-      tools: getAvailableTools(sessionId, sandboxManager),
-    }),
+  return result.stdout.trim() || 'No response from Claude';
+}
+
+// Fallback: write credentials file and retry
+async function callClaudeWithCredFile(
+  sandboxManager: import('../sandbox').SandboxManager,
+  sessionId: string,
+  user: User,
+  _prompt: string,
+  escapedPrompt: string
+): Promise<string> {
+  // Write OAuth token to Claude Code's config
+  const credJson = JSON.stringify({
+    oauth_token: user.claudeToken,
   });
 
-  if (!response.ok) {
-    throw new Error('Failed to stream response');
-  }
+  await sandboxManager.execInSandbox(
+    sessionId,
+    `mkdir -p ~/.claude && echo '${credJson.replace(/'/g, "'\\''")}' > ~/.claude/.credentials.json`,
+    { timeout: 5000 }
+  );
 
-  const reader = response.body?.getReader();
-  if (!reader) return;
-
-  const decoder = new TextDecoder();
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const text = decoder.decode(value);
-    const lines = text.split('\n');
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
-
-        try {
-          const event = JSON.parse(data) as {
-            type: string;
-            delta?: { type: string; text?: string };
-          };
-
-          if (event.type === 'content_block_delta' && event.delta?.text) {
-            await onChunk?.({ type: 'text', content: event.delta.text });
-          }
-        } catch {
-          // Skip invalid JSON
-        }
-      }
+  // Retry with credentials file in place
+  const result = await sandboxManager.execInSandbox(
+    sessionId,
+    `claude -p '${escapedPrompt}'`,
+    {
+      cwd: '/workspace',
+      timeout: 120000,
     }
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(
+      result.stderr || 'Claude Code failed after credential setup'
+    );
   }
+
+  return result.stdout.trim() || 'No response from Claude';
 }
 
-// Get available tools for Claude
-function getAvailableTools(
-  sessionId: string,
-  sandboxManager: import('../sandbox').SandboxManager
-) {
-  return [
-    {
-      name: 'read_file',
-      description: 'Read the contents of a file',
-      input_schema: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'File path to read' },
-        },
-        required: ['path'],
-      },
-    },
-    {
-      name: 'write_file',
-      description: 'Write content to a file',
-      input_schema: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'File path to write' },
-          content: { type: 'string', description: 'Content to write' },
-        },
-        required: ['path', 'content'],
-      },
-    },
-    {
-      name: 'list_files',
-      description: 'List files in a directory',
-      input_schema: {
-        type: 'object',
-        properties: {
-          path: { type: 'string', description: 'Directory path' },
-        },
-        required: ['path'],
-      },
-    },
-    {
-      name: 'execute_command',
-      description: 'Execute a shell command',
-      input_schema: {
-        type: 'object',
-        properties: {
-          command: { type: 'string', description: 'Command to execute' },
-          cwd: { type: 'string', description: 'Working directory' },
-        },
-        required: ['command'],
-      },
-    },
-  ];
-}
-
-// Execute a tool call
-async function executeToolCall(
-  name: string,
-  input: Record<string, unknown>,
-  sessionId: string,
-  sandboxManager: import('../sandbox').SandboxManager
-): Promise<string> {
-  // Get session's sandbox ID
-  const session = await sandboxManager.getOrWakeSandbox(sessionId);
-  if (!session?.sandboxId) {
-    return 'Error: No sandbox available';
-  }
-
-  switch (name) {
-    case 'read_file': {
-      const content = await sandboxManager.readFile(
-        session.sandboxId,
-        input.path as string
-      );
-      return content || 'Error: File not found';
-    }
-
-    case 'write_file': {
-      const success = await sandboxManager.writeFile(
-        session.sandboxId,
-        input.path as string,
-        input.content as string
-      );
-      return success ? 'File written successfully' : 'Error: Failed to write file';
-    }
-
-    case 'list_files': {
-      const files = await sandboxManager.listFiles(
-        session.sandboxId,
-        input.path as string
-      );
-      return JSON.stringify(files, null, 2);
-    }
-
-    case 'execute_command': {
-      const result = await sandboxManager.execInSandbox(
-        session.sandboxId,
-        ['sh', '-c', input.command as string],
-        { cwd: input.cwd as string }
-      );
-      return `Exit code: ${result.exitCode}\nStdout: ${result.stdout}\nStderr: ${result.stderr}`;
-    }
-
-    default:
-      return `Unknown tool: ${name}`;
-  }
+// Helper to escape token for shell
+function escapedToken(token: string): string {
+  return token.replace(/'/g, "'\\''");
 }
