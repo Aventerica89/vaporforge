@@ -226,7 +226,7 @@ chatRoutes.post('/stream', async (c) => {
 });
 
 // Call Claude Code inside the sandbox
-// Credentials are set up during session creation (env var + credential file)
+// Uses the same pattern as official cloudflare/sandbox-sdk/examples/claude-code
 async function callClaudeInSandbox(
   sandboxManager: import('../sandbox').SandboxManager,
   sessionId: string,
@@ -237,15 +237,25 @@ async function callClaudeInSandbox(
     throw new Error('No Claude token available. Please re-authenticate.');
   }
 
-  // Pass prompt via env var and pipe to claude via stdin
-  // This avoids all shell escaping issues and matches CLI's expected input
+  // Determine env var based on token type
+  // OAuth tokens (sk-ant-oat01-) vs API keys (sk-ant-api01-)
+  const isOAuthToken = user.claudeToken.startsWith('sk-ant-oat01-');
+  const authEnv: Record<string, string> = isOAuthToken
+    ? { CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken }
+    : { ANTHROPIC_API_KEY: user.claudeToken };
+
+  // Pass prompt via env var to avoid shell escaping issues
+  // Use claude -p like the official example with --permission-mode acceptEdits
   const result = await sandboxManager.execInSandbox(
     sessionId,
-    'printf \'%s\' "$CLAUDE_PROMPT" | claude --print',
+    'printf \'%s\' "$CLAUDE_PROMPT" | claude --print --permission-mode acceptEdits',
     {
       cwd: '/workspace',
-      env: { CLAUDE_PROMPT: prompt },
-      timeout: 120000, // 2 minute timeout for AI responses
+      env: {
+        CLAUDE_PROMPT: prompt,
+        ...authEnv,
+      },
+      timeout: 300000, // 5 min timeout (matches official COMMAND_TIMEOUT_MS)
     }
   );
 

@@ -33,36 +33,12 @@ sessionRoutes.post('/create', async (c) => {
   const sessionId = crypto.randomUUID();
 
   try {
+    // Bare minimum: no env vars, no credential files
+    // Just create sandbox and workspace directory
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
-      env: {
-        // Set ANTHROPIC_API_KEY for Claude Code CLI auth
-        ANTHROPIC_API_KEY: user.claudeToken || '',
-      },
     });
-
-    // Write Claude Code credentials file for OAuth token support
-    // This handles sk-ant-oat01- tokens that need credential file auth
-    if (user.claudeToken) {
-      try {
-        const homeResult = await sandboxManager.execInSandbox(
-          sessionId, 'echo $HOME', { timeout: 5000 }
-        );
-        const home = homeResult.stdout?.trim() || '/root';
-        await sandboxManager.mkdir(sessionId, `${home}/.claude`);
-        const credJson = JSON.stringify({
-          claudeAiOauth: { token: user.claudeToken },
-        });
-        await sandboxManager.writeFile(
-          sessionId,
-          `${home}/.claude/.credentials.json`,
-          credJson
-        );
-      } catch {
-        // Non-fatal: env var may be sufficient for API key tokens
-      }
-    }
 
     // Store session metadata
     if (parsed.data.name) {
@@ -340,6 +316,125 @@ sessionRoutes.post('/:sessionId/clone', async (c) => {
     data: {
       repo: body.repo,
       path: targetPath,
+    },
+  });
+});
+
+// Debug: get termination error for a session
+sessionRoutes.get('/debug/error/:sessionId', async (c) => {
+  const sessionId = c.req.param('sessionId');
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`, 'json'
+  );
+  if (!session) {
+    return c.json({ success: false, error: 'Session not found' }, 404);
+  }
+  return c.json({
+    success: true,
+    data: {
+      id: session.id,
+      status: session.status,
+      metadata: session.metadata,
+      createdAt: session.createdAt,
+      lastActiveAt: session.lastActiveAt,
+    },
+  });
+});
+
+// Debug: test sandbox operations step-by-step
+sessionRoutes.post('/debug/sandbox', async (c) => {
+  const sandboxManager = c.get('sandboxManager');
+  const debugId = `debug-${crypto.randomUUID().slice(0, 8)}`;
+  const steps: Array<{ step: string; ok: boolean; ms: number; detail?: string }> = [];
+
+  const runStep = async (name: string, fn: () => Promise<string | void>) => {
+    const t0 = Date.now();
+    try {
+      const detail = await fn();
+      steps.push({ step: name, ok: true, ms: Date.now() - t0, detail: detail || 'success' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      steps.push({ step: name, ok: false, ms: Date.now() - t0, detail: msg });
+    }
+  };
+
+  // Step 1: Can we create a sandbox at all?
+  await runStep('createSandbox', async () => {
+    const session = await sandboxManager.createSandbox(debugId, 'debug-user');
+    return `status=${session.status}`;
+  });
+
+  // Only continue if sandbox created
+  if (steps[0]?.ok) {
+    // Step 2: Can we exec a simple command?
+    await runStep('exec: whoami', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'whoami', { timeout: 10000 });
+      if (r.exitCode !== 0) throw new Error(`exit=${r.exitCode} stderr=${r.stderr}`);
+      return r.stdout.trim();
+    });
+
+    // Step 3: Can we exec echo?
+    await runStep('exec: echo hello', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'echo hello', { timeout: 10000 });
+      if (r.exitCode !== 0) throw new Error(`exit=${r.exitCode} stderr=${r.stderr}`);
+      return r.stdout.trim();
+    });
+
+    // Step 4: Is claude CLI available?
+    await runStep('exec: which claude', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'which claude', { timeout: 10000 });
+      if (r.exitCode !== 0) throw new Error(`not found: stderr=${r.stderr}`);
+      return r.stdout.trim();
+    });
+
+    // Step 5: Check claude --help
+    await runStep('exec: claude --help (first 200 chars)', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'claude --help 2>&1 | head -20', { timeout: 15000 });
+      return (r.stdout || r.stderr).trim().slice(0, 200);
+    });
+
+    // Step 6: Can we write a file?
+    await runStep('writeFile: /tmp/test.txt', async () => {
+      const ok = await sandboxManager.writeFile(debugId, '/tmp/test.txt', 'hello');
+      if (!ok) throw new Error('writeFile returned false');
+      return 'written';
+    });
+
+    // Step 7: Can we read it back?
+    await runStep('readFile: /tmp/test.txt', async () => {
+      const content = await sandboxManager.readFile(debugId, '/tmp/test.txt');
+      if (!content) throw new Error('readFile returned null');
+      return content;
+    });
+
+    // Step 8: Check env vars
+    await runStep('exec: env | grep -i claude', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'env | grep -i -E "claude|anthropic" || echo "none found"', { timeout: 10000 });
+      return (r.stdout || 'empty').trim().slice(0, 200);
+    });
+
+    // Step 9: Check home directory
+    await runStep('exec: echo $HOME', async () => {
+      const r = await sandboxManager.execInSandbox(debugId, 'echo $HOME', { timeout: 5000 });
+      return r.stdout.trim();
+    });
+
+    // Cleanup
+    try {
+      await c.env.SESSIONS_KV.delete(`session:${debugId}`);
+    } catch { /* ignore */ }
+  }
+
+  return c.json({
+    success: true,
+    data: {
+      sandboxId: debugId,
+      steps,
+      summary: {
+        total: steps.length,
+        passed: steps.filter(s => s.ok).length,
+        failed: steps.filter(s => !s.ok).length,
+      },
     },
   });
 });
