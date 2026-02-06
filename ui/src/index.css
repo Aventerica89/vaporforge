@@ -386,3 +386,10 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Word breaking utilities */
+@layer utilities {
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
+}
