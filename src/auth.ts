@@ -69,9 +69,7 @@ async function verifyToken(
 export class AuthService {
   constructor(
     private kv: KVNamespace,
-    private jwtSecret: string,
-    private _clientId?: string,
-    private _clientSecret?: string
+    private jwtSecret: string
   ) {}
 
   // Create or get user from Claude OAuth token
@@ -130,36 +128,49 @@ export class AuthService {
     return this.kv.get<User>(`user:${payload.sub}`, 'json');
   }
 
-  // API Key authentication (fallback when OAuth not available)
-  async authenticateWithApiKey(apiKey: string): Promise<User | null> {
-    // Validate API key format (Anthropic API keys start with sk-ant-)
-    if (!apiKey.startsWith('sk-ant-')) {
+  // Authenticate with setup token (from `claude setup-token`)
+  async authenticateWithSetupToken(
+    token: string
+  ): Promise<{ user: User; sessionToken: string } | null> {
+    // Validate token by attempting a refresh grant against Anthropic's OAuth endpoint
+    const response = await fetch('https://api.anthropic.com/v1/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: token,
+        client_id: 'claude-desktop',
+      }).toString(),
+    });
+
+    if (!response.ok) {
       return null;
     }
 
-    // Create/get user for this API key
-    return this.getOrCreateUser(apiKey);
-  }
+    const data = await response.json() as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
 
-  // Authenticate with Claude OAuth token (from 1Code-style flow)
-  async authenticateWithClaudeToken(
-    accessToken: string,
-    refreshToken?: string,
-    expiresAt?: number
-  ): Promise<User | null> {
-    // Store refresh token info with the user
-    const user = await this.getOrCreateUser(accessToken);
+    // Create user from the access token
+    const user = await this.getOrCreateUser(data.access_token);
+    if (!user) return null;
 
-    if (user && refreshToken) {
-      // Store refresh token separately for token refresh
-      await this.kv.put(
-        `refresh:${user.id}`,
-        JSON.stringify({ refreshToken, expiresAt }),
-        { expirationTtl: 30 * 24 * 60 * 60 } // 30 days
-      );
-    }
+    // Store refresh token for future refreshes
+    const refreshToken = data.refresh_token || token;
+    const expiresAt = data.expires_in
+      ? Date.now() + data.expires_in * 1000
+      : Date.now() + 24 * 60 * 60 * 1000;
 
-    return user;
+    await this.kv.put(
+      `refresh:${user.id}`,
+      JSON.stringify({ refreshToken, expiresAt }),
+      { expirationTtl: 30 * 24 * 60 * 60 }
+    );
+
+    const sessionToken = await this.createSessionToken(user);
+    return { user, sessionToken };
   }
 
   // Refresh Claude OAuth token
@@ -245,13 +256,7 @@ export async function extractAuth(
   if (authHeader) {
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.slice(7);
-
-      // Try as session token first
-      const user = await authService.getUserFromToken(token);
-      if (user) return user;
-
-      // Try as API key
-      return authService.authenticateWithApiKey(token);
+      return authService.getUserFromToken(token);
     }
   }
 

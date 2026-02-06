@@ -7,7 +7,7 @@ import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';
 import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
-import { oauthRoutes } from './api/oauth';
+import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
 // Extend Hono context
@@ -48,7 +48,7 @@ export function createRouter(env: Env) {
         return allowedOrigins.includes(origin) ? origin : null;
       },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-Client-Secret'],
+      allowHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
     })
   );
@@ -57,9 +57,7 @@ export function createRouter(env: Env) {
   app.use('*', async (c, next) => {
     const authService = new AuthService(
       env.AUTH_KV,
-      env.JWT_SECRET,
-      env.CLAUDE_CLIENT_ID,
-      env.CLAUDE_CLIENT_SECRET
+      env.JWT_SECRET
     );
 
     const sandboxManager = new SandboxManager(
@@ -85,69 +83,28 @@ export function createRouter(env: Env) {
     });
   });
 
-  // OAuth routes (no auth required - for 1Code-style login)
-  app.route('/api/oauth', oauthRoutes);
-
-  // API key auth endpoint
-  app.post('/api/auth/api-key', async (c) => {
+  // Setup-token auth endpoint (public)
+  app.post('/api/auth/setup', async (c) => {
     const authService = c.get('authService');
-    const body = await c.req.json<{ apiKey: string }>();
+    const body = await c.req.json();
 
-    if (!body.apiKey) {
-      return c.json({ success: false, error: 'Missing API key' }, 400);
+    const parsed = SetupTokenRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ success: false, error: 'Invalid token format' }, 400);
     }
 
-    const user = await authService.authenticateWithApiKey(body.apiKey);
-    if (!user) {
-      return c.json({ success: false, error: 'Invalid API key' }, 401);
+    const result = await authService.authenticateWithSetupToken(parsed.data.token);
+    if (!result) {
+      return c.json({ success: false, error: 'Invalid or expired token' }, 401);
     }
-
-    const sessionToken = await authService.createSessionToken(user);
 
     return c.json({
       success: true,
       data: {
-        token: sessionToken,
+        sessionToken: result.sessionToken,
         user: {
-          id: user.id,
-          email: user.email,
-        },
-      },
-    });
-  });
-
-  // Claude OAuth token auth endpoint (for 1Code-style login)
-  app.post('/api/auth/claude-token', async (c) => {
-    const authService = c.get('authService');
-    const body = await c.req.json<{
-      accessToken: string;
-      refreshToken?: string;
-      expiresAt?: number;
-    }>();
-
-    if (!body.accessToken) {
-      return c.json({ success: false, error: 'Missing access token' }, 400);
-    }
-
-    const user = await authService.authenticateWithClaudeToken(
-      body.accessToken,
-      body.refreshToken,
-      body.expiresAt
-    );
-
-    if (!user) {
-      return c.json({ success: false, error: 'Authentication failed' }, 401);
-    }
-
-    const sessionToken = await authService.createSessionToken(user);
-
-    return c.json({
-      success: true,
-      data: {
-        token: sessionToken,
-        user: {
-          id: user.id,
-          email: user.email,
+          id: result.user.id,
+          email: result.user.email,
         },
       },
     });

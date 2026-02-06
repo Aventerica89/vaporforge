@@ -19,9 +19,6 @@ declare global {
     SANDBOX_CONTAINER: DurableObjectNamespace<Sandbox>;
 
     // Secrets (set via wrangler secret put)
-    CLAUDE_API_KEY?: string;
-    CLAUDE_CLIENT_ID?: string;
-    CLAUDE_CLIENT_SECRET?: string;
     JWT_SECRET: string;
 
     // Environment variables

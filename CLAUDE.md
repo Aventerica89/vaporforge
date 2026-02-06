@@ -10,36 +10,31 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 
 **NEVER use Anthropic API keys for authentication.**
 
-This project MUST use Claude Pro/Max OAuth (1Code-style) flow. User cannot afford API costs. Any attempt to switch to API key authentication is unauthorized.
+This project uses a setup-token flow: users run `claude setup-token` locally and paste the resulting token into VaporForge. The backend validates it against Anthropic's OAuth endpoint, then issues a session JWT. Each user's Claude token is stored per-user in KV.
 
-## Documentation
+## Auth Flow
 
-- **Implementation Plan**: `docs/PLAN.md` - Full OAuth fix plan and architecture
-- **README**: `README.md` - Setup and deployment instructions
-
-## Current Status
-
-OAuth flow implemented but has bugs preventing URL extraction from CLI output.
-
-### Known Issues (see docs/PLAN.md for fixes)
-
-1. Wrong credentials path (`~/.claude/` instead of `~/.config/claude-code/`)
-2. ANSI escape codes not stripped from terminal output
-3. Wrong URL patterns (looking for `claude.ai/oauth` instead of `localhost:8080`)
-4. Wrong credentials JSON structure
+1. User opens VaporForge, sees login page
+2. User runs `claude setup-token` in their terminal
+3. Pastes the token into the login form
+4. Backend validates token via `POST https://api.anthropic.com/v1/oauth/token`
+5. On success: creates user record in KV, issues session JWT
+6. Token stored per-user in KV, session JWT in browser localStorage
+7. Subsequent requests use session JWT; Claude token refreshed server-side
 
 ## Tech Stack
 
 - **Backend**: Cloudflare Workers + Sandboxes
 - **Frontend**: React + Vite + Tailwind
-- **Auth**: Claude OAuth via CLI (1Code-style)
+- **Auth**: Setup-token flow (Claude Pro/Max subscription)
 - **Storage**: Cloudflare KV + R2
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/api/oauth.ts` | OAuth flow - needs fixes |
+| `src/auth.ts` | Auth service (setup-token validation, JWT, refresh) |
+| `src/router.ts` | API routes (POST /api/auth/setup) |
 | `src/types.ts` | TypeScript types |
 | `ui/src/hooks/useAuth.ts` | Auth state management |
 | `ui/src/components/AuthGuard.tsx` | Login UI |
@@ -52,7 +47,3 @@ npm run dev      # Start worker
 npm run dev:ui   # Start UI (separate terminal)
 npm run deploy   # Deploy to Cloudflare
 ```
-
-## Cost Tracking
-
-See `~/.claude/projects/-/memory/MEMORY.md` for monthly costs and cleanup instructions if scrapping project.

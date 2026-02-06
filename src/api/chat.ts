@@ -237,18 +237,15 @@ async function callClaudeAPI(
   sessionId: string,
   sandboxManager: import('../sandbox').SandboxManager
 ): Promise<{ content: string; toolCalls?: Message['toolCalls'] }> {
-  // Use user's Claude token if available, otherwise API key
-  const apiKey = user.claudeToken || env.CLAUDE_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('No API key available');
+  if (!user.claudeToken) {
+    throw new Error('No Claude token available. Please re-authenticate.');
   }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': user.claudeToken,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
@@ -311,10 +308,8 @@ async function streamClaudeResponse(
   context?: { currentFile?: string; selectedCode?: string },
   onChunk?: (chunk: { type: string; content?: string; tool?: string }) => Promise<void>
 ): Promise<void> {
-  const apiKey = user.claudeToken || env.CLAUDE_API_KEY;
-
-  if (!apiKey) {
-    throw new Error('No API key available');
+  if (!user.claudeToken) {
+    throw new Error('No Claude token available. Please re-authenticate.');
   }
 
   let systemContext = 'You are Claude, an AI assistant helping with coding tasks.';
@@ -327,7 +322,7 @@ async function streamClaudeResponse(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': user.claudeToken,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({

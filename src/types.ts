@@ -176,32 +176,9 @@ export const GitCommitSchema = z.object({
 
 export type GitCommit = z.infer<typeof GitCommitSchema>;
 
-// OAuth session schemas (1Code-style OAuth flow)
-export const OAuthSessionSchema = z.object({
-  id: z.string(),
-  state: z.enum([
-    'starting',
-    'waiting_url',
-    'has_url',
-    'waiting_code',
-    'success',
-    'error',
-  ]),
-  oauthUrl: z.string().optional(),
-  error: z.string().optional(),
-  createdAt: z.string(),
+// Setup token request (user pastes token from `claude setup-token`)
+export const SetupTokenRequestSchema = z.object({
+  token: z.string().min(10).max(500),
 });
 
-export type OAuthSession = z.infer<typeof OAuthSessionSchema>;
-
-// Claude credentials from ~/.claude/.credentials.json
-export const ClaudeCredentialsSchema = z.object({
-  claudeAiOauth: z.object({
-    accessToken: z.string(),
-    refreshToken: z.string(),
-    expiresAt: z.number(),
-    scopes: z.array(z.string()),
-  }),
-});
-
-export type ClaudeCredentials = z.infer<typeof ClaudeCredentialsSchema>;
+export type SetupTokenRequest = z.infer<typeof SetupTokenRequestSchema>;

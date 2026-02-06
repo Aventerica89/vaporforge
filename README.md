@@ -14,10 +14,19 @@ Web-based Claude Code IDE on Cloudflare Sandboxes.
 ## Architecture
 
 ```
-Browser → Cloudflare Worker → Cloudflare Sandbox
-                ↓
-         Claude API (via Agent SDK)
+Browser -> Cloudflare Worker -> Cloudflare Sandbox
+                |
+         Claude API (via user's Pro/Max token)
 ```
+
+## Authentication
+
+VaporForge uses your existing Claude Pro/Max subscription. No API keys needed.
+
+1. Run `claude setup-token` in your terminal
+2. Copy the token
+3. Paste it into VaporForge's login page
+4. You're in!
 
 ## Development
 
@@ -25,7 +34,6 @@ Browser → Cloudflare Worker → Cloudflare Sandbox
 
 - Node.js 20+
 - Cloudflare account with Workers Paid plan
-- Claude API key
 
 ### Setup
 
@@ -43,7 +51,6 @@ cd ui && npm install && cd ..
 
 3. Configure secrets
 ```bash
-wrangler secret put CLAUDE_API_KEY
 wrangler secret put JWT_SECRET
 ```
 
@@ -76,27 +83,26 @@ npm run deploy
 
 ```
 vaporforge/
-├── src/                  # Worker code
-│   ├── index.ts          # Main entry
-│   ├── router.ts         # API routes
-│   ├── sandbox.ts        # Sandbox management
-│   ├── auth.ts           # Authentication
-│   ├── websocket.ts      # Real-time updates
-│   └── api/              # API endpoints
-├── ui/                   # React frontend
-│   └── src/
-│       ├── components/   # UI components
-│       ├── hooks/        # Custom hooks
-│       └── lib/          # Utilities
-├── skills/               # Bundled plugins
-└── Dockerfile            # Custom sandbox image
+|-- src/                  # Worker code
+|   |-- index.ts          # Main entry
+|   |-- router.ts         # API routes
+|   |-- sandbox.ts        # Sandbox management
+|   |-- auth.ts           # Authentication
+|   |-- websocket.ts      # Real-time updates
+|   |-- api/              # API endpoints
+|-- ui/                   # React frontend
+|   |-- src/
+|       |-- components/   # UI components
+|       |-- hooks/        # Custom hooks
+|       |-- lib/          # Utilities
+|-- skills/               # Bundled plugins
+|-- Dockerfile            # Custom sandbox image
 ```
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/api-key` - Authenticate with API key
-- `GET /api/auth/login` - OAuth login (if available)
+- `POST /api/auth/setup` - Authenticate with setup token
 
 ### Sessions
 - `GET /api/sessions/list` - List user sessions

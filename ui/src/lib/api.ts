@@ -6,7 +6,7 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('auth_token');
+  const token = localStorage.getItem('session_token');
 
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -26,181 +26,30 @@ async function request<T>(
   return data;
 }
 
-// OAuth session state
-export interface OAuthSession {
-  id: string;
-  state: 'starting' | 'waiting_url' | 'has_url' | 'waiting_code' | 'success' | 'error';
-  oauthUrl?: string;
-  error?: string;
-  createdAt: string;
-}
-
-// OAuth credentials response
-export interface OAuthCredentials {
-  state: 'success';
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
-}
-
-// Store OAuth client secret for session binding
-let oauthClientSecret: string | null = null;
-
 // Auth API
 export const authApi = {
-  loginWithApiKey: async (apiKey: string) => {
-    const result = await request<{ token: string; user: User }>('/auth/api-key', {
-      method: 'POST',
-      body: JSON.stringify({ apiKey }),
-    });
-
-    if (result.success && result.data) {
-      localStorage.setItem('auth_token', result.data.token);
-    }
-
-    return result;
-  },
-
-  // Start OAuth flow - creates sandbox and begins claude login
-  startOAuth: async () => {
-    const response = await fetch(`${API_BASE}/oauth/start`, {
+  setupWithToken: async (token: string): Promise<{ sessionToken: string; user: User }> => {
+    const response = await fetch(`${API_BASE}/auth/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
     });
 
     const data = await response.json() as ApiResponse<{
-      sessionId: string;
-      clientSecret: string;
+      sessionToken: string;
+      user: User;
     }>;
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to start OAuth');
+    if (!response.ok || !data.success || !data.data) {
+      throw new Error(data.error || 'Authentication failed');
     }
 
-    // Store client secret for subsequent requests
-    if (data.success && data.data?.clientSecret) {
-      oauthClientSecret = data.data.clientSecret;
-    }
-
-    return data;
-  },
-
-  // Poll for OAuth URL
-  pollOAuthStatus: async (sessionId: string) => {
-    const headers: Record<string, string> = {};
-    if (oauthClientSecret) {
-      headers['X-Client-Secret'] = oauthClientSecret;
-    }
-
-    const response = await fetch(`${API_BASE}/oauth/${sessionId}/status`, {
-      headers,
-    });
-    const data = await response.json() as ApiResponse<OAuthSession>;
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to poll OAuth status');
-    }
-
-    return data;
-  },
-
-  // Submit auth code and get credentials
-  submitOAuthCode: async (sessionId: string, code: string) => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (oauthClientSecret) {
-      headers['X-Client-Secret'] = oauthClientSecret;
-    }
-
-    const response = await fetch(`${API_BASE}/oauth/${sessionId}/code`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ code }),
-    });
-
-    const data = await response.json() as ApiResponse<OAuthCredentials>;
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to submit auth code');
-    }
-
-    // Store credentials and clear client secret
-    if (data.success && data.data) {
-      localStorage.setItem('claude_access_token', data.data.accessToken);
-      localStorage.setItem('claude_refresh_token', data.data.refreshToken);
-      localStorage.setItem('claude_expires_at', String(data.data.expiresAt));
-      oauthClientSecret = null;
-    }
-
-    return data;
-  },
-
-  // Cancel OAuth session
-  cancelOAuth: async (sessionId: string) => {
-    const headers: Record<string, string> = {};
-    if (oauthClientSecret) {
-      headers['X-Client-Secret'] = oauthClientSecret;
-    }
-
-    await fetch(`${API_BASE}/oauth/${sessionId}`, {
-      method: 'DELETE',
-      headers,
-    });
-    oauthClientSecret = null;
-  },
-
-  // Clear OAuth client secret (for cleanup)
-  clearOAuthSecret: () => {
-    oauthClientSecret = null;
-  },
-
-  // Login with Claude token (after OAuth)
-  loginWithClaudeToken: async (accessToken: string) => {
-    const result = await request<{ token: string; user: User }>('/auth/claude-token', {
-      method: 'POST',
-      body: JSON.stringify({ accessToken }),
-    });
-
-    if (result.success && result.data) {
-      localStorage.setItem('auth_token', result.data.token);
-    }
-
-    return result;
-  },
-
-  // Get stored Claude credentials
-  getStoredCredentials: () => {
-    const accessToken = localStorage.getItem('claude_access_token');
-    const refreshToken = localStorage.getItem('claude_refresh_token');
-    const expiresAt = localStorage.getItem('claude_expires_at');
-
-    if (!accessToken) return null;
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: expiresAt ? parseInt(expiresAt, 10) : null,
-    };
-  },
-
-  // Check if Claude credentials are expired
-  isTokenExpired: () => {
-    const expiresAt = localStorage.getItem('claude_expires_at');
-    if (!expiresAt) return true;
-
-    // Add 5 minute buffer
-    return Date.now() > parseInt(expiresAt, 10) - 5 * 60 * 1000;
+    return data.data;
   },
 
   logout: () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('claude_access_token');
-    localStorage.removeItem('claude_refresh_token');
-    localStorage.removeItem('claude_expires_at');
+    localStorage.removeItem('session_token');
   },
-
-  getLoginUrl: () => `${API_BASE}/auth/login`,
 };
 
 // Sessions API
@@ -266,7 +115,7 @@ export const chatApi = {
     message: string,
     context?: { currentFile?: string; selectedCode?: string }
   ): AsyncGenerator<{ type: string; content?: string }> {
-    const token = localStorage.getItem('auth_token');
+    const token = localStorage.getItem('session_token');
 
     const response = await fetch(`${API_BASE}/chat/stream`, {
       method: 'POST',
