@@ -99,6 +99,11 @@ self.addEventListener('fetch', (event) => {
           if (request.destination === 'document') {
             return caches.match('/');
           }
+          // Return error response for other requests
+          return new Response('Network error', {
+            status: 408,
+            statusText: 'Request Timeout'
+          });
         });
     })
   );

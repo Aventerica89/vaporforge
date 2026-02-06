@@ -328,6 +328,7 @@ sessionRoutes.post('/:sessionId/clone', async (c) => {
 
 // Debug: get termination error for a session
 sessionRoutes.get('/debug/error/:sessionId', async (c) => {
+  const user = c.get('user');
   const sessionId = c.req.param('sessionId');
   const session = await c.env.SESSIONS_KV.get<Session>(
     `session:${sessionId}`, 'json'
@@ -335,12 +336,18 @@ sessionRoutes.get('/debug/error/:sessionId', async (c) => {
   if (!session) {
     return c.json({ success: false, error: 'Session not found' }, 404);
   }
+
+  // SECURITY: Verify session belongs to user (fix IDOR vulnerability)
+  if (session.userId !== user.id) {
+    return c.json({ success: false, error: 'Unauthorized' }, 403);
+  }
+
   return c.json({
     success: true,
     data: {
       id: session.id,
       status: session.status,
-      metadata: session.metadata,
+      metadata: session.metadata ?? {},
       createdAt: session.createdAt,
       lastActiveAt: session.lastActiveAt,
     },
@@ -469,10 +476,10 @@ sessionRoutes.patch('/:sessionId', async (c) => {
 
   // Update fields
   if (body.name !== undefined) {
-    session.metadata = { ...session.metadata, name: body.name };
+    session.metadata = { ...(session.metadata ?? {}), name: body.name };
   }
   if (body.metadata !== undefined) {
-    session.metadata = { ...session.metadata, ...body.metadata };
+    session.metadata = { ...(session.metadata ?? {}), ...body.metadata };
   }
 
   await c.env.SESSIONS_KV.put(

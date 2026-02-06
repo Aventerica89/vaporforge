@@ -83,7 +83,7 @@ export class SandboxManager {
         ...session,
         status: 'terminated',
         metadata: {
-          ...session.metadata,
+          ...(session.metadata ?? {}),
           terminationError: errorMsg,
           terminatedAt: new Date().toISOString(),
         },
