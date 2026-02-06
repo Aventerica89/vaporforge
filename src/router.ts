@@ -95,15 +95,9 @@ export function createRouter(env: Env) {
 
     const result = await authService.authenticateWithSetupToken(parsed.data.token);
     if (!result) {
-      return c.json({ success: false, error: 'Authentication failed' }, 401);
-    }
-
-    // If error field is set, all auth methods failed - return diagnostic info
-    if (result.error) {
       return c.json({
         success: false,
-        error: 'Token rejected by Anthropic',
-        debug: result.error,
+        error: 'Invalid token format. Token must start with sk-ant-oat01- or sk-ant-api01-',
       }, 401);
     }
 

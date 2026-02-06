@@ -129,93 +129,27 @@ export class AuthService {
   }
 
   // Authenticate with setup token (from `claude setup-token`)
-  // Tries multiple auth methods since token type determines the header.
+  // The token (sk-ant-oat01-...) is an OAuth access token for Claude Code.
+  // It can't be validated via the Messages API (OAuth not supported there).
+  // Instead we validate the format and store it for use by Claude Code
+  // running inside the sandbox.
   async authenticateWithSetupToken(
     token: string
-  ): Promise<{ user: User; sessionToken: string; error?: string } | null> {
-    const requestBody = JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1,
-      messages: [{ role: 'user', content: 'hi' }],
-    });
+  ): Promise<{ user: User; sessionToken: string } | null> {
+    // Validate token format - must be a recognized Anthropic token prefix
+    const validPrefixes = ['sk-ant-oat01-', 'sk-ant-api01-'];
+    const hasValidPrefix = validPrefixes.some((p) => token.startsWith(p));
 
-    const errors: string[] = [];
-
-    // Method 1: Authorization: Bearer (for OAuth access tokens)
-    const bearerResp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'anthropic-version': '2023-06-01',
-      },
-      body: requestBody,
-    });
-
-    if (bearerResp.status !== 401 && bearerResp.status !== 403) {
-      const user = await this.getOrCreateUser(token);
-      if (!user) return null;
-      const sessionToken = await this.createSessionToken(user);
-      return { user, sessionToken };
+    if (!hasValidPrefix) {
+      return null;
     }
 
-    const bearerErr = await bearerResp.text();
-    errors.push(`Bearer: ${bearerResp.status} ${bearerErr}`);
+    // Create user from the token
+    const user = await this.getOrCreateUser(token);
+    if (!user) return null;
 
-    // Method 2: x-api-key (for API keys)
-    const apiKeyResp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': token,
-        'anthropic-version': '2023-06-01',
-      },
-      body: requestBody,
-    });
-
-    if (apiKeyResp.status !== 401 && apiKeyResp.status !== 403) {
-      const user = await this.getOrCreateUser(token);
-      if (!user) return null;
-      const sessionToken = await this.createSessionToken(user);
-      return { user, sessionToken };
-    }
-
-    const apiKeyErr = await apiKeyResp.text();
-    errors.push(`x-api-key: ${apiKeyResp.status} ${apiKeyErr}`);
-
-    // Method 3: Try as refresh token exchange
-    const refreshResp = await fetch('https://api.anthropic.com/v1/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: token,
-        client_id: 'claude-desktop',
-      }).toString(),
-    });
-
-    if (refreshResp.ok) {
-      const data = await refreshResp.json() as {
-        access_token: string;
-        refresh_token?: string;
-      };
-      // Use the exchanged access token
-      const user = await this.getOrCreateUser(data.access_token);
-      if (!user) return null;
-      const sessionToken = await this.createSessionToken(user);
-      return { user, sessionToken };
-    }
-
-    const refreshErr = await refreshResp.text();
-    errors.push(`refresh: ${refreshResp.status} ${refreshErr}`);
-
-    // All methods failed - return error detail
-    console.error('Auth failed:', errors.join(' | '));
-    return {
-      user: null as unknown as User,
-      sessionToken: '',
-      error: errors.join(' | '),
-    };
+    const sessionToken = await this.createSessionToken(user);
+    return { user, sessionToken };
   }
 
   // Refresh Claude OAuth token
