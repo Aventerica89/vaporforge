@@ -8,14 +8,22 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
+
+    // Set dark mode on html element
+    document.documentElement.classList.add('dark');
   }, [checkAuth]);
 
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading...</p>
+        <div className="flex flex-col items-center gap-4 animate-fade-up">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-2 border-primary/30" />
+            <div className="absolute inset-0 h-12 w-12 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
+          <p className="font-display text-sm uppercase tracking-wider text-muted-foreground">
+            Initializing...
+          </p>
         </div>
       </div>
     );
