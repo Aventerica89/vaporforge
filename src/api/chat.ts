@@ -237,14 +237,8 @@ async function callClaudeInSandbox(
     throw new Error('No Claude token available. Please re-authenticate.');
   }
 
-  // Determine env var based on token type
-  // OAuth tokens (sk-ant-oat01-) vs API keys (sk-ant-api01-)
-  const isOAuthToken = user.claudeToken.startsWith('sk-ant-oat01-');
-  const authEnv: Record<string, string> = isOAuthToken
-    ? { CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken }
-    : { ANTHROPIC_API_KEY: user.claudeToken };
-
-  // Pass prompt via env var to avoid shell escaping issues
+  // Auth token is already set as persistent env var during sandbox creation
+  // Just pass the prompt via env var to avoid shell escaping issues
   // Use claude -p like the official example with --permission-mode acceptEdits
   const result = await sandboxManager.execInSandbox(
     sessionId,
@@ -253,7 +247,6 @@ async function callClaudeInSandbox(
       cwd: '/workspace',
       env: {
         CLAUDE_PROMPT: prompt,
-        ...authEnv,
       },
       timeout: 300000, // 5 min timeout (matches official COMMAND_TIMEOUT_MS)
     }

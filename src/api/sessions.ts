@@ -33,11 +33,17 @@ sessionRoutes.post('/create', async (c) => {
   const sessionId = crypto.randomUUID();
 
   try {
-    // Bare minimum: no env vars, no credential files
-    // Just create sandbox and workspace directory
+    // Create sandbox with Claude token injected as persistent env var
+    // This makes `claude` CLI work in both chat and terminal
+    const isOAuthToken = user.claudeToken.startsWith('sk-ant-oat01-');
+    const authEnv: Record<string, string> = isOAuthToken
+      ? { CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken }
+      : { ANTHROPIC_API_KEY: user.claudeToken };
+
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
+      env: authEnv, // Inject auth token persistently
     });
 
     // Store session metadata
