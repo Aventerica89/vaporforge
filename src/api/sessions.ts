@@ -35,10 +35,18 @@ sessionRoutes.post('/create', async (c) => {
   try {
     // Create sandbox with Claude token injected as persistent env var
     // This makes `claude` CLI work in both chat and terminal
-    const isOAuthToken = user.claudeToken.startsWith('sk-ant-oat01-');
+    const claudeToken = user.claudeToken;
+    if (!claudeToken) {
+      return c.json<ApiResponse<never>>({
+        success: false,
+        error: 'No Claude token available. Please re-authenticate.',
+      }, 401);
+    }
+
+    const isOAuthToken = claudeToken.startsWith('sk-ant-oat01-');
     const authEnv: Record<string, string> = isOAuthToken
-      ? { CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken }
-      : { ANTHROPIC_API_KEY: user.claudeToken };
+      ? { CLAUDE_CODE_OAUTH_TOKEN: claudeToken }
+      : { ANTHROPIC_API_KEY: claudeToken };
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
