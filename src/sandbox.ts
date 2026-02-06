@@ -21,6 +21,10 @@ export class SandboxManager {
     return getSandbox(this.sandboxNamespace, sessionId, {
       sleepAfter: '10m', // Auto-sleep after 10 min idle
       normalizeId: true, // Normalize IDs for preview URLs
+      containerTimeouts: {
+        instanceGetTimeoutMS: 120000, // 2 min for container provisioning
+        portReadyTimeoutMS: 120000,   // 2 min for app startup
+      },
     });
   }
 
@@ -129,12 +133,10 @@ export class SandboxManager {
       // Convert array command to string
       const cmdStr = Array.isArray(command) ? command.join(' ') : command;
 
-      // Set working directory if specified
-      const fullCmd = options?.cwd
-        ? `cd ${options.cwd} && ${cmdStr}`
-        : cmdStr;
-
-      const result = await sandbox.exec(fullCmd, {
+      // Use SDK native options for cwd, env, and timeout
+      const result = await sandbox.exec(cmdStr, {
+        cwd: options?.cwd,
+        env: options?.env,
         timeout: options?.timeout || 30000,
       });
 

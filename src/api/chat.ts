@@ -226,7 +226,7 @@ chatRoutes.post('/stream', async (c) => {
 });
 
 // Call Claude Code inside the sandbox
-// Uses `claude -p "prompt"` which handles OAuth auth natively
+// Credentials are set up during session creation (env var + credential file)
 async function callClaudeInSandbox(
   sandboxManager: import('../sandbox').SandboxManager,
   sessionId: string,
@@ -237,81 +237,23 @@ async function callClaudeInSandbox(
     throw new Error('No Claude token available. Please re-authenticate.');
   }
 
-  // Escape the prompt for shell safety
-  const escapedPrompt = prompt
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "'\\''");
-
-  // Run claude in print mode inside the sandbox
-  // Pass the OAuth token via CLAUDE_API_KEY env var
-  // Claude Code will handle the authentication
+  // Pass prompt via env var and pipe to claude via stdin
+  // This avoids all shell escaping issues and matches CLI's expected input
   const result = await sandboxManager.execInSandbox(
     sessionId,
-    `CLAUDE_API_KEY='${escapedToken(user.claudeToken)}' claude -p '${escapedPrompt}'`,
+    'printf \'%s\' "$CLAUDE_PROMPT" | claude --print',
     {
       cwd: '/workspace',
+      env: { CLAUDE_PROMPT: prompt },
       timeout: 120000, // 2 minute timeout for AI responses
     }
   );
 
   if (result.exitCode !== 0) {
-    // If CLAUDE_API_KEY doesn't work, try writing credentials directly
-    if (result.stderr.includes('authentication') || result.stderr.includes('token')) {
-      return await callClaudeWithCredFile(
-        sandboxManager,
-        sessionId,
-        user,
-        prompt,
-        escapedPrompt
-      );
-    }
     throw new Error(
       result.stderr || 'Claude Code returned an error'
     );
   }
 
   return result.stdout.trim() || 'No response from Claude';
-}
-
-// Fallback: write credentials file and retry
-async function callClaudeWithCredFile(
-  sandboxManager: import('../sandbox').SandboxManager,
-  sessionId: string,
-  user: User,
-  _prompt: string,
-  escapedPrompt: string
-): Promise<string> {
-  // Write OAuth token to Claude Code's config
-  const credJson = JSON.stringify({
-    oauth_token: user.claudeToken,
-  });
-
-  await sandboxManager.execInSandbox(
-    sessionId,
-    `mkdir -p ~/.claude && echo '${credJson.replace(/'/g, "'\\''")}' > ~/.claude/.credentials.json`,
-    { timeout: 5000 }
-  );
-
-  // Retry with credentials file in place
-  const result = await sandboxManager.execInSandbox(
-    sessionId,
-    `claude -p '${escapedPrompt}'`,
-    {
-      cwd: '/workspace',
-      timeout: 120000,
-    }
-  );
-
-  if (result.exitCode !== 0) {
-    throw new Error(
-      result.stderr || 'Claude Code failed after credential setup'
-    );
-  }
-
-  return result.stdout.trim() || 'No response from Claude';
-}
-
-// Helper to escape token for shell
-function escapedToken(token: string): string {
-  return token.replace(/'/g, "'\\''");
 }

@@ -36,7 +36,33 @@ sessionRoutes.post('/create', async (c) => {
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
+      env: {
+        // Set ANTHROPIC_API_KEY for Claude Code CLI auth
+        ANTHROPIC_API_KEY: user.claudeToken || '',
+      },
     });
+
+    // Write Claude Code credentials file for OAuth token support
+    // This handles sk-ant-oat01- tokens that need credential file auth
+    if (user.claudeToken) {
+      try {
+        const homeResult = await sandboxManager.execInSandbox(
+          sessionId, 'echo $HOME', { timeout: 5000 }
+        );
+        const home = homeResult.stdout?.trim() || '/root';
+        await sandboxManager.mkdir(sessionId, `${home}/.claude`);
+        const credJson = JSON.stringify({
+          claudeAiOauth: { token: user.claudeToken },
+        });
+        await sandboxManager.writeFile(
+          sessionId,
+          `${home}/.claude/.credentials.json`,
+          credJson
+        );
+      } catch {
+        // Non-fatal: env var may be sufficient for API key tokens
+      }
+    }
 
     // Store session metadata
     if (parsed.data.name) {
