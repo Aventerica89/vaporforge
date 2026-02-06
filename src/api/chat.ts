@@ -183,6 +183,22 @@ chatRoutes.post('/stream', async (c) => {
     prompt = `I'm currently viewing: ${context.currentFile}\n\n${message}`;
   }
 
+  // Save user message first
+  const userMessageId = crypto.randomUUID();
+  const userMessage: Message = {
+    id: userMessageId,
+    sessionId,
+    role: 'user',
+    content: message,
+    timestamp: new Date().toISOString(),
+  };
+
+  await c.env.SESSIONS_KV.put(
+    `message:${sessionId}:${userMessageId}`,
+    JSON.stringify(userMessage),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
   // For streaming, use SSE with sandbox exec
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
@@ -195,6 +211,21 @@ chatRoutes.post('/stream', async (c) => {
         sessionId,
         user,
         prompt
+      );
+
+      // Save assistant message
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        sessionId,
+        role: 'assistant',
+        content: response,
+        timestamp: new Date().toISOString(),
+      };
+
+      await c.env.SESSIONS_KV.put(
+        `message:${sessionId}:${assistantMessage.id}`,
+        JSON.stringify(assistantMessage),
+        { expirationTtl: 7 * 24 * 60 * 60 }
       );
 
       // Send the full response as a single chunk
