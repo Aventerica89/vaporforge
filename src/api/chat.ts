@@ -241,11 +241,12 @@ async function callClaudeAPI(
     throw new Error('No Claude token available. Please re-authenticate.');
   }
 
+  // OAuth tokens (sk-ant-oat01-...) use Bearer auth, not x-api-key
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': user.claudeToken,
+      'Authorization': `Bearer ${user.claudeToken}`,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
@@ -318,11 +319,12 @@ async function streamClaudeResponse(
     systemContext += `\n\nThe user is currently viewing: ${context.currentFile}`;
   }
 
+  // OAuth tokens (sk-ant-oat01-...) use Bearer auth, not x-api-key
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': user.claudeToken,
+      'Authorization': `Bearer ${user.claudeToken}`,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({

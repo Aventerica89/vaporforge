@@ -72,7 +72,7 @@ export class AuthService {
     private jwtSecret: string
   ) {}
 
-  // Create or get user from Claude OAuth token
+  // Create or get user from Claude OAuth access token (sk-ant-oat01-...)
   async getOrCreateUser(claudeToken: string): Promise<User | null> {
     const tokenHash = await this.hashToken(claudeToken);
     const userId = `user_${tokenHash.slice(0, 16)}`;
@@ -130,16 +130,17 @@ export class AuthService {
 
   // Authenticate with setup token (from `claude setup-token`)
   // The token is a long-lived OAuth access token (sk-ant-oat01-...) that
-  // can be used directly as an API key with the Anthropic Messages API.
+  // must be used with Authorization: Bearer header (NOT x-api-key).
   async authenticateWithSetupToken(
     token: string
   ): Promise<{ user: User; sessionToken: string } | null> {
     // Validate token by making a lightweight API call to Anthropic
+    // OAuth tokens use Bearer auth, not x-api-key
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': token,
+        'Authorization': `Bearer ${token}`,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
