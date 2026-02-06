@@ -179,7 +179,8 @@ export function ChatPanel() {
             placeholder="Ask Claude..."
             rows={1}
             disabled={isStreaming}
-            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 pr-12 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+            style={{ color: 'hsl(var(--foreground))' }}
           />
           <button
             type="submit"
