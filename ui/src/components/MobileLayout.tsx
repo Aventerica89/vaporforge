@@ -4,7 +4,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { ChatPanel } from './ChatPanel';
 import { FileTree } from './FileTree';
-import { Terminal } from './Terminal';
+import { XTerminal } from './XTerminal';
 import { MobileDrawer } from './MobileDrawer';
 import { MobileBottomSheet } from './MobileBottomSheet';
 import { CloneRepoModal } from './CloneRepoModal';
@@ -118,7 +118,7 @@ export function MobileLayout() {
         title="Terminal"
       >
         <div className="h-[60vh]">
-          <Terminal />
+          <XTerminal compact />
         </div>
       </MobileBottomSheet>
 
