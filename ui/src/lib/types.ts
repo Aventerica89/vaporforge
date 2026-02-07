@@ -11,6 +11,15 @@ export interface Session {
   metadata?: Record<string, unknown>;
 }
 
+// Structured message parts for rich rendering
+export interface MessagePart {
+  type: 'text' | 'tool-start' | 'tool-result' | 'error';
+  content?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  output?: string;
+}
+
 // Message types
 export interface Message {
   id: string;
@@ -19,6 +28,7 @@ export interface Message {
   content: string;
   timestamp: string;
   toolCalls?: ToolCall[];
+  parts?: MessagePart[];
 }
 
 export interface ToolCall {

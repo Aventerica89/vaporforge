@@ -1,7 +1,7 @@
 import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
-import type { Session, FileInfo, Message, GitStatus } from '@/lib/types';
+import type { Session, FileInfo, Message, MessagePart, GitStatus } from '@/lib/types';
 
 interface SandboxState {
   // Session state
@@ -23,6 +23,7 @@ interface SandboxState {
   messages: Message[];
   isStreaming: boolean;
   streamingContent: string;
+  streamingParts: MessagePart[];
 
   // Git state
   gitStatus: GitStatus | null;
@@ -72,6 +73,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   messages: [],
   isStreaming: false,
   streamingContent: '',
+  streamingParts: [],
 
   gitStatus: null,
 
@@ -296,30 +298,62 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       role: 'user',
       content: message,
       timestamp: new Date().toISOString(),
+      parts: [{ type: 'text', content: message }],
     };
 
     set((state) => ({
       messages: [...state.messages, userMessage],
       isStreaming: true,
       streamingContent: '',
+      streamingParts: [],
     }));
 
     try {
-      // Use SDK streaming for true progressive output
+      // Use SDK streaming with structured MessagePart accumulation
       let content = '';
+      const parts: MessagePart[] = [];
+      let currentTextPart: MessagePart | null = null;
+
       for await (const chunk of sdkApi.stream(session.id, message)) {
         if (chunk.type === 'text' && chunk.content) {
           content += chunk.content;
-          set({ streamingContent: content });
+
+          // Accumulate text into the current text part
+          if (!currentTextPart) {
+            currentTextPart = { type: 'text', content: chunk.content };
+            parts.push(currentTextPart);
+          } else {
+            const merged: MessagePart = {
+              type: 'text',
+              content: (currentTextPart.content || '') + chunk.content,
+            };
+            currentTextPart = merged;
+            parts[parts.length - 1] = merged;
+          }
+
+          set({ streamingContent: content, streamingParts: [...parts] });
         } else if (chunk.type === 'tool-start' && chunk.name) {
-          content += `\n[Using ${chunk.name}...]\n`;
-          set({ streamingContent: content });
+          currentTextPart = null;
+          const toolPart: MessagePart = {
+            type: 'tool-start',
+            name: chunk.name,
+            input: (chunk as Record<string, unknown>).input as Record<string, unknown>,
+          };
+          parts.push(toolPart);
+          set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-result' && chunk.name) {
-          content += `[Done: ${chunk.name}]\n`;
-          set({ streamingContent: content });
+          currentTextPart = null;
+          const resultPart: MessagePart = {
+            type: 'tool-result',
+            name: chunk.name,
+            output: (chunk as Record<string, unknown>).output as string,
+          };
+          parts.push(resultPart);
+          set({ streamingParts: [...parts] });
         } else if (chunk.type === 'error' && chunk.content) {
-          content += `\nError: ${chunk.content}\n`;
-          set({ streamingContent: content });
+          currentTextPart = null;
+          parts.push({ type: 'error', content: chunk.content });
+          set({ streamingParts: [...parts] });
         }
       }
 
@@ -329,19 +363,21 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         role: 'assistant',
         content,
         timestamp: new Date().toISOString(),
+        parts: parts.length > 0 ? parts : [{ type: 'text', content }],
       };
 
       set((state) => ({
         messages: [...state.messages, assistantMessage],
         isStreaming: false,
         streamingContent: '',
+        streamingParts: [],
       }));
 
       // Refresh files in case Claude made changes
       get().loadFiles();
       get().loadGitStatus();
     } catch {
-      set({ isStreaming: false, streamingContent: '' });
+      set({ isStreaming: false, streamingContent: '', streamingParts: [] });
     }
   },
 

@@ -1,0 +1,115 @@
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { CodeBlock } from './CodeBlock';
+
+interface ChatMarkdownProps {
+  content: string;
+}
+
+const components: Components = {
+  code({ className, children, ...props }) {
+    const match = /language-(\w+)/.exec(className || '');
+    const code = String(children).replace(/\n$/, '');
+
+    // Fenced code blocks get language-* className from remark
+    if (match) {
+      return <CodeBlock code={code} language={match[1]} />;
+    }
+
+    // Inline code
+    return (
+      <code
+        className="rounded bg-background/80 px-1.5 py-0.5 text-xs font-mono text-primary"
+        {...props}
+      >
+        {children}
+      </code>
+    );
+  },
+
+  pre({ children }) {
+    // Passthrough — CodeBlock handles its own wrapper
+    return <>{children}</>;
+  },
+
+  a({ href, children }) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary underline decoration-primary/50 underline-offset-2 hover:decoration-primary"
+      >
+        {children}
+      </a>
+    );
+  },
+
+  blockquote({ children }) {
+    return (
+      <blockquote className="border-l-2 border-primary/50 pl-3 italic text-muted-foreground">
+        {children}
+      </blockquote>
+    );
+  },
+
+  table({ children }) {
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">{children}</table>
+      </div>
+    );
+  },
+
+  th({ children }) {
+    return (
+      <th className="border border-border bg-muted/50 px-3 py-1.5 text-left font-medium">
+        {children}
+      </th>
+    );
+  },
+
+  td({ children }) {
+    return (
+      <td className="border border-border px-3 py-1.5">{children}</td>
+    );
+  },
+
+  ul({ children }) {
+    return <ul className="list-disc pl-5 space-y-1">{children}</ul>;
+  },
+
+  ol({ children }) {
+    return <ol className="list-decimal pl-5 space-y-1">{children}</ol>;
+  },
+
+  h1({ children }) {
+    return <h1 className="text-lg font-bold mt-4 mb-2">{children}</h1>;
+  },
+
+  h2({ children }) {
+    return <h2 className="text-base font-bold mt-3 mb-1.5">{children}</h2>;
+  },
+
+  h3({ children }) {
+    return <h3 className="text-sm font-bold mt-2 mb-1">{children}</h3>;
+  },
+
+  hr() {
+    return <hr className="my-3 border-border" />;
+  },
+
+  p({ children }) {
+    return <p className="mb-2 last:mb-0">{children}</p>;
+  },
+};
+
+export function ChatMarkdown({ content }: ChatMarkdownProps) {
+  return (
+    <div className="prose-chat text-sm leading-relaxed break-words">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
