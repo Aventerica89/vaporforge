@@ -28,6 +28,7 @@ interface SandboxState {
 
   // Terminal state
   terminalOutput: string[];
+  isExecuting: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -73,6 +74,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   gitStatus: null,
 
   terminalOutput: [],
+  isExecuting: false,
 
   loadSessions: async () => {
     set({ isLoadingSessions: true });
@@ -364,21 +366,49 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     const session = get().currentSession;
     if (!session) return;
 
+    // Prevent concurrent execution
+    if (get().isExecuting) return;
+
     set((state) => ({
       terminalOutput: [...state.terminalOutput, `$ ${command}`],
+      isExecuting: true,
     }));
 
+    // Detect if command is a claude CLI invocation
+    const trimmed = command.trim();
+    const isClaudeCmd = trimmed.startsWith('claude ') || trimmed === 'claude';
+
     try {
-      const result = await sessionsApi.exec(session.id, command);
-      if (result.success && result.data) {
-        const { stdout, stderr } = result.data;
-        set((state) => ({
-          terminalOutput: [
-            ...state.terminalOutput,
-            ...(stdout ? [stdout] : []),
-            ...(stderr ? [`[stderr] ${stderr}`] : []),
-          ],
-        }));
+      if (isClaudeCmd) {
+        // Stream claude commands for real-time output
+        for await (const chunk of sessionsApi.execStream(session.id, command)) {
+          if (chunk.type === 'stdout' && chunk.content) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, chunk.content!],
+            }));
+          } else if (chunk.type === 'stderr' && chunk.content) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, `[stderr] ${chunk.content}`],
+            }));
+          } else if (chunk.type === 'error' && chunk.content) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, `Error: ${chunk.content}`],
+            }));
+          }
+        }
+      } else {
+        // Non-claude commands: use existing path (fast for ls, git, etc.)
+        const result = await sessionsApi.exec(session.id, command);
+        if (result.success && result.data) {
+          const { stdout, stderr } = result.data;
+          set((state) => ({
+            terminalOutput: [
+              ...state.terminalOutput,
+              ...(stdout ? [stdout] : []),
+              ...(stderr ? [`[stderr] ${stderr}`] : []),
+            ],
+          }));
+        }
       }
     } catch (error) {
       set((state) => ({
@@ -387,6 +417,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           `Error: ${error instanceof Error ? error.message : 'Command failed'}`,
         ],
       }));
+    } finally {
+      set({ isExecuting: false });
     }
   },
 

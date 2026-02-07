@@ -96,6 +96,55 @@ export const sessionsApi = {
       method: 'POST',
       body: JSON.stringify({ repo, branch }),
     }),
+
+  execStream: async function* (
+    sessionId: string,
+    command: string,
+    cwd?: string
+  ): AsyncGenerator<{ type: string; content?: string; exitCode?: number }> {
+    const token = localStorage.getItem('session_token');
+
+    const response = await fetch(`${API_BASE}/sessions/${sessionId}/exec-stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ command, cwd }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: 'Stream request failed' }));
+      throw new Error((data as { error?: string }).error || 'Stream request failed');
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) return;
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            yield JSON.parse(data);
+          } catch {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+  },
 };
 
 // Chat API

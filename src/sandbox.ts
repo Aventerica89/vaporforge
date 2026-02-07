@@ -157,6 +157,25 @@ export class SandboxManager {
     }
   }
 
+  // Execute command in sandbox with streaming output
+  async execStreamInSandbox(
+    sessionId: string,
+    command: string,
+    options?: {
+      cwd?: string;
+      env?: Record<string, string>;
+      timeout?: number;
+    }
+  ): Promise<ReadableStream<Uint8Array>> {
+    const sandbox = this.getSandboxInstance(sessionId);
+
+    return sandbox.execStream(command, {
+      cwd: options?.cwd,
+      env: options?.env,
+      timeout: options?.timeout || 300000,
+    });
+  }
+
   // Read file from sandbox
   async readFile(sessionId: string, path: string): Promise<string | null> {
     const sandbox = this.getSandboxInstance(sessionId);

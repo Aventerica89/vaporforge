@@ -2,8 +2,32 @@ import { useState, useRef, useEffect } from 'react';
 import { Terminal as TerminalIcon, Trash2, X } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 
+// Known shell commands — anything not matching gets wrapped as claude -p "..."
+const SHELL_COMMANDS = new Set([
+  'ls', 'cd', 'pwd', 'cat', 'echo', 'grep', 'find', 'mkdir', 'rmdir',
+  'rm', 'cp', 'mv', 'touch', 'chmod', 'chown', 'ln', 'env', 'export',
+  'which', 'whoami', 'hostname', 'date', 'uname', 'df', 'du', 'free',
+  'top', 'ps', 'kill', 'curl', 'wget', 'tar', 'zip', 'unzip', 'gzip',
+  'ssh', 'scp', 'git', 'npm', 'npx', 'node', 'python', 'python3',
+  'pip', 'pip3', 'claude', 'docker', 'wrangler', 'head', 'tail',
+  'sed', 'awk', 'sort', 'uniq', 'wc', 'diff', 'patch', 'file',
+  'stat', 'test', 'true', 'false', 'sleep', 'clear', 'man',
+  'apt', 'apt-get', 'sudo', 'su', 'id', 'groups', 'printenv',
+  'set', 'unset', 'source', 'bash', 'sh', 'zsh', 'tee', 'xargs',
+  'tr', 'cut', 'paste', 'vi', 'vim', 'nano', 'less', 'more',
+]);
+
+function isShellCommand(input: string): boolean {
+  const firstWord = input.split(/\s+/)[0];
+  if (SHELL_COMMANDS.has(firstWord)) return true;
+  if (firstWord.startsWith('./') || firstWord.startsWith('/')) return true;
+  if (firstWord.startsWith('~')) return true;
+  if (firstWord.includes('=')) return true; // env var assignment
+  return false;
+}
+
 export function Terminal() {
-  const { terminalOutput, execCommand, clearTerminal } = useSandboxStore();
+  const { terminalOutput, execCommand, clearTerminal, isExecuting } = useSandboxStore();
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -24,9 +48,25 @@ export function Terminal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || isExecuting) return;
 
-    const command = input.trim();
+    let command = input.trim();
+
+    // Auto-wrap naked messages as claude -p "..." if not a shell command
+    if (!isShellCommand(command)) {
+      const escaped = command.replace(/"/g, '\\"');
+      command = `claude -p "${escaped}"`;
+    }
+
+    // Auto-append -p for bare `claude "prompt"` (no TTY available in sandbox)
+    if (
+      command.startsWith('claude ') &&
+      !command.includes(' -p ') &&
+      !command.includes(' --print ')
+    ) {
+      command = command.replace(/^claude /, 'claude -p ');
+    }
+
     setHistory((prev) => [...prev, command]);
     setHistoryIndex(-1);
     setInput('');
@@ -96,7 +136,7 @@ export function Terminal() {
           <div className="text-muted-foreground">
             <p>Welcome to VaporForge Terminal</p>
             <p className="mt-1 text-xs">
-              Type a command and press Enter to execute
+              Type naturally to ask Claude, or use shell commands
             </p>
           </div>
         ) : (
@@ -123,20 +163,27 @@ export function Terminal() {
 
       {/* Input */}
       <div className="border-t border-[#333] p-2">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
-          <span className="text-green-400">$</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter command..."
-            className="flex-1 bg-transparent text-gray-300 placeholder:text-gray-600 focus:outline-none"
-            autoComplete="off"
-            spellCheck={false}
-          />
-        </form>
+        {isExecuting ? (
+          <div className="flex items-center gap-2">
+            <span className="animate-pulse text-yellow-400">...</span>
+            <span className="text-xs text-gray-500">Running command</span>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex items-center gap-2">
+            <span className="text-green-400">$</span>
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Enter command..."
+              className="flex-1 bg-transparent text-gray-300 placeholder:text-gray-600 focus:outline-none"
+              autoComplete="off"
+              spellCheck={false}
+            />
+          </form>
+        )}
       </div>
     </div>
   );

@@ -243,12 +243,22 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     }, 400);
   }
 
+  // Inject Claude token + NODE_PATH so `claude` CLI works in terminal
+  const execEnv: Record<string, string> = {
+    NODE_PATH: '/usr/local/lib/node_modules',
+  };
+  const claudeToken = user.claudeToken;
+  if (claudeToken) {
+    execEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
+  }
+
   const result = await sandboxManager.execInSandbox(
     session.sandboxId,
     ['sh', '-c', body.command],
     {
       cwd: body.cwd,
-      timeout: body.timeout,
+      env: execEnv,
+      timeout: body.timeout || 300000, // 5 min default for claude commands
     }
   );
 
@@ -256,6 +266,150 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     success: true,
     data: result,
   });
+});
+
+// Execute command with SSE streaming output (for long-running commands like claude)
+sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const sessionId = c.req.param('sessionId');
+
+  const body = await c.req.json<{
+    command: string;
+    cwd?: string;
+    timeout?: number;
+  }>();
+
+  if (!body.command) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Command is required',
+    }, 400);
+  }
+
+  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (!session.sandboxId) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Sandbox not active',
+    }, 400);
+  }
+
+  // Inject Claude token + NODE_PATH
+  const execEnv: Record<string, string> = {
+    NODE_PATH: '/usr/local/lib/node_modules',
+  };
+  const claudeToken = user.claudeToken;
+  if (claudeToken) {
+    execEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
+  }
+
+  try {
+    // Get streaming output from sandbox
+    const stream = await sandboxManager.execStreamInSandbox(
+      session.sandboxId,
+      body.command,
+      {
+        cwd: body.cwd || session.projectPath || '/workspace',
+        env: execEnv,
+        timeout: body.timeout || 300000,
+      }
+    );
+
+    // Pipe the sandbox SSE stream, re-wrapping events for our frontend
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    c.executionCtx.waitUntil((async () => {
+      const reader = stream.getReader();
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            try {
+              const event = JSON.parse(data) as {
+                type: string;
+                data?: string;
+                exitCode?: number;
+                error?: string;
+              };
+
+              if (event.type === 'stdout' && event.data) {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'stdout', content: event.data })}\n\n`
+                  )
+                );
+              } else if (event.type === 'stderr' && event.data) {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'stderr', content: event.data })}\n\n`
+                  )
+                );
+              } else if (event.type === 'complete') {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'complete', exitCode: event.exitCode ?? 0 })}\n\n`
+                  )
+                );
+              } else if (event.type === 'error') {
+                await writer.write(
+                  encoder.encode(
+                    `data: ${JSON.stringify({ type: 'error', content: event.error || 'Unknown error' })}\n\n`
+                  )
+                );
+              }
+            } catch {
+              // Skip unparseable lines
+            }
+          }
+        }
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Stream error';
+        await writer.write(
+          encoder.encode(
+            `data: ${JSON.stringify({ type: 'error', content: msg })}\n\n`
+          )
+        );
+      } finally {
+        await writer.write(encoder.encode('data: [DONE]\n\n'));
+        await writer.close();
+      }
+    })());
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
+  } catch (error) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start streaming exec',
+    }, 500);
+  }
 });
 
 // Clone repository into session
