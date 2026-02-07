@@ -9,9 +9,11 @@ import {
   Sun,
   Home,
   Trash2,
+  Settings,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
+import { SettingsDialog } from './SettingsDialog';
 
 export function Header() {
   const {
@@ -26,6 +28,7 @@ export function Header() {
   const { logout } = useAuthStore();
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const sessionMenuRef = useRef<HTMLDivElement>(null);
@@ -230,6 +233,15 @@ export function Header() {
           )}
         </button>
 
+        {/* Settings */}
+        <button
+          onClick={() => setShowSettings(true)}
+          className="rounded-md p-1.5 hover:bg-accent"
+          title="Settings & Help"
+        >
+          <Settings className="h-4 w-4" />
+        </button>
+
         {/* User menu */}
         <div className="relative" ref={userMenuRef}>
           <button
@@ -255,6 +267,11 @@ export function Header() {
           )}
         </div>
       </div>
+
+      <SettingsDialog
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </header>
   );
 }

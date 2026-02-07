@@ -6,6 +6,7 @@ import {
   FolderTree,
   Terminal,
   LogOut,
+  Settings,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
@@ -16,6 +17,7 @@ interface MobileDrawerProps {
   onOpenFiles: () => void;
   onOpenTerminal: () => void;
   onOpenCloneModal: () => void;
+  onOpenSettings: () => void;
 }
 
 export function MobileDrawer({
@@ -24,6 +26,7 @@ export function MobileDrawer({
   onOpenFiles,
   onOpenTerminal,
   onOpenCloneModal,
+  onOpenSettings,
 }: MobileDrawerProps) {
   const {
     sessions,
@@ -93,6 +96,11 @@ export function MobileDrawer({
 
   const handleOpenTerminal = () => {
     onOpenTerminal();
+    onClose();
+  };
+
+  const handleOpenSettings = () => {
+    onOpenSettings();
     onClose();
   };
 
@@ -241,7 +249,14 @@ export function MobileDrawer({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-border p-3 safe-bottom">
+        <div className="border-t border-border p-3 safe-bottom space-y-0.5">
+          <button
+            onClick={handleOpenSettings}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Settings className="h-4 w-4 text-muted-foreground" />
+            Settings & Help
+          </button>
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors"
