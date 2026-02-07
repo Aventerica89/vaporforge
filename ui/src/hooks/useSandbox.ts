@@ -1,5 +1,6 @@
 import { create, type StateCreator } from 'zustand';
-import { sessionsApi, filesApi, gitApi, chatApi } from '@/lib/api';
+import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
+import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import type { Session, FileInfo, Message, GitStatus } from '@/lib/types';
 
 interface SandboxState {
@@ -34,6 +35,7 @@ interface SandboxState {
   loadSessions: () => Promise<void>;
   createSession: (name?: string, gitRepo?: string) => Promise<Session | null>;
   selectSession: (sessionId: string) => Promise<void>;
+  deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
 
   loadFiles: (path?: string) => Promise<void>;
@@ -131,6 +133,20 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     } catch {
       // Handle error
     }
+  },
+
+  deselectSession: () => {
+    set({
+      currentSession: null,
+      files: [],
+      openFiles: [],
+      activeFileIndex: -1,
+      messages: [],
+      terminalOutput: [],
+      gitStatus: null,
+      streamingContent: '',
+      isStreaming: false,
+    });
   },
 
   terminateSession: async (sessionId: string) => {
@@ -289,13 +305,20 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }));
 
     try {
-      // Use streaming API
+      // Use SDK streaming for true progressive output
       let content = '';
-      for await (const chunk of chatApi.stream(session.id, message, {
-        currentFile: get().currentFile?.path,
-      })) {
-        if (chunk.content) {
+      for await (const chunk of sdkApi.stream(session.id, message)) {
+        if (chunk.type === 'text' && chunk.content) {
           content += chunk.content;
+          set({ streamingContent: content });
+        } else if (chunk.type === 'tool-start' && chunk.name) {
+          content += `\n[Using ${chunk.name}...]\n`;
+          set({ streamingContent: content });
+        } else if (chunk.type === 'tool-result' && chunk.name) {
+          content += `[Done: ${chunk.name}]\n`;
+          set({ streamingContent: content });
+        } else if (chunk.type === 'error' && chunk.content) {
+          content += `\nError: ${chunk.content}\n`;
           set({ streamingContent: content });
         }
       }
@@ -374,14 +397,54 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       isExecuting: true,
     }));
 
-    // Detect if command is a claude CLI invocation
     const trimmed = command.trim();
-    const isClaudeCmd = trimmed.startsWith('claude ') || trimmed === 'claude';
+    const isShell = isShellCommand(trimmed);
+    const isClaude = trimmed.startsWith('claude ') || trimmed === 'claude';
+    const isUtility = isClaudeUtility(trimmed);
 
     try {
-      if (isClaudeCmd) {
-        // Stream claude commands for real-time output
-        for await (const chunk of sessionsApi.execStream(session.id, command)) {
+      if (!isShell && !isClaude) {
+        // Path 1: Natural language -> SDK streaming (true progressive output)
+        for await (const chunk of sdkApi.stream(session.id, trimmed)) {
+          if (chunk.type === 'text' && chunk.content) {
+            // Accumulate text into last output entry for progressive display
+            set((state) => {
+              const output = [...state.terminalOutput];
+              const lastIdx = output.length - 1;
+              const last = output[lastIdx];
+              // Append to last line if it's SDK text, otherwise start new
+              if (lastIdx >= 0 && !last.startsWith('$') && !last.startsWith('[')) {
+                output[lastIdx] = last + chunk.content;
+              } else {
+                output.push(chunk.content!);
+              }
+              return { terminalOutput: output };
+            });
+          } else if (chunk.type === 'tool-start' && chunk.name) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, `[tool] ${chunk.name}`],
+            }));
+          } else if (chunk.type === 'tool-result' && chunk.name) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, `[done] ${chunk.name}`],
+            }));
+          } else if (chunk.type === 'error' && chunk.content) {
+            set((state) => ({
+              terminalOutput: [...state.terminalOutput, `Error: ${chunk.content}`],
+            }));
+          }
+        }
+        // Refresh files after SDK operations (may have edited files)
+        get().loadFiles();
+        get().loadGitStatus();
+      } else if (isClaude && !isUtility) {
+        // Path 2: Claude with prompt (claude -p "...") -> streaming
+        // Auto-append -p if missing (no TTY in sandbox)
+        let cmd = trimmed;
+        if (cmd.startsWith('claude ') && !cmd.includes(' -p ') && !cmd.includes(' --print ')) {
+          cmd = cmd.replace(/^claude /, 'claude -p ');
+        }
+        for await (const chunk of sessionsApi.execStream(session.id, cmd)) {
           if (chunk.type === 'stdout' && chunk.content) {
             set((state) => ({
               terminalOutput: [...state.terminalOutput, chunk.content!],
@@ -397,8 +460,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           }
         }
       } else {
-        // Non-claude commands: use existing path (fast for ls, git, etc.)
-        const result = await sessionsApi.exec(session.id, command);
+        // Path 3: Shell commands + Claude utilities -> fast batch
+        const result = await sessionsApi.exec(session.id, trimmed);
         if (result.success && result.data) {
           const { stdout, stderr } = result.data;
           set((state) => ({

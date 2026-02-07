@@ -211,6 +211,66 @@ export const chatApi = {
   },
 };
 
+// SDK API - True progressive streaming via Agent SDK
+export const sdkApi = {
+  stream: async function* (
+    sessionId: string,
+    prompt: string,
+    cwd?: string
+  ): AsyncGenerator<{
+    type: string;
+    content?: string;
+    sessionId?: string;
+    fullText?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+    output?: string;
+  }> {
+    const token = localStorage.getItem('session_token');
+
+    const response = await fetch(`${API_BASE}/sdk/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ sessionId, prompt, cwd }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({ error: 'SDK stream failed' }));
+      throw new Error((data as { error?: string }).error || 'SDK stream failed');
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) return;
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          try {
+            yield JSON.parse(data);
+          } catch {
+            // Skip invalid JSON
+          }
+        }
+      }
+    }
+  },
+};
+
 // Files API
 export const filesApi = {
   list: (sessionId: string, path: string = '/workspace') =>

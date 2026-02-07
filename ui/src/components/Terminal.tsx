@@ -2,30 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Terminal as TerminalIcon, Trash2, X } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 
-// Known shell commands — anything not matching gets wrapped as claude -p "..."
-const SHELL_COMMANDS = new Set([
-  'ls', 'cd', 'pwd', 'cat', 'echo', 'grep', 'find', 'mkdir', 'rmdir',
-  'rm', 'cp', 'mv', 'touch', 'chmod', 'chown', 'ln', 'env', 'export',
-  'which', 'whoami', 'hostname', 'date', 'uname', 'df', 'du', 'free',
-  'top', 'ps', 'kill', 'curl', 'wget', 'tar', 'zip', 'unzip', 'gzip',
-  'ssh', 'scp', 'git', 'npm', 'npx', 'node', 'python', 'python3',
-  'pip', 'pip3', 'claude', 'docker', 'wrangler', 'head', 'tail',
-  'sed', 'awk', 'sort', 'uniq', 'wc', 'diff', 'patch', 'file',
-  'stat', 'test', 'true', 'false', 'sleep', 'clear', 'man',
-  'apt', 'apt-get', 'sudo', 'su', 'id', 'groups', 'printenv',
-  'set', 'unset', 'source', 'bash', 'sh', 'zsh', 'tee', 'xargs',
-  'tr', 'cut', 'paste', 'vi', 'vim', 'nano', 'less', 'more',
-]);
-
-function isShellCommand(input: string): boolean {
-  const firstWord = input.split(/\s+/)[0];
-  if (SHELL_COMMANDS.has(firstWord)) return true;
-  if (firstWord.startsWith('./') || firstWord.startsWith('/')) return true;
-  if (firstWord.startsWith('~')) return true;
-  if (firstWord.includes('=')) return true; // env var assignment
-  return false;
-}
-
 export function Terminal() {
   const { terminalOutput, execCommand, clearTerminal, isExecuting } = useSandboxStore();
   const [input, setInput] = useState('');
@@ -50,23 +26,8 @@ export function Terminal() {
     e.preventDefault();
     if (!input.trim() || isExecuting) return;
 
-    let command = input.trim();
-
-    // Auto-wrap naked messages as claude -p "..." if not a shell command
-    if (!isShellCommand(command)) {
-      const escaped = command.replace(/"/g, '\\"');
-      command = `claude -p "${escaped}"`;
-    }
-
-    // Auto-append -p for bare `claude "prompt"` (no TTY available in sandbox)
-    if (
-      command.startsWith('claude ') &&
-      !command.includes(' -p ') &&
-      !command.includes(' --print ')
-    ) {
-      command = command.replace(/^claude /, 'claude -p ');
-    }
-
+    const command = input.trim();
+    // Store raw input in history; routing is handled by the store
     setHistory((prev) => [...prev, command]);
     setHistoryIndex(-1);
     setInput('');
@@ -147,11 +108,15 @@ export function Terminal() {
                 className={`whitespace-pre-wrap break-all ${
                   line.startsWith('$')
                     ? 'text-green-400'
-                    : line.startsWith('[stderr]')
-                      ? 'text-red-400'
-                      : line.startsWith('Error')
-                        ? 'text-red-400'
-                        : 'text-gray-300'
+                    : line.startsWith('[tool]')
+                      ? 'text-cyan-400'
+                      : line.startsWith('[done]')
+                        ? 'text-gray-500'
+                        : line.startsWith('[stderr]')
+                          ? 'text-red-400'
+                          : line.startsWith('Error')
+                            ? 'text-red-400'
+                            : 'text-gray-300'
                 }`}
               >
                 {line}

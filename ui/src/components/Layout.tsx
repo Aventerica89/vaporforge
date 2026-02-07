@@ -122,8 +122,9 @@ export function Layout() {
 }
 
 function WelcomeScreen() {
-  const { sessions, createSession, selectSession, isLoadingSessions } =
+  const { sessions, createSession, selectSession, terminateSession, isLoadingSessions } =
     useSandboxStore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleNewSession = async () => {
     await createSession();
@@ -223,13 +224,15 @@ function WelcomeScreen() {
             ) : (
               <div className="space-y-2">
                 {sessions.slice(0, 5).map((session, index) => (
-                  <button
+                  <div
                     key={session.id}
-                    onClick={() => selectSession(session.id)}
-                    className="glass-card flex w-full items-center justify-between p-4 md:p-5 transition-all duration-300 hover:scale-[1.01] hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] animate-fade-up"
+                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 transition-all duration-300 hover:scale-[1.01] hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] animate-fade-up"
                     style={{ animationDelay: `${(index + 1) * 50}ms` }}
                   >
-                    <div className="text-left flex-1 min-w-0">
+                    <button
+                      onClick={() => selectSession(session.id)}
+                      className="text-left flex-1 min-w-0"
+                    >
                       <p className="font-mono text-sm md:text-base font-semibold truncate">
                         {(session.metadata as { name?: string })?.name ||
                           session.id.slice(0, 8).toUpperCase()}
@@ -237,7 +240,7 @@ function WelcomeScreen() {
                       <p className="text-xs md:text-sm text-muted-foreground truncate">
                         {session.gitRepo || 'Empty workspace'}
                       </p>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       <div
                         className={`status-indicator text-xs ${
@@ -255,8 +258,37 @@ function WelcomeScreen() {
                       <span className="text-xs text-muted-foreground font-mono hidden md:inline">
                         {new Date(session.lastActiveAt).toLocaleDateString()}
                       </span>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          setDeletingId(session.id);
+                          await terminateSession(session.id);
+                          setDeletingId(null);
+                        }}
+                        disabled={deletingId === session.id}
+                        className="rounded p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-opacity"
+                        title="Delete session"
+                      >
+                        {deletingId === session.id ? (
+                          <span className="h-4 w-4 block animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                        ) : (
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        )}
+                      </button>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}

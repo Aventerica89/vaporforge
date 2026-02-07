@@ -36,6 +36,8 @@ RUN cat > /workspace/claude-agent.js << 'CLAUDE_AGENT_EOF'
 // Output protocol (JSON lines on stdout):
 //   { type: "session-init", sessionId: "..." }
 //   { type: "text-delta", text: "..." }
+//   { type: "tool-start", name: "...", input: {...} }
+//   { type: "tool-result", name: "...", output: "..." }
 //   { type: "done", sessionId: "...", fullText: "..." }
 //   { type: "error", error: "..." }
 
@@ -71,12 +73,34 @@ async function handleQuery(prompt, sessionId, cwd) {
       }
     }
 
-    // Complete assistant message (always emitted, overrides streamed text)
+    // Tool use events - forward tool invocations for UI display
     if (msg.type === 'assistant' && msg.message && msg.message.content) {
+      for (const block of msg.message.content) {
+        if (block.type === 'tool_use') {
+          console.log(JSON.stringify({
+            type: 'tool-start',
+            name: block.name || 'unknown',
+            input: block.input || {},
+          }));
+        }
+      }
+      // Also capture final text from assistant message
       responseText = msg.message.content
         .filter(b => b.type === 'text')
         .map(b => b.text)
         .join('');
+    }
+
+    // Tool result events
+    if (msg.type === 'tool_result' || (msg.type === 'stream_event' && msg.event && msg.event.type === 'tool_result')) {
+      const toolEvent = msg.type === 'tool_result' ? msg : msg.event;
+      console.log(JSON.stringify({
+        type: 'tool-result',
+        name: toolEvent.name || toolEvent.tool_name || 'unknown',
+        output: typeof toolEvent.output === 'string'
+          ? toolEvent.output.slice(0, 500)
+          : JSON.stringify(toolEvent.output || toolEvent.content || '').slice(0, 500),
+      }));
     }
 
     // Result message with final session_id
