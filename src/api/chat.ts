@@ -251,6 +251,7 @@ chatRoutes.post('/stream', async (c) => {
         {
           env: {
             CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+            NODE_PATH: '/usr/local/lib/node_modules',
           },
           timeout: 300000, // 5 min
         }
@@ -386,6 +387,7 @@ async function callClaudeInSandbox(
     {
       env: {
         CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
+        NODE_PATH: '/usr/local/lib/node_modules',
       },
       timeout: 300000, // 5 min
     }

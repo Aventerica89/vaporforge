@@ -26,9 +26,9 @@ echo
 echo "📡 Step 1: Authenticating with VaporForge..."
 AUTH_RESPONSE=$(curl -s -X POST "$API_BASE/auth/setup" \
   -H "Content-Type: application/json" \
-  -d "{\"setupToken\": \"$CLAUDE_TOKEN\"}")
+  -d "{\"token\": \"$CLAUDE_TOKEN\"}")
 
-SESSION_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.data.token // empty')
+SESSION_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.data.sessionToken // empty')
 
 if [ -z "$SESSION_TOKEN" ]; then
   echo "❌ Authentication failed:"
