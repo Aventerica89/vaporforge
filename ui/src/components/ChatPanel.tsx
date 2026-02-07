@@ -48,12 +48,14 @@ export function ChatPanel() {
     <div className="flex h-full flex-col border-l border-border bg-card">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div>
-          <h3 className="font-medium">Chat</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase text-muted-foreground">
+            Chat
+          </span>
           {currentFile && (
-            <p className="text-xs text-muted-foreground">
-              Context: {currentFile.name}
-            </p>
+            <span className="text-xs text-muted-foreground">
+              — {currentFile.name}
+            </span>
           )}
         </div>
         {messages.length > 0 && (
