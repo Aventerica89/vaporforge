@@ -35,6 +35,7 @@ interface SandboxState {
   loadSessions: () => Promise<void>;
   createSession: (name?: string, gitRepo?: string) => Promise<Session | null>;
   selectSession: (sessionId: string) => Promise<void>;
+  deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
 
   loadFiles: (path?: string) => Promise<void>;
@@ -132,6 +133,20 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     } catch {
       // Handle error
     }
+  },
+
+  deselectSession: () => {
+    set({
+      currentSession: null,
+      files: [],
+      openFiles: [],
+      activeFileIndex: -1,
+      messages: [],
+      terminalOutput: [],
+      gitStatus: null,
+      streamingContent: '',
+      isStreaming: false,
+    });
   },
 
   terminateSession: async (sessionId: string) => {
