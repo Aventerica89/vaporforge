@@ -21,7 +21,10 @@ const CLAUDE_UTILITY_PATTERNS = [
 export function isShellCommand(input: string): boolean {
   const firstWord = input.split(/\s+/)[0];
   if (SHELL_COMMANDS.has(firstWord)) return true;
-  if (firstWord.startsWith('./') || firstWord.startsWith('/')) return true;
+  if (firstWord.startsWith('./')) return true;
+  // Only treat /foo as a path if it has multiple segments (e.g. /usr/bin/node)
+  // Single-segment /foo could be a slash command like /mcp, /help
+  if (firstWord.startsWith('/') && firstWord.indexOf('/', 1) !== -1) return true;
   if (firstWord.startsWith('~')) return true;
   if (firstWord.includes('=')) return true; // env var assignment
   return false;
