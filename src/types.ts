@@ -10,6 +10,7 @@ export const SessionSchema = z.object({
   status: z.enum(['creating', 'active', 'sleeping', 'terminated']),
   createdAt: z.string(),
   lastActiveAt: z.string(),
+  sdkSessionId: z.string().optional(), // Claude SDK session ID for conversation continuity
   metadata: z.record(z.unknown()).optional(),
 });
 

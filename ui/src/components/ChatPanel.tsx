@@ -119,7 +119,7 @@ export function ChatPanel() {
                       : 'bg-muted'
                   }`}
                 >
-                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words overflow-wrap-anywhere">
                     {message.content}
                   </div>
                   {message.toolCalls && message.toolCalls.length > 0 && (
@@ -151,7 +151,7 @@ export function ChatPanel() {
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="flex-1 rounded-lg bg-muted px-4 py-3">
-                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
+                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words overflow-wrap-anywhere">
                     {streamingContent || (
                       <span className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -179,7 +179,8 @@ export function ChatPanel() {
             placeholder="Ask Claude..."
             rows={1}
             disabled={isStreaming}
-            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 pr-12 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
+            style={{ color: 'hsl(var(--foreground))' }}
           />
           <button
             type="submit"

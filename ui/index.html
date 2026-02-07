@@ -1,18 +1,81 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0a0a0a" />
-    <meta name="description" content="VaporForge - Web-based AI coding IDE" />
-    <title>VaporForge</title>
+
+    <!-- Mobile & PWA Meta Tags -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="VaporForge" />
+
+    <!-- Theme Colors -->
+    <meta name="theme-color" content="#1dd3e6" />
+    <meta name="msapplication-TileColor" content="#0f1419" />
+    <meta name="msapplication-navbutton-color" content="#1dd3e6" />
+
+    <!-- SEO & Social -->
+    <meta name="description" content="Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription." />
+    <meta name="keywords" content="claude, code, ide, cloudflare, sandboxes, web development, ai coding" />
+    <meta name="author" content="VaporForge" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="VaporForge - Web-based Claude Code IDE" />
+    <meta property="og:description" content="Access Claude Code from any device. Premium developer experience on Cloudflare Sandboxes." />
+    <meta property="og:url" content="https://vaporforge.jbcloud.app" />
+    <meta property="og:site_name" content="VaporForge" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="VaporForge - Web-based Claude Code IDE" />
+    <meta name="twitter:description" content="Access Claude Code from any device. Premium developer experience." />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon.svg" />
+
+    <!-- Preconnect for Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+    <!-- Disable tap highlight on mobile -->
+    <meta name="format-detection" content="telephone=no" />
+
+    <title>VaporForge - Web-based Claude Code IDE</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then(reg => console.log('SW registered:', reg.scope))
+            .catch(err => console.log('SW registration failed:', err));
+        });
+      }
+    </script>
+
+    <!-- Viewport Height Fix for Mobile -->
+    <script>
+      // Fix 100vh on mobile browsers (accounts for address bar)
+      function setViewportHeight() {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      }
+
+      setViewportHeight();
+      window.addEventListener('resize', setViewportHeight);
+      window.addEventListener('orientationchange', setViewportHeight);
+    </script>
   </body>
 </html>

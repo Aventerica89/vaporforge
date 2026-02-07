@@ -27,7 +27,7 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4">
+    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-4 safe-top">
       {/* Left section */}
       <div className="flex items-center gap-4">
         <button className="rounded-md p-1.5 hover:bg-accent md:hidden">

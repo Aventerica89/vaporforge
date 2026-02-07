@@ -16,7 +16,6 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@anthropic-ai/claude-code": "^0.2.0",
     "@anthropic-ai/sdk": "^0.32.0",
     "@cloudflare/sandbox": "^0.7.0",
     "hono": "^4.6.0",
