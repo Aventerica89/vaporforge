@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
+import { collectProjectSecrets } from '../sandbox';
 
 type Variables = {
   user: User;
@@ -93,6 +94,7 @@ sdkRoutes.post('/stream', async (c) => {
         env: {
           CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
           NODE_PATH: '/usr/local/lib/node_modules',
+          ...collectProjectSecrets(c.env),
         },
         timeout: 300000,
       }
@@ -121,6 +123,16 @@ sdkRoutes.post('/stream', async (c) => {
 
       // Send initial event so frontend knows the stream is connected
       await writeEvent({ type: 'connected' });
+
+      // Heartbeat keeps the SSE connection alive through Cloudflare edge
+      // and network intermediaries that close idle connections (~100s)
+      const heartbeat = setInterval(async () => {
+        try {
+          await writeEvent({ type: 'heartbeat', timestamp: Date.now() });
+        } catch {
+          clearInterval(heartbeat);
+        }
+      }, 30000);
 
       try {
         while (true) {
@@ -268,9 +280,20 @@ sdkRoutes.post('/stream', async (c) => {
           );
         }
       } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Stream error';
-        await writeEvent({ type: 'error', content: msg });
+        const errMsg = error instanceof Error ? error.message : 'Stream error';
+        const isRpcDisconnect = errMsg.includes('disconnected prematurely')
+          || errMsg.includes('RPC');
+
+        if (isRpcDisconnect) {
+          await writeEvent({
+            type: 'error',
+            content: 'Sandbox connection lost. The container may have run out of memory or crashed. Try sending your message again.',
+          });
+        } else {
+          await writeEvent({ type: 'error', content: errMsg });
+        }
       } finally {
+        clearInterval(heartbeat);
         await writer.write(encoder.encode('data: [DONE]\n\n'));
         await writer.close();
       }

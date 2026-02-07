@@ -325,8 +325,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       for await (const chunk of sdkApi.stream(
         session.id, message, undefined, controller.signal
       )) {
-        // Skip the initial "connected" heartbeat from backend
-        if (chunk.type === 'connected') {
+        // Skip connection and heartbeat events — just reset the timeout
+        if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
           resetTimeout();
           continue;
         }
@@ -498,7 +498,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       if (!isShell && !isClaude) {
         // Path 1: Natural language -> SDK streaming (true progressive output)
         for await (const chunk of sdkApi.stream(session.id, trimmed)) {
-          if (chunk.type === 'connected' || chunk.type === 'done') continue;
+          if (chunk.type === 'connected' || chunk.type === 'done' || chunk.type === 'heartbeat') continue;
           if (chunk.type === 'text' && chunk.content) {
             // Accumulate text into last output entry for progressive display
             set((state) => {

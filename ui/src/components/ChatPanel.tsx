@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { User, Bot, Trash2 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useKeyboard } from '@/hooks/useKeyboard';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -8,7 +9,12 @@ import { TypingCursor } from '@/components/chat/TypingCursor';
 import { PromptInput } from '@/components/chat/PromptInput';
 import { EmptyState } from '@/components/chat/EmptyState';
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  /** Hide the header bar — used on mobile where MobileLayout provides chrome */
+  compact?: boolean;
+}
+
+export function ChatPanel({ compact = false }: ChatPanelProps) {
   const {
     messages,
     sendMessage,
@@ -19,36 +25,62 @@ export function ChatPanel() {
     currentFile,
   } = useSandboxStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isVisible: keyboardOpen } = useKeyboard();
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
+  // Auto-scroll when keyboard opens so latest messages stay visible
+  useEffect(() => {
+    if (keyboardOpen) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [keyboardOpen]);
+
   return (
-    <div className="flex h-full flex-col border-l border-border bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase text-muted-foreground">
-            Chat
-          </span>
-          {currentFile && (
-            <span className="text-xs text-muted-foreground">
-              — {currentFile.name}
+    <div className={`flex h-full flex-col bg-card ${compact ? '' : 'border-l border-border'}`}>
+      {/* Header — hidden in compact (mobile) mode */}
+      {!compact && (
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase text-muted-foreground">
+              Chat
             </span>
+            {currentFile && (
+              <span className="text-xs text-muted-foreground">
+                — {currentFile.name}
+              </span>
+            )}
+          </div>
+          {messages.length > 0 && (
+            <button
+              onClick={clearMessages}
+              className="rounded p-1.5 hover:bg-accent"
+              title="Clear chat"
+            >
+              <Trash2 className="h-4 w-4 text-muted-foreground" />
+            </button>
           )}
         </div>
-        {messages.length > 0 && (
+      )}
+
+      {/* Compact mode: inline clear button */}
+      {compact && messages.length > 0 && (
+        <div className="flex justify-end px-3 pt-2">
           <button
             onClick={clearMessages}
-            className="rounded p-1.5 hover:bg-accent"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
             title="Clear chat"
           >
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
+            <Trash2 className="h-3 w-3" />
+            Clear
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4">
@@ -130,6 +162,8 @@ export function ChatPanel() {
         onSubmit={sendMessage}
         isStreaming={isStreaming}
         currentFileName={currentFile?.name}
+        compact={compact}
+        keyboardOpen={keyboardOpen}
       />
     </div>
   );

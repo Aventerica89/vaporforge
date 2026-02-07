@@ -5,11 +5,13 @@ Web-based Claude Code IDE on Cloudflare Sandboxes.
 ## Features
 
 - Full IDE experience (Monaco Editor, file tree, diff viewer)
-- Claude-powered AI assistant
+- Claude-powered AI assistant with streaming responses
 - Terminal access to sandboxed environment
 - Git integration
-- Session persistence
-- Mobile-responsive design
+- Session persistence with SDK session continuity
+- Mobile-first responsive design (chat-first layout, drawer nav, bottom sheets)
+- 1Password integration for automatic secrets management
+- PWA support (installable, offline-capable)
 
 ## Architecture
 
@@ -51,7 +53,8 @@ cd ui && npm install && cd ..
 
 3. Configure secrets
 ```bash
-wrangler secret put JWT_SECRET
+npx wrangler secret put JWT_SECRET
+npx wrangler secret put OP_SERVICE_ACCOUNT_TOKEN
 ```
 
 4. Create KV namespaces and R2 bucket
@@ -124,6 +127,40 @@ vaporforge/
 - `GET /api/git/status/:sessionId` - Get status
 - `POST /api/git/commit/:sessionId` - Create commit
 - `POST /api/git/push/:sessionId` - Push changes
+
+## Secrets Management
+
+VaporForge uses **1Password service accounts** so sandbox Claude can access secrets at runtime without manual configuration.
+
+### How it works
+
+```
+1Password (App Dev vault) --> op CLI in container --> process.env
+```
+
+The `OP_SERVICE_ACCOUNT_TOKEN` Worker secret gives every sandbox session read access to the **App Dev** vault. Sandbox Claude can fetch any secret on demand:
+
+```bash
+op read "op://App Dev/SECRET_NAME/credential"
+```
+
+### Adding a new secret
+
+1. Add the secret to the **App Dev** vault in 1Password (from any device)
+2. That's it. Sandbox Claude can read it immediately.
+
+No redeployment, no code changes, no terminal access needed.
+
+### Fallback: Worker secrets
+
+Project secrets can also be forwarded directly as env vars via `npx wrangler secret put`. These are defined in `src/sandbox.ts` (`PROJECT_SECRET_KEYS`) and forwarded to every sandbox session automatically.
+
+### Security
+
+- Service account has **read-only** access to the **App Dev** vault only
+- No access to Personal, Business, or Work vaults
+- The `OP_SERVICE_ACCOUNT_TOKEN` is stored as a Cloudflare Worker secret (encrypted at rest)
+- Secrets are passed to containers via env vars (not persisted to disk)
 
 ## Cost Estimate
 

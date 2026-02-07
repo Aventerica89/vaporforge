@@ -16,7 +16,17 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     jq \
+    gpg \
     && rm -rf /var/lib/apt/lists/*
+
+# Install 1Password CLI for service account secret access
+# Sandbox Claude can run: op read "op://App Dev/SECRET_NAME/credential"
+RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+    gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/amd64 stable main" > \
+    /etc/apt/sources.list.d/1password.list && \
+    apt-get update && apt-get install -y 1password-cli && \
+    rm -rf /var/lib/apt/lists/*
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
@@ -129,11 +139,13 @@ async function handleQuery(prompt, sessionId, cwd) {
       newSessionId = msg.session_id;
     }
 
-    // Handle errors from SDK
+    // Handle errors from SDK — report but don't exit
+    // process.exit(1) here kills the RPC stream, causing
+    // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
-      console.error(JSON.stringify({ type: 'error', error: errorMsg }));
-      process.exit(1);
+      console.log(JSON.stringify({ type: 'error', error: errorMsg }));
+      // Let the for-await loop complete — 'done' will be sent at the end
     }
   }
 

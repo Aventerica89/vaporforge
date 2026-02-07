@@ -1,15 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Square } from 'lucide-react';
 
 interface PromptInputProps {
   onSubmit: (message: string) => void;
   isStreaming: boolean;
   currentFileName?: string;
+  /** Mobile compact mode — adds safe-bottom padding */
+  compact?: boolean;
+  /** When true, keyboard is open — suppresses safe-bottom padding */
+  keyboardOpen?: boolean;
 }
 
-export function PromptInput({ onSubmit, isStreaming, currentFileName }: PromptInputProps) {
+export function PromptInput({
+  onSubmit,
+  isStreaming,
+  currentFileName,
+  compact = false,
+  keyboardOpen = false,
+}: PromptInputProps) {
   const [input, setInput] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -19,12 +30,23 @@ export function PromptInput({ onSubmit, isStreaming, currentFileName }: PromptIn
     }
   }, [input]);
 
+  // Reset any residual scroll from iOS keyboard dismiss
+  const handleBlur = useCallback(() => {
+    if (!compact) return;
+    setTimeout(() => window.scrollTo(0, 0), 100);
+  }, [compact]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
 
     onSubmit(input.trim());
     setInput('');
+
+    // Re-focus after submit on mobile
+    if (compact) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -35,7 +57,10 @@ export function PromptInput({ onSubmit, isStreaming, currentFileName }: PromptIn
   };
 
   return (
-    <div className="border-t border-border p-4">
+    <div
+      ref={containerRef}
+      className={`border-t border-border p-4 ${compact && !keyboardOpen ? 'safe-bottom' : ''}`}
+    >
       {/* File context indicator */}
       {currentFileName && (
         <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -50,6 +75,7 @@ export function PromptInput({ onSubmit, isStreaming, currentFileName }: PromptIn
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           placeholder="Ask Claude..."
           rows={1}
           disabled={isStreaming}
@@ -69,9 +95,11 @@ export function PromptInput({ onSubmit, isStreaming, currentFileName }: PromptIn
         </button>
       </form>
 
-      <p className="mt-2 text-center text-xs text-muted-foreground">
-        Press Enter to send, Shift+Enter for new line
-      </p>
+      {!compact && (
+        <p className="mt-2 text-center text-xs text-muted-foreground">
+          Press Enter to send, Shift+Enter for new line
+        </p>
+      )}
     </div>
   );
 }

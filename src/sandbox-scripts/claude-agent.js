@@ -100,11 +100,13 @@ async function handleQuery(prompt, sessionId, cwd) {
       newSessionId = msg.session_id;
     }
 
-    // Handle errors from SDK
+    // Handle errors from SDK — report but don't exit
+    // process.exit(1) here kills the RPC stream, causing
+    // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
-      console.error(JSON.stringify({ type: 'error', error: errorMsg }));
-      process.exit(1);
+      console.log(JSON.stringify({ type: 'error', error: errorMsg }));
+      // Let the for-await loop complete — 'done' will be sent at the end
     }
   }
 

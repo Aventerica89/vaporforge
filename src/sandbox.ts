@@ -3,6 +3,31 @@ import type { Session, ExecResult, FileInfo } from './types';
 
 const WORKSPACE_PATH = '/workspace';
 
+// Keys to forward from Worker secrets to sandbox containers.
+// Add a new key here + `npx wrangler secret put KEY` to make it available.
+const PROJECT_SECRET_KEYS = [
+  'OP_SERVICE_ACCOUNT_TOKEN',
+  'TURSO_DATABASE_URL',
+  'TURSO_AUTH_TOKEN',
+  'GITHUB_TOKEN',
+  'ENCRYPTION_SECRET',
+  'AUTH_SECRET',
+  'SUPABASE_URL',
+  'SUPABASE_SERVICE_ROLE_KEY',
+] as const;
+
+/** Collect defined project secrets from Worker env into a plain object. */
+export function collectProjectSecrets(env: Env): Record<string, string> {
+  const secrets: Record<string, string> = {};
+  for (const key of PROJECT_SECRET_KEYS) {
+    const val = (env as Record<string, unknown>)[key];
+    if (typeof val === 'string' && val.length > 0) {
+      secrets[key] = val;
+    }
+  }
+  return secrets;
+}
+
 export interface SandboxConfig {
   gitRepo?: string;
   branch?: string;

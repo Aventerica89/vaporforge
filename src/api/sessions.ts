@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
+import { collectProjectSecrets } from '../sandbox';
 
 type Variables = {
   user: User;
@@ -51,14 +52,15 @@ sessionRoutes.post('/create', async (c) => {
       }, 403);
     }
 
-    const authEnv: Record<string, string> = {
+    const sandboxEnv: Record<string, string> = {
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
+      ...collectProjectSecrets(c.env),
     };
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
-      env: authEnv, // Inject auth token persistently
+      env: sandboxEnv,
     });
 
     // Store session metadata
@@ -243,9 +245,10 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH so `claude` CLI works in terminal
+  // Inject Claude token + NODE_PATH + project secrets
   const execEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    ...collectProjectSecrets(c.env),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {
@@ -258,7 +261,7 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     {
       cwd: body.cwd,
       env: execEnv,
-      timeout: body.timeout || 300000, // 5 min default for claude commands
+      timeout: body.timeout || 300000,
     }
   );
 
@@ -303,13 +306,14 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH
-  const execEnv: Record<string, string> = {
+  // Inject Claude token + NODE_PATH + project secrets
+  const streamEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    ...collectProjectSecrets(c.env),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {
-    execEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
+    streamEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
   }
 
   try {
@@ -319,7 +323,7 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
       body.command,
       {
         cwd: body.cwd || session.projectPath || '/workspace',
-        env: execEnv,
+        env: streamEnv,
         timeout: body.timeout || 300000,
       }
     );
