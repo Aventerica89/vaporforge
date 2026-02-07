@@ -308,14 +308,31 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       streamingParts: [],
     }));
 
+    // Timeout: abort if no meaningful data within 60s
+    const controller = new AbortController();
+    let timeoutId = setTimeout(() => controller.abort(), 60000);
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => controller.abort(), 60000);
+    };
+
     try {
       // Use SDK streaming with structured MessagePart accumulation
       let content = '';
       const parts: MessagePart[] = [];
       let currentTextPart: MessagePart | null = null;
 
-      for await (const chunk of sdkApi.stream(session.id, message)) {
+      for await (const chunk of sdkApi.stream(
+        session.id, message, undefined, controller.signal
+      )) {
+        // Skip the initial "connected" heartbeat from backend
+        if (chunk.type === 'connected') {
+          resetTimeout();
+          continue;
+        }
+
         if (chunk.type === 'text' && chunk.content) {
+          resetTimeout();
           content += chunk.content;
 
           // Accumulate text into the current text part
@@ -333,6 +350,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
           set({ streamingContent: content, streamingParts: [...parts] });
         } else if (chunk.type === 'tool-start' && chunk.name) {
+          resetTimeout();
           currentTextPart = null;
           const toolPart: MessagePart = {
             type: 'tool-start',
@@ -342,6 +360,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           parts.push(toolPart);
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-result' && chunk.name) {
+          resetTimeout();
           currentTextPart = null;
           const resultPart: MessagePart = {
             type: 'tool-result',
@@ -351,17 +370,31 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           parts.push(resultPart);
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'error' && chunk.content) {
+          resetTimeout();
           currentTextPart = null;
           parts.push({ type: 'error', content: chunk.content });
           set({ streamingParts: [...parts] });
+        } else if (chunk.type === 'done') {
+          // Stream completed normally
+          resetTimeout();
         }
+      }
+
+      clearTimeout(timeoutId);
+
+      // Handle empty response (stream ended but no content)
+      if (!content && parts.length === 0) {
+        parts.push({
+          type: 'error',
+          content: 'No response received. The sandbox may be sleeping — try again.',
+        });
       }
 
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         sessionId: session.id,
         role: 'assistant',
-        content,
+        content: content || (parts.length > 0 ? '' : 'No response'),
         timestamp: new Date().toISOString(),
         parts: parts.length > 0 ? parts : [{ type: 'text', content }],
       };
@@ -376,8 +409,31 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Refresh files in case Claude made changes
       get().loadFiles();
       get().loadGitStatus();
-    } catch {
-      set({ isStreaming: false, streamingContent: '', streamingParts: [] });
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      // Show error in chat instead of silently swallowing
+      const errorMsg = error instanceof Error && error.name === 'AbortError'
+        ? 'Request timed out — no response from sandbox within 60s.'
+        : error instanceof Error
+          ? error.message
+          : 'Stream failed';
+
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        sessionId: session.id,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toISOString(),
+        parts: [{ type: 'error', content: errorMsg }],
+      };
+
+      set((state) => ({
+        messages: [...state.messages, errorMessage],
+        isStreaming: false,
+        streamingContent: '',
+        streamingParts: [],
+      }));
     }
   },
 
@@ -442,6 +498,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       if (!isShell && !isClaude) {
         // Path 1: Natural language -> SDK streaming (true progressive output)
         for await (const chunk of sdkApi.stream(session.id, trimmed)) {
+          if (chunk.type === 'connected' || chunk.type === 'done') continue;
           if (chunk.type === 'text' && chunk.content) {
             // Accumulate text into last output entry for progressive display
             set((state) => {

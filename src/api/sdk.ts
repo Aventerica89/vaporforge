@@ -117,6 +117,10 @@ sdkRoutes.post('/stream', async (c) => {
       let stdoutBuffer = '';  // Level 2: JSON line buffer from script stdout
       let newSdkSessionId = sdkSessionId;
       let fullText = '';
+      let hasData = false;
+
+      // Send initial event so frontend knows the stream is connected
+      await writeEvent({ type: 'connected' });
 
       try {
         while (true) {
@@ -163,6 +167,7 @@ sdkRoutes.post('/stream', async (c) => {
                 }
 
                 // Re-emit parsed SDK events as our SSE events
+                hasData = true;
                 switch (msg.type) {
                   case 'session-init':
                     newSdkSessionId = msg.sessionId as string;
@@ -215,8 +220,33 @@ sdkRoutes.post('/stream', async (c) => {
                 }
               }
             } else if (event.type === 'stderr' && event.data) {
-              // Forward stderr as error hints (not fatal)
-              // Don't emit as error - stderr often contains warnings
+              // Forward stderr from claude-agent.js
+              const trimmed = event.data.trim();
+              if (!trimmed) continue;
+
+              // Try to parse as JSON error from our script
+              if (trimmed.startsWith('{')) {
+                try {
+                  const parsed = JSON.parse(trimmed) as { type?: string; error?: string };
+                  if (parsed.type === 'error') {
+                    await writeEvent({ type: 'error', content: parsed.error || 'Script error' });
+                    continue;
+                  }
+                } catch {
+                  // Not valid JSON, fall through to raw forwarding
+                }
+              }
+
+              // Forward raw stderr as error (catches module-not-found, crashes, etc.)
+              await writeEvent({ type: 'error', content: trimmed });
+            } else if (event.type === 'exit') {
+              // Sandbox exec finished — detect non-zero exit without stdout data
+              if (event.exitCode && event.exitCode !== 0 && !hasData) {
+                await writeEvent({
+                  type: 'error',
+                  content: `Container process exited with code ${event.exitCode}`,
+                });
+              }
             } else if (event.type === 'error') {
               await writeEvent({
                 type: 'error',

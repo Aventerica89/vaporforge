@@ -216,7 +216,8 @@ export const sdkApi = {
   stream: async function* (
     sessionId: string,
     prompt: string,
-    cwd?: string
+    cwd?: string,
+    signal?: AbortSignal
   ): AsyncGenerator<{
     type: string;
     content?: string;
@@ -235,6 +236,7 @@ export const sdkApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ sessionId, prompt, cwd }),
+      signal,
     });
 
     if (!response.ok) {
