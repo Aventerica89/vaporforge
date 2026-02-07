@@ -108,15 +108,13 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Helper: Limit cache size
+// Helper: Limit cache size (batch delete for efficiency)
 function limitCacheSize(cacheName, maxItems) {
   caches.open(cacheName).then((cache) => {
     cache.keys().then((keys) => {
       if (keys.length > maxItems) {
-        // Delete oldest item
-        cache.delete(keys[0]).then(() => {
-          limitCacheSize(cacheName, maxItems);
-        });
+        const keysToDelete = keys.slice(0, keys.length - maxItems);
+        Promise.all(keysToDelete.map((key) => cache.delete(key)));
       }
     });
   });

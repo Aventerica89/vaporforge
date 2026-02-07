@@ -43,10 +43,17 @@ sessionRoutes.post('/create', async (c) => {
       }, 401);
     }
 
-    const isOAuthToken = claudeToken.startsWith('sk-ant-oat01-');
-    const authEnv: Record<string, string> = isOAuthToken
-      ? { CLAUDE_CODE_OAUTH_TOKEN: claudeToken }
-      : { ANTHROPIC_API_KEY: claudeToken };
+    // SECURITY: Only accept OAuth tokens (MANDATORY per CLAUDE.md)
+    if (!claudeToken.startsWith('sk-ant-oat01-')) {
+      return c.json<ApiResponse<never>>({
+        success: false,
+        error: 'Only Claude OAuth tokens accepted. Run `claude setup-token` to obtain one.',
+      }, 403);
+    }
+
+    const authEnv: Record<string, string> = {
+      CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
+    };
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
@@ -440,11 +447,12 @@ sessionRoutes.post('/debug/sandbox', async (c) => {
       return r.stdout.trim();
     });
 
-    // Cleanup
-    try {
-      await c.env.SESSIONS_KV.delete(`session:${debugId}`);
-    } catch { /* ignore */ }
   }
+
+  // Always cleanup debug session KV key (even if createSandbox failed)
+  try {
+    await c.env.SESSIONS_KV.delete(`session:${debugId}`);
+  } catch { /* ignore */ }
 
   return c.json({
     success: true,
