@@ -244,7 +244,7 @@ sdkRoutes.post('/stream', async (c) => {
               if (event.exitCode && event.exitCode !== 0 && !hasData) {
                 await writeEvent({
                   type: 'error',
-                  content: `Container process exited with code ${event.exitCode}`,
+                  content: `Claude Code process exited with code ${event.exitCode}`,
                 });
               }
             } else if (event.type === 'error') {

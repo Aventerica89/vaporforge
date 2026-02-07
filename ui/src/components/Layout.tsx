@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
+import { useRef } from 'react';
 import { Header } from './Header';
 import { FileTree } from './FileTree';
 import { Editor } from './Editor';
@@ -7,11 +9,54 @@ import { ChatPanel } from './ChatPanel';
 import { Terminal } from './Terminal';
 import { MobileNavigation, type MobileView } from './MobileNavigation';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { Changelog } from './Changelog';
+import { CloneRepoModal } from './CloneRepoModal';
 
 export function Layout() {
   const { loadSessions, currentSession } = useSandboxStore();
   const [mobileView, setMobileView] = useState<MobileView>('editor');
   const [isMobile, setIsMobile] = useState(false);
+
+  // Panel refs for collapse/expand
+  const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
+  const chatPanelRef = useRef<ImperativePanelHandle>(null);
+  const terminalPanelRef = useRef<ImperativePanelHandle>(null);
+  const [fileTreeCollapsed, setFileTreeCollapsed] = useState(false);
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const [terminalCollapsed, setTerminalCollapsed] = useState(false);
+
+  const toggleFileTree = useCallback(() => {
+    const panel = fileTreePanelRef.current;
+    if (!panel) return;
+    if (fileTreeCollapsed) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+    setFileTreeCollapsed(!fileTreeCollapsed);
+  }, [fileTreeCollapsed]);
+
+  const toggleChat = useCallback(() => {
+    const panel = chatPanelRef.current;
+    if (!panel) return;
+    if (chatCollapsed) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+    setChatCollapsed(!chatCollapsed);
+  }, [chatCollapsed]);
+
+  const toggleTerminal = useCallback(() => {
+    const panel = terminalPanelRef.current;
+    if (!panel) return;
+    if (terminalCollapsed) {
+      panel.expand();
+    } else {
+      panel.collapse();
+    }
+    setTerminalCollapsed(!terminalCollapsed);
+  }, [terminalCollapsed]);
 
   useEffect(() => {
     loadSessions();
@@ -27,6 +72,29 @@ export function Layout() {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (chat)
+  useEffect(() => {
+    if (isMobile || !currentSession) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+
+      if (e.key === '1') {
+        e.preventDefault();
+        toggleFileTree();
+      } else if (e.key === '2') {
+        e.preventDefault();
+        toggleTerminal();
+      } else if (e.key === '3') {
+        e.preventDefault();
+        toggleChat();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobile, currentSession, toggleFileTree, toggleTerminal, toggleChat]);
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
@@ -82,11 +150,30 @@ export function Layout() {
             /* Desktop Layout - Resizable Panels */
             <PanelGroup direction="horizontal" className="flex-1">
               {/* File Tree */}
-              <Panel defaultSize={15} minSize={10} maxSize={30}>
-                <FileTree />
+              <Panel
+                ref={fileTreePanelRef}
+                defaultSize={15}
+                minSize={5}
+                maxSize={30}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setFileTreeCollapsed(true)}
+                onExpand={() => setFileTreeCollapsed(false)}
+              >
+                <div className="flex h-full flex-col">
+                  <PanelHeader
+                    title="Files"
+                    shortcut="1"
+                    collapsed={fileTreeCollapsed}
+                    onToggle={toggleFileTree}
+                  />
+                  <div className="flex-1 overflow-hidden">
+                    <FileTree />
+                  </div>
+                </div>
               </Panel>
 
-              <PanelResizeHandle className="panel-separator w-[2px]" />
+              <ResizeHandle direction="vertical" />
 
               {/* Editor + Terminal */}
               <Panel defaultSize={55} minSize={30}>
@@ -95,21 +182,56 @@ export function Layout() {
                     <Editor />
                   </Panel>
 
-                  <PanelResizeHandle className="panel-separator h-[2px]" />
+                  <ResizeHandle direction="horizontal" />
 
-                  <Panel defaultSize={30} minSize={10}>
-                    <div className="terminal-effect h-full">
-                      <Terminal />
+                  <Panel
+                    ref={terminalPanelRef}
+                    defaultSize={30}
+                    minSize={5}
+                    collapsible
+                    collapsedSize={0}
+                    onCollapse={() => setTerminalCollapsed(true)}
+                    onExpand={() => setTerminalCollapsed(false)}
+                  >
+                    <div className="flex h-full flex-col">
+                      <PanelHeader
+                        title="Terminal"
+                        shortcut="2"
+                        collapsed={terminalCollapsed}
+                        onToggle={toggleTerminal}
+                      />
+                      <div className="terminal-effect flex-1 overflow-hidden">
+                        <Terminal />
+                      </div>
                     </div>
                   </Panel>
                 </PanelGroup>
               </Panel>
 
-              <PanelResizeHandle className="panel-separator w-[2px]" />
+              <ResizeHandle direction="vertical" />
 
               {/* Chat Panel */}
-              <Panel defaultSize={30} minSize={20} maxSize={50}>
-                <ChatPanel />
+              <Panel
+                ref={chatPanelRef}
+                defaultSize={30}
+                minSize={5}
+                maxSize={50}
+                collapsible
+                collapsedSize={0}
+                onCollapse={() => setChatCollapsed(true)}
+                onExpand={() => setChatCollapsed(false)}
+              >
+                <div className="flex h-full flex-col">
+                  <PanelHeader
+                    title="Chat"
+                    shortcut="3"
+                    collapsed={chatCollapsed}
+                    onToggle={toggleChat}
+                  />
+                  <div className="flex-1 overflow-hidden">
+                    <ChatPanel />
+                  </div>
+                </div>
               </Panel>
             </PanelGroup>
           )}
@@ -125,14 +247,15 @@ function WelcomeScreen() {
   const { sessions, createSession, selectSession, terminateSession, isLoadingSessions } =
     useSandboxStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showCloneModal, setShowCloneModal] = useState(false);
 
   const handleNewSession = async () => {
     await createSession();
   };
 
   return (
-    <div className="flex flex-1 items-center justify-center p-4 md:p-8 overflow-auto safe-bottom">
-      <div className="w-full max-w-2xl space-y-6 md:space-y-8 animate-fade-up">
+    <div className="flex-1 overflow-auto p-4 md:p-8 safe-bottom">
+      <div className="mx-auto w-full max-w-2xl space-y-6 md:space-y-8 py-8 md:py-16 animate-fade-up">
         {/* Hero Header */}
         <div className="text-center space-y-3">
           <h1 className="text-3xl md:text-4xl font-display font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary animate-fade-down">
@@ -180,9 +303,7 @@ function WelcomeScreen() {
           </button>
 
           <button
-            onClick={() => {
-              // Clone from Git modal would go here
-            }}
+            onClick={() => setShowCloneModal(true)}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-secondary hover:shadow-[0_0_20px_hsl(var(--secondary)/0.3)] group"
           >
             <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-secondary/10 transition-all duration-300 group-hover:bg-secondary/20 group-hover:scale-110">
@@ -295,11 +416,94 @@ function WelcomeScreen() {
           </div>
         )}
 
+        {/* Version + Changelog */}
+        <Changelog />
+
         {/* Footer Info */}
         <div className="text-center text-xs text-muted-foreground font-mono animate-fade-up stagger-4">
           <p>Powered by Cloudflare Sandboxes</p>
         </div>
       </div>
+
+      <CloneRepoModal
+        isOpen={showCloneModal}
+        onClose={() => setShowCloneModal(false)}
+      />
     </div>
+  );
+}
+
+// Collapsible panel header with keyboard shortcut hint
+function PanelHeader({
+  title,
+  shortcut,
+  collapsed,
+  onToggle,
+}: {
+  title: string;
+  shortcut: string;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div className="flex h-8 shrink-0 items-center justify-between border-b border-border bg-muted/50 px-3">
+      <span className="font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        {title}
+      </span>
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+        title={`Toggle ${title} (Cmd+${shortcut})`}
+      >
+        <span className="text-[9px] font-mono opacity-50">
+          {'\u2318'}{shortcut}
+        </span>
+        <svg
+          className={`h-3 w-3 transition-transform ${collapsed ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+// Enhanced resize handle with better grab area and visual indicator
+function ResizeHandle({ direction }: { direction: 'vertical' | 'horizontal' }) {
+  const isVertical = direction === 'vertical';
+
+  return (
+    <PanelResizeHandle
+      className={`panel-separator group relative ${
+        isVertical ? 'w-[6px]' : 'h-[6px]'
+      }`}
+    >
+      {/* Wider invisible hit area */}
+      <div
+        className={`absolute ${
+          isVertical
+            ? 'inset-y-0 -left-1 -right-1'
+            : 'inset-x-0 -top-1 -bottom-1'
+        }`}
+      />
+      {/* Visible grip dots */}
+      <div
+        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex ${
+          isVertical ? 'flex-col' : 'flex-row'
+        } gap-[3px] opacity-40 transition-opacity group-hover:opacity-100`}
+      >
+        <div className="h-1 w-1 rounded-full bg-foreground" />
+        <div className="h-1 w-1 rounded-full bg-foreground" />
+        <div className="h-1 w-1 rounded-full bg-foreground" />
+      </div>
+    </PanelResizeHandle>
   );
 }

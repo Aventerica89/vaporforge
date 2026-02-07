@@ -41,14 +41,35 @@ RUN cat > /workspace/claude-agent.js << 'CLAUDE_AGENT_EOF'
 //   { type: "done", sessionId: "...", fullText: "..." }
 //   { type: "error", error: "..." }
 
-const { query } = require('@anthropic-ai/claude-agent-sdk');
+let query;
+try {
+  query = require('@anthropic-ai/claude-agent-sdk').query;
+} catch (e) {
+  console.error(JSON.stringify({
+    type: 'error',
+    error: `SDK import failed: ${e.message}`,
+  }));
+  process.exit(1);
+}
 
 async function handleQuery(prompt, sessionId, cwd) {
-  // Build options object matching the real SDK API
+  // Build options object matching the real SDK API (follows 1code pattern)
+  const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const options = {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     includePartialMessages: true,
+    permissionMode: 'bypassPermissions',
+    allowDangerouslySkipPermissions: true,
+    continue: true,
+    systemPrompt: 'You are working in a cloud sandbox. Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+    env: {
+      ...process.env,
+      ...(oauthToken ? { CLAUDE_CODE_OAUTH_TOKEN: oauthToken } : {}),
+      NODE_PATH: process.env.NODE_PATH || '/usr/local/lib/node_modules',
+      PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      IS_SANDBOX: '1',
+    },
     ...(sessionId ? { resume: sessionId } : {}),
   };
 
@@ -136,9 +157,10 @@ if (args.length < 1) {
 
 const [prompt, sessionId, cwd] = args;
 handleQuery(prompt, sessionId, cwd).catch(err => {
+  const errorDetail = err.stack || err.message || String(err);
   console.error(JSON.stringify({
     type: 'error',
-    error: err.message || 'Unknown error'
+    error: errorDetail.slice(0, 1000),
   }));
   process.exit(1);
 });

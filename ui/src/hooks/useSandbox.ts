@@ -308,12 +308,12 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       streamingParts: [],
     }));
 
-    // Timeout: abort if no meaningful data within 60s
+    // Timeout: abort if no meaningful data within 5 min (matches backend)
     const controller = new AbortController();
-    let timeoutId = setTimeout(() => controller.abort(), 60000);
+    let timeoutId = setTimeout(() => controller.abort(), 300000);
     const resetTimeout = () => {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => controller.abort(), 60000);
+      timeoutId = setTimeout(() => controller.abort(), 300000);
     };
 
     try {
@@ -414,7 +414,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
       // Show error in chat instead of silently swallowing
       const errorMsg = error instanceof Error && error.name === 'AbortError'
-        ? 'Request timed out — no response from sandbox within 60s.'
+        ? 'Request timed out — no response from sandbox within 5 min.'
         : error instanceof Error
           ? error.message
           : 'Stream failed';
