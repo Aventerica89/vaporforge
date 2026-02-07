@@ -6,7 +6,7 @@ import { Header } from './Header';
 import { FileTree } from './FileTree';
 import { Editor } from './Editor';
 import { ChatPanel } from './ChatPanel';
-import { Terminal } from './Terminal';
+import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -162,7 +162,7 @@ export function Layout() {
                     onToggle={toggleTerminal}
                   />
                   <div className="terminal-effect flex-1 overflow-hidden">
-                    <Terminal />
+                    <XTerminal />
                   </div>
                 </div>
               </Panel>
