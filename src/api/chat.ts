@@ -2,17 +2,6 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Message, ApiResponse, Session } from '../types';
 
-// Dynamic import for ESM module - CACHED to avoid re-importing on every message
-let cachedClaudeQuery: typeof import('@anthropic-ai/claude-agent-sdk').query | null = null;
-const getClaudeQuery = async () => {
-  if (cachedClaudeQuery) {
-    return cachedClaudeQuery;
-  }
-  const sdk = await import('@anthropic-ai/claude-agent-sdk');
-  cachedClaudeQuery = sdk.query;
-  return cachedClaudeQuery;
-};
-
 type Variables = {
   user: User;
   sandboxManager: import('../sandbox').SandboxManager;
@@ -168,6 +157,22 @@ chatRoutes.post('/stream', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
 
+  // SECURITY FIX: Validate token exists before processing
+  if (!user.claudeToken) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'No Claude token. Please re-authenticate.',
+    }, 401);
+  }
+
+  // SECURITY FIX: Only accept OAuth tokens (MANDATORY per CLAUDE.md)
+  if (!user.claudeToken.startsWith('sk-ant-oat01-')) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Only Claude OAuth tokens accepted. Run `claude setup-token`.',
+    }, 401);
+  }
+
   const body = await c.req.json();
   const parsed = SendMessageSchema.safeParse(body);
 
@@ -211,7 +216,8 @@ chatRoutes.post('/stream', async (c) => {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
-  // For streaming, use SSE with Claude SDK
+  // For streaming, we need to run SDK in sandbox and parse output line-by-line
+  // This is more complex than direct import but enables proper conversation continuity
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
@@ -227,63 +233,62 @@ chatRoutes.post('/stream', async (c) => {
         'json'
       );
 
-      if (!session) {
-        throw new Error('Session not found');
+      if (!session || !session.sandboxId) {
+        throw new Error('Session or sandbox not found');
       }
 
-      // Get Claude SDK query function
-      const claudeQuery = await getClaudeQuery();
+      const sdkSessionId = session.sdkSessionId || '';
+      const cwd = session.projectPath || '/workspace';
 
-      // Build query options
-      const queryOptions = {
-        prompt,
-        cwd: session.projectPath || '/workspace',
-        env: {
-          CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken?.startsWith('sk-ant-oat01-')
-            ? user.claudeToken
-            : undefined,
-          ANTHROPIC_API_KEY: user.claudeToken?.startsWith('sk-ant-oat01-')
-            ? undefined
-            : user.claudeToken,
-        },
-        ...(session.sdkSessionId
-          ? { resume: session.sdkSessionId, continue: true }
-          : { continue: true }
-        ),
-        model: 'claude-sonnet-4-5',
-      };
+      // Execute SDK wrapper script with streaming output
+      // Shell-escape args to handle spaces/special chars in prompts
+      const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+      const cmd = `node /workspace/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
 
-      // Stream Claude SDK response
-      const stream = claudeQuery(queryOptions);
-
-      for await (const msg of stream) {
-        const msgAny = msg as any;
-
-        // Extract session ID
-        if (msgAny.type === 'session-init' && msgAny.sessionId) {
-          newSdkSessionId = msgAny.sessionId;
+      const result = await sandboxManager.execInSandbox(
+        session.sandboxId!,
+        cmd,
+        {
+          env: {
+            CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+          },
+          timeout: 300000, // 5 min
         }
+      );
 
-        // Stream text deltas
-        if (msgAny.event?.type === 'content_block_delta') {
-          const delta = msgAny.event.delta;
-          if (delta?.type === 'text_delta' && delta.text) {
-            fullResponse += delta.text;
+      if (result.exitCode !== 0) {
+        throw new Error(result.stderr || 'SDK script failed');
+      }
+
+      // Parse stdout line-by-line for streaming messages
+      const lines = result.stdout.split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        try {
+          const msg = JSON.parse(line);
+
+          if (msg.type === 'session-init') {
+            newSdkSessionId = msg.sessionId;
+          } else if (msg.type === 'text-delta') {
+            fullResponse += msg.text;
             await writer.write(
               encoder.encode(
-                `data: ${JSON.stringify({ type: 'text', content: delta.text })}\n\n`
+                `data: ${JSON.stringify({ type: 'text', content: msg.text })}\n\n`
               )
             );
+          } else if (msg.type === 'done') {
+            fullResponse = msg.fullText;
+            newSdkSessionId = msg.sessionId;
+          } else if (msg.type === 'error') {
+            throw new Error(msg.error);
           }
-        }
-
-        // Handle errors
-        if (msgAny.type === 'error') {
-          throw new Error(msgAny.errorText || 'Claude SDK error');
+        } catch (parseError) {
+          // Ignore non-JSON lines
+          continue;
         }
       }
 
-      // Update session with new SDK sessionId
+      // Update session with new SDK sessionId for conversation continuity
       if (newSdkSessionId && newSdkSessionId !== session.sdkSessionId) {
         const updatedSession: Session = {
           ...session,
@@ -333,7 +338,8 @@ chatRoutes.post('/stream', async (c) => {
 });
 
 // Call Claude Code using the SDK with conversation history
-// Maintains session state for conversation continuity
+// Runs SDK INSIDE the Cloudflare Sandbox container (correct architecture per Anthropic docs)
+// This enables the SDK to maintain shell state, execute commands, and persist conversation context
 async function callClaudeInSandbox(
   sandboxManager: import('../sandbox').SandboxManager,
   sessionsKv: KVNamespace,
@@ -341,8 +347,14 @@ async function callClaudeInSandbox(
   user: User,
   prompt: string
 ): Promise<{ response: string; sdkSessionId: string }> {
+  // SECURITY: Validate token exists
   if (!user.claudeToken) {
     throw new Error('No Claude token available. Please re-authenticate.');
+  }
+
+  // SECURITY: Only accept OAuth tokens (MANDATORY per CLAUDE.md)
+  if (!user.claudeToken.startsWith('sk-ant-oat01-')) {
+    throw new Error('Only Claude OAuth tokens accepted. Run `claude setup-token` to obtain one.');
   }
 
   // Get session to retrieve SDK sessionId for conversation continuity
@@ -355,79 +367,66 @@ async function callClaudeInSandbox(
     throw new Error('Session not found');
   }
 
-  // Get Claude SDK query function
-  const claudeQuery = await getClaudeQuery();
-
-  // Build query options
-  const queryOptions = {
-    prompt,
-    cwd: session.projectPath || '/workspace',
-    env: {
-      // Inject Claude token as env var
-      CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken.startsWith('sk-ant-oat01-')
-        ? user.claudeToken
-        : undefined,
-      ANTHROPIC_API_KEY: user.claudeToken.startsWith('sk-ant-oat01-')
-        ? undefined
-        : user.claudeToken,
-    },
-    // Session handling: resume existing session or start new one
-    ...(session.sdkSessionId
-      ? { resume: session.sdkSessionId, continue: true }
-      : { continue: true }
-    ),
-    model: 'claude-sonnet-4-5',
-  };
-
-  // Run Claude SDK query
-  const stream = claudeQuery(queryOptions);
-
-  // Collect response text and track sessionId
-  let responseText = '';
-  let newSdkSessionId = session.sdkSessionId || '';
-
-  try {
-    for await (const msg of stream) {
-      const msgAny = msg as any;
-
-      // Extract session ID from session-init event
-      if (msgAny.type === 'session-init' && msgAny.sessionId) {
-        newSdkSessionId = msgAny.sessionId;
-      }
-
-      // Extract text deltas from content blocks
-      if (msgAny.event?.type === 'content_block_delta') {
-        const delta = msgAny.event.delta;
-        if (delta?.type === 'text_delta' && delta.text) {
-          responseText += delta.text;
-        }
-      }
-
-      // Handle errors
-      if (msgAny.type === 'error') {
-        throw new Error(msgAny.errorText || 'Claude SDK returned an error');
-      }
-    }
-  } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Failed to stream Claude response'
-    );
+  if (!session.sandboxId) {
+    throw new Error('Sandbox not active');
   }
 
-  // Update session with new SDK sessionId
-  if (newSdkSessionId && newSdkSessionId !== session.sdkSessionId) {
-    const updatedSession: Session = {
-      ...session,
-      sdkSessionId: newSdkSessionId,
-    };
+  // Build command to run SDK script in container
+  const sdkSessionId = session.sdkSessionId || '';
+  const cwd = session.projectPath || '/workspace';
+
+  // Execute SDK wrapper script inside sandbox container
+  // Shell-escape args to handle spaces/special chars in prompts
+  const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
+  const cmd = `node /workspace/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
+
+  const result = await sandboxManager.execInSandbox(
+    session.sandboxId,
+    cmd,
+    {
+      env: {
+        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
+      },
+      timeout: 300000, // 5 min
+    }
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(result.stderr || 'Claude SDK script failed');
+  }
+
+  // Parse stdout for session ID and response
+  const lines = result.stdout.split('\n').filter(l => l.trim());
+  let newSessionId = sdkSessionId;
+  let responseText = '';
+
+  for (const line of lines) {
+    try {
+      const msg = JSON.parse(line);
+      if (msg.type === 'session-init') {
+        newSessionId = msg.sessionId;
+      } else if (msg.type === 'done') {
+        responseText = msg.fullText;
+        newSessionId = msg.sessionId;
+      } else if (msg.type === 'error') {
+        throw new Error(msg.error);
+      }
+    } catch (parseError) {
+      // Ignore non-JSON lines (debug output, etc.)
+      continue;
+    }
+  }
+
+  // Update session with new SDK sessionId for conversation continuity
+  if (newSessionId !== session.sdkSessionId) {
     await sessionsKv.put(
       `session:${sessionId}`,
-      JSON.stringify(updatedSession)
+      JSON.stringify({ ...session, sdkSessionId: newSessionId })
     );
   }
 
   return {
-    response: responseText.trim() || 'No response from Claude',
-    sdkSessionId: newSdkSessionId,
+    response: responseText || 'No response from Claude',
+    sdkSessionId: newSessionId,
   };
 }
