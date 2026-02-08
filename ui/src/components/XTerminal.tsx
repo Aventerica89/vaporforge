@@ -4,6 +4,8 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useTheme } from '@/hooks/useTheme';
+import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { sessionsApi, sdkApi } from '@/lib/api';
 
@@ -33,6 +35,31 @@ const TERMINAL_THEME = {
   brightWhite: '#ffffff',
 };
 
+const TERMINAL_THEME_LIGHT = {
+  background: '#f5f5f5',
+  foreground: '#1a1a2e',
+  cursor: '#0094a8',
+  cursorAccent: '#f5f5f5',
+  selectionBackground: '#0094a833',
+  selectionForeground: '#1a1a2e',
+  black: '#1a1a2e',
+  red: '#d32f2f',
+  green: '#2e7d32',
+  yellow: '#f57f17',
+  blue: '#1565c0',
+  magenta: '#7b1fa2',
+  cyan: '#00838f',
+  white: '#f5f5f5',
+  brightBlack: '#616161',
+  brightRed: '#e53935',
+  brightGreen: '#43a047',
+  brightYellow: '#fdd835',
+  brightBlue: '#1e88e5',
+  brightMagenta: '#8e24aa',
+  brightCyan: '#00acc1',
+  brightWhite: '#fafafa',
+};
+
 const WELCOME_LINE = 'VaporForge Terminal  |  Shell or natural language';
 const PROMPT = '\x1b[38;2;0;212;255m$\x1b[0m ';
 
@@ -52,8 +79,16 @@ export function XTerminal({ compact }: XTerminalProps) {
   const abortRef = useRef<AbortController | null>(null);
 
   const { currentSession } = useSandboxStore();
+  const { isDark } = useTheme();
   const sessionRef = useRef(currentSession);
   sessionRef.current = currentSession;
+
+  const { fontSize: termFontSize, containerProps: pinchProps } = usePinchZoom({
+    min: 9,
+    max: 22,
+    initial: compact ? 12 : 13,
+    storageKey: 'vf-terminal-fontsize',
+  });
 
   const writePrompt = useCallback(() => {
     const term = termRef.current;
@@ -240,9 +275,9 @@ export function XTerminal({ compact }: XTerminalProps) {
     if (!containerRef.current) return;
 
     const term = new XTerm({
-      theme: TERMINAL_THEME,
+      theme: isDark ? TERMINAL_THEME : TERMINAL_THEME_LIGHT,
       fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
-      fontSize: compact ? 12 : 13,
+      fontSize: termFontSize,
       lineHeight: 1.3,
       cursorBlink: true,
       cursorStyle: 'bar',
@@ -288,7 +323,7 @@ export function XTerminal({ compact }: XTerminalProps) {
       termRef.current = null;
       fitRef.current = null;
     };
-  }, [compact, handleData, handleKey]);
+  }, [compact, isDark, handleData, handleKey, termFontSize]);
 
   // Re-fit when session changes (panel may have resized)
   useEffect(() => {
@@ -299,11 +334,21 @@ export function XTerminal({ compact }: XTerminalProps) {
     }
   }, [currentSession]);
 
+  // Re-fit when font size changes via pinch-to-zoom
+  useEffect(() => {
+    if (fitRef.current) {
+      requestAnimationFrame(() => {
+        try { fitRef.current?.fit(); } catch { /* */ }
+      });
+    }
+  }, [termFontSize]);
+
   return (
     <div
       ref={containerRef}
-      className="h-full w-full bg-[#1a1a2e]"
+      className={`h-full w-full ${isDark ? 'bg-[#1a1a2e]' : 'bg-[#f5f5f5]'}`}
       style={{ padding: compact ? '4px' : '8px' }}
+      {...pinchProps}
     />
   );
 }

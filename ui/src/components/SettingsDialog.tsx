@@ -12,19 +12,24 @@ import {
   FileCode,
   Save,
   Loader2,
+  Server,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
 import { userApi } from '@/lib/api';
+import { CommandsTab } from '@/components/settings/CommandsTab';
+import { McpTab } from '@/components/settings/McpTab';
 
 interface SettingsDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-type Tab = 'claude-md' | 'guide' | 'secrets' | 'about';
+type Tab = 'claude-md' | 'commands' | 'mcp' | 'guide' | 'secrets' | 'about';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
+  { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
+  { id: 'mcp', label: 'MCP', icon: <Server className="h-4 w-4" /> },
   { id: 'guide', label: 'Guide', icon: <BookOpen className="h-4 w-4" /> },
   { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
   { id: 'about', label: 'About', icon: <Info className="h-4 w-4" /> },
@@ -238,10 +243,18 @@ function GuideTab() {
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
           <div className="text-muted-foreground">Send message</div>
           <div className="font-mono text-xs text-foreground">Enter</div>
+          <div className="text-muted-foreground">Send message (alt)</div>
+          <div className="font-mono text-xs text-foreground">Cmd/Ctrl + Enter</div>
           <div className="text-muted-foreground">New line</div>
           <div className="font-mono text-xs text-foreground">Shift + Enter</div>
           <div className="text-muted-foreground">Save file</div>
           <div className="font-mono text-xs text-foreground">Cmd/Ctrl + S</div>
+          <div className="text-muted-foreground">Toggle files</div>
+          <div className="font-mono text-xs text-foreground">Cmd/Ctrl + 1</div>
+          <div className="text-muted-foreground">Toggle terminal</div>
+          <div className="font-mono text-xs text-foreground">Cmd/Ctrl + 2</div>
+          <div className="text-muted-foreground">Toggle chat</div>
+          <div className="font-mono text-xs text-foreground">Cmd/Ctrl + 3</div>
         </div>
       </section>
 
@@ -437,6 +450,8 @@ function AboutTab() {
 
 const TAB_CONTENT: Record<Tab, () => JSX.Element> = {
   'claude-md': ClaudeMdTab,
+  commands: CommandsTab,
+  mcp: McpTab,
   guide: GuideTab,
   secrets: SecretsTab,
   about: AboutTab,
@@ -476,12 +491,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border px-5">
+        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 activeTab === tab.id
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground'

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import { SettingsDialog } from './SettingsDialog';
 
 export function Header() {
@@ -30,21 +31,16 @@ export function Header() {
     gitStatus,
   } = useSandboxStore();
   const { logout } = useAuthStore();
+  const { isDark, toggleTheme } = useTheme();
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [isDark, setIsDark] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const nameInputRef = useRef<HTMLInputElement>(null);
   const sessionMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-    document.documentElement.classList.toggle('dark');
-  };
 
   // Close dropdowns on outside click
   useEffect(() => {

@@ -12,11 +12,14 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { DebugPanel } from './DebugPanel';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
+import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 
 export function Layout() {
   const { loadSessions, currentSession } = useSandboxStore();
   useAutoReconnect();
-  const [isMobile, setIsMobile] = useState(false);
+  const { layoutTier } = useDeviceInfo();
+  const isMobile = layoutTier === 'phone';
+  const isTablet = layoutTier === 'tablet';
 
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
@@ -63,16 +66,13 @@ export function Layout() {
     loadSessions();
   }, [loadSessions]);
 
-  // Detect mobile viewport
+  // Tablet: collapse file tree by default for more screen real estate
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+    if (isTablet && fileTreePanelRef.current) {
+      fileTreePanelRef.current.collapse();
+      setFileTreeCollapsed(true);
+    }
+  }, [isTablet]);
 
   // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (chat)
   useEffect(() => {
@@ -97,6 +97,11 @@ export function Layout() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobile, currentSession, toggleFileTree, toggleTerminal, toggleChat]);
 
+  // Tablet/desktop panel size defaults
+  const fileTreeDefaultSize = isTablet ? 0 : 15;
+  const editorDefaultSize = isTablet ? 60 : 55;
+  const chatDefaultSize = isTablet ? 40 : 30;
+
   // Mobile gets its own layout with drawer navigation
   if (isMobile) {
     return (
@@ -112,12 +117,12 @@ export function Layout() {
       <Header />
 
       {currentSession ? (
-        /* Desktop Layout - Resizable Panels */
+        /* Desktop/Tablet Layout - Resizable Panels */
         <PanelGroup direction="horizontal" className="flex-1">
           {/* File Tree */}
           <Panel
             ref={fileTreePanelRef}
-            defaultSize={15}
+            defaultSize={fileTreeDefaultSize}
             minSize={5}
             maxSize={30}
             collapsible
@@ -141,7 +146,7 @@ export function Layout() {
           <ResizeHandle direction="vertical" />
 
           {/* Editor + Terminal */}
-          <Panel defaultSize={55} minSize={30}>
+          <Panel defaultSize={editorDefaultSize} minSize={30}>
             <PanelGroup direction="vertical">
               <Panel defaultSize={70} minSize={20}>
                 <Editor />
@@ -178,7 +183,7 @@ export function Layout() {
           {/* Chat Panel */}
           <Panel
             ref={chatPanelRef}
-            defaultSize={30}
+            defaultSize={chatDefaultSize}
             minSize={5}
             maxSize={50}
             collapsible

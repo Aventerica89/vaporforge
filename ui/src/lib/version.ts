@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.4.6';
+export const APP_VERSION = '0.5.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,25 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.5.0',
+    date: '2026-02-08',
+    tag: 'feature',
+    title: 'Mobile Powerhouse — iPad, Theme, Haptics, Settings',
+    items: [
+      'Touch-friendly copy buttons: always visible on touch devices (no hover needed)',
+      'iPad layout: tablet tier with 2-panel default, auto-collapsed file tree',
+      'Cmd+Enter to send messages (iPad keyboard users)',
+      'Dark/light theme toggle with full CSS variable system',
+      'Haptic feedback on send, copy, and swipe gestures (Vibration API)',
+      'Pull-to-refresh in mobile chat view',
+      'Pinch-to-zoom in editor (10-24px) and terminal (9-22px) with persistence',
+      'Commands tab: manage slash commands in sandbox ~/.claude/commands/',
+      'MCP tab: manage MCP servers in sandbox ~/.claude.json',
+      'PWA raster icons (192px, 512px) and screenshot entries in manifest',
+      'Keyboard shortcuts guide expanded in settings',
+    ],
+  },
   {
     version: '0.4.6',
     date: '2026-02-07',

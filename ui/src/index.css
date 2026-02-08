@@ -58,6 +58,37 @@
     --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
+
+  :root:not(.dark) {
+    /* Light Theme */
+    --background: 0 0% 98%;
+    --foreground: 215 25% 15%;
+
+    --muted: 210 15% 93%;
+    --muted-foreground: 215 15% 45%;
+
+    --primary: 185 85% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 280 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 185 85% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+
+    --border: 210 15% 85%;
+    --ring: 185 85% 40%;
+
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --error: 0 84% 60%;
+
+    --terminal-glow: 185 85% 40%;
+    --card-glass: 0 0% 100%;
+  }
 }
 
 @layer base {
@@ -425,5 +456,12 @@
 @layer utilities {
   .overflow-wrap-anywhere {
     overflow-wrap: anywhere;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

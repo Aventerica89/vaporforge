@@ -1,7 +1,7 @@
 // VaporForge Service Worker
 // Offline-first PWA support with intelligent caching
 
-const CACHE_VERSION = 'vaporforge-v18';
+const CACHE_VERSION = 'vaporforge-v19';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_ITEMS = 50;
@@ -12,6 +12,8 @@ const STATIC_ASSETS = [
   '/index.html',
   '/manifest.json',
   '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install event - cache static assets

@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { X, FileText, Image as ImageIcon, File } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -97,6 +97,51 @@ function CategoryIcon({ category }: { category: MediaCategory }) {
   return <File className={cls} />;
 }
 
+// ---------------------------------------------------------------------------
+// <ImageLightbox> — fullscreen modal for viewing images
+// ---------------------------------------------------------------------------
+
+function ImageLightbox({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute right-4 top-4 z-[101] flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+        title="Close"
+      >
+        <X className="h-5 w-5" />
+      </button>
+      <img
+        src={src}
+        alt={alt}
+        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        draggable={false}
+      />
+    </div>
+  );
+}
+
 export function AttachmentPreview({
   src,
   alt = 'attachment',
@@ -104,16 +149,32 @@ export function AttachmentPreview({
 }: AttachmentPreviewProps) {
   const variant = useContext(VariantCtx);
   const cat = mediaCategory(mimeType);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox = useCallback(() => {
+    if (cat === 'image' && src) setLightboxOpen(true);
+  }, [cat, src]);
+
+  const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+
+  const lightbox =
+    lightboxOpen && src ? (
+      <ImageLightbox src={src} alt={alt} onClose={closeLightbox} />
+    ) : null;
 
   // Grid: full-size thumbnail
   if (variant === 'grid') {
     return cat === 'image' && src ? (
-      <img
-        src={src}
-        alt={alt}
-        className="h-full w-full object-cover"
-        draggable={false}
-      />
+      <>
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full cursor-pointer object-cover"
+          draggable={false}
+          onClick={openLightbox}
+        />
+        {lightbox}
+      </>
     ) : (
       <div className="flex h-full w-full items-center justify-center">
         <CategoryIcon category={cat} />
@@ -128,12 +189,16 @@ export function AttachmentPreview({
 
   // List: small thumbnail or icon
   return cat === 'image' && src ? (
-    <img
-      src={src}
-      alt={alt}
-      className="h-10 w-10 shrink-0 rounded-md object-cover"
-      draggable={false}
-    />
+    <>
+      <img
+        src={src}
+        alt={alt}
+        className="h-10 w-10 shrink-0 cursor-pointer rounded-md object-cover"
+        draggable={false}
+        onClick={openLightbox}
+      />
+      {lightbox}
+    </>
   ) : (
     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted/50">
       <CategoryIcon category={cat} />

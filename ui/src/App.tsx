@@ -8,9 +8,6 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
-
-    // Set dark mode on html element
-    document.documentElement.classList.add('dark');
   }, [checkAuth]);
 
   if (isLoading) {

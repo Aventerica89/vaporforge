@@ -1,6 +1,8 @@
-import { useRef, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { useRef, useEffect, useCallback } from 'react';
+import { Trash2, Loader2, ArrowDown } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { chatApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { MessageActions } from '@/components/chat/MessageActions';
@@ -48,6 +50,23 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
     }
   }, [keyboardOpen]);
 
+  // Pull-to-refresh: reload chat history from server (mobile only)
+  const currentSessionId = useSandboxStore((s) => s.currentSession?.id);
+
+  const handleRefresh = useCallback(async () => {
+    if (!currentSessionId) return;
+    const result = await chatApi.history(currentSessionId);
+    if (result.success && result.data) {
+      useSandboxStore.setState({ messages: result.data });
+    }
+  }, [currentSessionId]);
+
+  const { pullDistance, isRefreshing, handlers: pullHandlers } =
+    usePullToRefresh({
+      onRefresh: handleRefresh,
+      disabled: !compact,
+    });
+
   return (
     <div className={`flex h-full flex-col bg-card ${compact ? '' : 'border-l border-border'}`}>
       {/* Header — hidden in compact (mobile) mode */}
@@ -90,7 +109,31 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      <div
+        className="flex-1 overflow-y-auto px-4 py-3"
+        {...(compact ? pullHandlers : {})}
+      >
+        {/* Pull-to-refresh indicator (mobile only) */}
+        {compact && (pullDistance > 0 || isRefreshing) && (
+          <div
+            className="flex items-center justify-center transition-all"
+            style={{
+              height: isRefreshing ? 40 : Math.min(pullDistance, 80),
+              opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
+            }}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <ArrowDown
+                className="h-5 w-5 text-muted-foreground transition-transform"
+                style={{
+                  transform: pullDistance >= 80 ? 'rotate(180deg)' : 'none',
+                }}
+              />
+            )}
+          </div>
+        )}
         {messages.length === 0 && !isStreaming ? (
           <EmptyState onSuggestion={(text) => sendMessage(text)} />
         ) : (

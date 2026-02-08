@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { haptics } from '@/lib/haptics';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import {
   Attachments,
@@ -115,6 +116,7 @@ export function PromptInput({
     const hasText = input.trim().length > 0;
     const hasImages = images.length > 0;
     if ((!hasText && !hasImages) || isStreaming || !sessionId) return;
+    haptics.light();
 
     let messageText = input.trim();
     let submittedImages: ImageAttachment[] | undefined;
@@ -178,6 +180,9 @@ export function PromptInput({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleSubmit(e);
     }
@@ -289,7 +294,7 @@ export function PromptInput({
 
       {!compact && (
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40">
-          Enter to send, Shift+Enter for new line, Paste images
+          Enter or Cmd+Enter to send, Shift+Enter for new line
         </p>
       )}
     </div>

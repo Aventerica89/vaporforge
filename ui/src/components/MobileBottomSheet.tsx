@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { haptics } from '@/lib/haptics';
 
 interface MobileBottomSheetProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ export function MobileBottomSheet({
 
     // If dragged more than 100px down, close
     if (currentTranslateY.current > 100) {
+      haptics.medium();
       onClose();
     }
 
@@ -90,7 +92,7 @@ export function MobileBottomSheet({
         }`}
         style={{
           maxHeight,
-          background: 'hsl(215 22% 13% / 0.95)',
+          background: 'hsl(var(--card) / 0.95)',
           backdropFilter: 'blur(20px) saturate(150%)',
           border: '1px solid hsl(var(--border))',
           borderBottom: 'none',

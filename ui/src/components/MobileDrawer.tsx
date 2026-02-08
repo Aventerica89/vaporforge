@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
+import { haptics } from '@/lib/haptics';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -64,6 +65,7 @@ export function MobileDrawer({
 
     // If swiped more than 80px left, close
     if (currentTranslateX.current < -80) {
+      haptics.medium();
       onClose();
     }
 
@@ -127,7 +129,7 @@ export function MobileDrawer({
           isOpen ? 'open' : ''
         }`}
         style={{
-          background: 'hsl(215 22% 11% / 0.98)',
+          background: 'hsl(var(--card) / 0.98)',
           backdropFilter: 'blur(20px) saturate(150%)',
           borderRight: '1px solid hsl(var(--border))',
         }}

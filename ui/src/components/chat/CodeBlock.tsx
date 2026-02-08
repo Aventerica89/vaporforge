@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import ShikiHighlighter from 'react-shiki';
+import { useIsTouchDevice } from '@/hooks/useIsTouchDevice';
+import { useTheme } from '@/hooks/useTheme';
+import { haptics } from '@/lib/haptics';
 
 interface CodeBlockProps {
   code: string;
@@ -36,16 +39,18 @@ export const LANGUAGE_LABELS: Record<string, string> = {
   dockerfile: 'Dockerfile',
 };
 
-const SHIKI_THEME = 'vitesse-dark';
-
 export function CodeBlock({ code, language, filename, hideHeader = false }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
+  const isTouch = useIsTouchDevice();
+  const { isDark } = useTheme();
+  const shikiTheme = isDark ? 'vitesse-dark' : 'vitesse-light';
 
   const label = filename || LANGUAGE_LABELS[language] || language;
   const lineCount = code.split('\n').length;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
+    haptics.light();
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -71,7 +76,7 @@ export function CodeBlock({ code, language, filename, hideHeader = false }: Code
             </span>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+              className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground transition-opacity hover:text-foreground ${isTouch ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
               title="Copy code"
             >
               {copied ? (
@@ -106,7 +111,7 @@ export function CodeBlock({ code, language, filename, hideHeader = false }: Code
 
         {/* Highlighted code */}
         <div className="min-w-0 flex-1 p-3 [&_pre]:!bg-transparent [&_code]:!bg-transparent">
-          <ShikiHighlighter language={language} theme={SHIKI_THEME}>
+          <ShikiHighlighter language={language} theme={shikiTheme}>
             {code}
           </ShikiHighlighter>
         </div>
