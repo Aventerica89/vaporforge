@@ -1,7 +1,8 @@
-import { useRef, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { useRef, useEffect, useMemo } from 'react';
+import { Trash2, Image as ImageIcon } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import type { Message } from '@/lib/types';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -97,7 +98,7 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
                   /* User message — right-aligned bubble */
                   <div className="flex justify-end">
                     <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-                      <MessageContent message={message} />
+                      <UserMessageContent message={message} />
                     </div>
                   </div>
                 ) : (
@@ -149,6 +150,48 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
         compact={compact}
         keyboardOpen={keyboardOpen}
       />
+    </div>
+  );
+}
+
+/** Renders user message with inline image path indicators */
+function UserMessageContent({ message }: { message: Message }) {
+  const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
+
+  const { textOnly, imagePaths } = useMemo(() => {
+    const paths: string[] = [];
+    let match: RegExpExecArray | null;
+    while ((match = IMAGE_PATH_RE.exec(message.content)) !== null) {
+      paths.push(match[1]);
+    }
+    const cleaned = message.content.replace(IMAGE_PATH_RE, '').trim();
+    return { textOnly: cleaned, imagePaths: paths };
+  }, [message.content]);
+
+  if (imagePaths.length === 0) {
+    return <MessageContent message={message} />;
+  }
+
+  return (
+    <div>
+      {/* Image badges */}
+      <div className="mb-1.5 flex flex-wrap gap-1">
+        {imagePaths.map((p, i) => (
+          <span
+            key={i}
+            className="inline-flex items-center gap-1 rounded-md bg-primary-foreground/15 px-1.5 py-0.5 text-[10px] font-medium"
+          >
+            <ImageIcon className="h-3 w-3" />
+            {p.split('/').pop()}
+          </span>
+        ))}
+      </div>
+      {/* Text content */}
+      {textOnly && (
+        <MessageContent
+          message={{ ...message, content: textOnly }}
+        />
+      )}
     </div>
   );
 }

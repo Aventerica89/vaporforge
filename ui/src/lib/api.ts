@@ -1,6 +1,16 @@
 import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User } from './types';
+import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
+
+function debugLog(
+  category: 'api' | 'stream' | 'sandbox' | 'error' | 'info',
+  level: 'error' | 'warn' | 'info',
+  summary: string,
+  detail?: string
+) {
+  useDebugLog.getState().addEntry({ category, level, summary, detail });
+}
 
 async function request<T>(
   endpoint: string,
@@ -20,7 +30,14 @@ async function request<T>(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
+    const errMsg = data.error || 'Request failed';
+    debugLog(
+      'api',
+      'error',
+      `${options.method || 'GET'} ${endpoint} — ${response.status}`,
+      JSON.stringify(data, null, 2)
+    );
+    throw new Error(errMsg);
   }
 
   return data;
@@ -341,6 +358,15 @@ export const filesApi = {
       {
         method: 'POST',
         body: JSON.stringify({ path }),
+      }
+    ),
+
+  uploadBase64: (sessionId: string, filename: string, base64Data: string) =>
+    request<{ path: string }>(
+      `/files/upload-base64/${sessionId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ filename, data: base64Data }),
       }
     ),
 };

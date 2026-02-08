@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.4.5';
+export const APP_VERSION = '0.4.6';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.4.6',
+    date: '2026-02-07',
+    tag: 'feature',
+    title: 'Debug Panel + Image Pasting',
+    items: [
+      'Debug panel: floating Dev button captures API errors, stream failures, and uncaught exceptions',
+      'Debug log: expandable entries with category badges, timestamps, and detail JSON',
+      'Image pasting: Cmd+V images into chat, auto-uploads to sandbox for Claude to analyze',
+      'Image preview strip with thumbnails and remove buttons below prompt input',
+      'User messages show image attachment badges inline',
+      'Backend upload-base64 route for binary file uploads to sandbox',
+      'Enable debug panel: localStorage.setItem("vf_debug", "1")',
+    ],
+  },
   {
     version: '0.4.5',
     date: '2026-02-07',

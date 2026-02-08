@@ -9,6 +9,7 @@ import { ChatPanel } from './ChatPanel';
 import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
+import { DebugPanel } from './DebugPanel';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 
@@ -101,6 +102,7 @@ export function Layout() {
     return (
       <div className="bg-background overflow-hidden">
         <MobileLayout />
+        <DebugPanel />
       </div>
     );
   }
@@ -200,6 +202,8 @@ export function Layout() {
       ) : (
         <WelcomeScreen />
       )}
+
+      <DebugPanel />
     </div>
   );
 }

@@ -1,7 +1,17 @@
 import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
+import { useDebugLog } from '@/hooks/useDebugLog';
 import type { Session, FileInfo, Message, MessagePart, GitStatus } from '@/lib/types';
+
+function debugLog(
+  category: 'api' | 'stream' | 'sandbox' | 'error' | 'info',
+  level: 'error' | 'warn' | 'info',
+  summary: string,
+  detail?: string
+) {
+  useDebugLog.getState().addEntry({ category, level, summary, detail });
+}
 
 interface SandboxState {
   // Session state
@@ -123,7 +133,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       localStorage.setItem('vf_active_session', session.id);
       return session;
     }
-    throw new Error(result.error || 'Failed to create session');
+    const err = result.error || 'Failed to create session';
+    debugLog('sandbox', 'error', `createSession failed: ${err}`);
+    throw new Error(err);
   },
 
   selectSession: async (sessionId: string) => {
@@ -485,6 +497,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           currentReasoningPart = null;
           parts.push({ type: 'error', content: chunk.content });
           set({ streamingParts: [...parts] });
+          debugLog('stream', 'error', `Stream error: ${chunk.content}`);
         } else if (chunk.type === 'done') {
           // Stream completed normally
           resetTimeout();
@@ -560,6 +573,13 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         : error instanceof Error
           ? error.message
           : 'Stream failed';
+
+      debugLog(
+        'stream',
+        'error',
+        `sendMessage failed: ${errorMsg}`,
+        error instanceof Error ? error.stack : undefined
+      );
 
       const errorMessage: Message = {
         id: crypto.randomUUID(),

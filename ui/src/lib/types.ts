@@ -103,6 +103,16 @@ export interface ApiResponse<T> {
   };
 }
 
+// Image attachment for pasted images
+export interface ImageAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  dataUrl: string; // base64 data URI for preview
+  /** Sandbox path after upload */
+  uploadedPath?: string;
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }
