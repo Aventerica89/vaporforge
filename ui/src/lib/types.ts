@@ -13,11 +13,15 @@ export interface Session {
 
 // Structured message parts for rich rendering
 export interface MessagePart {
-  type: 'text' | 'tool-start' | 'tool-result' | 'error';
+  type: 'text' | 'tool-start' | 'tool-result' | 'error' | 'reasoning';
   content?: string;
   name?: string;
   input?: Record<string, unknown>;
   output?: string;
+  /** Tool execution duration in ms (populated on tool-result) */
+  duration?: number;
+  /** Timestamp when tool-start was emitted (used to compute duration) */
+  startedAt?: number;
 }
 
 // Message types
