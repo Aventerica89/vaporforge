@@ -3,52 +3,55 @@ const steps = [
   {
     num: '01',
     title: 'Get Your Token',
-    description: 'Run claude setup-token in your terminal to generate an authentication token.',
+    description: 'Run one command in your terminal to generate an authentication token from your Claude subscription.',
     code: '$ claude setup-token',
   },
   {
     num: '02',
     title: 'Paste It In',
-    description: 'Open VaporForge in your browser and enter your token to connect.',
+    description: 'Open VaporForge in any browser — phone, tablet, laptop — and enter your token to connect.',
     code: 'Token: sk-ant-...',
   },
   {
     num: '03',
-    title: 'Start Coding',
-    description: 'Full IDE with Claude at your fingertips. Files, terminal, and AI chat.',
-    code: '> Build me a REST API',
+    title: 'Start Building',
+    description: 'Full cloud IDE with Claude, terminal, file explorer, and session persistence. Ship from anywhere.',
+    code: '> Build me a REST API with auth',
   },
 ];
 ---
 
-<section class="relative px-4 py-20 sm:px-6">
+<section class="relative px-4 py-24 sm:px-6 sm:py-32">
   <!-- Subtle purple glow -->
   <div class="absolute left-0 top-1/3 h-[300px] w-[200px] rounded-full bg-vapor-purple/5 blur-[100px] pointer-events-none" />
 
   <div class="relative z-10 mx-auto max-w-4xl">
-    <h2 class="text-center font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
-      Up and running in minutes
-    </h2>
-    <p class="mx-auto mt-4 max-w-xl text-center text-vapor-muted">
-      Three steps to your cloud IDE. No downloads, no installs.
-    </p>
+    <div class="text-center mb-16">
+      <span class="font-display text-xs tracking-[0.3em] uppercase text-vapor-accent">Get started</span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+        Up and running in 60 seconds
+      </h2>
+      <p class="mx-auto mt-5 max-w-xl text-vapor-muted leading-relaxed">
+        Three steps. No downloads, no installs, no configuration files.
+      </p>
+    </div>
 
-    <div class="relative mt-16">
+    <div class="relative">
       <!-- Connecting gradient line -->
       <div class="absolute left-6 top-0 hidden h-full w-px sm:block"
         style="background: linear-gradient(180deg, #E945F5 0%, #1dd3e6 50%, transparent 100%)" />
 
-      <div class="space-y-12">
+      <div class="space-y-14">
         {steps.map(({ num, title, description, code }, i) => (
-          <div class="flex gap-6">
+          <div class="flex gap-8">
             <div class="relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-vapor-purple/40 bg-vapor-bg font-display text-sm font-bold text-vapor-purple"
-              style={`box-shadow: 0 0 12px ${i === 0 ? 'rgba(233,69,245,0.3)' : i === 1 ? 'rgba(29,211,230,0.3)' : 'rgba(47,75,192,0.3)'}`}>
+              style={`box-shadow: 0 0 16px ${i === 0 ? 'rgba(233,69,245,0.3)' : i === 1 ? 'rgba(29,211,230,0.3)' : 'rgba(47,75,192,0.3)'}`}>
               {num}
             </div>
-            <div class="flex-1">
+            <div class="flex-1 pb-2">
               <h3 class="font-display text-lg font-semibold tracking-wide text-white">{title}</h3>
-              <p class="mt-1 text-vapor-muted">{description}</p>
-              <div class="mt-3 rounded-lg border border-vapor-purple-bg/50 bg-vapor-bg px-4 py-2.5 font-mono text-sm text-vapor-accent"
+              <p class="mt-2 text-vapor-muted leading-relaxed">{description}</p>
+              <div class="mt-4 rounded-lg border border-vapor-purple-bg/50 bg-vapor-bg px-4 py-3 font-mono text-sm text-vapor-accent"
                 style="box-shadow: inset 0 0 20px rgba(233,69,245,0.03)">
                 {code}
               </div>

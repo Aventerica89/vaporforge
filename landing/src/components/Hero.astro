@@ -1,18 +1,18 @@
 ---
 ---
 
-<section class="relative overflow-hidden px-4 py-24 sm:py-32 cyber-grid cyber-scan cyber-lines">
+<section class="relative overflow-hidden px-4 py-28 sm:py-36 lg:py-44 cyber-grid cyber-scan cyber-lines">
   <!-- Purple/cyan glow orbs -->
   <div class="absolute left-1/4 top-1/4 h-[400px] w-[400px] rounded-full bg-vapor-purple/8 blur-[150px] pointer-events-none" />
   <div class="absolute right-1/4 bottom-1/4 h-[300px] w-[300px] rounded-full bg-vapor-accent/8 blur-[120px] pointer-events-none" />
   <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[200px] w-[200px] rounded-full bg-vapor-purple-dark/10 blur-[100px] pointer-events-none animate-glow-pulse" />
 
-  <div class="relative z-10 mx-auto max-w-4xl text-center">
-    <!-- Cyberpunk VaporForge Logo -->
-    <div class="mx-auto mb-8 flex justify-center">
+  <div class="relative z-10 mx-auto max-w-5xl text-center">
+    <!-- Cyberpunk VaporForge Logo - fixed bracket alignment -->
+    <div class="mx-auto mb-10 flex justify-center">
       <div class="relative">
-        <svg width="96" height="96" viewBox="0 0 512 512" fill="none"
-          class="drop-shadow-[0_0_20px_rgba(233,69,245,0.4)]">
+        <svg width="112" height="112" viewBox="0 0 512 512" fill="none"
+          class="drop-shadow-[0_0_24px_rgba(233,69,245,0.4)]">
           <rect width="512" height="512" rx="128" fill="#0f1419" stroke="url(#heroGrad)" stroke-width="3"/>
           <g opacity="0.2">
             <path d="M100 100 H200 V200 H300 V300 H400" stroke="#E945F5" stroke-width="3"/>
@@ -23,11 +23,11 @@
             <circle cx="400" cy="112" r="5" fill="#E945F5"/>
           </g>
           <g filter="url(#heroGlow)">
-            <path d="M 236 256 L 176 306 L 236 356"
-              stroke="#1dd3e6" stroke-width="18"
+            <path d="M 222 230 L 162 296 L 222 362"
+              stroke="#1dd3e6" stroke-width="20"
               stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <path d="M 276 256 L 336 306 L 276 356"
-              stroke="#E945F5" stroke-width="18"
+            <path d="M 290 230 L 350 296 L 290 362"
+              stroke="#E945F5" stroke-width="20"
               stroke-linecap="round" stroke-linejoin="round" fill="none"/>
           </g>
           <defs>
@@ -46,32 +46,61 @@
           </defs>
         </svg>
         <!-- Glow ring behind logo -->
-        <div class="absolute inset-0 -m-2 rounded-3xl border border-vapor-purple/20 animate-glow-pulse" />
+        <div class="absolute inset-0 -m-3 rounded-3xl border border-vapor-purple/20 animate-glow-pulse" />
       </div>
     </div>
 
-    <h1 class="font-display text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl cyber-glow">
+    <h1 class="font-display text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl cyber-glow leading-tight">
       Claude Code, <span class="cyber-gradient-text">Everywhere.</span>
     </h1>
 
-    <p class="mx-auto mt-6 max-w-2xl text-lg text-vapor-muted sm:text-xl">
-      Access your AI coding assistant from any device.
-      Zero install, real cloud sandboxes, mobile-first.
+    <p class="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-vapor-muted sm:text-xl">
+      A full cloud IDE powered by Claude Code SDK.
+      Real Linux containers, real terminals, zero install.
+      Code from your phone, tablet, or any browser.
     </p>
 
-    <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+    <div class="mt-12 flex flex-col items-center justify-center gap-4 sm:flex-row">
       <a
         href="/app"
-        class="cyber-btn rounded-lg px-8 py-3.5 text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-vapor-purple/25"
+        class="cyber-btn rounded-lg px-8 py-4 text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-vapor-purple/25"
       >
-        Get Started
+        Get Started Free
       </a>
       <a
-        href="/pricing"
-        class="rounded-lg border border-vapor-purple-bg px-6 py-3 text-base font-semibold text-white transition-all hover:border-vapor-purple/50 hover:text-vapor-purple hover:shadow-lg hover:shadow-vapor-purple/10"
+        href="#compare"
+        class="rounded-lg border border-vapor-purple-bg px-6 py-3.5 text-base font-semibold text-white transition-all hover:border-vapor-purple/50 hover:text-vapor-purple hover:shadow-lg hover:shadow-vapor-purple/10"
       >
-        See Pricing
+        See How We Compare
       </a>
+    </div>
+
+    <!-- Trust signals -->
+    <div class="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+      <span class="text-xs tracking-widest uppercase text-vapor-muted/60 font-display">Powered by</span>
+      <!-- Cloudflare -->
+      <div class="flex items-center gap-2 opacity-50 hover:opacity-80 transition-opacity">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M16.51 12.15l-.67-2.29a.58.58 0 00-.56-.42H7.6a.2.2 0 01-.18-.13.2.2 0 01.02-.22l.5-.64a.58.58 0 01.45-.22h9.97l-.42-1.43a1.16 1.16 0 00-1.08-.8H4.35a.2.2 0 01-.18-.13.2.2 0 01.02-.22l.5-.64A.58.58 0 015.14 5h13.57L18.3 3.57a1.16 1.16 0 00-1.08-.8H2.78c-.47 0-.9.29-1.07.73L.03 8.35a4.62 4.62 0 00-.03.52c0 .58.1 1.13.29 1.65l.67 2.29a.58.58 0 00.56.42h7.68a.2.2 0 01.18.13.2.2 0 01-.02.22l-.5.64a.58.58 0 01-.45.22H1.77c-.47 0-.9.29-1.07.73L.03 19.35c-.02.17-.03.34-.03.52 0 .58.1 1.13.29 1.65l.42 1.43a1.16 1.16 0 001.08.8h14.44c.47 0 .9-.29 1.07-.73l1.68-4.85c.02-.17.03-.34.03-.52 0-.58-.1-1.13-.29-1.65l-.42-1.43a1.16 1.16 0 00-1.08-.8H9.23l.5-.64a.58.58 0 01.45-.22h7.4c.47 0 .9-.29 1.07-.73l1.32-3.83c.02-.17.03-.34.03-.52 0-.58-.1-1.13-.29-1.65z" fill="currentColor" class="text-vapor-accent"/>
+        </svg>
+        <span class="text-xs text-vapor-muted/60">Cloudflare</span>
+      </div>
+      <!-- Anthropic -->
+      <div class="flex items-center gap-2 opacity-50 hover:opacity-80 transition-opacity">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M13.82 4h-3.64L2 20h3.87l1.66-3.37h8.94L18.13 20H22L13.82 4zm-4.53 10.03L12 7.87l2.71 6.16H9.29z" fill="currentColor" class="text-[#D4A574]"/>
+        </svg>
+        <span class="text-xs text-vapor-muted/60">Anthropic</span>
+      </div>
+      <!-- 1Password -->
+      <div class="flex items-center gap-2 opacity-50 hover:opacity-80 transition-opacity">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="currentColor" class="text-[#0572EC]"/>
+          <path d="M12 6a6 6 0 100 12 6 6 0 000-12zm0 10.5a4.5 4.5 0 110-9 4.5 4.5 0 010 9z" fill="currentColor" class="text-[#0572EC]"/>
+          <circle cx="12" cy="12" r="2" fill="currentColor" class="text-[#0572EC]"/>
+        </svg>
+        <span class="text-xs text-vapor-muted/60">1Password</span>
+      </div>
     </div>
   </div>
 </section>

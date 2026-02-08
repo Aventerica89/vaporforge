@@ -1,0 +1,179 @@
+---
+const features = [
+  {
+    name: 'Real cloud terminal',
+    tip: 'Full Linux shell with apt, npm, git, and every CLI tool',
+    vaporforge: true,
+    localIde: 'local',
+    codespaces: true,
+    replit: 'limited',
+  },
+  {
+    name: 'AI-native IDE',
+    tip: 'Claude Code SDK built-in with streaming chat and tool use',
+    vaporforge: true,
+    localIde: 'addon',
+    codespaces: 'addon',
+    replit: 'limited',
+  },
+  {
+    name: 'Zero install',
+    tip: 'Open browser, paste token, start coding. No downloads.',
+    vaporforge: true,
+    localIde: false,
+    codespaces: true,
+    replit: true,
+  },
+  {
+    name: 'Mobile-first UX',
+    tip: 'Touch-optimized, iPad layout, haptic feedback, PWA',
+    vaporforge: true,
+    localIde: false,
+    codespaces: false,
+    replit: 'limited',
+  },
+  {
+    name: 'Edge infrastructure',
+    tip: 'Cloudflare Workers + Containers on 300+ global PoPs',
+    vaporforge: true,
+    localIde: false,
+    codespaces: false,
+    replit: false,
+  },
+  {
+    name: 'Secrets management',
+    tip: '1Password integration for secure env var injection',
+    vaporforge: true,
+    localIde: 'manual',
+    codespaces: 'limited',
+    replit: 'limited',
+  },
+  {
+    name: 'Persistent sandboxes',
+    tip: 'Files survive between sessions — no cold start rebuilds',
+    vaporforge: true,
+    localIde: 'local',
+    codespaces: true,
+    replit: true,
+  },
+  {
+    name: 'Bring your own key',
+    tip: 'Use your existing Claude Pro/Max — no API cost markup',
+    vaporforge: true,
+    localIde: true,
+    codespaces: false,
+    replit: false,
+  },
+  {
+    name: 'Starting price',
+    tip: '',
+    vaporforge: '$20/mo',
+    localIde: 'Free + HW',
+    codespaces: '$0 + usage',
+    replit: '$25/mo',
+  },
+];
+
+function cellContent(val: boolean | string) {
+  if (val === true) return { type: 'yes' };
+  if (val === false) return { type: 'no' };
+  return { type: 'text', text: String(val) };
+}
+---
+
+<section id="compare" class="relative px-4 py-24 sm:px-6 sm:py-32">
+  <!-- Background glow -->
+  <div class="absolute left-1/2 top-0 -translate-x-1/2 h-[400px] w-[600px] rounded-full bg-vapor-purple/4 blur-[160px] pointer-events-none" />
+
+  <div class="relative z-10 mx-auto max-w-5xl">
+    <div class="text-center mb-16">
+      <span class="font-display text-xs tracking-[0.3em] uppercase text-vapor-purple">How we stack up</span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+        Not another code playground
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-vapor-muted leading-relaxed">
+        VaporForge is a full cloud development environment with a real Linux terminal,
+        not a sandboxed REPL. Powered by Cloudflare's edge network with enterprise-grade secrets management.
+      </p>
+    </div>
+
+    <!-- Desktop comparison table -->
+    <div class="hidden sm:block overflow-hidden rounded-2xl border border-vapor-purple-bg/40">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-vapor-purple-bg/40 bg-vapor-card/50">
+            <th class="py-4 pl-6 pr-4 text-left text-xs font-display tracking-wider uppercase text-vapor-muted">Feature</th>
+            <th class="py-4 px-3 text-center">
+              <span class="font-display text-sm tracking-wide cyber-gradient-text font-bold">VaporForge</span>
+            </th>
+            <th class="py-4 px-3 text-center text-xs text-vapor-muted font-medium">Local IDE</th>
+            <th class="py-4 px-3 text-center text-xs text-vapor-muted font-medium">Codespaces</th>
+            <th class="py-4 px-3 pr-6 text-center text-xs text-vapor-muted font-medium">Replit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {features.map(({ name, tip, vaporforge, localIde, codespaces, replit }, i) => {
+            const vf = cellContent(vaporforge);
+            const li = cellContent(localIde);
+            const cs = cellContent(codespaces);
+            const rp = cellContent(replit);
+            return (
+              <tr class={`border-b border-vapor-purple-bg/20 ${i % 2 === 0 ? 'bg-vapor-bg' : 'bg-vapor-card/30'} hover:bg-vapor-purple-bg/10 transition-colors`}>
+                <td class="py-3.5 pl-6 pr-4">
+                  <span class="text-white font-medium">{name}</span>
+                  {tip && <span class="block text-xs text-vapor-muted/70 mt-0.5">{tip}</span>}
+                </td>
+                <td class="py-3.5 px-3 text-center">
+                  {vf.type === 'yes' && (
+                    <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-vapor-accent/15">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-vapor-accent"><polyline points="20 6 9 17 4 12"/></svg>
+                    </span>
+                  )}
+                  {vf.type === 'text' && <span class="font-display text-xs font-bold text-vapor-accent">{vf.text}</span>}
+                </td>
+                <td class="py-3.5 px-3 text-center">
+                  {li.type === 'yes' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/50"><polyline points="20 6 9 17 4 12"/></svg>}
+                  {li.type === 'no' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/30"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  {li.type === 'text' && <span class="text-xs text-vapor-muted/60">{li.text}</span>}
+                </td>
+                <td class="py-3.5 px-3 text-center">
+                  {cs.type === 'yes' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/50"><polyline points="20 6 9 17 4 12"/></svg>}
+                  {cs.type === 'no' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/30"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  {cs.type === 'text' && <span class="text-xs text-vapor-muted/60">{cs.text}</span>}
+                </td>
+                <td class="py-3.5 px-3 pr-6 text-center">
+                  {rp.type === 'yes' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/50"><polyline points="20 6 9 17 4 12"/></svg>}
+                  {rp.type === 'no' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline text-vapor-muted/30"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                  {rp.type === 'text' && <span class="text-xs text-vapor-muted/60">{rp.text}</span>}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile comparison cards -->
+    <div class="sm:hidden space-y-3">
+      {features.map(({ name, tip, vaporforge, localIde, codespaces, replit }) => {
+        const vf = cellContent(vaporforge);
+        return (
+          <div class="rounded-xl border border-vapor-purple-bg/30 bg-vapor-card/40 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <span class="text-sm font-medium text-white">{name}</span>
+                {tip && <span class="block text-xs text-vapor-muted/60 mt-0.5">{tip}</span>}
+              </div>
+              {vf.type === 'yes' && (
+                <span class="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full bg-vapor-accent/15">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="text-vapor-accent"><polyline points="20 6 9 17 4 12"/></svg>
+                </span>
+              )}
+              {vf.type === 'text' && <span class="shrink-0 font-display text-xs font-bold text-vapor-accent">{vf.text}</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

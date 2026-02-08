@@ -2,56 +2,73 @@
 const features = [
   {
     title: 'Cloud Sandboxes',
-    description: 'Real Linux containers on Cloudflare. Full filesystem, terminal, and package manager.',
+    description: 'Real Cloudflare Containers with full filesystem, package manager, and persistent storage. Not a REPL — a real Linux box.',
     icon: 'cloud',
   },
   {
+    title: 'Real Terminal',
+    description: 'xterm.js terminal with bash, apt, npm, git, and every CLI tool. Stream output in real-time. Run dev servers.',
+    icon: 'terminal',
+  },
+  {
     title: 'Mobile-First',
-    description: 'Touch-optimized with iPad layout, haptic feedback, and pull-to-refresh.',
+    description: 'Touch-optimized with iPad split view, haptic feedback, pull-to-refresh, and pinch-to-zoom. Full PWA support.',
     icon: 'smartphone',
   },
   {
     title: 'Zero Install',
-    description: 'Just open your browser and start coding. Nothing to download or configure.',
+    description: 'Open your browser, paste your Claude token, start coding. Nothing to download, configure, or maintain.',
     icon: 'zap',
   },
   {
-    title: 'Real-Time',
-    description: 'Streaming AI responses with live terminal output and file watching.',
+    title: 'AI Streaming',
+    description: 'Server-sent events deliver Claude responses in real-time. Watch code being written, files edited, and tools invoked live.',
     icon: 'signal',
   },
   {
-    title: 'Your Account',
-    description: 'Bring your Claude Pro or Max subscription. No extra API costs.',
+    title: 'Secrets Vault',
+    description: '1Password integration injects API keys and env vars securely. Keys are encrypted at rest and never touch the filesystem.',
+    icon: 'lock',
+  },
+  {
+    title: 'Your Claude Account',
+    description: 'Use your existing Claude Pro or Max subscription. No API cost markup, no middleman. You own your usage.',
     icon: 'key',
   },
   {
-    title: 'Dark + Light',
-    description: 'Theme toggle, pinch-to-zoom, and full PWA support for offline access.',
-    icon: 'moon',
+    title: 'Session Persistence',
+    description: 'Conversations and files survive browser refresh. Resume any session from any device, right where you left off.',
+    icon: 'save',
   },
 ];
 ---
 
-<section id="features" class="relative px-4 py-20 sm:px-6 cyber-grid cyber-scan">
+<section id="features" class="relative px-4 py-24 sm:px-6 sm:py-32 cyber-grid cyber-scan">
   <!-- Background glow -->
   <div class="absolute right-0 top-1/2 -translate-y-1/2 h-[400px] w-[300px] rounded-full bg-vapor-purple-dark/8 blur-[120px] pointer-events-none" />
 
   <div class="relative z-10 mx-auto max-w-6xl">
-    <h2 class="text-center font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
-      Everything you need
-    </h2>
-    <p class="mx-auto mt-4 max-w-2xl text-center text-vapor-muted">
-      A full IDE experience powered by Claude, running entirely in the cloud.
-    </p>
+    <div class="text-center mb-16">
+      <span class="font-display text-xs tracking-[0.3em] uppercase text-vapor-purple">Capabilities</span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+        Everything you need to ship
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-vapor-muted leading-relaxed">
+        A complete IDE experience powered by Claude Code SDK,
+        running on Cloudflare's global edge network.
+      </p>
+    </div>
 
-    <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
       {features.map(({ title, description, icon }) => (
         <div class="cyber-card group">
-          <div class="bg-vapor-card p-6 transition-all group-hover:bg-vapor-card/80">
+          <div class="bg-vapor-card p-6 transition-all group-hover:bg-vapor-card/80 h-full">
             <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-vapor-accent/15 to-vapor-purple/15 text-vapor-accent">
               {icon === 'cloud' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              )}
+              {icon === 'terminal' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
               )}
               {icon === 'smartphone' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -62,15 +79,18 @@ const features = [
               {icon === 'signal' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
               )}
+              {icon === 'lock' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              )}
               {icon === 'key' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
               )}
-              {icon === 'moon' && (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              {icon === 'save' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
               )}
             </div>
-            <h3 class="font-display text-base font-semibold tracking-wide text-white">{title}</h3>
-            <p class="mt-2 text-sm text-vapor-muted">{description}</p>
+            <h3 class="font-display text-sm font-semibold tracking-wide text-white">{title}</h3>
+            <p class="mt-2 text-xs leading-relaxed text-vapor-muted">{description}</p>
           </div>
         </div>
       ))}
