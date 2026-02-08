@@ -2,6 +2,16 @@ import { getSandbox, type Sandbox } from '@cloudflare/sandbox';
 import type { Session, ExecResult, FileInfo } from './types';
 
 const WORKSPACE_PATH = '/workspace';
+const HEALTH_CHECK_TIMEOUT = 5000;
+const READY_POLL_DELAY = 2000;
+const READY_MAX_ATTEMPTS = 5;
+
+function isSandboxNotReady(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return msg.includes('not ready')
+    || msg.includes('shell has died')
+    || msg.includes('disconnected prematurely');
+}
 
 // Keys to forward from Worker secrets to sandbox containers.
 // Add a new key here + `npx wrangler secret put KEY` to make it available.
@@ -48,6 +58,28 @@ export class SandboxManager {
     return getSandbox(this.sandboxNamespace, sessionId, {
       sleepAfter: '10m',
     });
+  }
+
+  // Verify the sandbox shell is alive with a simple exec
+  async healthCheck(sessionId: string): Promise<boolean> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    try {
+      const result = await sandbox.exec('echo ok', {
+        timeout: HEALTH_CHECK_TIMEOUT,
+      });
+      return result.stdout?.trim() === 'ok';
+    } catch {
+      return false;
+    }
+  }
+
+  // Poll until the sandbox shell is ready (or give up)
+  private async waitForReady(sessionId: string): Promise<boolean> {
+    for (let i = 0; i < READY_MAX_ATTEMPTS; i++) {
+      if (await this.healthCheck(sessionId)) return true;
+      await new Promise((r) => setTimeout(r, READY_POLL_DELAY));
+    }
+    return false;
   }
 
   // Create a new sandbox for a session
@@ -102,6 +134,13 @@ export class SandboxManager {
         // Just create workspace directory
         step = 'mkdir';
         await sandbox.mkdir(WORKSPACE_PATH, { recursive: true });
+      }
+
+      // Verify the container shell is responsive before marking active
+      step = 'healthCheck';
+      const ready = await this.waitForReady(sessionId);
+      if (!ready) {
+        throw new Error('Container started but shell never became responsive');
       }
 
       // Update session status
@@ -159,7 +198,7 @@ export class SandboxManager {
     return updatedSession;
   }
 
-  // Execute command in sandbox
+  // Execute command in sandbox (retries once on "not ready" errors)
   async execInSandbox(
     sessionId: string,
     command: string | string[],
@@ -170,34 +209,42 @@ export class SandboxManager {
     }
   ): Promise<ExecResult> {
     const start = Date.now();
-    const sandbox = this.getSandboxInstance(sessionId);
+    const cmdStr = Array.isArray(command) ? command.join(' ') : command;
 
-    try {
-      const cmdStr = Array.isArray(command) ? command.join(' ') : command;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const sandbox = this.getSandboxInstance(sessionId);
+        const result = await sandbox.exec(cmdStr, {
+          cwd: options?.cwd,
+          env: options?.env,
+          timeout: options?.timeout || 30000,
+        });
 
-      const result = await sandbox.exec(cmdStr, {
-        cwd: options?.cwd,
-        env: options?.env,
-        timeout: options?.timeout || 30000,
-      });
-
-      return {
-        stdout: result.stdout || '',
-        stderr: result.stderr || '',
-        exitCode: result.exitCode ?? (result.success ? 0 : 1),
-        duration: Date.now() - start,
-      };
-    } catch (error) {
-      return {
-        stdout: '',
-        stderr: error instanceof Error ? error.message : 'Unknown error',
-        exitCode: 1,
-        duration: Date.now() - start,
-      };
+        return {
+          stdout: result.stdout || '',
+          stderr: result.stderr || '',
+          exitCode: result.exitCode ?? (result.success ? 0 : 1),
+          duration: Date.now() - start,
+        };
+      } catch (error) {
+        if (attempt === 0 && isSandboxNotReady(error)) {
+          const recovered = await this.waitForReady(sessionId);
+          if (recovered) continue;
+        }
+        return {
+          stdout: '',
+          stderr: error instanceof Error ? error.message : 'Unknown error',
+          exitCode: 1,
+          duration: Date.now() - start,
+        };
+      }
     }
+
+    // Unreachable, but satisfies TypeScript
+    return { stdout: '', stderr: 'Retry exhausted', exitCode: 1, duration: Date.now() - start };
   }
 
-  // Execute command in sandbox with streaming output
+  // Execute command in sandbox with streaming output (retries once on "not ready" errors)
   async execStreamInSandbox(
     sessionId: string,
     command: string,
@@ -207,13 +254,25 @@ export class SandboxManager {
       timeout?: number;
     }
   ): Promise<ReadableStream<Uint8Array>> {
-    const sandbox = this.getSandboxInstance(sessionId);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const sandbox = this.getSandboxInstance(sessionId);
+        return await sandbox.execStream(command, {
+          cwd: options?.cwd,
+          env: options?.env,
+          timeout: options?.timeout || 300000,
+        });
+      } catch (error) {
+        if (attempt === 0 && isSandboxNotReady(error)) {
+          const recovered = await this.waitForReady(sessionId);
+          if (recovered) continue;
+        }
+        throw error;
+      }
+    }
 
-    return sandbox.execStream(command, {
-      cwd: options?.cwd,
-      env: options?.env,
-      timeout: options?.timeout || 300000,
-    });
+    // Unreachable, but satisfies TypeScript
+    throw new Error('Retry exhausted');
   }
 
   // Read file from sandbox
