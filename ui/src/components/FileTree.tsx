@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Plus,
   Search,
+  Home,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import type { FileInfo } from '@/lib/types';
@@ -30,9 +31,30 @@ function getFileIcon(name: string) {
   return FILE_ICONS[ext] || File;
 }
 
+/** Split a path into breadcrumb segments */
+function pathSegments(path: string): Array<{ name: string; path: string }> {
+  const parts = path.split('/').filter(Boolean);
+  const segments: Array<{ name: string; path: string }> = [];
+  let current = '';
+  for (const part of parts) {
+    current += `/${part}`;
+    segments.push({ name: part, path: current });
+  }
+  return segments;
+}
+
 export function FileTree() {
-  const { files, loadFiles, openFile, isLoadingFiles, currentSession } =
-    useSandboxStore();
+  const {
+    files,
+    filesByPath,
+    currentPath,
+    loadFiles,
+    navigateTo,
+    openFile,
+    isLoadingFiles,
+    currentSession,
+  } = useSandboxStore();
+
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
     new Set(['/workspace'])
   );
@@ -50,7 +72,6 @@ export function FileTree() {
       newExpanded.delete(path);
     } else {
       newExpanded.add(path);
-      // Load directory contents
       await loadFiles(path);
     }
     setExpandedPaths(newExpanded);
@@ -63,6 +84,14 @@ export function FileTree() {
       openFile(file.path);
     }
   };
+
+  const handleNavigate = (path: string) => {
+    navigateTo(path);
+    setExpandedPaths(new Set([path]));
+  };
+
+  const segments = pathSegments(currentPath);
+  const isAtRoot = currentPath === '/workspace';
 
   const filteredFiles = searchQuery
     ? files.filter((f) =>
@@ -78,6 +107,15 @@ export function FileTree() {
           Explorer
         </span>
         <div className="flex items-center gap-1">
+          {!isAtRoot && (
+            <button
+              onClick={() => handleNavigate('/workspace')}
+              className="rounded p-1 hover:bg-accent"
+              title="Go to workspace root"
+            >
+              <Home className="h-4 w-4" />
+            </button>
+          )}
           <button
             onClick={() => loadFiles()}
             className="rounded p-1 hover:bg-accent"
@@ -92,6 +130,33 @@ export function FileTree() {
           </button>
         </div>
       </div>
+
+      {/* Breadcrumbs */}
+      {!isAtRoot && (
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-3 py-1.5 text-xs">
+          <button
+            onClick={() => handleNavigate('/workspace')}
+            className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            workspace
+          </button>
+          {segments.slice(1).map((seg) => (
+            <span key={seg.path} className="flex items-center gap-1">
+              <ChevronRight className="h-3 w-3 flex-shrink-0 text-muted-foreground/50" />
+              <button
+                onClick={() => handleNavigate(seg.path)}
+                className={`flex-shrink-0 ${
+                  seg.path === currentPath
+                    ? 'font-medium text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {seg.name}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Search */}
       <div className="border-b border-border px-2 py-2">
@@ -119,13 +184,36 @@ export function FileTree() {
           </div>
         ) : (
           <div className="space-y-0.5">
+            {/* Parent directory entry when not at root */}
+            {!isAtRoot && !searchQuery && (
+              <button
+                onClick={() => {
+                  const parentPath = currentPath
+                    .split('/')
+                    .slice(0, -1)
+                    .join('/') || '/workspace';
+                  handleNavigate(parentPath);
+                }}
+                className="flex w-full items-center gap-1 px-2 py-1 text-sm text-muted-foreground hover:bg-accent"
+                style={{ paddingLeft: '8px' }}
+              >
+                <ChevronRight className="h-4 w-4 flex-shrink-0 rotate-180" />
+                <Folder className="h-4 w-4 flex-shrink-0 text-yellow-500" />
+                <span>..</span>
+              </button>
+            )}
             {filteredFiles.map((file) => (
               <FileTreeItem
                 key={file.path}
                 file={file}
                 depth={0}
                 isExpanded={expandedPaths.has(file.path)}
+                childFiles={filesByPath[file.path]}
+                expandedPaths={expandedPaths}
+                allFilesByPath={filesByPath}
                 onClick={() => handleFileClick(file)}
+                onToggle={toggleExpand}
+                onOpen={openFile}
               />
             ))}
           </div>
@@ -139,10 +227,25 @@ interface FileTreeItemProps {
   file: FileInfo;
   depth: number;
   isExpanded: boolean;
+  childFiles?: FileInfo[];
+  expandedPaths: Set<string>;
+  allFilesByPath: Record<string, FileInfo[]>;
   onClick: () => void;
+  onToggle: (path: string) => void;
+  onOpen: (path: string) => void;
 }
 
-function FileTreeItem({ file, depth, isExpanded, onClick }: FileTreeItemProps) {
+function FileTreeItem({
+  file,
+  depth,
+  isExpanded,
+  childFiles,
+  expandedPaths,
+  allFilesByPath,
+  onClick,
+  onToggle,
+  onOpen,
+}: FileTreeItemProps) {
   const isDirectory = file.type === 'directory';
   const Icon = isDirectory
     ? isExpanded
@@ -151,26 +254,52 @@ function FileTreeItem({ file, depth, isExpanded, onClick }: FileTreeItemProps) {
     : getFileIcon(file.name);
 
   return (
-    <button
-      onClick={onClick}
-      className="flex w-full items-center gap-1 px-2 py-1 text-sm hover:bg-accent"
-      style={{ paddingLeft: `${depth * 12 + 8}px` }}
-    >
-      {isDirectory ? (
-        isExpanded ? (
-          <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+    <>
+      <button
+        onClick={onClick}
+        className="flex w-full items-center gap-1 px-2 py-1 text-sm hover:bg-accent"
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        {isDirectory ? (
+          isExpanded ? (
+            <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+          )
         ) : (
-          <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-        )
-      ) : (
-        <span className="w-4" />
+          <span className="w-4" />
+        )}
+        <Icon
+          className={`h-4 w-4 flex-shrink-0 ${
+            isDirectory ? 'text-yellow-500' : 'text-muted-foreground'
+          }`}
+        />
+        <span className="truncate">{file.name}</span>
+      </button>
+
+      {/* Render children when expanded */}
+      {isDirectory && isExpanded && childFiles && (
+        <div>
+          {childFiles.map((child) => (
+            <FileTreeItem
+              key={child.path}
+              file={child}
+              depth={depth + 1}
+              isExpanded={expandedPaths.has(child.path)}
+              childFiles={allFilesByPath[child.path]}
+              expandedPaths={expandedPaths}
+              allFilesByPath={allFilesByPath}
+              onClick={() =>
+                child.type === 'directory'
+                  ? onToggle(child.path)
+                  : onOpen(child.path)
+              }
+              onToggle={onToggle}
+              onOpen={onOpen}
+            />
+          ))}
+        </div>
       )}
-      <Icon
-        className={`h-4 w-4 flex-shrink-0 ${
-          isDirectory ? 'text-yellow-500' : 'text-muted-foreground'
-        }`}
-      />
-      <span className="truncate">{file.name}</span>
-    </button>
+    </>
   );
 }

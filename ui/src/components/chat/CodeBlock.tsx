@@ -7,9 +7,11 @@ interface CodeBlockProps {
   language: string;
   /** Optional filename shown in the header bar */
   filename?: string;
+  /** When true, skip rendering the header bar (caller provides its own) */
+  hideHeader?: boolean;
 }
 
-const LANGUAGE_LABELS: Record<string, string> = {
+export const LANGUAGE_LABELS: Record<string, string> = {
   js: 'JavaScript',
   jsx: 'JSX',
   ts: 'TypeScript',
@@ -36,7 +38,7 @@ const LANGUAGE_LABELS: Record<string, string> = {
 
 const SHIKI_THEME = 'vitesse-dark';
 
-export function CodeBlock({ code, language, filename }: CodeBlockProps) {
+export function CodeBlock({ code, language, filename, hideHeader = false }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
 
   const label = filename || LANGUAGE_LABELS[language] || language;
@@ -50,41 +52,43 @@ export function CodeBlock({ code, language, filename }: CodeBlockProps) {
 
   return (
     <div className="group relative my-3 overflow-hidden rounded-lg border border-border/60 bg-background/60 transition-shadow hover:shadow-[0_0_12px_-3px_hsl(var(--primary)/0.15)]">
-      {/* Header bar */}
-      <div className="flex items-center justify-between border-b border-border/40 bg-muted/20 px-3 py-1.5">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono text-muted-foreground">
-            {label}
-          </span>
-          {filename && language && (
-            <span className="text-[10px] text-muted-foreground/60">
-              {LANGUAGE_LABELS[language] || language}
+      {/* Header bar (skipped when parent provides its own) */}
+      {!hideHeader && (
+        <div className="flex items-center justify-between border-b border-border/40 bg-muted/20 px-3 py-1.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono text-muted-foreground">
+              {label}
             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] tabular-nums text-muted-foreground/50">
-            {lineCount} {lineCount === 1 ? 'line' : 'lines'}
-          </span>
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
-            title="Copy code"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3 w-3 text-success" />
-                <span className="text-success">Copied</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3 w-3" />
-                <span>Copy</span>
-              </>
+            {filename && language && (
+              <span className="text-[10px] text-muted-foreground/60">
+                {LANGUAGE_LABELS[language] || language}
+              </span>
             )}
-          </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] tabular-nums text-muted-foreground/50">
+              {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+            </span>
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+              title="Copy code"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3 w-3 text-success" />
+                  <span className="text-success">Copied</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" />
+                  <span>Copy</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Code with line numbers */}
       <div className="flex overflow-x-auto text-xs leading-relaxed">

@@ -11,6 +11,8 @@ interface SandboxState {
 
   // File state
   files: FileInfo[];
+  filesByPath: Record<string, FileInfo[]>;
+  currentPath: string;
   currentFile: FileInfo | null;
   fileContent: string;
   isLoadingFiles: boolean;
@@ -34,12 +36,15 @@ interface SandboxState {
 
   // Actions
   loadSessions: () => Promise<void>;
-  createSession: (name?: string, gitRepo?: string) => Promise<Session | null>;
+  createSession: (name?: string, gitRepo?: string, branch?: string) => Promise<Session | null>;
   selectSession: (sessionId: string) => Promise<void>;
   deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
 
+  renameSession: (sessionId: string, name: string) => Promise<void>;
+
   loadFiles: (path?: string) => Promise<void>;
+  navigateTo: (path: string) => Promise<void>;
   openFile: (path: string) => Promise<void>;
   closeFile: (index: number) => void;
   setActiveFile: (index: number) => void;
@@ -57,12 +62,23 @@ interface SandboxState {
   clearTerminal: () => void;
 }
 
+/** Maps file extensions to language identifiers for artifact detection */
+const CODE_EXTS: Record<string, string> = {
+  ts: 'ts', tsx: 'tsx', js: 'js', jsx: 'jsx',
+  py: 'python', rs: 'rust', go: 'go', rb: 'ruby',
+  html: 'html', css: 'css', json: 'json',
+  yaml: 'yaml', yml: 'yaml', toml: 'toml',
+  sh: 'bash', bash: 'bash', sql: 'sql', md: 'markdown',
+};
+
 const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   currentSession: null,
   sessions: [],
   isLoadingSessions: false,
 
   files: [],
+  filesByPath: {},
+  currentPath: '/workspace',
   currentFile: null,
   fileContent: '',
   isLoadingFiles: false,
@@ -92,9 +108,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }
   },
 
-  createSession: async (name?: string, gitRepo?: string) => {
+  createSession: async (name?: string, gitRepo?: string, branch?: string) => {
     try {
-      const result = await sessionsApi.create({ name, gitRepo });
+      const result = await sessionsApi.create({ name, gitRepo, branch });
       if (result.success && result.data) {
         const session = result.data;
         set((state) => ({
@@ -116,6 +132,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         set({
           currentSession: result.data,
           files: [],
+          filesByPath: {},
+          currentPath: '/workspace',
           openFiles: [],
           activeFileIndex: -1,
           messages: [],
@@ -141,6 +159,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     set({
       currentSession: null,
       files: [],
+      filesByPath: {},
+      currentPath: '/workspace',
       openFiles: [],
       activeFileIndex: -1,
       messages: [],
@@ -149,6 +169,25 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       streamingContent: '',
       isStreaming: false,
     });
+  },
+
+  renameSession: async (sessionId: string, name: string) => {
+    try {
+      const result = await sessionsApi.update(sessionId, { name });
+      if (result.success && result.data) {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? result.data! : s
+          ),
+          currentSession:
+            state.currentSession?.id === sessionId
+              ? result.data!
+              : state.currentSession,
+        }));
+      }
+    } catch {
+      // Handle error
+    }
   },
 
   terminateSession: async (sessionId: string) => {
@@ -164,15 +203,49 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }
   },
 
-  loadFiles: async (path: string = '/workspace') => {
+  loadFiles: async (path?: string) => {
     const session = get().currentSession;
     if (!session) return;
 
+    const targetPath = path || get().currentPath;
+
     set({ isLoadingFiles: true });
     try {
-      const result = await filesApi.list(session.id, path);
+      const result = await filesApi.list(session.id, targetPath);
       if (result.success && result.data) {
-        set({ files: result.data });
+        const newFilesByPath = {
+          ...get().filesByPath,
+          [targetPath]: result.data,
+        };
+        // If loading the current path, also update the flat files list
+        if (targetPath === get().currentPath) {
+          set({ files: result.data, filesByPath: newFilesByPath });
+        } else {
+          set({ filesByPath: newFilesByPath });
+        }
+      }
+    } finally {
+      set({ isLoadingFiles: false });
+    }
+  },
+
+  navigateTo: async (path: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    set({ currentPath: path, isLoadingFiles: true });
+    try {
+      const cached = get().filesByPath[path];
+      if (cached) {
+        set({ files: cached, isLoadingFiles: false });
+      } else {
+        const result = await filesApi.list(session.id, path);
+        if (result.success && result.data) {
+          set({
+            files: result.data,
+            filesByPath: { ...get().filesByPath, [path]: result.data },
+          });
+        }
       }
     } finally {
       set({ isLoadingFiles: false });
@@ -322,6 +395,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       const parts: MessagePart[] = [];
       let currentTextPart: MessagePart | null = null;
       let currentReasoningPart: MessagePart | null = null;
+      // lastToolStart removed — artifact detection uses post-stream scan
 
       for await (const chunk of sdkApi.stream(
         session.id, message, undefined, controller.signal
@@ -415,6 +489,37 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       }
 
       clearTimeout(timeoutId);
+
+      // Post-stream: promote Write/Edit tool-starts to artifact blocks
+      const artifactParts: MessagePart[] = [];
+      for (const p of parts) {
+        if (p.type !== 'tool-start') continue;
+        const toolLower = (p.name || '').toLowerCase();
+        if (toolLower !== 'write' && toolLower !== 'edit') continue;
+        const input = p.input;
+        const filePath = typeof input?.file_path === 'string'
+          ? input.file_path
+          : typeof input?.path === 'string'
+            ? input.path
+            : null;
+        if (!filePath) continue;
+        const ext = filePath.split('.').pop()?.toLowerCase() || '';
+        const lang = CODE_EXTS[ext];
+        if (!lang) continue;
+        const codeContent = typeof input?.content === 'string'
+          ? input.content
+          : typeof input?.new_string === 'string'
+            ? input.new_string
+            : null;
+        if (!codeContent) continue;
+        artifactParts.push({
+          type: 'artifact',
+          content: codeContent,
+          language: lang,
+          filename: filePath.split('/').pop() || filePath,
+        });
+      }
+      parts.push(...artifactParts);
 
       // Handle empty response (stream ended but no content)
       if (!content && parts.length === 0) {

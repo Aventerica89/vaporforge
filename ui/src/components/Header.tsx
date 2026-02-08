@@ -9,6 +9,9 @@ import {
   Sun,
   Home,
   Trash2,
+  Pencil,
+  Check,
+  X,
   Settings,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -23,6 +26,7 @@ export function Header() {
     deselectSession,
     createSession,
     terminateSession,
+    renameSession,
     gitStatus,
   } = useSandboxStore();
   const { logout } = useAuthStore();
@@ -31,6 +35,9 @@ export function Header() {
   const [showSettings, setShowSettings] = useState(false);
   const [isDark, setIsDark] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const sessionMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -69,6 +76,29 @@ export function Header() {
     setDeletingId(null);
   };
 
+  const startEditName = () => {
+    if (!currentSession) return;
+    const current =
+      (currentSession.metadata as { name?: string })?.name ||
+      currentSession.id.slice(0, 8);
+    setNameInput(current);
+    setEditingName(true);
+    setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  const confirmEditName = async () => {
+    if (!currentSession) return;
+    const trimmed = nameInput.trim();
+    if (trimmed) {
+      await renameSession(currentSession.id, trimmed);
+    }
+    setEditingName(false);
+  };
+
+  const cancelEditName = () => {
+    setEditingName(false);
+  };
+
   return (
     <header className="flex h-12 items-center justify-between border-b border-border bg-card px-3">
       {/* Left section */}
@@ -100,18 +130,66 @@ export function Header() {
 
         {/* Session selector */}
         <div className="relative" ref={sessionMenuRef}>
-          <button
-            onClick={() => setShowSessionMenu(!showSessionMenu)}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent"
-          >
-            <span className="max-w-[120px] truncate sm:max-w-[180px]">
-              {currentSession
-                ? (currentSession.metadata as { name?: string })?.name ||
-                  currentSession.id.slice(0, 8)
-                : 'Sessions'}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-          </button>
+          {editingName && currentSession ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                confirmEditName();
+              }}
+              className="flex items-center gap-1"
+            >
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancelEditName();
+                }}
+                onBlur={confirmEditName}
+                className="w-[140px] sm:w-[180px] rounded border border-primary/50 bg-background px-2 py-0.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="Session name..."
+                maxLength={60}
+              />
+              <button
+                type="submit"
+                className="rounded p-1 text-success hover:bg-success/10"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={cancelEditName}
+                className="rounded p-1 text-muted-foreground hover:bg-accent"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center gap-0.5">
+              <button
+                onClick={() => setShowSessionMenu(!showSessionMenu)}
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent"
+              >
+                <span className="max-w-[120px] truncate sm:max-w-[180px]">
+                  {currentSession
+                    ? (currentSession.metadata as { name?: string })?.name ||
+                      currentSession.id.slice(0, 8)
+                    : 'Sessions'}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              {currentSession && (
+                <button
+                  onClick={startEditName}
+                  className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-primary transition-colors"
+                  title="Rename session"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
 
           {showSessionMenu && (
             <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-md border border-border bg-card py-1 shadow-lg">

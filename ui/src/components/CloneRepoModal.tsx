@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { sessionsApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 
 interface CloneRepoModalProps {
@@ -45,22 +44,15 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
     setError('');
 
     try {
-      // Create a new session with the git repo
-      const session = await createSession(undefined, fullUrl);
-      if (!session) {
-        setError('Failed to create session');
-        return;
-      }
-
-      // Clone into the session
-      const result = await sessionsApi.clone(
-        session.id,
+      // createSession passes gitRepo + branch to the backend which clones via
+      // sandbox.gitCheckout during sandbox creation — no separate clone needed
+      const session = await createSession(
+        undefined,
         fullUrl,
         branch.trim() || undefined
       );
-
-      if (!result.success) {
-        setError(result.error || 'Clone failed');
+      if (!session) {
+        setError('Failed to create session');
         return;
       }
 

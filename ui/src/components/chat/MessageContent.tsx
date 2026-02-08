@@ -2,6 +2,8 @@ import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ToolCallBlock } from './ToolCallBlock';
 import { ReasoningBlock } from './ReasoningBlock';
+import { ArtifactBlock } from './ArtifactBlock';
+import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
 
 interface MessageContentProps {
   message: Message;
@@ -35,6 +37,25 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
 
     case 'tool-result':
       return <ToolCallBlock key={index} part={part} />;
+
+    case 'artifact':
+      return (
+        <ArtifactBlock
+          key={index}
+          code={part.content || ''}
+          language={part.language || 'text'}
+          filename={part.filename}
+        />
+      );
+
+    case 'chain-of-thought':
+      return part.steps ? (
+        <ChainOfThoughtBlock
+          key={index}
+          steps={part.steps}
+          isStreaming={isStreaming}
+        />
+      ) : null;
 
     case 'error':
       return (
@@ -89,7 +110,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
           const isStreamingPart =
-            isLast && (part.type === 'tool-start' || part.type === 'reasoning');
+            isLast && (part.type === 'tool-start' || part.type === 'reasoning' || part.type === 'chain-of-thought');
           return renderPart(part, i, isStreamingPart);
         })}
       </>

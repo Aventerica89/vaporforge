@@ -32,6 +32,8 @@ export interface SandboxConfig {
   gitRepo?: string;
   branch?: string;
   env?: Record<string, string>;
+  /** User's global CLAUDE.md content — injected into ~/.claude/CLAUDE.md */
+  claudeMd?: string;
 }
 
 export class SandboxManager {
@@ -78,6 +80,12 @@ export class SandboxManager {
       // Set environment variables if provided
       if (config?.env) {
         await sandbox.setEnvVars(config.env);
+      }
+
+      // Inject user's global CLAUDE.md into ~/.claude/
+      if (config?.claudeMd) {
+        await sandbox.mkdir('/root/.claude', { recursive: true });
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', config.claudeMd);
       }
 
       // Clone git repo using SDK's gitCheckout

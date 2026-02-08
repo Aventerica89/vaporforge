@@ -91,6 +91,12 @@ export const sessionsApi = {
       }
     ),
 
+  update: (sessionId: string, data: { name?: string }) =>
+    request<Session>(`/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   clone: (sessionId: string, repo: string, branch?: string) =>
     request<{ repo: string; path: string }>(`/sessions/${sessionId}/clone`, {
       method: 'POST',
@@ -271,6 +277,18 @@ export const sdkApi = {
       }
     }
   },
+};
+
+// User Config API
+export const userApi = {
+  getClaudeMd: () =>
+    request<{ content: string }>('/user/claude-md'),
+
+  saveClaudeMd: (content: string) =>
+    request<{ saved: boolean }>('/user/claude-md', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
 };
 
 // Files API

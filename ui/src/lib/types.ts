@@ -11,9 +11,18 @@ export interface Session {
   metadata?: Record<string, unknown>;
 }
 
+/** A single step in a chain-of-thought reasoning block */
+export interface ChainOfThoughtStep {
+  title: string;
+  content?: string;
+  status: 'complete' | 'active' | 'pending';
+  searchResults?: Array<{ title: string; url?: string }>;
+  duration?: number;
+}
+
 // Structured message parts for rich rendering
 export interface MessagePart {
-  type: 'text' | 'tool-start' | 'tool-result' | 'error' | 'reasoning';
+  type: 'text' | 'tool-start' | 'tool-result' | 'error' | 'reasoning' | 'artifact' | 'chain-of-thought';
   content?: string;
   name?: string;
   input?: Record<string, unknown>;
@@ -22,6 +31,12 @@ export interface MessagePart {
   duration?: number;
   /** Timestamp when tool-start was emitted (used to compute duration) */
   startedAt?: number;
+  /** Code language for artifact parts */
+  language?: string;
+  /** Filename for artifact parts */
+  filename?: string;
+  /** Steps for chain-of-thought parts */
+  steps?: ChainOfThoughtStep[];
 }
 
 // Message types

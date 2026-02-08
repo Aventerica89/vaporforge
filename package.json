@@ -1,6 +1,6 @@
 {
   "name": "vaporforge",
-  "version": "0.4.0",
+  "version": "0.4.3",
   "description": "Web-based AI coding IDE on Cloudflare Sandboxes",
   "private": true,
   "type": "module",

@@ -57,15 +57,25 @@ sessionRoutes.post('/create', async (c) => {
       ...collectProjectSecrets(c.env),
     };
 
+    // Fetch user's global CLAUDE.md for injection into sandbox
+    const claudeMd = await c.env.SESSIONS_KV.get(
+      `user-config:${user.id}:claude-md`
+    );
+
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
       env: sandboxEnv,
+      claudeMd: claudeMd || undefined,
     });
 
-    // Store session metadata
+    // Persist session name to KV (createSandbox already saved without it)
     if (parsed.data.name) {
-      session.metadata = { name: parsed.data.name };
+      session.metadata = { ...(session.metadata ?? {}), name: parsed.data.name };
+      await c.env.SESSIONS_KV.put(
+        `session:${sessionId}`,
+        JSON.stringify(session)
+      );
     }
 
     return c.json<ApiResponse<Session>>({

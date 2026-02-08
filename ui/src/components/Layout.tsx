@@ -10,9 +10,11 @@ import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 
 export function Layout() {
   const { loadSessions, currentSession } = useSandboxStore();
+  useAutoReconnect();
   const [isMobile, setIsMobile] = useState(false);
 
   // Panel refs for collapse/expand

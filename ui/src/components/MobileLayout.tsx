@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Menu } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { ChatPanel } from './ChatPanel';
 import { FileTree } from './FileTree';
 import { XTerminal } from './XTerminal';
@@ -15,6 +16,7 @@ type SheetView = 'files' | 'terminal' | null;
 
 export function MobileLayout() {
   const { currentSession } = useSandboxStore();
+  useAutoReconnect();
   const { isVisible: keyboardOpen, viewportHeight } = useKeyboard();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<SheetView>(null);

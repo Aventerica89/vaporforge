@@ -8,6 +8,7 @@ import { fileRoutes } from './api/files';
 import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
 import { sdkRoutes } from './api/sdk';
+import { userRoutes } from './api/user';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -135,6 +136,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/sessions', sessionRoutes);
   protectedRoutes.route('/git', gitRoutes);
   protectedRoutes.route('/sdk', sdkRoutes);
+  protectedRoutes.route('/user', userRoutes);
 
   app.route('/api', protectedRoutes);
 
