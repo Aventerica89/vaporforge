@@ -156,6 +156,11 @@ export function PromptInput({
       }
     }
 
+    // Guard: if all uploads failed and there's no text, don't send empty prompt
+    if (!messageText) {
+      return;
+    }
+
     onSubmit(messageText);
     setInput('');
     setImages([]);

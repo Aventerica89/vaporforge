@@ -450,7 +450,8 @@ fileRoutes.post('/upload-base64/:sessionId', async (c) => {
     }, 500);
   }
 
-  // Write base64 as text file, then decode to binary target
+  // Write base64 as text file, then decode to binary via Node.js
+  // (more robust than `base64 -d` which can choke on trailing whitespace)
   const tmpPath = `/tmp/vf-upload-${Date.now()}.b64`;
   const wrote = await sandboxManager.writeFile(
     session.sandboxId,
@@ -465,9 +466,15 @@ fileRoutes.post('/upload-base64/:sessionId', async (c) => {
     }, 500);
   }
 
+  const decodeScript =
+    `const fs=require("fs");` +
+    `fs.writeFileSync(process.argv[1],` +
+    `Buffer.from(fs.readFileSync(process.argv[2],"utf8").trim(),"base64"));` +
+    `fs.unlinkSync(process.argv[2])`;
+
   const writeResult = await sandboxManager.execInSandbox(
     session.sandboxId,
-    ['sh', '-c', `base64 -d '${tmpPath}' > '${filePath}' && rm -f '${tmpPath}'`],
+    ['node', '-e', decodeScript, filePath, tmpPath],
     { timeout: 30000 }
   );
 
