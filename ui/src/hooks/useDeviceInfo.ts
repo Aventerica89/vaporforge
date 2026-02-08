@@ -18,8 +18,8 @@ interface DeviceInfo {
  *
  * Layout tiers:
  * - phone:   width < 768px
- * - tablet:  768-1023px AND touch device
- * - desktop: >= 1024px OR non-touch
+ * - tablet:  iPad (any width) OR 768-1023px touch device
+ * - desktop: >= 1024px non-iPad
  */
 export function useDeviceInfo(): DeviceInfo {
   return useMemo(() => {
@@ -41,7 +41,7 @@ export function useDeviceInfo(): DeviceInfo {
     let layoutTier: LayoutTier;
     if (width < 768) {
       layoutTier = 'phone';
-    } else if (width < 1024 && isTouch) {
+    } else if (isIpad || (width < 1024 && isTouch)) {
       layoutTier = 'tablet';
     } else {
       layoutTier = 'desktop';
