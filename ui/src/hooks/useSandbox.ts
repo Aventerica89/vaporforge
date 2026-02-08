@@ -121,6 +121,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           sessions: [session, ...state.sessions],
           currentSession: session,
         }));
+        localStorage.setItem('vf_active_session', session.id);
         return session;
       }
       return null;
@@ -143,6 +144,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messages: [],
           terminalOutput: [],
         });
+        localStorage.setItem('vf_active_session', sessionId);
 
         // Load files and git status
         get().loadFiles();
@@ -155,11 +157,12 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         }
       }
     } catch {
-      // Handle error
+      localStorage.removeItem('vf_active_session');
     }
   },
 
   deselectSession: () => {
+    localStorage.removeItem('vf_active_session');
     set({
       currentSession: null,
       files: [],
@@ -793,3 +796,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 });
 
 export const useSandboxStore = create<SandboxState>()(createSandboxStore);
+
+// Auto-restore last active session on page load
+const savedSessionId = localStorage.getItem('vf_active_session');
+if (savedSessionId) {
+  useSandboxStore.getState().selectSession(savedSessionId);
+}
