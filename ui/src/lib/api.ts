@@ -95,8 +95,13 @@ export const sessionsApi = {
     }),
 
   terminate: (sessionId: string) =>
-    request<{ status: string }>(`/sessions/${sessionId}`, {
+    request<Session>(`/sessions/${sessionId}`, {
       method: 'DELETE',
+    }),
+
+  restore: (sessionId: string) =>
+    request<Session>(`/sessions/${sessionId}/restore`, {
+      method: 'POST',
     }),
 
   exec: (sessionId: string, command: string, cwd?: string) =>

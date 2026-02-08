@@ -89,6 +89,11 @@
     }
   ],
 
+  // Cron trigger: purge pending-delete sessions after 5 days (daily at 4am UTC)
+  "triggers": {
+    "crons": ["0 4 * * *"]
+  },
+
   // Dev settings
   "dev": {
     "port": 8787,

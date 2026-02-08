@@ -204,7 +204,7 @@ export function Header() {
                 <>
                   <div className="my-1 border-t border-border" />
                   <div className="max-h-64 overflow-y-auto">
-                    {sessions.map((session) => (
+                    {sessions.filter((s) => s.status !== 'pending-delete').map((session) => (
                       <div
                         key={session.id}
                         className={`group flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent ${

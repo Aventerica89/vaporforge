@@ -5,7 +5,7 @@ export interface Session {
   sandboxId?: string;
   projectPath?: string;
   gitRepo?: string;
-  status: 'creating' | 'active' | 'sleeping' | 'terminated';
+  status: 'creating' | 'active' | 'sleeping' | 'terminated' | 'pending-delete';
   createdAt: string;
   lastActiveAt: string;
   metadata?: Record<string, unknown>;
