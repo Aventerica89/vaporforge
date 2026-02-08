@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.6.0';
+export const APP_VERSION = '0.7.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.7.0',
+    date: '2026-02-08',
+    tag: 'feature',
+    title: 'Secrets Management',
+    items: [
+      'CRUD UI for managing environment secrets (Settings > Secrets tab)',
+      'Secrets stored per-user in KV, injected as env vars into every session',
+      'API never returns full values — only name + last-4-char hint',
+      'Reserved names blocked (CLAUDE_CODE_OAUTH_TOKEN, PATH, etc.)',
+      'Max 50 secrets per user, 10KB per value',
+    ],
+  },
   {
     version: '0.6.0',
     date: '2026-02-08',

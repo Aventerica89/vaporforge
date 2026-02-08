@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
-import { collectProjectSecrets } from '../sandbox';
+import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 
 type Variables = {
   user: User;
@@ -55,6 +55,7 @@ sessionRoutes.post('/create', async (c) => {
     const sandboxEnv: Record<string, string> = {
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
       ...collectProjectSecrets(c.env),
+      ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
     };
 
     // Fetch user's global CLAUDE.md for injection into sandbox
@@ -255,10 +256,11 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH + project secrets
+  // Inject Claude token + NODE_PATH + project secrets + user secrets
   const execEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
     ...collectProjectSecrets(c.env),
+    ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {
@@ -316,10 +318,11 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH + project secrets
+  // Inject Claude token + NODE_PATH + project secrets + user secrets
   const streamEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
     ...collectProjectSecrets(c.env),
+    ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {

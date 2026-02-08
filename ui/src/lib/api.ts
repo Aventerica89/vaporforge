@@ -308,6 +308,23 @@ export const userApi = {
     }),
 };
 
+// Secrets API
+export const secretsApi = {
+  list: () =>
+    request<Array<{ name: string; hint: string }>>('/secrets'),
+
+  add: (name: string, value: string) =>
+    request<{ name: string; hint: string }>('/secrets', {
+      method: 'POST',
+      body: JSON.stringify({ name, value }),
+    }),
+
+  remove: (name: string) =>
+    request<{ deleted: boolean }>(`/secrets/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+};
+
 // Files API
 export const filesApi = {
   list: (sessionId: string, path: string = '/workspace') =>

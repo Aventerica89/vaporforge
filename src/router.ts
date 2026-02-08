@@ -9,6 +9,7 @@ import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
 import { sdkRoutes } from './api/sdk';
 import { userRoutes } from './api/user';
+import { secretsRoutes } from './api/secrets';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -137,6 +138,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/git', gitRoutes);
   protectedRoutes.route('/sdk', sdkRoutes);
   protectedRoutes.route('/user', userRoutes);
+  protectedRoutes.route('/secrets', secretsRoutes);
 
   app.route('/api', protectedRoutes);
 

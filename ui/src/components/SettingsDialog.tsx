@@ -5,8 +5,6 @@ import {
   BookOpen,
   Info,
   Terminal,
-  Shield,
-  Copy,
   Check,
   ExternalLink,
   FileCode,
@@ -18,6 +16,7 @@ import { APP_VERSION } from '@/lib/version';
 import { userApi } from '@/lib/api';
 import { CommandsTab } from '@/components/settings/CommandsTab';
 import { McpTab } from '@/components/settings/McpTab';
+import { SecretsTab } from '@/components/settings/SecretsTab';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -34,39 +33,6 @@ const TABS: Array<{ id: Tab; label: string; icon: React.ReactNode }> = [
   { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
   { id: 'about', label: 'About', icon: <Info className="h-4 w-4" /> },
 ];
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="ml-2 inline-flex items-center rounded p-1 hover:bg-accent transition-colors"
-      title="Copy to clipboard"
-    >
-      {copied ? (
-        <Check className="h-3.5 w-3.5 text-green-400" />
-      ) : (
-        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-      )}
-    </button>
-  );
-}
-
-function CodeSnippet({ children }: { children: string }) {
-  return (
-    <div className="flex items-center rounded-lg bg-muted px-3 py-2 font-mono text-xs">
-      <code className="flex-1 text-primary break-all">{children}</code>
-      <CopyButton text={children} />
-    </div>
-  );
-}
 
 function ClaudeMdTab() {
   const [content, setContent] = useState('');
@@ -278,104 +244,6 @@ function GuideTab() {
           <li className="flex gap-2">
             <span className="text-primary shrink-0">-</span>
             <span>After an error, just resend — sessions auto-resume</span>
-          </li>
-        </ul>
-      </section>
-    </div>
-  );
-}
-
-function SecretsTab() {
-  return (
-    <div className="space-y-5">
-      <section className="space-y-2">
-        <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          <Shield className="h-4 w-4 text-primary" />
-          1Password Integration
-        </h3>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Your sandbox has access to secrets stored in the{' '}
-          <span className="font-semibold text-foreground">App Dev</span> vault
-          via 1Password service account.
-        </p>
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          Reading Secrets
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Ask Claude or run in the terminal:
-        </p>
-        <CodeSnippet>op vault list</CodeSnippet>
-        <CodeSnippet>
-          op read "op://App Dev/SECRET_NAME/credential"
-        </CodeSnippet>
-        <p className="text-xs text-muted-foreground">
-          Replace <code className="text-primary">SECRET_NAME</code> with
-          the item title in your App Dev vault.
-        </p>
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          Adding New Secrets
-        </h3>
-        <ol className="space-y-1.5 text-sm text-muted-foreground">
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">1.</span>
-            <span>
-              Open the 1Password app on any device
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">2.</span>
-            <span>
-              Add a new item to the{' '}
-              <span className="font-semibold text-foreground">App Dev</span> vault
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">3.</span>
-            <span>It's immediately available in your sandbox</span>
-          </li>
-        </ol>
-        <p className="text-xs text-muted-foreground italic">
-          No redeployment or terminal access needed.
-        </p>
-      </section>
-
-      <section className="space-y-3">
-        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          Creating .env Files
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Ask Claude to set up your project's environment:
-        </p>
-        <div className="rounded-lg bg-muted p-3 font-mono text-xs text-muted-foreground leading-relaxed">
-          <span className="text-primary">"</span>
-          Read the secrets from the App Dev vault and
-          create a .env.local for this project
-          <span className="text-primary">"</span>
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          Security
-        </h3>
-        <ul className="space-y-1.5 text-sm text-muted-foreground">
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">-</span>
-            <span>Service account has read-only access to App Dev vault only</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">-</span>
-            <span>No access to Personal, Business, or Work vaults</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="text-primary shrink-0">-</span>
-            <span>Secrets are passed via env vars, not persisted to disk</span>
           </li>
         </ul>
       </section>

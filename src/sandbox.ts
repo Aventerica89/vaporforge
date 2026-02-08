@@ -38,6 +38,39 @@ export function collectProjectSecrets(env: Env): Record<string, string> {
   return secrets;
 }
 
+/** Names that must never be overridden by user secrets (defense-in-depth). */
+const RESERVED_ENV_NAMES = new Set([
+  'CLAUDE_CODE_OAUTH_TOKEN',
+  'NODE_PATH',
+  'IS_SANDBOX',
+  'PATH',
+  'HOME',
+  'USER',
+  'SHELL',
+]);
+
+/** Collect per-user secrets from KV. Returns empty object on missing/invalid. */
+export async function collectUserSecrets(
+  kv: KVNamespace,
+  userId: string
+): Promise<Record<string, string>> {
+  const raw = await kv.get(`user-secrets:${userId}`);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+    const result: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof v === 'string' && !RESERVED_ENV_NAMES.has(k)) {
+        result[k] = v;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 export interface SandboxConfig {
   gitRepo?: string;
   branch?: string;

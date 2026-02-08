@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
-import { collectProjectSecrets } from '../sandbox';
+import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 
 type Variables = {
   user: User;
@@ -93,6 +93,7 @@ sdkRoutes.post('/stream', async (c) => {
           CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
           NODE_PATH: '/usr/local/lib/node_modules',
           ...collectProjectSecrets(c.env),
+          ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
         },
         timeout: 300000,
       }
