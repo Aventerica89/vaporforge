@@ -1,8 +1,7 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect } from 'react';
 import { Trash2 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
-import type { Message } from '@/lib/types';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -10,11 +9,12 @@ import { TypingCursor } from '@/components/chat/TypingCursor';
 import { PromptInput } from '@/components/chat/PromptInput';
 import { EmptyState } from '@/components/chat/EmptyState';
 import {
-  Attachments,
-  Attachment,
-  AttachmentPreview,
-  AttachmentInfo,
-} from '@/components/attachments';
+  Message,
+  MessageBubble,
+  MessageBody,
+  MessageFooter,
+  MessageAttachments,
+} from '@/components/chat/message';
 
 interface ChatPanelProps {
   /** Hide the header bar — used on mobile where MobileLayout provides chrome */
@@ -96,35 +96,26 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
         ) : (
           <div className="mx-auto max-w-3xl space-y-1">
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className="group/message animate-fade-up"
-              >
+              <Message key={message.id} role={message.role}>
                 {message.role === 'user' ? (
-                  /* User message — right-aligned bubble */
-                  <div className="flex justify-end">
-                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-                      <UserMessageContent message={message} />
-                    </div>
-                  </div>
+                  <MessageBubble>
+                    <MessageAttachments message={message} />
+                  </MessageBubble>
                 ) : (
-                  /* Assistant message — full-width, no bubble */
-                  <div className="py-2">
-                    <div className="text-sm text-foreground">
-                      <MessageContent message={message} />
-                    </div>
-                    <div className="mt-1 flex justify-start">
+                  <MessageBody>
+                    <MessageContent message={message} />
+                    <MessageFooter>
                       <MessageActions content={message.content} />
-                    </div>
-                  </div>
+                    </MessageFooter>
+                  </MessageBody>
                 )}
-              </div>
+              </Message>
             ))}
 
             {/* Streaming message */}
             {isStreaming && (
-              <div className="py-2 animate-fade-up">
-                <div className="text-sm text-foreground">
+              <Message role="assistant" isStreaming>
+                <MessageBody>
                   {streamingContent || streamingParts.length > 0 ? (
                     <>
                       <StreamingContent
@@ -139,8 +130,8 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
                       hasContent={false}
                     />
                   )}
-                </div>
-              </div>
+                </MessageBody>
+              </Message>
             )}
 
             <div ref={messagesEndRef} />
@@ -156,45 +147,6 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
         compact={compact}
         keyboardOpen={keyboardOpen}
       />
-    </div>
-  );
-}
-
-/** Renders user message with inline attachment indicators (AI Elements style) */
-function UserMessageContent({ message }: { message: Message }) {
-  const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
-
-  const { textOnly, imagePaths } = useMemo(() => {
-    const paths: string[] = [];
-    let match: RegExpExecArray | null;
-    while ((match = IMAGE_PATH_RE.exec(message.content)) !== null) {
-      paths.push(match[1]);
-    }
-    const cleaned = message.content.replace(IMAGE_PATH_RE, '').trim();
-    return { textOnly: cleaned, imagePaths: paths };
-  }, [message.content]);
-
-  if (imagePaths.length === 0) {
-    return <MessageContent message={message} />;
-  }
-
-  return (
-    <div>
-      {/* Inline attachment badges */}
-      <Attachments variant="inline" className="mb-1.5">
-        {imagePaths.map((p, i) => (
-          <Attachment key={i}>
-            <AttachmentPreview mimeType="image/png" />
-            <AttachmentInfo filename={p} />
-          </Attachment>
-        ))}
-      </Attachments>
-      {/* Text content */}
-      {textOnly && (
-        <MessageContent
-          message={{ ...message, content: textOnly }}
-        />
-      )}
     </div>
   );
 }
