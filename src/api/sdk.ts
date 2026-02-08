@@ -78,7 +78,7 @@ sdkRoutes.post('/stream', async (c) => {
 
   // Build command to run SDK script
   const cmd = [
-    'node /workspace/claude-agent.js',
+    'node /opt/claude-agent/claude-agent.js',
     shellEscape(prompt),
     shellEscape(sdkSessionId),
     shellEscape(cwd),

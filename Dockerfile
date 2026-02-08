@@ -5,10 +5,9 @@ FROM docker.io/cloudflare/sandbox:0.7.0
 # Install Claude Code CLI (required by Agent SDK)
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install Agent SDK locally in /workspace so Node's require() finds it
-# Also install globally as fallback and set NODE_PATH
+# Install Agent SDK globally + in /opt/claude-agent (keeps /workspace clean for user projects)
 RUN npm install -g @anthropic-ai/claude-agent-sdk@latest && \
-    cd /workspace && npm init -y && npm install @anthropic-ai/claude-agent-sdk@latest
+    mkdir -p /opt/claude-agent && cd /opt/claude-agent && npm init -y && npm install @anthropic-ai/claude-agent-sdk@latest
 ENV NODE_PATH=/usr/local/lib/node_modules
 
 # Install essential dev tools (keep minimal to avoid disk/build issues)
@@ -34,9 +33,9 @@ ENV COMMAND_TIMEOUT_MS=300000
 # Create workspace directory
 RUN mkdir -p /workspace
 
-# Embed SDK wrapper script directly (avoids COPY build context issues)
+# Embed SDK wrapper script in /opt/claude-agent (not /workspace)
 # IMPORTANT: Keep in sync with src/sandbox-scripts/claude-agent.js
-RUN cat > /workspace/claude-agent.js << 'CLAUDE_AGENT_EOF'
+RUN cat > /opt/claude-agent/claude-agent.js << 'CLAUDE_AGENT_EOF'
 #!/usr/bin/env node
 
 // Node.js script that runs INSIDE the Cloudflare Sandbox container
@@ -178,4 +177,4 @@ handleQuery(prompt, sessionId, cwd).catch(err => {
 });
 CLAUDE_AGENT_EOF
 
-RUN chmod +x /workspace/claude-agent.js
+RUN chmod +x /opt/claude-agent/claude-agent.js

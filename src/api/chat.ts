@@ -243,7 +243,7 @@ chatRoutes.post('/stream', async (c) => {
       // Execute SDK wrapper script with streaming output
       // Shell-escape args to handle spaces/special chars in prompts
       const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
-      const cmd = `node /workspace/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
+      const cmd = `node /opt/claude-agent/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
 
       const result = await sandboxManager.execInSandbox(
         session.sandboxId!,
@@ -379,7 +379,7 @@ async function callClaudeInSandbox(
   // Execute SDK wrapper script inside sandbox container
   // Shell-escape args to handle spaces/special chars in prompts
   const shellEscape = (s: string) => `'${s.replace(/'/g, "'\\''")}'`;
-  const cmd = `node /workspace/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
+  const cmd = `node /opt/claude-agent/claude-agent.js ${shellEscape(prompt)} ${shellEscape(sdkSessionId)} ${shellEscape(cwd)}`;
 
   const result = await sandboxManager.execInSandbox(
     session.sandboxId,

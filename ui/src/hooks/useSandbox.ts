@@ -113,21 +113,17 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   createSession: async (name?: string, gitRepo?: string, branch?: string) => {
-    try {
-      const result = await sessionsApi.create({ name, gitRepo, branch });
-      if (result.success && result.data) {
-        const session = result.data;
-        set((state) => ({
-          sessions: [session, ...state.sessions],
-          currentSession: session,
-        }));
-        localStorage.setItem('vf_active_session', session.id);
-        return session;
-      }
-      return null;
-    } catch {
-      return null;
+    const result = await sessionsApi.create({ name, gitRepo, branch });
+    if (result.success && result.data) {
+      const session = result.data;
+      set((state) => ({
+        sessions: [session, ...state.sessions],
+        currentSession: session,
+      }));
+      localStorage.setItem('vf_active_session', session.id);
+      return session;
     }
+    throw new Error(result.error || 'Failed to create session');
   },
 
   selectSession: async (sessionId: string) => {

@@ -51,8 +51,15 @@ export function WelcomeScreen() {
     }
   }, [editingId]);
 
+  const [createError, setCreateError] = useState('');
+
   const handleNewSession = async () => {
-    await createSession();
+    setCreateError('');
+    try {
+      await createSession();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create session');
+    }
   };
 
   const startRename = (sessionId: string, currentName: string) => {
@@ -155,6 +162,13 @@ export function WelcomeScreen() {
             </div>
           </button>
         </div>
+
+        {/* Error display */}
+        {createError && (
+          <div className="rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error animate-fade-up">
+            {createError}
+          </div>
+        )}
 
         {/* Recent Sessions */}
         {sessions.length > 0 && (

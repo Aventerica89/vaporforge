@@ -76,30 +76,36 @@ export class SandboxManager {
       { expirationTtl: 7 * 24 * 60 * 60 }
     );
 
+    let step = 'init';
     try {
       // Set environment variables if provided
       if (config?.env) {
+        step = 'setEnvVars';
         await sandbox.setEnvVars(config.env);
       }
 
       // Inject user's global CLAUDE.md into ~/.claude/
       if (config?.claudeMd) {
+        step = 'writeCLAUDE.md';
         await sandbox.mkdir('/root/.claude', { recursive: true });
         await sandbox.writeFile('/root/.claude/CLAUDE.md', config.claudeMd);
       }
 
       // Clone git repo using SDK's gitCheckout
       if (config?.gitRepo) {
+        step = 'gitCheckout';
         await sandbox.gitCheckout(config.gitRepo, {
           targetDir: WORKSPACE_PATH,
           branch: config.branch,
         });
       } else {
         // Just create workspace directory
+        step = 'mkdir';
         await sandbox.mkdir(WORKSPACE_PATH, { recursive: true });
       }
 
       // Update session status
+      step = 'updateStatus';
       const activeSession: Session = {
         ...session,
         status: 'active',
@@ -111,7 +117,8 @@ export class SandboxManager {
 
       return activeSession;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
+      const rawMsg = error instanceof Error ? error.message : String(error);
+      const errorMsg = `[${step}] ${rawMsg}`;
       const failedSession: Session = {
         ...session,
         status: 'terminated',
@@ -125,7 +132,7 @@ export class SandboxManager {
         `session:${sessionId}`,
         JSON.stringify(failedSession)
       );
-      throw error;
+      throw new Error(errorMsg);
     }
   }
 
