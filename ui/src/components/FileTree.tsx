@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Folder,
   FolderOpen,
@@ -12,6 +12,8 @@ import {
   Plus,
   Search,
   Home,
+  Upload,
+  Download,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import type { FileInfo } from '@/lib/types';
@@ -53,12 +55,19 @@ export function FileTree() {
     openFile,
     isLoadingFiles,
     currentSession,
+    uploadFiles,
+    downloadFile,
+    downloadWorkspace,
   } = useSandboxStore();
 
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(
     new Set(['/workspace'])
   );
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (currentSession) {
@@ -88,6 +97,43 @@ export function FileTree() {
   const handleNavigate = (path: string) => {
     navigateTo(path);
     setExpandedPaths(new Set([path]));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (dropRef.current && !dropRef.current.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setIsUploading(true);
+      await uploadFiles(droppedFiles);
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    if (selected.length > 0) {
+      setIsUploading(true);
+      await uploadFiles(selected);
+      setIsUploading(false);
+    }
+    e.target.value = '';
   };
 
   const segments = pathSegments(currentPath);
@@ -125,11 +171,39 @@ export function FileTree() {
               className={`h-4 w-4 ${isLoadingFiles ? 'animate-spin' : ''}`}
             />
           </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="rounded p-1 hover:bg-accent disabled:opacity-50"
+            title="Upload files"
+          >
+            {isUploading ? (
+              <span className="block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+          </button>
+          <button
+            onClick={() => downloadWorkspace()}
+            className="rounded p-1 hover:bg-accent"
+            title="Download workspace (.tar.gz)"
+          >
+            <Download className="h-4 w-4" />
+          </button>
           <button className="rounded p-1 hover:bg-accent" title="New File">
             <Plus className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
 
       {/* Breadcrumbs */}
       {!isAtRoot && (
@@ -172,8 +246,28 @@ export function FileTree() {
         </div>
       </div>
 
-      {/* File list */}
-      <div className="flex-1 overflow-y-auto py-1">
+      {/* File list with drag-and-drop */}
+      <div
+        ref={dropRef}
+        className={`flex-1 overflow-y-auto py-1 relative ${
+          isDragging ? 'ring-2 ring-primary/50 ring-inset' : ''
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {/* Drag overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80">
+            <div className="flex flex-col items-center gap-2 rounded-lg border-2 border-dashed border-primary/50 px-8 py-6">
+              <Upload className="h-8 w-8 text-primary/70" />
+              <span className="text-sm font-medium text-primary">
+                Drop files to upload
+              </span>
+            </div>
+          </div>
+        )}
+
         {isLoadingFiles && files.length === 0 ? (
           <div className="flex items-center justify-center py-4">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -188,10 +282,11 @@ export function FileTree() {
             {!isAtRoot && !searchQuery && (
               <button
                 onClick={() => {
-                  const parentPath = currentPath
-                    .split('/')
-                    .slice(0, -1)
-                    .join('/') || '/workspace';
+                  const parentPath =
+                    currentPath
+                      .split('/')
+                      .slice(0, -1)
+                      .join('/') || '/workspace';
                   handleNavigate(parentPath);
                 }}
                 className="flex w-full items-center gap-1 px-2 py-1 text-sm text-muted-foreground hover:bg-accent"
@@ -214,6 +309,7 @@ export function FileTree() {
                 onClick={() => handleFileClick(file)}
                 onToggle={toggleExpand}
                 onOpen={openFile}
+                onDownload={downloadFile}
               />
             ))}
           </div>
@@ -233,6 +329,7 @@ interface FileTreeItemProps {
   onClick: () => void;
   onToggle: (path: string) => void;
   onOpen: (path: string) => void;
+  onDownload: (path: string) => Promise<void>;
 }
 
 function FileTreeItem({
@@ -245,6 +342,7 @@ function FileTreeItem({
   onClick,
   onToggle,
   onOpen,
+  onDownload,
 }: FileTreeItemProps) {
   const isDirectory = file.type === 'directory';
   const Icon = isDirectory
@@ -255,27 +353,43 @@ function FileTreeItem({
 
   return (
     <>
-      <button
-        onClick={onClick}
-        className="flex w-full items-center gap-1 px-2 py-1 text-sm hover:bg-accent"
+      <div
+        className="group flex w-full items-center hover:bg-accent"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        {isDirectory ? (
-          isExpanded ? (
-            <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+        <button
+          onClick={onClick}
+          className="flex flex-1 items-center gap-1 py-1 text-sm min-w-0"
+        >
+          {isDirectory ? (
+            isExpanded ? (
+              <ChevronDown className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+            )
           ) : (
-            <ChevronRight className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-          )
-        ) : (
-          <span className="w-4" />
+            <span className="w-4" />
+          )}
+          <Icon
+            className={`h-4 w-4 flex-shrink-0 ${
+              isDirectory ? 'text-yellow-500' : 'text-muted-foreground'
+            }`}
+          />
+          <span className="truncate">{file.name}</span>
+        </button>
+        {!isDirectory && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload(file.path);
+            }}
+            className="mr-2 rounded p-0.5 opacity-0 hover:bg-primary/10 hover:text-primary group-hover:opacity-100 transition-opacity flex-shrink-0"
+            title="Download file"
+          >
+            <Download className="h-3 w-3" />
+          </button>
         )}
-        <Icon
-          className={`h-4 w-4 flex-shrink-0 ${
-            isDirectory ? 'text-yellow-500' : 'text-muted-foreground'
-          }`}
-        />
-        <span className="truncate">{file.name}</span>
-      </button>
+      </div>
 
       {/* Render children when expanded */}
       {isDirectory && isExpanded && childFiles && (
@@ -296,6 +410,7 @@ function FileTreeItem({
               }
               onToggle={onToggle}
               onOpen={onOpen}
+              onDownload={onDownload}
             />
           ))}
         </div>

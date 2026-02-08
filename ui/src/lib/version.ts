@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.4.3';
+export const APP_VERSION = '0.4.4';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.4.4',
+    date: '2026-02-07',
+    tag: 'feature',
+    title: 'File Upload + Download/Export',
+    items: [
+      'Upload files: drag-and-drop or file picker, uploads to current directory',
+      'Download individual files from file explorer (hover to reveal button)',
+      'Download workspace as .tar.gz archive (excludes node_modules and .git)',
+      'Upload spinner and drag overlay with visual feedback',
+    ],
+  },
   {
     version: '0.4.3',
     date: '2026-02-07',

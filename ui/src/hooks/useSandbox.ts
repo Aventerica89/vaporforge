@@ -60,6 +60,10 @@ interface SandboxState {
 
   execCommand: (command: string) => Promise<void>;
   clearTerminal: () => void;
+
+  uploadFiles: (files: File[]) => Promise<void>;
+  downloadFile: (path: string) => Promise<void>;
+  downloadWorkspace: () => Promise<void>;
 }
 
 /** Maps file extensions to language identifiers for artifact detection */
@@ -718,6 +722,74 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   clearTerminal: () => set({ terminalOutput: [] }),
+
+  uploadFiles: async (files: File[]) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    const targetDir = get().currentPath;
+
+    for (const file of files) {
+      try {
+        const content = await file.text();
+        const filePath = `${targetDir}/${file.name}`;
+        await filesApi.write(session.id, filePath, content);
+      } catch {
+        // Skip failed uploads
+      }
+    }
+
+    get().loadFiles();
+  },
+
+  downloadFile: async (path: string) => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    try {
+      const result = await filesApi.read(session.id, path);
+      if (result.success && result.data) {
+        const blob = new Blob([result.data.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = path.split('/').pop() || 'file';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  downloadWorkspace: async () => {
+    const session = get().currentSession;
+    if (!session) return;
+
+    try {
+      const result = await filesApi.downloadArchive(session.id);
+      if (result.success && result.data) {
+        const binaryStr = atob(result.data.archive);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'application/gzip' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.data.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      // Handle error
+    }
+  },
 });
 
 export const useSandboxStore = create<SandboxState>()(createSandboxStore);

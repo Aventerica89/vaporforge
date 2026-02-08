@@ -383,3 +383,71 @@ fileRoutes.get('/diff/:sessionId', async (c) => {
     },
   });
 });
+
+// Download workspace as tar.gz archive (base64-encoded)
+fileRoutes.post('/download-archive/:sessionId', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const sessionId = c.req.param('sessionId');
+
+  const body = await c.req.json<{ path?: string }>().catch(() => ({}));
+  const targetPath = (body as { path?: string }).path || '/workspace';
+
+  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (!session.sandboxId) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Sandbox not active',
+    }, 400);
+  }
+
+  // Step 1: Create tar.gz archive (exclude heavy dirs)
+  const tarResult = await sandboxManager.execInSandbox(
+    session.sandboxId,
+    [
+      'tar', '-czf', '/tmp/vf-export.tar.gz',
+      '-C', targetPath,
+      '--exclude=node_modules', '--exclude=.git',
+      '.',
+    ],
+    { timeout: 60000 }
+  );
+
+  if (tarResult.exitCode !== 0) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: tarResult.stderr || 'Failed to create archive',
+    }, 500);
+  }
+
+  // Step 2: Base64 encode the archive
+  const b64Result = await sandboxManager.execInSandbox(
+    session.sandboxId,
+    ['base64', '-w0', '/tmp/vf-export.tar.gz'],
+    { timeout: 60000 }
+  );
+
+  if (b64Result.exitCode !== 0) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: b64Result.stderr || 'Failed to encode archive',
+    }, 500);
+  }
+
+  const dirName = targetPath.split('/').pop() || 'workspace';
+
+  return c.json<ApiResponse<{ archive: string; filename: string }>>({
+    success: true,
+    data: {
+      archive: b64Result.stdout.trim(),
+      filename: `${dirName}.tar.gz`,
+    },
+  });
+});

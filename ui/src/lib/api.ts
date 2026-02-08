@@ -334,6 +334,15 @@ export const filesApi = {
     request<{ path: string; diff: string }>(
       `/files/diff/${sessionId}?path=${encodeURIComponent(path)}`
     ),
+
+  downloadArchive: (sessionId: string, path?: string) =>
+    request<{ archive: string; filename: string }>(
+      `/files/download-archive/${sessionId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ path }),
+      }
+    ),
 };
 
 // Git API
