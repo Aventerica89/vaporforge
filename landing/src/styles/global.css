@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Cyberpunk grid background */
+.cyber-grid {
+  background-image:
+    linear-gradient(rgba(57, 46, 78, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57, 46, 78, 0.3) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Animated scan bar overlay */
+.cyber-scan {
+  position: relative;
+  overflow: hidden;
+}
+.cyber-scan::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 159, 252, 0.08) 40%,
+    rgba(255, 159, 252, 0.15) 50%,
+    rgba(255, 159, 252, 0.08) 60%,
+    transparent 100%
+  );
+  animation: scanLine 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Floating gradient lines */
+.cyber-lines {
+  position: relative;
+  overflow: hidden;
+}
+.cyber-lines::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 20%,
+      rgba(233, 69, 245, 0.04) 30%,
+      transparent 40%,
+      rgba(47, 75, 192, 0.04) 55%,
+      transparent 65%,
+      rgba(233, 69, 245, 0.04) 80%,
+      transparent 90%
+    );
+  animation: floatLines 8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Noise grain texture */
+.cyber-noise {
+  position: relative;
+}
+.cyber-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Gradient border glow for cards */
+.cyber-card {
+  background: linear-gradient(
+    135deg,
+    rgba(233, 69, 245, 0.15),
+    rgba(29, 211, 230, 0.15),
+    rgba(47, 75, 192, 0.15)
+  );
+  padding: 1px;
+  border-radius: 0.75rem;
+}
+.cyber-card > * {
+  border-radius: calc(0.75rem - 1px);
+}
+
+/* Glow text for headings */
+.cyber-glow {
+  text-shadow:
+    0 0 20px rgba(29, 211, 230, 0.3),
+    0 0 40px rgba(233, 69, 245, 0.15);
+}
+
+/* Accent gradient text */
+.cyber-gradient-text {
+  background: linear-gradient(135deg, #1dd3e6 0%, #E945F5 50%, #2F4BC0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animated border glow */
+.cyber-border-glow {
+  position: relative;
+}
+.cyber-border-glow::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(233, 69, 245, 0.4),
+    rgba(29, 211, 230, 0.4),
+    rgba(47, 75, 192, 0.4)
+  );
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.cyber-border-glow:hover::after {
+  opacity: 1;
+}
+
+/* CTA button with gradient */
+.cyber-btn {
+  background: linear-gradient(135deg, #1dd3e6 0%, #2F4BC0 50%, #E945F5 100%);
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

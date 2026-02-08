@@ -1,0 +1,82 @@
+---
+const links = [
+  { href: '/#features', label: 'Features' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/login', label: 'Login' },
+];
+---
+
+<nav class="sticky top-0 z-50 border-b border-vapor-purple-bg/50 bg-vapor-bg/90 backdrop-blur-md">
+  <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+    <a href="/" class="flex items-center gap-2.5 font-display text-lg font-bold tracking-wide">
+      <!-- VaporForge cyberpunk logo inline -->
+      <div class="relative flex h-8 w-8 items-center justify-center">
+        <svg width="32" height="32" viewBox="0 0 512 512" fill="none" class="drop-shadow-[0_0_8px_rgba(29,211,230,0.5)]">
+          <rect width="512" height="512" rx="128" fill="#0f1419"/>
+          <g opacity="0.15">
+            <path d="M100 100 H200 V200 H300 V300 H400" stroke="#E945F5" stroke-width="3"/>
+            <path d="M100 200 H150 V250 H200" stroke="#1dd3e6" stroke-width="3"/>
+            <circle cx="200" cy="200" r="5" fill="#E945F5"/>
+            <circle cx="300" cy="300" r="5" fill="#1dd3e6"/>
+          </g>
+          <g filter="url(#navGlow)">
+            <path d="M 236 256 L 176 306 L 236 356" stroke="#1dd3e6" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M 276 256 L 336 306 L 276 356" stroke="#E945F5" stroke-width="18" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+          <defs>
+            <filter id="navGlow">
+              <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+      <span class="cyber-gradient-text">VaporForge</span>
+    </a>
+
+    <!-- Desktop links -->
+    <div class="hidden items-center gap-6 md:flex">
+      {links.map(({ href, label }) => (
+        <a href={href} class="text-sm text-vapor-muted hover:text-vapor-accent transition-colors">
+          {label}
+        </a>
+      ))}
+      <a
+        href="/app"
+        class="cyber-btn rounded-lg px-4 py-2 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-vapor-purple/20"
+      >
+        Launch App &rarr;
+      </a>
+    </div>
+
+    <!-- Mobile hamburger (CSS-only) -->
+    <label for="nav-toggle" class="cursor-pointer md:hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" class="text-vapor-accent">
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
+    </label>
+  </div>
+
+  <!-- Mobile menu (checkbox toggle, no JS) -->
+  <input type="checkbox" id="nav-toggle" class="peer hidden" />
+  <div class="hidden flex-col gap-2 border-t border-vapor-purple-bg/50 bg-vapor-bg/95 px-4 pb-4 peer-checked:flex md:hidden">
+    {links.map(({ href, label }) => (
+      <a href={href} class="text-sm text-vapor-muted hover:text-vapor-accent transition-colors py-2">
+        {label}
+      </a>
+    ))}
+    <a
+      href="/app"
+      class="mt-2 cyber-btn rounded-lg px-4 py-2 text-center text-sm font-semibold text-white"
+    >
+      Launch App &rarr;
+    </a>
+  </div>
+</nav>

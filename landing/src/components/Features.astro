@@ -1,0 +1,79 @@
+---
+const features = [
+  {
+    title: 'Cloud Sandboxes',
+    description: 'Real Linux containers on Cloudflare. Full filesystem, terminal, and package manager.',
+    icon: 'cloud',
+  },
+  {
+    title: 'Mobile-First',
+    description: 'Touch-optimized with iPad layout, haptic feedback, and pull-to-refresh.',
+    icon: 'smartphone',
+  },
+  {
+    title: 'Zero Install',
+    description: 'Just open your browser and start coding. Nothing to download or configure.',
+    icon: 'zap',
+  },
+  {
+    title: 'Real-Time',
+    description: 'Streaming AI responses with live terminal output and file watching.',
+    icon: 'signal',
+  },
+  {
+    title: 'Your Account',
+    description: 'Bring your Claude Pro or Max subscription. No extra API costs.',
+    icon: 'key',
+  },
+  {
+    title: 'Dark + Light',
+    description: 'Theme toggle, pinch-to-zoom, and full PWA support for offline access.',
+    icon: 'moon',
+  },
+];
+---
+
+<section id="features" class="relative px-4 py-20 sm:px-6 cyber-grid cyber-scan">
+  <!-- Background glow -->
+  <div class="absolute right-0 top-1/2 -translate-y-1/2 h-[400px] w-[300px] rounded-full bg-vapor-purple-dark/8 blur-[120px] pointer-events-none" />
+
+  <div class="relative z-10 mx-auto max-w-6xl">
+    <h2 class="text-center font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+      Everything you need
+    </h2>
+    <p class="mx-auto mt-4 max-w-2xl text-center text-vapor-muted">
+      A full IDE experience powered by Claude, running entirely in the cloud.
+    </p>
+
+    <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      {features.map(({ title, description, icon }) => (
+        <div class="cyber-card group">
+          <div class="bg-vapor-card p-6 transition-all group-hover:bg-vapor-card/80">
+            <div class="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-vapor-accent/15 to-vapor-purple/15 text-vapor-accent">
+              {icon === 'cloud' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+              )}
+              {icon === 'smartphone' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              )}
+              {icon === 'zap' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              )}
+              {icon === 'signal' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg>
+              )}
+              {icon === 'key' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+              )}
+              {icon === 'moon' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              )}
+            </div>
+            <h3 class="font-display text-base font-semibold tracking-wide text-white">{title}</h3>
+            <p class="mt-2 text-sm text-vapor-muted">{description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

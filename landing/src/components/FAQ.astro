@@ -1,0 +1,51 @@
+---
+const questions = [
+  {
+    q: 'Do I need a Claude subscription?',
+    a: 'Yes. VaporForge requires a Claude Pro or Max subscription from Anthropic. You bring your own account and connect it via a setup token. VaporForge does not charge for API usage.',
+  },
+  {
+    q: "What's included?",
+    a: 'Cloud sandboxes with a full Linux environment, file persistence, real-time AI chat, terminal access, file upload/download, session management, and mobile-optimized access from any device.',
+  },
+  {
+    q: 'How is this different from local Claude Code?',
+    a: 'VaporForge runs entirely in the cloud. No installs, no local environment setup. Access your projects from your phone, tablet, or any browser. Your sandboxes persist between sessions.',
+  },
+  {
+    q: 'Is my code secure?',
+    a: 'Each user gets isolated sandboxed containers on Cloudflare. No data is shared between users. Your Claude token is stored encrypted and never exposed to other sessions.',
+  },
+  {
+    q: 'When will billing go live?',
+    a: 'Billing is planned for early 2026. During the development phase, VaporForge is available for testing. Follow our updates for launch announcements.',
+  },
+];
+---
+
+<section class="px-4 py-16 sm:px-6">
+  <div class="mx-auto max-w-2xl">
+    <h2 class="text-center font-display text-2xl font-bold tracking-wide sm:text-3xl cyber-glow">
+      Frequently asked questions
+    </h2>
+
+    <div class="mt-10 space-y-2">
+      {questions.map(({ q, a }) => (
+        <details class="group rounded-lg border border-vapor-purple-bg/50">
+          <summary class="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-medium text-white">
+            {q}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round"
+              class="shrink-0 text-vapor-purple transition-transform group-open:rotate-180">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </summary>
+          <div class="px-5 pb-4 text-sm text-vapor-muted">
+            {a}
+          </div>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>

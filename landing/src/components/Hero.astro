@@ -1,0 +1,77 @@
+---
+---
+
+<section class="relative overflow-hidden px-4 py-24 sm:py-32 cyber-grid cyber-scan cyber-lines">
+  <!-- Purple/cyan glow orbs -->
+  <div class="absolute left-1/4 top-1/4 h-[400px] w-[400px] rounded-full bg-vapor-purple/8 blur-[150px] pointer-events-none" />
+  <div class="absolute right-1/4 bottom-1/4 h-[300px] w-[300px] rounded-full bg-vapor-accent/8 blur-[120px] pointer-events-none" />
+  <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[200px] w-[200px] rounded-full bg-vapor-purple-dark/10 blur-[100px] pointer-events-none animate-glow-pulse" />
+
+  <div class="relative z-10 mx-auto max-w-4xl text-center">
+    <!-- Cyberpunk VaporForge Logo -->
+    <div class="mx-auto mb-8 flex justify-center">
+      <div class="relative">
+        <svg width="96" height="96" viewBox="0 0 512 512" fill="none"
+          class="drop-shadow-[0_0_20px_rgba(233,69,245,0.4)]">
+          <rect width="512" height="512" rx="128" fill="#0f1419" stroke="url(#heroGrad)" stroke-width="3"/>
+          <g opacity="0.2">
+            <path d="M100 100 H200 V200 H300 V300 H400" stroke="#E945F5" stroke-width="3"/>
+            <path d="M412 112 V212 H312" stroke="#1dd3e6" stroke-width="3"/>
+            <path d="M100 200 H150 V250 H200" stroke="#1dd3e6" stroke-width="3"/>
+            <circle cx="200" cy="200" r="5" fill="#E945F5"/>
+            <circle cx="300" cy="300" r="5" fill="#1dd3e6"/>
+            <circle cx="400" cy="112" r="5" fill="#E945F5"/>
+          </g>
+          <g filter="url(#heroGlow)">
+            <path d="M 236 256 L 176 306 L 236 356"
+              stroke="#1dd3e6" stroke-width="18"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <path d="M 276 256 L 336 306 L 276 356"
+              stroke="#E945F5" stroke-width="18"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </g>
+          <defs>
+            <linearGradient id="heroGrad" x1="0" y1="0" x2="512" y2="512">
+              <stop offset="0%" stop-color="#E945F5" stop-opacity="0.5"/>
+              <stop offset="50%" stop-color="#1dd3e6" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#2F4BC0" stop-opacity="0.5"/>
+            </linearGradient>
+            <filter id="heroGlow">
+              <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+        <!-- Glow ring behind logo -->
+        <div class="absolute inset-0 -m-2 rounded-3xl border border-vapor-purple/20 animate-glow-pulse" />
+      </div>
+    </div>
+
+    <h1 class="font-display text-4xl font-bold tracking-tight sm:text-6xl lg:text-7xl cyber-glow">
+      Claude Code, <span class="cyber-gradient-text">Everywhere.</span>
+    </h1>
+
+    <p class="mx-auto mt-6 max-w-2xl text-lg text-vapor-muted sm:text-xl">
+      Access your AI coding assistant from any device.
+      Zero install, real cloud sandboxes, mobile-first.
+    </p>
+
+    <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+      <a
+        href="/app"
+        class="cyber-btn rounded-lg px-8 py-3.5 text-base font-semibold text-white transition-all hover:shadow-lg hover:shadow-vapor-purple/25"
+      >
+        Get Started
+      </a>
+      <a
+        href="/pricing"
+        class="rounded-lg border border-vapor-purple-bg px-6 py-3 text-base font-semibold text-white transition-all hover:border-vapor-purple/50 hover:text-vapor-purple hover:shadow-lg hover:shadow-vapor-purple/10"
+      >
+        See Pricing
+      </a>
+    </div>
+  </div>
+</section>

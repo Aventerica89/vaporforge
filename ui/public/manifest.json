@@ -2,7 +2,7 @@
   "name": "VaporForge",
   "short_name": "VaporForge",
   "description": "Web-based Claude Code IDE on Cloudflare Sandboxes",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#0f1419",
   "theme_color": "#1dd3e6",
@@ -34,7 +34,7 @@
       "name": "New Session",
       "short_name": "New",
       "description": "Start a new development session",
-      "url": "/?action=new",
+      "url": "/app?action=new",
       "icons": [
         {
           "src": "/icon.svg",

@@ -78,7 +78,7 @@
 
   // Static assets for UI
   "assets": {
-    "directory": "./ui/dist"
+    "directory": "./dist"
   },
 
   // Custom domain

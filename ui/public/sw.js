@@ -1,15 +1,15 @@
 // VaporForge Service Worker
 // Offline-first PWA support with intelligent caching
 
-const CACHE_VERSION = 'vaporforge-v19';
+const CACHE_VERSION = 'vaporforge-v20';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_ITEMS = 50;
 
 // Static assets to cache immediately
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
+  '/app',
+  '/app/index.html',
   '/manifest.json',
   '/icon.svg',
   '/icon-192.png',
@@ -81,7 +81,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(STATIC_CACHE).then((cache) => cache.put(request, responseToCache));
           return networkResponse;
         })
-        .catch(() => caches.match('/') || caches.match(request))
+        .catch(() => caches.match('/app') || caches.match(request))
     );
     return;
   }

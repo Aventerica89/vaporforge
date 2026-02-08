@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.6.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.6.0',
+    date: '2026-02-08',
+    tag: 'feature',
+    title: 'Landing Page, Pricing, and Login',
+    items: [
+      'Marketing landing page with hero, features, and how-it-works sections',
+      'Pricing page with Pro tier at $20/month and FAQ',
+      'Presentational login page linking to setup-token auth flow',
+      'SPA moved to /app subdirectory with Vite base path',
+      'Monorepo build: Astro landing + Vite SPA merged into single dist/',
+    ],
+  },
   {
     version: '0.5.0',
     date: '2026-02-08',

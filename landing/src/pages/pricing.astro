@@ -1,0 +1,27 @@
+---
+import Base from '../layouts/Base.astro';
+import PricingCard from '../components/PricingCard.astro';
+import FAQ from '../components/FAQ.astro';
+---
+
+<Base title="Pricing - VaporForge" description="VaporForge Pro plan pricing and frequently asked questions.">
+  <section class="relative px-4 py-20 sm:px-6 cyber-grid">
+    <!-- Background glow -->
+    <div class="absolute left-1/2 top-1/4 -translate-x-1/2 h-[300px] w-[300px] rounded-full bg-vapor-purple/6 blur-[120px] pointer-events-none" />
+
+    <div class="relative z-10 mx-auto max-w-4xl text-center">
+      <h1 class="font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+        Simple, transparent pricing
+      </h1>
+      <p class="mt-4 text-vapor-muted">
+        One plan. Everything included. Bring your own Claude subscription.
+      </p>
+    </div>
+
+    <div class="relative z-10 mt-12">
+      <PricingCard />
+    </div>
+  </section>
+
+  <FAQ />
+</Base>
