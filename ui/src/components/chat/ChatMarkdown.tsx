@@ -13,7 +13,15 @@ const components: Components = {
 
     // Fenced code blocks get language-* className from remark
     if (match) {
-      return <CodeBlock code={code} language={match[1]} />;
+      // Try to extract filename from meta string (title="file.ts" or just "file.ts")
+      const meta = (props as Record<string, unknown>)['data-meta'];
+      let filename: string | undefined;
+      if (typeof meta === 'string') {
+        const titleMatch = /title="?([^"]+)"?/.exec(meta);
+        filename = titleMatch ? titleMatch[1] : undefined;
+      }
+
+      return <CodeBlock code={code} language={match[1]} filename={filename} />;
     }
 
     // Inline code

@@ -321,6 +321,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       let content = '';
       const parts: MessagePart[] = [];
       let currentTextPart: MessagePart | null = null;
+      let currentReasoningPart: MessagePart | null = null;
 
       for await (const chunk of sdkApi.stream(
         session.id, message, undefined, controller.signal
@@ -334,6 +335,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         if (chunk.type === 'text' && chunk.content) {
           resetTimeout();
           content += chunk.content;
+          currentReasoningPart = null;
 
           // Accumulate text into the current text part
           if (!currentTextPart) {
@@ -349,29 +351,61 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           }
 
           set({ streamingContent: content, streamingParts: [...parts] });
+        } else if (chunk.type === 'reasoning' && chunk.content) {
+          // Accumulate reasoning/thinking text
+          resetTimeout();
+          currentTextPart = null;
+
+          if (!currentReasoningPart) {
+            currentReasoningPart = { type: 'reasoning', content: chunk.content };
+            parts.push(currentReasoningPart);
+          } else {
+            const merged: MessagePart = {
+              type: 'reasoning',
+              content: (currentReasoningPart.content || '') + chunk.content,
+            };
+            currentReasoningPart = merged;
+            parts[parts.length - 1] = merged;
+          }
+
+          set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-start' && chunk.name) {
           resetTimeout();
           currentTextPart = null;
+          currentReasoningPart = null;
           const toolPart: MessagePart = {
             type: 'tool-start',
             name: chunk.name,
             input: (chunk as Record<string, unknown>).input as Record<string, unknown>,
+            startedAt: Date.now(),
           };
           parts.push(toolPart);
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-result' && chunk.name) {
           resetTimeout();
           currentTextPart = null;
+          currentReasoningPart = null;
+
+          // Find matching tool-start to compute duration
+          const matchingStart = [...parts]
+            .reverse()
+            .find((p) => p.type === 'tool-start' && p.name === chunk.name);
+          const duration = matchingStart?.startedAt
+            ? Date.now() - matchingStart.startedAt
+            : undefined;
+
           const resultPart: MessagePart = {
             type: 'tool-result',
             name: chunk.name,
             output: (chunk as Record<string, unknown>).output as string,
+            duration,
           };
           parts.push(resultPart);
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'error' && chunk.content) {
           resetTimeout();
           currentTextPart = null;
+          currentReasoningPart = null;
           parts.push({ type: 'error', content: chunk.content });
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'done') {

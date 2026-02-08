@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Copy, Check, RotateCcw, Trash2 } from 'lucide-react';
+import { Copy, Check, RotateCcw } from 'lucide-react';
 
 interface MessageActionsProps {
   content: string;
   onRetry?: () => void;
-  onDelete?: () => void;
 }
 
-export function MessageActions({ content, onRetry, onDelete }: MessageActionsProps) {
+export function MessageActions({ content, onRetry }: MessageActionsProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -20,7 +19,7 @@ export function MessageActions({ content, onRetry, onDelete }: MessageActionsPro
     <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/message:opacity-100">
       <button
         onClick={handleCopy}
-        className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+        className="rounded p-1 text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground"
         title="Copy message"
       >
         {copied ? (
@@ -33,20 +32,10 @@ export function MessageActions({ content, onRetry, onDelete }: MessageActionsPro
       {onRetry && (
         <button
           onClick={onRetry}
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          className="rounded p-1 text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground"
           title="Retry"
         >
           <RotateCcw className="h-3.5 w-3.5" />
-        </button>
-      )}
-
-      {onDelete && (
-        <button
-          onClick={onDelete}
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-error"
-          title="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
         </button>
       )}
     </div>

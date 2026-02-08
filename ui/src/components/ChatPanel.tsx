@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import { User, Bot, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
@@ -32,7 +32,7 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  // Auto-scroll when keyboard opens so latest messages stay visible
+  // Auto-scroll when keyboard opens
   useEffect(() => {
     if (keyboardOpen) {
       setTimeout(() => {
@@ -59,7 +59,7 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
           {messages.length > 0 && (
             <button
               onClick={clearMessages}
-              className="rounded p-1.5 hover:bg-accent"
+              className="rounded p-1.5 hover:bg-accent/10"
               title="Clear chat"
             >
               <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -73,7 +73,7 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
         <div className="flex justify-end px-3 pt-2">
           <button
             onClick={clearMessages}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent/10"
             title="Clear chat"
           >
             <Trash2 className="h-3 w-3" />
@@ -83,57 +83,41 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
       )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto px-4 py-3">
         {messages.length === 0 && !isStreaming ? (
           <EmptyState onSuggestion={(text) => sendMessage(text)} />
         ) : (
-          <div className="space-y-4">
+          <div className="mx-auto max-w-3xl space-y-1">
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={`group/message chat-message flex gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : ''
-                }`}
+                className="group/message animate-fade-up"
               >
-                <div
-                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  {message.role === 'user' ? (
-                    <User className="h-4 w-4" />
-                  ) : (
-                    <Bot className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div
-                    className={`rounded-lg px-4 py-3 ${
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    }`}
-                  >
-                    <MessageContent message={message} />
+                {message.role === 'user' ? (
+                  /* User message — right-aligned bubble */
+                  <div className="flex justify-end">
+                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm text-primary-foreground">
+                      <MessageContent message={message} />
+                    </div>
                   </div>
-                  {message.role === 'assistant' && (
-                    <div className="mt-1 flex justify-end">
+                ) : (
+                  /* Assistant message — full-width, no bubble */
+                  <div className="py-2">
+                    <div className="text-sm text-foreground">
+                      <MessageContent message={message} />
+                    </div>
+                    <div className="mt-1 flex justify-start">
                       <MessageActions content={message.content} />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             ))}
 
             {/* Streaming message */}
             {isStreaming && (
-              <div className="chat-message flex gap-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex-1 rounded-lg bg-muted px-4 py-3">
+              <div className="py-2 animate-fade-up">
+                <div className="text-sm text-foreground">
                   {streamingContent || streamingParts.length > 0 ? (
                     <>
                       <StreamingContent

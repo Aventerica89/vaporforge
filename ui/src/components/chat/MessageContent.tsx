@@ -1,6 +1,7 @@
 import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ToolCallBlock } from './ToolCallBlock';
+import { ReasoningBlock } from './ReasoningBlock';
 
 interface MessageContentProps {
   message: Message;
@@ -18,6 +19,15 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
         <ChatMarkdown key={index} content={part.content} />
       ) : null;
 
+    case 'reasoning':
+      return (
+        <ReasoningBlock
+          key={index}
+          content={part.content || ''}
+          isStreaming={isStreaming}
+        />
+      );
+
     case 'tool-start':
       return (
         <ToolCallBlock key={index} part={part} isRunning={isStreaming} />
@@ -30,7 +40,7 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
       return (
         <div
           key={index}
-          className="my-2 rounded-lg border border-error/50 bg-error/10 px-3 py-2 text-xs text-error"
+          className="my-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error"
         >
           {part.content || 'An error occurred'}
         </div>
@@ -42,7 +52,6 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
 }
 
 export function MessageContent({ message }: MessageContentProps) {
-  // If message has structured parts, render each
   if (message.parts && message.parts.length > 0) {
     return (
       <>
@@ -51,13 +60,11 @@ export function MessageContent({ message }: MessageContentProps) {
     );
   }
 
-  // Fallback: render content string through ChatMarkdown
-  // This handles legacy messages and messages loaded from history
   return (
     <>
       <ChatMarkdown content={message.content} />
       {message.toolCalls && message.toolCalls.length > 0 && (
-        <div className="mt-2 space-y-1 border-t border-border/50 pt-2">
+        <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
             <ToolCallBlock
               key={tool.id}
@@ -76,20 +83,19 @@ export function MessageContent({ message }: MessageContentProps) {
 }
 
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
-  // If we have structured parts, render them (last tool-start is still running)
   if (parts.length > 0) {
     return (
       <>
         {parts.map((part, i) => {
-          const isLastToolStart =
-            part.type === 'tool-start' && i === parts.length - 1;
-          return renderPart(part, i, isLastToolStart);
+          const isLast = i === parts.length - 1;
+          const isStreamingPart =
+            isLast && (part.type === 'tool-start' || part.type === 'reasoning');
+          return renderPart(part, i, isStreamingPart);
         })}
       </>
     );
   }
 
-  // Fallback: render the raw streaming content
   if (fallbackContent) {
     return <ChatMarkdown content={fallbackContent} />;
   }

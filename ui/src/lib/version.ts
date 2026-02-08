@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.4.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.4.0',
+    date: '2026-02-07',
+    tag: 'feature',
+    title: 'UI Upgrade — AI Elements-Inspired Chat',
+    items: [
+      'Redesigned chat: edge-aligned messages (no avatar bubbles), cleaner spacing',
+      'Enhanced tool call blocks with animated expand/collapse and live duration timer',
+      'Code blocks with line numbers, filename headers, and line count display',
+      'Collapsible reasoning/thinking blocks with shimmer animation',
+      'Upgraded prompt input with pill-style border, ArrowUp send, inline stop button',
+      'New shimmer skeleton streaming indicator with pulse animation',
+      'File change blocks for create/edit/delete operations',
+      'Reasoning part type support in streaming pipeline',
+    ],
+  },
   {
     version: '0.3.0',
     date: '2026-02-07',
