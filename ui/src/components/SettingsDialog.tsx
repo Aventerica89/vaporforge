@@ -328,6 +328,16 @@ const TAB_CONTENT: Record<Tab, () => JSX.Element> = {
 export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState<Tab>('claude-md');
 
+  // Close on Escape key
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const TabContent = TAB_CONTENT[activeTab];
@@ -342,7 +352,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
 
       {/* Dialog */}
       <div
-        className="glass-card relative w-full max-w-lg max-h-[80vh] flex flex-col animate-scale-in"
+        className="glass-card relative w-full max-w-4xl max-h-[85vh] min-h-[500px] flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -358,8 +368,8 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none">
+        {/* Mobile: horizontal tab bar */}
+        <div className="flex overflow-x-auto border-b border-border px-5 scrollbar-none md:hidden">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -376,9 +386,32 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
           ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
-          <TabContent />
+        {/* Body: sidebar (desktop) + content */}
+        <div className="flex flex-1 min-h-0">
+          {/* Desktop: sidebar nav */}
+          <nav className="hidden md:flex w-[200px] shrink-0 flex-col gap-0.5 border-r border-border px-3 py-4">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left ${
+                  activeTab === tab.id
+                    ? 'bg-accent/50 text-primary border-l-2 border-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/30 border-l-2 border-transparent'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Content area */}
+          <div className="flex-1 overflow-y-auto px-5 py-4 md:px-6 md:py-5">
+            <div className="max-w-2xl">
+              <TabContent />
+            </div>
+          </div>
         </div>
       </div>
     </div>
