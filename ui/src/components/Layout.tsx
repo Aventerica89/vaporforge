@@ -17,7 +17,7 @@ import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 
 export function Layout() {
-  const { loadSessions, currentSession } = useSandboxStore();
+  const { loadSessions, selectSession, currentSession } = useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
@@ -65,9 +65,17 @@ export function Layout() {
     setTerminalCollapsed(!terminalCollapsed);
   }, [terminalCollapsed]);
 
+  // Load sessions, then auto-restore last active session
   useEffect(() => {
-    loadSessions();
-  }, [loadSessions]);
+    const init = async () => {
+      await loadSessions();
+      const savedId = localStorage.getItem('vf_active_session');
+      if (savedId && !useSandboxStore.getState().currentSession) {
+        selectSession(savedId);
+      }
+    };
+    init();
+  }, [loadSessions, selectSession]);
 
   // Tablet: collapse file tree by default for more screen real estate
   useEffect(() => {

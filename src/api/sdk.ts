@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import type { User, Session, ApiResponse } from '../types';
+import type { User, Session, Message, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 
 type Variables = {
@@ -72,6 +72,21 @@ sdkRoutes.post('/stream', async (c) => {
 
   const sdkSessionId = session.sdkSessionId || '';
   const cwd = requestCwd || session.projectPath || '/workspace';
+
+  // Persist user message to KV (so history survives refresh)
+  const userMessageId = crypto.randomUUID();
+  const userMessage: Message = {
+    id: userMessageId,
+    sessionId,
+    role: 'user',
+    content: prompt,
+    timestamp: new Date().toISOString(),
+  };
+  await c.env.SESSIONS_KV.put(
+    `message:${sessionId}:${userMessageId}`,
+    JSON.stringify(userMessage),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
 
   // Build command to run SDK script
   const cmd = [
@@ -276,6 +291,23 @@ sdkRoutes.post('/stream', async (c) => {
           await c.env.SESSIONS_KV.put(
             `session:${sessionId}`,
             JSON.stringify(updatedSession)
+          );
+        }
+
+        // Persist assistant message to KV (so history survives refresh)
+        if (fullText) {
+          const assistantMessageId = crypto.randomUUID();
+          const assistantMessage: Message = {
+            id: assistantMessageId,
+            sessionId,
+            role: 'assistant',
+            content: fullText,
+            timestamp: new Date().toISOString(),
+          };
+          await c.env.SESSIONS_KV.put(
+            `message:${sessionId}:${assistantMessageId}`,
+            JSON.stringify(assistantMessage),
+            { expirationTtl: 7 * 24 * 60 * 60 }
           );
         }
       } catch (error) {

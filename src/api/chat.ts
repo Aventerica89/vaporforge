@@ -110,14 +110,13 @@ chatRoutes.post('/send', async (c) => {
   }
 });
 
-// Get message history
+// Get message history (reads from KV — does NOT require sandbox to be awake)
 chatRoutes.get('/history/:sessionId', async (c) => {
   const user = c.get('user');
-  const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
 
-  // Verify session belongs to user
-  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  // Verify session belongs to user via direct KV read (no sandbox wake needed)
+  const session = await c.env.SESSIONS_KV.get<Session>(`session:${sessionId}`, 'json');
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
       success: false,

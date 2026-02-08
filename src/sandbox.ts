@@ -248,19 +248,19 @@ export class SandboxManager {
       if (!healthy) {
         const ready = await this.waitForReady(sessionId);
         if (!ready) {
-          // Shell is unresponsive after all retries — mark terminated
-          const terminated: Session = {
+          // Shell is unresponsive — mark sleeping (NOT terminated, so it can retry later)
+          const sleeping: Session = {
             ...session,
-            status: 'terminated',
+            status: 'sleeping',
             metadata: {
               ...(session.metadata ?? {}),
-              terminationError: 'Shell unresponsive after wake attempt',
-              terminatedAt: new Date().toISOString(),
+              lastWakeError: 'Shell unresponsive after wake attempt',
+              lastWakeAttempt: new Date().toISOString(),
             },
           };
           await this.sessionsKv.put(
             `session:${sessionId}`,
-            JSON.stringify(terminated)
+            JSON.stringify(sleeping)
           );
           return null;
         }

@@ -21,7 +21,7 @@ if (existsSync(join(UI_DIST, 'assets'))) {
   cpSync(join(UI_DIST, 'assets'), join(DIST, 'app', 'assets'), { recursive: true });
 }
 
-// 3. Copy shared public assets from ui/dist/ to dist/ root
+// 3. Copy shared public assets from ui/dist/ to dist/ root AND dist/app/
 const sharedAssets = [
   'icon.svg', 'icon-192.png', 'icon-512.png',
   'manifest.json', 'sw.js', 'favicon.svg',
@@ -30,6 +30,8 @@ for (const file of sharedAssets) {
   const src = join(UI_DIST, file);
   if (existsSync(src)) {
     cpSync(src, join(DIST, file));
+    // Also copy to /app/ so Vite base path references resolve
+    cpSync(src, join(DIST, 'app', file));
   }
 }
 

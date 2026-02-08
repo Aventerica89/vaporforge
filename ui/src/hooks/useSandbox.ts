@@ -139,6 +139,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   selectSession: async (sessionId: string) => {
+    // Track whether sandbox woke successfully (used for file/git loading)
+
+    // Step 1: Try to resume sandbox (wake it up)
     try {
       const result = await sessionsApi.resume(sessionId);
       if (result.success && result.data) {
@@ -153,19 +156,43 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           terminalOutput: [],
         });
         localStorage.setItem('vf_active_session', sessionId);
-
-        // Load files and git status
+        // Load files and git status (needs sandbox)
         get().loadFiles();
         get().loadGitStatus();
-
-        // Load chat history
-        const historyResult = await chatApi.history(sessionId);
-        if (historyResult.success && historyResult.data) {
-          set({ messages: historyResult.data });
-        }
       }
-    } catch {
-      localStorage.removeItem('vf_active_session');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      debugLog('sandbox', 'warn', `Resume failed: ${message}`);
+
+      // Sandbox couldn't wake — fall back to session from loaded list
+      const cachedSession = get().sessions.find((s) => s.id === sessionId);
+      if (cachedSession) {
+        set({
+          currentSession: cachedSession,
+          files: [],
+          filesByPath: {},
+          currentPath: '/workspace',
+          openFiles: [],
+          activeFileIndex: -1,
+          messages: [],
+          terminalOutput: [],
+        });
+        localStorage.setItem('vf_active_session', sessionId);
+      } else {
+        // Session truly doesn't exist anywhere
+        localStorage.removeItem('vf_active_session');
+        return;
+      }
+    }
+
+    // Step 2: Always load chat history (independent of sandbox state)
+    try {
+      const historyResult = await chatApi.history(sessionId);
+      if (historyResult.success && historyResult.data) {
+        set({ messages: historyResult.data });
+      }
+    } catch (error) {
+      debugLog('sandbox', 'warn', `History load failed: ${error instanceof Error ? error.message : 'unknown'}`);
     }
   },
 
@@ -813,9 +840,3 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 });
 
 export const useSandboxStore = create<SandboxState>()(createSandboxStore);
-
-// Auto-restore last active session on page load
-const savedSessionId = localStorage.getItem('vf_active_session');
-if (savedSessionId) {
-  useSandboxStore.getState().selectSession(savedSessionId);
-}
