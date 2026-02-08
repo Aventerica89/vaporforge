@@ -227,6 +227,12 @@ sdkRoutes.post('/stream', async (c) => {
                     });
                     break;
 
+                  case 'session-reset':
+                    // Agent script signals the old session is stale — clear it
+                    // so we don't try to resume it again next time
+                    newSdkSessionId = '';
+                    break;
+
                   case 'done':
                     fullText = (msg.fullText as string) || fullText;
                     newSdkSessionId = (msg.sessionId as string) || newSdkSessionId;
@@ -263,15 +269,30 @@ sdkRoutes.post('/stream', async (c) => {
                 }
               }
 
-              // Forward raw stderr as error (catches module-not-found, crashes, etc.)
-              await writeEvent({ type: 'error', content: trimmed });
+              // Debug-prefixed lines are server-side only — don't forward to user
+              if (trimmed.startsWith('[claude-agent]')) {
+                console.log(`[sdk/stream] agent-stderr: ${trimmed.slice(0, 200)}`);
+                continue;
+              }
+
+              // Clean up raw stack traces: extract just the first meaningful line
+              let cleanMsg = trimmed;
+              if (trimmed.includes('\n') || trimmed.includes(' at ')) {
+                const firstLine = trimmed.split('\n')[0].replace(/\s+at\s+.+$/, '').trim();
+                cleanMsg = firstLine || 'Internal error in Claude Code process';
+              }
+
+              // Forward cleaned stderr as error
+              await writeEvent({ type: 'error', content: cleanMsg });
             } else if (event.type === 'exit') {
               // Sandbox exec finished — detect non-zero exit without stdout data
               if (event.exitCode && event.exitCode !== 0 && !hasData) {
                 await writeEvent({
                   type: 'error',
-                  content: `Claude Code process exited with code ${event.exitCode}`,
+                  content: 'Claude Code process crashed. The session may be stale — try sending your message again.',
                 });
+                // Clear stale sdkSessionId so next attempt starts fresh
+                newSdkSessionId = '';
               }
             } else if (event.type === 'error') {
               await writeEvent({
@@ -282,11 +303,13 @@ sdkRoutes.post('/stream', async (c) => {
           }
         }
 
-        // Update session with new SDK sessionId for continuity
-        if (newSdkSessionId && newSdkSessionId !== session.sdkSessionId) {
+        // Update session with new SDK sessionId for continuity.
+        // Also persist when sdkSessionId was cleared (session-reset) so we
+        // don't keep retrying a stale session on the next message.
+        if (newSdkSessionId !== (session.sdkSessionId || '')) {
           const updatedSession: Session = {
             ...session,
-            sdkSessionId: newSdkSessionId,
+            sdkSessionId: newSdkSessionId || undefined,
           };
           await c.env.SESSIONS_KV.put(
             `session:${sessionId}`,
