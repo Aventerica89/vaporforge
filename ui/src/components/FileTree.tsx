@@ -8,6 +8,8 @@ import {
   FileText,
   ChevronRight,
   ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
   RefreshCw,
   Plus,
   Search,
@@ -84,6 +86,45 @@ export function FileTree() {
       await loadFiles(path);
     }
     setExpandedPaths(newExpanded);
+  };
+
+  const collapseAll = () => {
+    setExpandedPaths(new Set());
+  };
+
+  const [isExpandingAll, setIsExpandingAll] = useState(false);
+
+  const expandAll = async () => {
+    setIsExpandingAll(true);
+    const expanded = new Set<string>();
+    const queue = [currentPath];
+    const visited = new Set<string>();
+
+    while (queue.length > 0) {
+      const dir = queue.shift()!;
+      if (visited.has(dir)) continue;
+      visited.add(dir);
+      expanded.add(dir);
+
+      // Load children if not cached
+      const store = useSandboxStore.getState();
+      let children = store.filesByPath[dir];
+      if (!children) {
+        await loadFiles(dir);
+        children = useSandboxStore.getState().filesByPath[dir];
+      }
+
+      if (children) {
+        for (const child of children) {
+          if (child.type === 'directory' && !visited.has(child.path)) {
+            queue.push(child.path);
+          }
+        }
+      }
+    }
+
+    setExpandedPaths(expanded);
+    setIsExpandingAll(false);
   };
 
   const handleFileClick = (file: FileInfo) => {
@@ -170,6 +211,25 @@ export function FileTree() {
             <RefreshCw
               className={`h-4 w-4 ${isLoadingFiles ? 'animate-spin' : ''}`}
             />
+          </button>
+          <button
+            onClick={expandAll}
+            disabled={isExpandingAll}
+            className="rounded p-1 hover:bg-accent disabled:opacity-50"
+            title="Expand all folders"
+          >
+            {isExpandingAll ? (
+              <span className="block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
+          </button>
+          <button
+            onClick={collapseAll}
+            className="rounded p-1 hover:bg-accent"
+            title="Collapse all folders"
+          >
+            <ChevronsDownUp className="h-4 w-4" />
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
