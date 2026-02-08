@@ -191,7 +191,7 @@ sessionRoutes.post('/:sessionId/sleep', async (c) => {
   });
 });
 
-// Terminate session
+// Soft-delete session (5-day pending-delete with countdown)
 sessionRoutes.delete('/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
@@ -210,14 +210,75 @@ sessionRoutes.delete('/:sessionId', async (c) => {
     }, 404);
   }
 
+  // Mark as pending-delete instead of immediate removal
   await sandboxManager.terminateSandbox(sessionId);
 
-  // Delete from KV
-  await c.env.SESSIONS_KV.delete(`session:${sessionId}`);
+  const pendingSession: Session = {
+    ...session,
+    status: 'pending-delete',
+    metadata: {
+      ...(session.metadata ?? {}),
+      previousStatus: session.status,
+      deleteScheduledAt: new Date().toISOString(),
+    },
+  };
 
-  return c.json<ApiResponse<{ status: string }>>({
+  // Keep in KV with 7-day TTL (cleanup cron handles actual purge at 5 days)
+  await c.env.SESSIONS_KV.put(
+    `session:${sessionId}`,
+    JSON.stringify(pendingSession),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  return c.json<ApiResponse<Session>>({
     success: true,
-    data: { status: 'terminated' },
+    data: pendingSession,
+  });
+});
+
+// Restore a pending-delete session (undo delete)
+sessionRoutes.post('/:sessionId/restore', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'pending-delete') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session is not pending deletion',
+    }, 400);
+  }
+
+  // Restore to sleeping (container was terminated, so it needs to wake)
+  const meta = (session.metadata ?? {}) as Record<string, unknown>;
+  const { deleteScheduledAt: _, previousStatus: __, ...cleanMeta } = meta;
+
+  const restoredSession: Session = {
+    ...session,
+    status: 'sleeping',
+    metadata: Object.keys(cleanMeta).length > 0 ? cleanMeta : undefined,
+  };
+
+  await c.env.SESSIONS_KV.put(
+    `session:${sessionId}`,
+    JSON.stringify(restoredSession),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  return c.json<ApiResponse<Session>>({
+    success: true,
+    data: restoredSession,
   });
 });
 

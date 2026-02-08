@@ -7,7 +7,7 @@ export const SessionSchema = z.object({
   sandboxId: z.string().optional(),
   projectPath: z.string().optional(),
   gitRepo: z.string().optional(),
-  status: z.enum(['creating', 'active', 'sleeping', 'terminated']),
+  status: z.enum(['creating', 'active', 'sleeping', 'terminated', 'pending-delete']),
   createdAt: z.string(),
   lastActiveAt: z.string(),
   sdkSessionId: z.string().optional(), // Claude SDK session ID for conversation continuity

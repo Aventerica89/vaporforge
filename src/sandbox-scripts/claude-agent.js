@@ -25,7 +25,7 @@ try {
 
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
-  const raw = err.message || String(err);
+  const raw = err.stack || err.message || String(err);
   // "Claude Code process exited with code N at XX.getProcessExitError ..."
   const exitMatch = raw.match(/process exited with code (\d+)/i);
   if (exitMatch) {

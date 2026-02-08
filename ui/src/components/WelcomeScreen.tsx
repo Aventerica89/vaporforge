@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Undo2 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
@@ -19,6 +19,13 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+/** Calculate days remaining until permanent deletion */
+function daysUntilPurge(deleteScheduledAt: string): number {
+  const elapsed = Date.now() - new Date(deleteScheduledAt).getTime();
+  const remaining = 5 - elapsed / (24 * 60 * 60 * 1000);
+  return Math.max(0, Math.ceil(remaining));
+}
+
 function getSessionName(session: { id: string; metadata?: Record<string, unknown> }): string {
   return (session.metadata as { name?: string })?.name || '';
 }
@@ -33,10 +40,12 @@ export function WelcomeScreen() {
     createSession,
     selectSession,
     terminateSession,
+    restoreSession,
     renameSession,
     isLoadingSessions,
   } = useSandboxStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showAll, setShowAll] = useState(false);
@@ -82,7 +91,9 @@ export function WelcomeScreen() {
     setEditName('');
   };
 
-  const visibleSessions = showAll ? sessions : sessions.slice(0, 8);
+  const activeSessions = sessions.filter((s) => s.status !== 'pending-delete');
+  const pendingDeleteSessions = sessions.filter((s) => s.status === 'pending-delete');
+  const visibleSessions = showAll ? activeSessions : activeSessions.slice(0, 8);
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 safe-bottom">
@@ -171,19 +182,19 @@ export function WelcomeScreen() {
         )}
 
         {/* Recent Sessions */}
-        {sessions.length > 0 && (
+        {activeSessions.length > 0 && (
           <div className="space-y-3 md:space-y-4 animate-fade-up stagger-3">
             <div className="flex items-center justify-between">
               <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
                 Sessions
-                <span className="ml-2 text-primary/60">{sessions.length}</span>
+                <span className="ml-2 text-primary/60">{activeSessions.length}</span>
               </h3>
-              {sessions.length > 8 && (
+              {activeSessions.length > 8 && (
                 <button
                   onClick={() => setShowAll(!showAll)}
                   className="text-xs text-muted-foreground hover:text-primary transition-colors"
                 >
-                  {showAll ? 'Show less' : `Show all (${sessions.length})`}
+                  {showAll ? 'Show less' : `Show all (${activeSessions.length})`}
                 </button>
               )}
             </div>
@@ -315,6 +326,57 @@ export function WelcomeScreen() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Pending Delete Sessions */}
+        {pendingDeleteSessions.length > 0 && (
+          <div className="space-y-3 md:space-y-4 animate-fade-up stagger-4">
+            <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-red-400/70">
+              Pending Delete
+              <span className="ml-2 text-red-400/40">{pendingDeleteSessions.length}</span>
+            </h3>
+            <div className="space-y-2">
+              {pendingDeleteSessions.map((session) => {
+                const scheduledAt = (session.metadata as Record<string, unknown>)?.deleteScheduledAt as string | undefined;
+                const days = scheduledAt ? daysUntilPurge(scheduledAt) : 0;
+
+                return (
+                  <div
+                    key={session.id}
+                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 opacity-60 border-red-500/20 transition-all duration-300 hover:opacity-80"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-sm md:text-base font-semibold truncate line-through text-muted-foreground">
+                        {getSessionLabel(session)}
+                      </p>
+                      <p className="text-xs text-red-400/70">
+                        {days > 0
+                          ? `Deletes in ${days} day${days !== 1 ? 's' : ''}`
+                          : 'Deleting soon...'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setRestoringId(session.id);
+                        await restoreSession(session.id);
+                        setRestoringId(null);
+                      }}
+                      disabled={restoringId === session.id}
+                      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-mono uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
+                      title="Restore session"
+                    >
+                      {restoringId === session.id ? (
+                        <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      ) : (
+                        <Undo2 className="h-3.5 w-3.5" />
+                      )}
+                      Undo
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 

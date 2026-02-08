@@ -235,8 +235,8 @@ export class SandboxManager {
 
     if (!session) return null;
 
-    // If the session is terminated, don't try to wake it
-    if (session.status === 'terminated') return null;
+    // If the session is terminated or pending deletion, don't try to wake it
+    if (session.status === 'terminated' || session.status === 'pending-delete') return null;
 
     // Check if sandbox might be auto-slept by Cloudflare (sleepAfter: 10m).
     // KV status can be stale — CF doesn't notify on auto-sleep.

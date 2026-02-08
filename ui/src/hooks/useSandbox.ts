@@ -50,6 +50,7 @@ interface SandboxState {
   selectSession: (sessionId: string) => Promise<void>;
   deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
+  restoreSession: (sessionId: string) => Promise<void>;
 
   renameSession: (sessionId: string, name: string) => Promise<void>;
 
@@ -234,12 +235,32 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
   terminateSession: async (sessionId: string) => {
     try {
-      await sessionsApi.terminate(sessionId);
-      set((state) => ({
-        sessions: state.sessions.filter((s) => s.id !== sessionId),
-        currentSession:
-          state.currentSession?.id === sessionId ? null : state.currentSession,
-      }));
+      const result = await sessionsApi.terminate(sessionId);
+      if (result.success && result.data) {
+        // Keep in list as pending-delete (soft delete with countdown)
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, ...result.data! } : s
+          ),
+          currentSession:
+            state.currentSession?.id === sessionId ? null : state.currentSession,
+        }));
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  restoreSession: async (sessionId: string) => {
+    try {
+      const result = await sessionsApi.restore(sessionId);
+      if (result.success && result.data) {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId ? { ...s, ...result.data! } : s
+          ),
+        }));
+      }
     } catch {
       // Handle error
     }
