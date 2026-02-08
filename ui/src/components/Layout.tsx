@@ -9,15 +9,18 @@ import { ChatPanel } from './ChatPanel';
 import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
+import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
+import { useSettingsStore } from '@/hooks/useSettings';
 
 export function Layout() {
   const { loadSessions, currentSession } = useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
+  const { isOpen: settingsOpen } = useSettingsStore();
   const isMobile = layoutTier === 'phone';
   const isTablet = layoutTier === 'tablet';
 
@@ -101,6 +104,16 @@ export function Layout() {
   const fileTreeDefaultSize = isTablet ? 0 : 15;
   const editorDefaultSize = isTablet ? 60 : 55;
   const chatDefaultSize = isTablet ? 40 : 30;
+
+  // Full-page settings view (both mobile and desktop)
+  if (settingsOpen) {
+    return (
+      <>
+        <SettingsPage />
+        <DebugPanel />
+      </>
+    );
+  }
 
   // Mobile gets its own layout with drawer navigation
   if (isMobile) {

@@ -9,7 +9,6 @@ import { XTerminal } from './XTerminal';
 import { MobileDrawer } from './MobileDrawer';
 import { MobileBottomSheet } from './MobileBottomSheet';
 import { CloneRepoModal } from './CloneRepoModal';
-import { SettingsDialog } from './SettingsDialog';
 import { WelcomeScreen } from './WelcomeScreen';
 
 type SheetView = 'files' | 'terminal' | null;
@@ -21,7 +20,6 @@ export function MobileLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<SheetView>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   // Always use viewportHeight from visualViewport API — 100dvh does NOT
   // respond to iOS keyboard, and 100% requires unbroken height chain.
   // viewportHeight works in all states: initial, keyboard open/closed, chrome change.
@@ -99,7 +97,7 @@ export function MobileLayout() {
         onOpenFiles={() => setActiveSheet('files')}
         onOpenTerminal={() => setActiveSheet('terminal')}
         onOpenCloneModal={() => setShowCloneModal(true)}
-        onOpenSettings={() => setShowSettings(true)}
+        onOpenSettings={() => {}}
       />
 
       {/* Files bottom sheet */}
@@ -130,11 +128,6 @@ export function MobileLayout() {
         onClose={() => setShowCloneModal(false)}
       />
 
-      {/* Settings dialog (triggered from drawer) */}
-      <SettingsDialog
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import {
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
-import { SettingsDialog } from './SettingsDialog';
+import { useSettingsStore } from '@/hooks/useSettings';
 
 export function Header() {
   const {
@@ -32,9 +32,9 @@ export function Header() {
   } = useSandboxStore();
   const { logout } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
+  const { openSettings } = useSettingsStore();
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -309,7 +309,7 @@ export function Header() {
 
         {/* Settings */}
         <button
-          onClick={() => setShowSettings(true)}
+          onClick={() => openSettings()}
           className="rounded-md p-1.5 hover:bg-accent"
           title="Settings & Help"
         >
@@ -342,10 +342,6 @@ export function Header() {
         </div>
       </div>
 
-      <SettingsDialog
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-      />
     </header>
   );
 }

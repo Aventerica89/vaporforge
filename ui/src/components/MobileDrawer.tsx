@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
+import { useSettingsStore } from '@/hooks/useSettings';
 import { haptics } from '@/lib/haptics';
 
 interface MobileDrawerProps {
@@ -18,7 +19,7 @@ interface MobileDrawerProps {
   onOpenFiles: () => void;
   onOpenTerminal: () => void;
   onOpenCloneModal: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
 }
 
 export function MobileDrawer({
@@ -27,8 +28,8 @@ export function MobileDrawer({
   onOpenFiles,
   onOpenTerminal,
   onOpenCloneModal,
-  onOpenSettings,
 }: MobileDrawerProps) {
+  const { openSettings } = useSettingsStore();
   const {
     sessions,
     currentSession,
@@ -102,7 +103,7 @@ export function MobileDrawer({
   };
 
   const handleOpenSettings = () => {
-    onOpenSettings();
+    openSettings();
     onClose();
   };
 
