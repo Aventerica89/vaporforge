@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.4.4';
+export const APP_VERSION = '0.4.5';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.4.5',
+    date: '2026-02-07',
+    tag: 'feature',
+    title: 'Session Persistence + File Explorer Expand/Collapse',
+    items: [
+      'Session survives page refresh: auto-restores last active session with chat, files, and git status',
+      'Expand all / collapse all buttons in file explorer toolbar',
+      'Expand all skips node_modules, .git, .next, dist, .cache',
+      'Improved download icon visibility on selected file rows',
+    ],
+  },
   {
     version: '0.4.4',
     date: '2026-02-07',
