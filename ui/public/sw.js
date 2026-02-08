@@ -1,7 +1,7 @@
 // VaporForge Service Worker
 // Offline-first PWA support with intelligent caching
 
-const CACHE_VERSION = 'vaporforge-v16';
+const CACHE_VERSION = 'vaporforge-v17';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_ITEMS = 50;
@@ -57,6 +57,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip non-GET requests
   if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip non-http(s) schemes (chrome-extension://, etc.)
+  if (!url.protocol.startsWith('http')) {
     return;
   }
 

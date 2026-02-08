@@ -63,22 +63,38 @@ export class SandboxManager {
   // Verify the sandbox shell is alive with a simple exec
   async healthCheck(sessionId: string): Promise<boolean> {
     const sandbox = this.getSandboxInstance(sessionId);
+    const start = Date.now();
     try {
       const result = await sandbox.exec('echo ok', {
         timeout: HEALTH_CHECK_TIMEOUT,
       });
-      return result.stdout?.trim() === 'ok';
-    } catch {
+      const ok = result.stdout?.trim() === 'ok';
+      const sid = sessionId.slice(0, 8);
+      const ms = Date.now() - start;
+      console.log(`[healthCheck] ${sid}: ${ok ? 'OK' : 'FAIL'} (${ms}ms)`);
+      return ok;
+    } catch (err) {
+      const sid = sessionId.slice(0, 8);
+      const ms = Date.now() - start;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[healthCheck] ${sid}: ERROR (${ms}ms) ${msg}`);
       return false;
     }
   }
 
   // Poll until the sandbox shell is ready (or give up)
   private async waitForReady(sessionId: string): Promise<boolean> {
+    const start = Date.now();
     for (let i = 0; i < READY_MAX_ATTEMPTS; i++) {
-      if (await this.healthCheck(sessionId)) return true;
+      if (await this.healthCheck(sessionId)) {
+        const ms = Date.now() - start;
+        console.log(`[waitForReady] ${sessionId.slice(0, 8)}: ready (${ms}ms, attempt ${i + 1})`);
+        return true;
+      }
       await new Promise((r) => setTimeout(r, READY_POLL_DELAY));
     }
+    const ms = Date.now() - start;
+    console.error(`[waitForReady] ${sessionId.slice(0, 8)}: FAILED (${ms}ms)`);
     return false;
   }
 
@@ -138,10 +154,12 @@ export class SandboxManager {
 
       // Verify the container shell is responsive before marking active
       step = 'healthCheck';
+      console.log(`[createSandbox] ${sessionId.slice(0, 8)}: running health check...`);
       const ready = await this.waitForReady(sessionId);
       if (!ready) {
         throw new Error('Container started but shell never became responsive');
       }
+      console.log(`[createSandbox] ${sessionId.slice(0, 8)}: health check PASSED, marking active`);
 
       // Update session status
       step = 'updateStatus';
@@ -175,7 +193,7 @@ export class SandboxManager {
     }
   }
 
-  // Get or wake existing sandbox
+  // Get or wake existing sandbox — verifies shell is responsive when stale
   async getOrWakeSandbox(sessionId: string): Promise<Session | null> {
     const session = await this.sessionsKv.get<Session>(
       `session:${sessionId}`,
@@ -184,10 +202,42 @@ export class SandboxManager {
 
     if (!session) return null;
 
+    // If the session is terminated, don't try to wake it
+    if (session.status === 'terminated') return null;
+
+    // Check if sandbox might be auto-slept by Cloudflare (sleepAfter: 10m).
+    // KV status can be stale — CF doesn't notify on auto-sleep.
+    const msSinceActive = Date.now() - new Date(session.lastActiveAt).getTime();
+    const mayBeSleeping = session.status === 'sleeping' || msSinceActive > 2 * 60 * 1000;
+
+    if (mayBeSleeping) {
+      const healthy = await this.healthCheck(sessionId);
+      if (!healthy) {
+        const ready = await this.waitForReady(sessionId);
+        if (!ready) {
+          // Shell is unresponsive after all retries — mark terminated
+          const terminated: Session = {
+            ...session,
+            status: 'terminated',
+            metadata: {
+              ...(session.metadata ?? {}),
+              terminationError: 'Shell unresponsive after wake attempt',
+              terminatedAt: new Date().toISOString(),
+            },
+          };
+          await this.sessionsKv.put(
+            `session:${sessionId}`,
+            JSON.stringify(terminated)
+          );
+          return null;
+        }
+      }
+    }
+
     const updatedSession: Session = {
       ...session,
       lastActiveAt: new Date().toISOString(),
-      status: session.status === 'sleeping' ? 'active' : session.status,
+      status: 'active',
     };
 
     await this.sessionsKv.put(
@@ -254,15 +304,34 @@ export class SandboxManager {
       timeout?: number;
     }
   ): Promise<ReadableStream<Uint8Array>> {
+    const sid = sessionId.slice(0, 8);
+
+    // Pre-flight health check — catch dead shells before attempting stream
+    const preHealthy = await this.healthCheck(sessionId);
+    console.log(`[execStream] ${sid}: pre-flight health=${preHealthy}`);
+
+    if (!preHealthy) {
+      console.log(`[execStream] ${sid}: pre-flight FAILED, waiting for ready...`);
+      const recovered = await this.waitForReady(sessionId);
+      if (!recovered) {
+        throw new Error(`Sandbox ${sid} shell is dead — pre-flight health check failed`);
+      }
+    }
+
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const sandbox = this.getSandboxInstance(sessionId);
-        return await sandbox.execStream(command, {
+        console.log(`[execStream] ${sid}: attempt ${attempt + 1} starting`);
+        const stream = await sandbox.execStream(command, {
           cwd: options?.cwd,
           env: options?.env,
           timeout: options?.timeout || 300000,
         });
+        console.log(`[execStream] ${sid}: attempt ${attempt + 1} stream started OK`);
+        return stream;
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        console.error(`[execStream] ${sid}: attempt ${attempt + 1} FAILED: ${msg}`);
         if (attempt === 0 && isSandboxNotReady(error)) {
           const recovered = await this.waitForReady(sessionId);
           if (recovered) continue;
@@ -271,7 +340,6 @@ export class SandboxManager {
       }
     }
 
-    // Unreachable, but satisfies TypeScript
     throw new Error('Retry exhausted');
   }
 

@@ -53,16 +53,13 @@ sdkRoutes.post('/stream', async (c) => {
 
   const { sessionId, prompt, cwd: requestCwd } = parsed.data;
 
-  // Verify session ownership
-  const session = await c.env.SESSIONS_KV.get<Session>(
-    `session:${sessionId}`,
-    'json'
-  );
+  // Verify session ownership + ensure sandbox is awake and healthy
+  const session = await sandboxManager.getOrWakeSandbox(sessionId);
 
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
       success: false,
-      error: 'Session not found',
+      error: 'Session not found or sandbox terminated. Create a new session.',
     }, 404);
   }
 
@@ -85,6 +82,7 @@ sdkRoutes.post('/stream', async (c) => {
   ].join(' ');
 
   try {
+    console.log(`[sdk/stream] session=${sessionId.slice(0, 8)} status=${session.status} sandbox=${session.sandboxId?.slice(0, 8)}`);
     // Get streaming output from sandbox
     const stream = await sandboxManager.execStreamInSandbox(
       session.sandboxId,

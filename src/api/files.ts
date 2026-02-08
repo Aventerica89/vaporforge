@@ -450,38 +450,62 @@ fileRoutes.post('/upload-base64/:sessionId', async (c) => {
     }, 500);
   }
 
-  // Write base64 as text file, then decode to binary via Node.js
-  // (more robust than `base64 -d` which can choke on trailing whitespace)
+  // Write base64 data in small chunks via exec to avoid crashing the sandbox.
+  // sandbox.writeFile() sends the entire payload in one DO RPC call,
+  // which kills the container for large files (images ~1-5MB).
+  // Even 128KB exec commands can crash it — use 8KB chunks to be safe.
+  // Base64 chars [A-Za-z0-9+/=] are safe inside single-quoted bash strings.
+  const CHUNK_SIZE = 8 * 1024; // 8KB per chunk (conservative for DO RPC)
   const tmpPath = `/tmp/vf-upload-${Date.now()}.b64`;
-  const wrote = await sandboxManager.writeFile(
-    session.sandboxId,
-    tmpPath,
-    rawBase64
-  );
+  const totalChunks = Math.ceil(rawBase64.length / CHUNK_SIZE);
 
-  if (!wrote) {
+  console.log(`[upload-base64] ${sessionId.slice(0, 8)}: writing ${rawBase64.length} bytes in ${totalChunks} chunks`);
+
+  try {
+    for (let i = 0; i < rawBase64.length; i += CHUNK_SIZE) {
+      const chunk = rawBase64.slice(i, i + CHUNK_SIZE);
+      const op = i === 0 ? '>' : '>>';
+      const chunkResult = await sandboxManager.execInSandbox(
+        session.sandboxId,
+        `printf '%s' '${chunk}' ${op} ${tmpPath}`,
+        { timeout: 15000 }
+      );
+      if (chunkResult.exitCode !== 0) {
+        console.error(`[upload-base64] chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${totalChunks} FAILED: ${chunkResult.stderr}`);
+        return c.json<ApiResponse<never>>({
+          success: false,
+          error: 'Failed to stage upload data',
+        }, 500);
+      }
+    }
+
+    console.log(`[upload-base64] ${sessionId.slice(0, 8)}: all ${totalChunks} chunks written, decoding...`);
+
+    // Decode base64 temp file to binary using base64 CLI tool.
+    // Previous approach used node -e with inline JS, but execInSandbox
+    // joins array args with spaces — bash interprets semicolons as
+    // command separators, crashing the shell (exit code 2).
+    const writeResult = await sandboxManager.execInSandbox(
+      session.sandboxId,
+      `base64 -d < ${tmpPath} > '${filePath}' && rm -f ${tmpPath}`,
+      { timeout: 30000 }
+    );
+
+    if (writeResult.exitCode !== 0) {
+      console.error(`[upload-base64] decode FAILED: ${writeResult.stderr}`);
+      return c.json<ApiResponse<never>>({
+        success: false,
+        error: writeResult.stderr || 'Failed to write file',
+      }, 500);
+    }
+
+    console.log(`[upload-base64] ${sessionId.slice(0, 8)}: success → ${filePath}`);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(`[upload-base64] EXCEPTION: ${msg}`);
     return c.json<ApiResponse<never>>({
       success: false,
-      error: 'Failed to stage upload data',
-    }, 500);
-  }
-
-  const decodeScript =
-    `const fs=require("fs");` +
-    `fs.writeFileSync(process.argv[1],` +
-    `Buffer.from(fs.readFileSync(process.argv[2],"utf8").trim(),"base64"));` +
-    `fs.unlinkSync(process.argv[2])`;
-
-  const writeResult = await sandboxManager.execInSandbox(
-    session.sandboxId,
-    ['node', '-e', decodeScript, filePath, tmpPath],
-    { timeout: 30000 }
-  );
-
-  if (writeResult.exitCode !== 0) {
-    return c.json<ApiResponse<never>>({
-      success: false,
-      error: writeResult.stderr || 'Failed to write file',
+      error: `Upload failed: ${msg}`,
     }, 500);
   }
 

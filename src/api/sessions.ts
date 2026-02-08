@@ -615,6 +615,24 @@ sessionRoutes.post('/debug/sandbox', async (c) => {
       return r.stdout.trim();
     });
 
+    // Step 10: Can we execStream? (this is the failing code path)
+    await runStep('execStream: echo streaming', async () => {
+      const stream = await sandboxManager.execStreamInSandbox(
+        debugId,
+        'echo streaming-test-ok',
+        { timeout: 15000 }
+      );
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let output = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        output += decoder.decode(value, { stream: true });
+      }
+      return output.slice(0, 300);
+    });
+
   }
 
   // Always cleanup debug session KV key (even if createSandbox failed)
