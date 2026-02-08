@@ -115,8 +115,13 @@ export function FileTree() {
       }
 
       if (children) {
+        const SKIP_DIRS = new Set(['node_modules', '.git', '.next', 'dist', '.cache']);
         for (const child of children) {
-          if (child.type === 'directory' && !visited.has(child.path)) {
+          if (
+            child.type === 'directory' &&
+            !visited.has(child.path) &&
+            !SKIP_DIRS.has(child.name)
+          ) {
             queue.push(child.path);
           }
         }
