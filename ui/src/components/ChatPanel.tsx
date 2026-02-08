@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo } from 'react';
-import { Trash2, Image as ImageIcon } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import type { Message } from '@/lib/types';
@@ -9,6 +9,12 @@ import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';
 import { PromptInput } from '@/components/chat/PromptInput';
 import { EmptyState } from '@/components/chat/EmptyState';
+import {
+  Attachments,
+  Attachment,
+  AttachmentPreview,
+  AttachmentInfo,
+} from '@/components/attachments';
 
 interface ChatPanelProps {
   /** Hide the header bar — used on mobile where MobileLayout provides chrome */
@@ -154,7 +160,7 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
   );
 }
 
-/** Renders user message with inline image path indicators */
+/** Renders user message with inline attachment indicators (AI Elements style) */
 function UserMessageContent({ message }: { message: Message }) {
   const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
 
@@ -174,18 +180,15 @@ function UserMessageContent({ message }: { message: Message }) {
 
   return (
     <div>
-      {/* Image badges */}
-      <div className="mb-1.5 flex flex-wrap gap-1">
+      {/* Inline attachment badges */}
+      <Attachments variant="inline" className="mb-1.5">
         {imagePaths.map((p, i) => (
-          <span
-            key={i}
-            className="inline-flex items-center gap-1 rounded-md bg-primary-foreground/15 px-1.5 py-0.5 text-[10px] font-medium"
-          >
-            <ImageIcon className="h-3 w-3" />
-            {p.split('/').pop()}
-          </span>
+          <Attachment key={i}>
+            <AttachmentPreview mimeType="image/png" />
+            <AttachmentInfo filename={p} />
+          </Attachment>
         ))}
-      </div>
+      </Attachments>
       {/* Text content */}
       {textOnly && (
         <MessageContent

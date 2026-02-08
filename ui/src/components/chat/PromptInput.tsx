@@ -3,7 +3,12 @@ import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useDebugLog } from '@/hooks/useDebugLog';
-import { ImagePreview } from './ImagePreview';
+import {
+  Attachments,
+  Attachment,
+  AttachmentPreview,
+  AttachmentRemove,
+} from '@/components/attachments';
 import type { ImageAttachment } from '@/lib/types';
 
 interface PromptInputProps {
@@ -198,10 +203,21 @@ export function PromptInput({
 
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative rounded-xl border border-border/60 bg-background transition-colors focus-within:border-primary/50 focus-within:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]">
-          {/* Image preview strip */}
+          {/* Image preview strip — AI Elements grid variant */}
           {images.length > 0 && (
-            <div className="px-3 pt-2">
-              <ImagePreview images={images} onRemove={removeImage} />
+            <div className="px-3 pt-2 pb-1">
+              <Attachments variant="grid">
+                {images.map((img) => (
+                  <Attachment key={img.id}>
+                    <AttachmentPreview
+                      src={img.dataUrl}
+                      alt={img.filename}
+                      mimeType={img.mimeType}
+                    />
+                    <AttachmentRemove onRemove={() => removeImage(img.id)} />
+                  </Attachment>
+                ))}
+              </Attachments>
             </div>
           )}
 
