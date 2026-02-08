@@ -23,10 +23,22 @@ try {
   process.exit(1);
 }
 
-async function handleQuery(prompt, sessionId, cwd) {
-  // Build options object matching the real SDK API (follows 1code pattern)
+// Extract a user-friendly error message from SDK errors
+function cleanErrorMessage(err) {
+  const raw = err.message || String(err);
+  // "Claude Code process exited with code N at XX.getProcessExitError ..."
+  const exitMatch = raw.match(/process exited with code (\d+)/i);
+  if (exitMatch) {
+    return `Claude Code process crashed (exit code ${exitMatch[1]}). This usually means the session state is stale or the sandbox restarted.`;
+  }
+  // Strip file paths and stack frames for cleaner messages
+  const firstLine = raw.split('\n')[0].trim();
+  return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
+}
+
+function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
-  const options = {
+  return {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     includePartialMessages: true,
@@ -41,9 +53,12 @@ async function handleQuery(prompt, sessionId, cwd) {
       PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
       IS_SANDBOX: '1',
     },
-    ...(sessionId ? { resume: sessionId } : {}),
+    ...(useResume && sessionId ? { resume: sessionId } : {}),
   };
+}
 
+async function runStream(prompt, sessionId, cwd, useResume) {
+  const options = buildOptions(prompt, sessionId, cwd, useResume);
   const stream = query({ prompt, options });
 
   let newSessionId = sessionId || '';
@@ -110,11 +125,48 @@ async function handleQuery(prompt, sessionId, cwd) {
     }
   }
 
+  return { newSessionId, responseText };
+}
+
+async function handleQuery(prompt, sessionId, cwd) {
+  let result;
+
+  try {
+    // First attempt: resume existing session if we have a sessionId
+    result = await runStream(prompt, sessionId, cwd, !!sessionId);
+  } catch (err) {
+    const friendly = cleanErrorMessage(err);
+
+    // If we were trying to resume a session and it crashed, retry fresh
+    if (sessionId) {
+      console.log(JSON.stringify({
+        type: 'error',
+        error: `Session resume failed: ${friendly}. Starting fresh session...`,
+      }));
+      // Signal to backend that the old sdkSessionId is invalid
+      console.log(JSON.stringify({ type: 'session-reset' }));
+
+      try {
+        result = await runStream(prompt, '', cwd, false);
+      } catch (retryErr) {
+        const retryMsg = cleanErrorMessage(retryErr);
+        console.log(JSON.stringify({ type: 'error', error: retryMsg }));
+        console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+        return;
+      }
+    } else {
+      // No session to retry without — report the error
+      console.log(JSON.stringify({ type: 'error', error: friendly }));
+      console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+      return;
+    }
+  }
+
   // Final message with complete response
   console.log(JSON.stringify({
     type: 'done',
-    sessionId: newSessionId,
-    fullText: responseText,
+    sessionId: result.newSessionId,
+    fullText: result.responseText,
   }));
 }
 
@@ -130,10 +182,13 @@ if (args.length < 1) {
 
 const [prompt, sessionId, cwd] = args;
 handleQuery(prompt, sessionId, cwd).catch(err => {
-  const errorDetail = err.stack || err.message || String(err);
-  console.error(JSON.stringify({
-    type: 'error',
-    error: errorDetail.slice(0, 1000),
-  }));
-  process.exit(1);
+  // Output clean error to stdout (parsed by backend) — avoid raw stack traces
+  const friendly = cleanErrorMessage(err);
+  console.log(JSON.stringify({ type: 'error', error: friendly }));
+  console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+  // Log full detail to stderr for server-side debugging only
+  console.error(`[claude-agent] fatal: ${err.stack || err.message || err}`);
+  // Exit cleanly (code 0) — errors are already reported via stdout protocol.
+  // Using exit(1) causes the backend to emit a redundant "process exited with code 1" error.
+  process.exit(0);
 });
