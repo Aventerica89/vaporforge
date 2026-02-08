@@ -383,7 +383,7 @@ function FileTreeItem({
               e.stopPropagation();
               onDownload(file.path);
             }}
-            className="mr-2 rounded p-0.5 opacity-0 hover:bg-primary/10 hover:text-primary group-hover:opacity-100 transition-opacity flex-shrink-0"
+            className="mr-2 rounded p-1 opacity-0 text-foreground hover:bg-foreground/15 group-hover:opacity-100 transition-opacity flex-shrink-0"
             title="Download file"
           >
             <Download className="h-3 w-3" />
