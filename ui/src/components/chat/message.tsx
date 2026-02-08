@@ -136,13 +136,35 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
     return <MessageContent message={message} />;
   }
 
+  // Build a path -> dataUrl lookup from message.images
+  const pathToDataUrl = useMemo(() => {
+    const map = new Map<string, string>();
+    if (message.images) {
+      for (const img of message.images) {
+        if (img.uploadedPath) map.set(img.uploadedPath, img.dataUrl);
+      }
+    }
+    return map;
+  }, [message.images]);
+
+  const hasPreview = imagePaths.some((p) => pathToDataUrl.has(p));
+
   return (
     <div>
-      <Attachments variant="inline" className="mb-1.5">
+      <Attachments
+        variant={hasPreview ? 'grid' : 'inline'}
+        className="mb-1.5"
+      >
         {imagePaths.map((p, i) => (
           <Attachment key={i}>
-            <AttachmentPreview mimeType="image/png" />
-            <AttachmentInfo filename={p} />
+            <AttachmentPreview
+              src={pathToDataUrl.get(p)}
+              mimeType="image/png"
+              alt={p.split('/').pop() ?? 'image'}
+            />
+            {!hasPreview && (
+              <AttachmentInfo filename={p.split('/').pop() ?? p} />
+            )}
           </Attachment>
         ))}
       </Attachments>

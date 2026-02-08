@@ -48,6 +48,8 @@ export interface Message {
   timestamp: string;
   toolCalls?: ToolCall[];
   parts?: MessagePart[];
+  /** Pasted image attachments with preview data URLs */
+  images?: ImageAttachment[];
 }
 
 export interface ToolCall {

@@ -2,7 +2,7 @@ import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { useDebugLog } from '@/hooks/useDebugLog';
-import type { Session, FileInfo, Message, MessagePart, GitStatus } from '@/lib/types';
+import type { Session, FileInfo, Message, MessagePart, GitStatus, ImageAttachment } from '@/lib/types';
 
 function debugLog(
   category: 'api' | 'stream' | 'sandbox' | 'error' | 'info',
@@ -61,7 +61,7 @@ interface SandboxState {
   updateFileContent: (content: string) => void;
   saveFile: () => Promise<void>;
 
-  sendMessage: (message: string) => Promise<void>;
+  sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
   clearMessages: () => void;
 
   loadGitStatus: () => Promise<void>;
@@ -376,7 +376,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }
   },
 
-  sendMessage: async (message: string) => {
+  sendMessage: async (message: string, images?: ImageAttachment[]) => {
     const session = get().currentSession;
     if (!session) return;
 
@@ -387,6 +387,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       content: message,
       timestamp: new Date().toISOString(),
       parts: [{ type: 'text', content: message }],
+      images,
     };
 
     set((state) => ({

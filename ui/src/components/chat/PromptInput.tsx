@@ -12,7 +12,7 @@ import {
 import type { ImageAttachment } from '@/lib/types';
 
 interface PromptInputProps {
-  onSubmit: (message: string) => void;
+  onSubmit: (message: string, images?: ImageAttachment[]) => void;
   isStreaming: boolean;
   onStopStreaming?: () => void;
   currentFileName?: string;
@@ -117,11 +117,12 @@ export function PromptInput({
     if ((!hasText && !hasImages) || isStreaming || !sessionId) return;
 
     let messageText = input.trim();
+    let submittedImages: ImageAttachment[] | undefined;
 
     // Upload images if any
     if (hasImages) {
       setIsUploading(true);
-      const uploadedPaths: string[] = [];
+      const uploaded: ImageAttachment[] = [];
 
       for (const img of images) {
         try {
@@ -131,7 +132,7 @@ export function PromptInput({
             img.dataUrl
           );
           if (result.success && result.data) {
-            uploadedPaths.push(result.data.path);
+            uploaded.push({ ...img, uploadedPath: result.data.path });
           }
         } catch (err) {
           useDebugLog.getState().addEntry({
@@ -146,13 +147,14 @@ export function PromptInput({
       setIsUploading(false);
 
       // Prepend image references to the prompt
-      if (uploadedPaths.length > 0) {
-        const refs = uploadedPaths
-          .map((p) => `[Image attached: ${p}]`)
+      if (uploaded.length > 0) {
+        const refs = uploaded
+          .map((img) => `[Image attached: ${img.uploadedPath}]`)
           .join('\n');
         messageText = messageText
           ? `${refs}\n\n${messageText}`
           : refs;
+        submittedImages = uploaded;
       }
     }
 
@@ -161,7 +163,7 @@ export function PromptInput({
       return;
     }
 
-    onSubmit(messageText);
+    onSubmit(messageText, submittedImages);
     setInput('');
     setImages([]);
 
