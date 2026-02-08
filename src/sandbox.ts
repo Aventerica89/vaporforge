@@ -377,19 +377,34 @@ export class SandboxManager {
     path: string = WORKSPACE_PATH
   ): Promise<FileInfo[]> {
     const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
 
     try {
-      const result = await sandbox.listFiles(path);
-      if (!result.success) return [];
+      // Use exec ls as fallback since sandbox.listFiles may not work reliably
+      const result = await sandbox.exec(
+        `ls -1aF "${path}" 2>/dev/null || echo "__LS_FAILED__"`,
+        { timeout: 10000 }
+      );
 
-      return result.files.map((f) => ({
-        path: f.absolutePath,
-        name: f.name,
-        type: f.type === 'directory' ? 'directory' as const : 'file' as const,
-        size: f.type === 'directory' ? undefined : f.size,
-        modifiedAt: f.modifiedAt,
-      }));
-    } catch {
+      const output = result.stdout?.trim() || '';
+      console.log(`[listFiles] ${sid}: path=${path} output=${output.slice(0, 200)}`);
+
+      if (!output || output === '__LS_FAILED__') return [];
+
+      return output.split('\n')
+        .filter((line) => line && line !== '.' && line !== './' && line !== '..' && line !== '../')
+        .map((entry) => {
+          const isDir = entry.endsWith('/');
+          const name = isDir ? entry.slice(0, -1) : entry;
+          return {
+            path: `${path}/${name}`,
+            name,
+            type: isDir ? 'directory' as const : 'file' as const,
+          };
+        });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[listFiles] ${sid}: ERROR ${msg}`);
       return [];
     }
   }
