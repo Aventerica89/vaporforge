@@ -21,9 +21,11 @@ import {
 interface ChatPanelProps {
   /** Hide the header bar — used on mobile where MobileLayout provides chrome */
   compact?: boolean;
+  /** Primary workspace mode — hides internal header (chat IS the main area) */
+  primary?: boolean;
 }
 
-export function ChatPanel({ compact = false }: ChatPanelProps) {
+export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) {
   const {
     messages,
     sendMessage,
@@ -68,9 +70,9 @@ export function ChatPanel({ compact = false }: ChatPanelProps) {
     });
 
   return (
-    <div className={`flex h-full flex-col bg-card ${compact ? '' : 'border-l border-border'}`}>
-      {/* Header — hidden in compact (mobile) mode */}
-      {!compact && (
+    <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border'}`}>
+      {/* Header — hidden in compact (mobile) or primary (center workspace) mode */}
+      {!compact && !primary && (
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium uppercase text-muted-foreground">

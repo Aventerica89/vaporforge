@@ -49,6 +49,7 @@ export function WelcomeScreen() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [purgingId, setPurgingId] = useState<string | null>(null);
+  const [purgingAll, setPurgingAll] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showAll, setShowAll] = useState(false);
@@ -406,10 +407,31 @@ export function WelcomeScreen() {
         {/* Pending Delete Sessions */}
         {pendingDeleteSessions.length > 0 && (
           <div className="space-y-3 md:space-y-4 animate-fade-up stagger-4">
-            <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-red-400/70">
-              Pending Delete
-              <span className="ml-2 text-red-400/40">{pendingDeleteSessions.length}</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-red-400/70">
+                Pending Delete
+                <span className="ml-2 text-red-400/40">{pendingDeleteSessions.length}</span>
+              </h3>
+              <button
+                onClick={async () => {
+                  setPurgingAll(true);
+                  await Promise.all(
+                    pendingDeleteSessions.map((s) => purgeSession(s.id))
+                  );
+                  setPurgingAll(false);
+                }}
+                disabled={purgingAll}
+                className="flex items-center gap-1.5 rounded-md px-3 py-1 text-[11px] font-mono uppercase tracking-wide border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 transition-all disabled:opacity-50"
+                title="Permanently delete all"
+              >
+                {purgingAll ? (
+                  <span className="h-3 w-3 block animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                ) : (
+                  <Trash2 className="h-3 w-3" />
+                )}
+                Delete All
+              </button>
+            </div>
             <div className="space-y-2">
               {pendingDeleteSessions.map((session) => {
                 const scheduledAt = (session.metadata as Record<string, unknown>)?.deleteScheduledAt as string | undefined;

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { useRef } from 'react';
-import { Header } from './Header';
+import { SessionTabBar } from './SessionTabBar';
 import { FileTree } from './FileTree';
 import { Editor } from './Editor';
 import { ChatPanel } from './ChatPanel';
@@ -17,7 +17,8 @@ import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 
 export function Layout() {
-  const { loadSessions, selectSession, currentSession } = useSandboxStore();
+  const { loadSessions, selectSession, currentSession, openFiles } =
+    useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
@@ -26,10 +27,10 @@ export function Layout() {
 
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
-  const chatPanelRef = useRef<ImperativePanelHandle>(null);
+  const rightPanelRef = useRef<ImperativePanelHandle>(null);
   const terminalPanelRef = useRef<ImperativePanelHandle>(null);
   const [fileTreeCollapsed, setFileTreeCollapsed] = useState(false);
-  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [terminalCollapsed, setTerminalCollapsed] = useState(false);
 
   const toggleFileTree = useCallback(() => {
@@ -43,27 +44,45 @@ export function Layout() {
     setFileTreeCollapsed(!fileTreeCollapsed);
   }, [fileTreeCollapsed]);
 
-  const toggleChat = useCallback(() => {
-    const panel = chatPanelRef.current;
+  const toggleRightPanel = useCallback(() => {
+    const panel = rightPanelRef.current;
     if (!panel) return;
-    if (chatCollapsed) {
+    if (rightPanelCollapsed) {
       panel.expand();
     } else {
       panel.collapse();
     }
-    setChatCollapsed(!chatCollapsed);
-  }, [chatCollapsed]);
+    setRightPanelCollapsed(!rightPanelCollapsed);
+  }, [rightPanelCollapsed]);
 
-  const toggleTerminal = useCallback(() => {
-    const panel = terminalPanelRef.current;
-    if (!panel) return;
-    if (terminalCollapsed) {
-      panel.expand();
+  // Focus mode: collapse both sidebars for full-screen chat
+  const toggleFocusMode = useCallback(() => {
+    const filePanel = fileTreePanelRef.current;
+    const rightPanel = rightPanelRef.current;
+    const bothCollapsed = fileTreeCollapsed && rightPanelCollapsed;
+
+    if (bothCollapsed) {
+      // Restore both panels
+      filePanel?.expand();
+      rightPanel?.expand();
+      setFileTreeCollapsed(false);
+      setRightPanelCollapsed(false);
     } else {
-      panel.collapse();
+      // Collapse both panels
+      filePanel?.collapse();
+      rightPanel?.collapse();
+      setFileTreeCollapsed(true);
+      setRightPanelCollapsed(true);
     }
-    setTerminalCollapsed(!terminalCollapsed);
-  }, [terminalCollapsed]);
+  }, [fileTreeCollapsed, rightPanelCollapsed]);
+
+  // Auto-expand right panel when a file is opened
+  useEffect(() => {
+    if (openFiles.length > 0 && rightPanelCollapsed) {
+      rightPanelRef.current?.expand();
+      setRightPanelCollapsed(false);
+    }
+  }, [openFiles.length]);
 
   // Load sessions, then auto-restore last active session
   useEffect(() => {
@@ -85,7 +104,7 @@ export function Layout() {
     }
   }, [isTablet]);
 
-  // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (chat)
+  // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (focus)
   useEffect(() => {
     if (isMobile || !currentSession) return;
 
@@ -97,21 +116,21 @@ export function Layout() {
         toggleFileTree();
       } else if (e.key === '2') {
         e.preventDefault();
-        toggleTerminal();
+        toggleRightPanel();
       } else if (e.key === '3') {
         e.preventDefault();
-        toggleChat();
+        toggleFocusMode();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMobile, currentSession, toggleFileTree, toggleTerminal, toggleChat]);
+  }, [isMobile, currentSession, toggleFileTree, toggleRightPanel, toggleFocusMode]);
 
-  // Tablet/desktop panel size defaults
+  // Panel size defaults
   const fileTreeDefaultSize = isTablet ? 0 : 15;
-  const editorDefaultSize = isTablet ? 60 : 55;
-  const chatDefaultSize = isTablet ? 40 : 30;
+  const chatDefaultSize = isTablet ? 65 : 55;
+  const rightDefaultSize = isTablet ? 35 : 30;
 
   // Full-page settings view (both mobile and desktop)
   if (settingsOpen) {
@@ -135,10 +154,11 @@ export function Layout() {
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
-      <Header />
+      <SessionTabBar />
 
       {currentSession ? (
         /* Desktop/Tablet Layout - Resizable Panels */
+        /* Order: Files (15%) | Chat (55%) | Editor+Terminal (30%) */
         <PanelGroup direction="horizontal" className="flex-1">
           {/* File Tree */}
           <Panel
@@ -166,11 +186,37 @@ export function Layout() {
 
           <ResizeHandle direction="vertical" />
 
-          {/* Editor + Terminal */}
-          <Panel defaultSize={editorDefaultSize} minSize={30}>
+          {/* Chat — primary center workspace */}
+          <Panel defaultSize={chatDefaultSize} minSize={30}>
+            <ChatPanel primary />
+          </Panel>
+
+          <ResizeHandle direction="vertical" />
+
+          {/* Right panel: Editor + Terminal (collapsible) */}
+          <Panel
+            ref={rightPanelRef}
+            defaultSize={rightDefaultSize}
+            minSize={5}
+            maxSize={60}
+            collapsible
+            collapsedSize={0}
+            onCollapse={() => setRightPanelCollapsed(true)}
+            onExpand={() => setRightPanelCollapsed(false)}
+          >
             <PanelGroup direction="vertical">
               <Panel defaultSize={70} minSize={20}>
-                <Editor />
+                <div className="flex h-full flex-col">
+                  <PanelHeader
+                    title="Editor"
+                    shortcut="2"
+                    collapsed={rightPanelCollapsed}
+                    onToggle={toggleRightPanel}
+                  />
+                  <div className="flex-1 overflow-hidden">
+                    <Editor />
+                  </div>
+                </div>
               </Panel>
 
               <ResizeHandle direction="horizontal" />
@@ -187,9 +233,17 @@ export function Layout() {
                 <div className="flex h-full flex-col">
                   <PanelHeader
                     title="Terminal"
-                    shortcut="2"
                     collapsed={terminalCollapsed}
-                    onToggle={toggleTerminal}
+                    onToggle={() => {
+                      const panel = terminalPanelRef.current;
+                      if (!panel) return;
+                      if (terminalCollapsed) {
+                        panel.expand();
+                      } else {
+                        panel.collapse();
+                      }
+                      setTerminalCollapsed(!terminalCollapsed);
+                    }}
                   />
                   <div className="terminal-effect flex-1 overflow-hidden">
                     <XTerminal />
@@ -197,32 +251,6 @@ export function Layout() {
                 </div>
               </Panel>
             </PanelGroup>
-          </Panel>
-
-          <ResizeHandle direction="vertical" />
-
-          {/* Chat Panel */}
-          <Panel
-            ref={chatPanelRef}
-            defaultSize={chatDefaultSize}
-            minSize={5}
-            maxSize={50}
-            collapsible
-            collapsedSize={0}
-            onCollapse={() => setChatCollapsed(true)}
-            onExpand={() => setChatCollapsed(false)}
-          >
-            <div className="flex h-full flex-col">
-              <PanelHeader
-                title="Chat"
-                shortcut="3"
-                collapsed={chatCollapsed}
-                onToggle={toggleChat}
-              />
-              <div className="flex-1 overflow-hidden">
-                <ChatPanel />
-              </div>
-            </div>
           </Panel>
         </PanelGroup>
       ) : (
@@ -242,7 +270,7 @@ function PanelHeader({
   onToggle,
 }: {
   title: string;
-  shortcut: string;
+  shortcut?: string;
   collapsed: boolean;
   onToggle: () => void;
 }) {
@@ -254,11 +282,13 @@ function PanelHeader({
       <button
         onClick={onToggle}
         className="flex items-center gap-1.5 rounded px-1.5 py-0.5 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-        title={`Toggle ${title} (Cmd+${shortcut})`}
+        title={`Toggle ${title}${shortcut ? ` (Cmd+${shortcut})` : ''}`}
       >
-        <span className="text-[9px] font-mono opacity-50">
-          {'\u2318'}{shortcut}
-        </span>
+        {shortcut && (
+          <span className="text-[9px] font-mono opacity-50">
+            {'\u2318'}{shortcut}
+          </span>
+        )}
         <svg
           className={`h-3 w-3 transition-transform ${collapsed ? 'rotate-180' : ''}`}
           fill="none"
