@@ -38,22 +38,6 @@ export function PluginsTab() {
     load();
   }, [load]);
 
-  if (!sessionId) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Start a session to manage plugins and agents.
-      </p>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const enabledCount = plugins.filter((p) => p.enabled).length;
 
   return (
@@ -71,8 +55,10 @@ export function PluginsTab() {
         </h3>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          disabled={!sessionId}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '36px' }}
+          title={!sessionId ? 'Start a session to manage plugins and agents' : ''}
         >
           {showAddForm ? (
             <X className="h-4 w-4" />
@@ -91,7 +77,7 @@ export function PluginsTab() {
       </p>
 
       {/* Add form */}
-      {showAddForm && (
+      {showAddForm && sessionId && (
         <AddPluginForm
           onAdd={(plugin) => {
             addPlugin(sessionId, plugin);
@@ -101,8 +87,16 @@ export function PluginsTab() {
         />
       )}
 
-      {/* Plugin list */}
-      {plugins.length === 0 ? (
+      {/* Content */}
+      {!sessionId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Start a session to manage plugins and agents
+        </p>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : plugins.length === 0 ? (
         <p className="py-4 text-center text-sm text-muted-foreground">
           No plugins configured
         </p>

@@ -80,23 +80,7 @@ export function CommandsTab() {
     setIsNew(true);
   };
 
-  if (!sessionId) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Start a session to manage commands.
-      </p>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (editingCommand) {
+  if (editingCommand && sessionId) {
     return (
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
@@ -148,8 +132,10 @@ export function CommandsTab() {
         </h3>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          disabled={!sessionId}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '36px' }}
+          title={!sessionId ? 'Start a session to manage commands' : ''}
         >
           <Plus className="h-4 w-4 text-primary" />
           Add Command
@@ -161,7 +147,15 @@ export function CommandsTab() {
         Use <code className="text-primary">/command-name</code> in chat.
       </p>
 
-      {commands.length === 0 ? (
+      {!sessionId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Start a session to manage commands
+        </p>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : commands.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No commands yet</p>
       ) : (
         <div className="space-y-1">

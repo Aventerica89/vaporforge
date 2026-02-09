@@ -109,22 +109,6 @@ export function McpTab() {
     }
   };
 
-  if (!sessionId) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Start a session to manage MCP servers.
-      </p>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -134,8 +118,10 @@ export function McpTab() {
         </h3>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          disabled={!sessionId}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '36px' }}
+          title={!sessionId ? 'Start a session to manage MCP servers' : ''}
         >
           {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4 text-primary" />}
           {showAdd ? 'Cancel' : 'Add Server'}
@@ -147,7 +133,7 @@ export function McpTab() {
         Claude can use tools from these servers.
       </p>
 
-      {showAdd && (
+      {showAdd && sessionId && (
         <div className="space-y-2 rounded-lg border border-border p-3">
           <input
             type="text"
@@ -187,7 +173,15 @@ export function McpTab() {
         </div>
       )}
 
-      {servers.length === 0 ? (
+      {!sessionId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Start a session to manage MCP servers
+        </p>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : servers.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No MCP servers configured</p>
       ) : (
         <div className="space-y-1">
