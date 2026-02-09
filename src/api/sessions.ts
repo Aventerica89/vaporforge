@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { collectMcpConfig } from './mcp';
+import { collectPluginConfigs } from './plugins';
 
 type Variables = {
   user: User;
@@ -63,11 +65,17 @@ sessionRoutes.post('/create', async (c) => {
       `user-config:${user.id}:claude-md`
     );
 
+    // Collect MCP servers + plugin configs for sandbox injection
+    const mcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
+    const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
       env: sandboxEnv,
       claudeMd: claudeMd || undefined,
+      mcpServers,
+      pluginConfigs,
     });
 
     // Persist session name to KV (createSandbox already saved without it)

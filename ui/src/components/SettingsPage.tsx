@@ -6,7 +6,7 @@ import {
   FileCode,
   Terminal,
   Server,
-  Blocks,
+  Puzzle,
   Key,
   User,
   BookOpen,
@@ -57,7 +57,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
       { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
       { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-4 w-4" /> },
-      { id: 'plugins', label: 'Plugins', icon: <Blocks className="h-4 w-4" /> },
+      { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-4 w-4" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
     ],
   },
@@ -119,7 +119,7 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 safe-area-header"
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 safe-top"
         style={{ minHeight: '48px' }}
       >
         <button

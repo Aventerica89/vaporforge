@@ -10,6 +10,8 @@ import { gitRoutes } from './api/git';
 import { sdkRoutes } from './api/sdk';
 import { userRoutes } from './api/user';
 import { secretsRoutes } from './api/secrets';
+import { mcpRoutes } from './api/mcp';
+import { pluginsRoutes } from './api/plugins';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -139,6 +141,8 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/sdk', sdkRoutes);
   protectedRoutes.route('/user', userRoutes);
   protectedRoutes.route('/secrets', secretsRoutes);
+  protectedRoutes.route('/mcp', mcpRoutes);
+  protectedRoutes.route('/plugins', pluginsRoutes);
 
   app.route('/api', protectedRoutes);
 

@@ -115,6 +115,42 @@ export interface ImageAttachment {
   uploadedPath?: string;
 }
 
+// MCP Server config
+export interface McpServerConfig {
+  name: string;
+  transport: 'http' | 'stdio';
+  url?: string;
+  command?: string;
+  args?: string[];
+  enabled: boolean;
+  addedAt: string;
+}
+
+// Plugin item (agent, command, or rule)
+export interface PluginItem {
+  name: string;
+  filename: string;
+  content: string;
+  enabled: boolean;
+}
+
+// Plugin
+export interface Plugin {
+  id: string;
+  name: string;
+  description?: string;
+  repoUrl?: string;
+  scope: 'local' | 'git';
+  enabled: boolean;
+  builtIn: boolean;
+  agents: PluginItem[];
+  commands: PluginItem[];
+  rules: PluginItem[];
+  mcpServers: McpServerConfig[];
+  addedAt: string;
+  updatedAt: string;
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }

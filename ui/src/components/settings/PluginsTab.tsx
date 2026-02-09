@@ -2,743 +2,569 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Plus,
   Trash2,
+  Puzzle,
   Loader2,
   X,
   ChevronDown,
   ChevronRight,
-  Blocks,
   Bot,
   Terminal,
-  ArrowRight,
-  Save,
-  GitBranch,
-  HardDrive,
   BookOpen,
+  Server,
+  Github,
   ExternalLink,
+  Search,
+  Shield,
 } from 'lucide-react';
-import { useSandboxStore } from '@/hooks/useSandbox';
-import { usePluginsStore } from '@/hooks/usePlugins';
-import type { Plugin, PluginAgent, PluginCommand } from '@/hooks/usePlugins';
-import { ReadmeModal } from '../ReadmeModal';
+import { pluginsApi } from '@/lib/api';
+import type { Plugin, PluginItem } from '@/lib/types';
 
-/* ── Main Tab ─────────────────────────────────────────── */
+/* ─── Sub-item row ─── */
 
-export function PluginsTab() {
-  const sessionId = useSandboxStore((s) => s.currentSession?.id);
-  const { plugins, isLoading, loadPlugins, togglePlugin, removePlugin, addPlugin } =
-    usePluginsStore();
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
+function ItemRow({
+  item,
+  icon,
+  onToggle,
+}: {
+  item: PluginItem;
+  icon: React.ReactNode;
+  onToggle: () => void;
+}) {
+  return (
+    <div className={`flex items-center gap-2 rounded px-2 py-1.5 text-xs ${
+      !item.enabled ? 'opacity-50' : ''
+    }`}>
+      {icon}
+      <span className="flex-1 truncate font-mono">{item.filename}</span>
+      <button
+        onClick={onToggle}
+        className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+          item.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+        }`}
+      >
+        <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform ${
+          item.enabled ? 'left-[13px]' : 'left-0.5'
+        }`} />
+      </button>
+    </div>
+  );
+}
 
-  const load = useCallback(() => {
-    if (sessionId) loadPlugins(sessionId);
-  }, [sessionId, loadPlugins]);
+/* ─── Section group (Agents / Commands / Rules / MCP) ─── */
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const enabledCount = plugins.filter((p) => p.enabled).length;
+function ItemSection({
+  label,
+  icon,
+  items,
+  pluginId,
+  itemType,
+  onToggle,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  items: PluginItem[];
+  pluginId: string;
+  itemType: string;
+  onToggle: (pluginId: string, itemType: string, itemName: string) => void;
+}) {
+  if (items.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          <Blocks className="h-4 w-4 text-primary" />
-          Plugins & Agents
-          {enabledCount > 0 && (
-            <span className="text-[10px] font-mono text-primary/60">
-              {enabledCount} active
-            </span>
-          )}
-        </h3>
+    <div className="mt-2">
+      <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+        {label} ({items.length})
+      </span>
+      <div className="space-y-0.5">
+        {items.map((item) => (
+          <ItemRow
+            key={item.filename}
+            item={item}
+            icon={icon}
+            onToggle={() => onToggle(pluginId, itemType, item.name)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Plugin card ─── */
+
+function PluginCard({
+  plugin,
+  onToggle,
+  onToggleItem,
+  onDelete,
+}: {
+  plugin: Plugin;
+  onToggle: () => void;
+  onToggleItem: (pluginId: string, itemType: string, itemName: string) => void;
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const itemCount = plugin.agents.length + plugin.commands.length
+    + plugin.rules.length + plugin.mcpServers.length;
+
+  return (
+    <div className={`rounded-lg border border-border transition-colors ${
+      !plugin.enabled ? 'opacity-60' : ''
+    }`}>
+      {/* Header row */}
+      <div className="flex items-center gap-2 px-3 py-2.5">
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          disabled={!sessionId}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ minHeight: '36px' }}
-          title={!sessionId ? 'Start a session to manage plugins and agents' : ''}
+          onClick={() => setExpanded(!expanded)}
+          className="shrink-0 rounded p-0.5 hover:bg-accent transition-colors"
         >
-          {showAddForm ? (
-            <X className="h-4 w-4" />
-          ) : (
-            <Plus className="h-4 w-4 text-primary" />
-          )}
-          {showAddForm ? 'Cancel' : 'New Plugin'}
+          {expanded
+            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          }
+        </button>
+
+        <Puzzle className="h-3.5 w-3.5 shrink-0 text-primary" />
+        <span className="flex-1 truncate text-sm font-medium">{plugin.name}</span>
+
+        {plugin.builtIn && (
+          <span className="shrink-0 flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            <Shield className="h-2.5 w-2.5" />
+            Built-in
+          </span>
+        )}
+
+        {plugin.scope === 'git' && (
+          <span className="shrink-0 rounded bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-400">
+            GIT
+          </span>
+        )}
+
+        <span className="shrink-0 text-[10px] text-muted-foreground">
+          {itemCount} item{itemCount !== 1 ? 's' : ''}
+        </span>
+
+        {/* Toggle */}
+        <button
+          onClick={onToggle}
+          className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+            plugin.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+          }`}
+        >
+          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+            plugin.enabled ? 'left-[18px]' : 'left-0.5'
+          }`} />
         </button>
       </div>
 
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Plugins bundle agents and commands together. Enable a plugin to install
-        its commands. Toggle scope between{' '}
-        <span className="text-primary">local</span> (sandbox only) or{' '}
-        <span className="text-secondary">git</span> (committed to repo).
-      </p>
+      {/* Expanded content */}
+      {expanded && (
+        <div className="border-t border-border px-3 py-2">
+          {plugin.description && (
+            <p className="mb-2 text-xs text-muted-foreground">{plugin.description}</p>
+          )}
 
-      {/* Add form */}
-      {showAddForm && sessionId && (
-        <AddPluginForm
-          onAdd={(plugin) => {
-            addPlugin(sessionId, plugin);
-            setShowAddForm(false);
-          }}
-          onCancel={() => setShowAddForm(false)}
-        />
-      )}
+          <ItemSection
+            label="Agents"
+            icon={<Bot className="h-3 w-3 text-blue-400" />}
+            items={plugin.agents}
+            pluginId={plugin.id}
+            itemType="agent"
+            onToggle={onToggleItem}
+          />
+          <ItemSection
+            label="Commands"
+            icon={<Terminal className="h-3 w-3 text-green-400" />}
+            items={plugin.commands}
+            pluginId={plugin.id}
+            itemType="command"
+            onToggle={onToggleItem}
+          />
+          <ItemSection
+            label="Rules"
+            icon={<BookOpen className="h-3 w-3 text-amber-400" />}
+            items={plugin.rules}
+            pluginId={plugin.id}
+            itemType="rule"
+            onToggle={onToggleItem}
+          />
+          {plugin.mcpServers.length > 0 && (
+            <div className="mt-2">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                MCP Servers ({plugin.mcpServers.length})
+              </span>
+              {plugin.mcpServers.map((mcp) => (
+                <div key={mcp.name} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs">
+                  <Server className="h-3 w-3 text-cyan-400" />
+                  <span className="flex-1 truncate font-mono">{mcp.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{mcp.transport}</span>
+                </div>
+              ))}
+            </div>
+          )}
 
-      {/* Content */}
-      {!sessionId ? (
-        <p className="text-sm text-muted-foreground py-8 text-center">
-          Start a session to manage plugins and agents
-        </p>
-      ) : isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      ) : plugins.length === 0 ? (
-        <p className="py-4 text-center text-sm text-muted-foreground">
-          No plugins configured
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {plugins.map((plugin) => (
-            <PluginCard
-              key={plugin.id}
-              plugin={plugin}
-              expanded={expandedId === plugin.id}
-              onToggleExpand={() =>
-                setExpandedId(expandedId === plugin.id ? null : plugin.id)
-              }
-              onToggle={() => togglePlugin(sessionId, plugin.id)}
-              onRemove={() => removePlugin(sessionId, plugin.id)}
-              sessionId={sessionId}
-            />
-          ))}
+          {/* Footer actions */}
+          <div className="mt-3 flex items-center gap-2 border-t border-border/50 pt-2">
+            {plugin.repoUrl && (
+              <a
+                href={plugin.repoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <Github className="h-3 w-3" />
+                View on GitHub
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
+            {!plugin.builtIn && (
+              <button
+                onClick={onDelete}
+                className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[10px] text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-/* ── Plugin Card ──────────────────────────────────────── */
+/* ─── New Plugin form ─── */
 
-// Color palette for agent dots (deterministic by index)
-const AGENT_COLORS = [
-  'bg-cyan-400',
-  'bg-violet-400',
-  'bg-amber-400',
-  'bg-emerald-400',
-  'bg-rose-400',
-  'bg-blue-400',
-];
-
-function PluginCard({
-  plugin,
-  expanded,
-  onToggleExpand,
-  onToggle,
-  onRemove,
-  sessionId,
+function NewPluginForm({
+  onClose,
+  onCreated,
 }: {
-  plugin: Plugin;
-  expanded: boolean;
-  onToggleExpand: () => void;
-  onToggle: () => void;
-  onRemove: () => void;
-  sessionId: string;
+  onClose: () => void;
+  onCreated: () => void;
 }) {
-  const { setScope } = usePluginsStore();
-  const [showReadme, setShowReadme] = useState(false);
+  const [pluginName, setPluginName] = useState('');
+  const [description, setDescription] = useState('');
+  const [repoUrl, setRepoUrl] = useState('');
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState('');
+  const [preview, setPreview] = useState<Plugin | null>(null);
 
-  // Build agent color map
-  const agentColors: Record<string, string> = {};
-  plugin.agents.forEach((a, i) => {
-    agentColors[a.id] = AGENT_COLORS[i % AGENT_COLORS.length];
-  });
+  const handleDiscover = async () => {
+    if (!repoUrl) return;
+    setIsDiscovering(true);
+    setError('');
+    try {
+      const result = await pluginsApi.discover(repoUrl);
+      if (result.success && result.data) {
+        setPreview(result.data);
+        if (result.data.name && !pluginName) {
+          setPluginName(result.data.name);
+        }
+        if (result.data.description && !description) {
+          setDescription(result.data.description);
+        }
+      } else {
+        setError(result.error || 'Discovery failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Discovery failed');
+    } finally {
+      setIsDiscovering(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!pluginName) {
+      setError('Plugin name is required');
+      return;
+    }
+    setIsCreating(true);
+    setError('');
+    try {
+      const plugin = {
+        name: pluginName,
+        description: description || undefined,
+        repoUrl: repoUrl || undefined,
+        scope: repoUrl ? 'git' as const : 'local' as const,
+        enabled: true,
+        builtIn: false,
+        agents: preview?.agents || [],
+        commands: preview?.commands || [],
+        rules: preview?.rules || [],
+        mcpServers: preview?.mcpServers || [],
+      };
+
+      const result = await pluginsApi.add(plugin);
+      if (result.success) {
+        onCreated();
+        onClose();
+      } else {
+        setError(result.error || 'Failed to create plugin');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create plugin');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const discoveredCount = preview
+    ? preview.agents.length + preview.commands.length + preview.rules.length
+    : 0;
 
   return (
-    <>
-      {plugin.readme && (
-        <ReadmeModal
-          isOpen={showReadme}
-          onClose={() => setShowReadme(false)}
-          content={plugin.readme}
-          title={`${plugin.name} - README`}
-        />
-      )}
-
-      <div
-        className={`rounded-lg border transition-colors ${
-          plugin.enabled
-            ? 'border-primary/30 bg-primary/5'
-            : 'border-border bg-card/50'
-        }`}
-      >
-      {/* Header row */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <button
-          onClick={onToggleExpand}
-          className="flex-shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {expanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
-
-        <button
-          onClick={onToggleExpand}
-          className="flex-1 min-w-0 text-left"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold truncate">
-              {plugin.name}
-            </span>
-            {plugin.builtIn && (
-              <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground/50 border border-border rounded px-1 py-px">
-                built-in
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {plugin.description}
-          </p>
-        </button>
-
-        {/* Scope badge */}
-        <button
-          onClick={() =>
-            setScope(
-              sessionId,
-              plugin.id,
-              plugin.scope === 'local' ? 'git' : 'local'
-            )
-          }
-          className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
-            plugin.scope === 'git'
-              ? 'bg-secondary/15 text-secondary border border-secondary/30'
-              : 'bg-primary/10 text-primary/70 border border-primary/20'
-          }`}
-          title={
-            plugin.scope === 'local'
-              ? 'Local to sandbox — click to switch to git'
-              : 'Installed to repo — click to switch to local'
-          }
-        >
-          {plugin.scope === 'git' ? (
-            <GitBranch className="h-3 w-3" />
-          ) : (
-            <HardDrive className="h-3 w-3" />
-          )}
-          {plugin.scope}
-        </button>
-
-        {/* Enable/disable toggle */}
-        <button
-          onClick={onToggle}
-          className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
-            plugin.enabled ? 'bg-primary' : 'bg-border'
-          }`}
-          role="switch"
-          aria-checked={plugin.enabled}
-        >
-          <span
-            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-              plugin.enabled ? 'translate-x-5' : 'translate-x-0.5'
-            }`}
-          />
+    <div className="space-y-3 rounded-lg border border-border p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          New Plugin
+        </span>
+        <button onClick={onClose} className="rounded p-1 hover:bg-accent transition-colors">
+          <X className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </div>
 
-      {/* Expanded content */}
-      {expanded && (
-        <div className="border-t border-border px-3 py-3 space-y-4">
-          {/* Agents */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground/60">
-              <Bot className="h-3 w-3" />
-              Agents ({plugin.agents.length})
-            </div>
-            {plugin.agents.length === 0 ? (
-              <p className="text-xs text-muted-foreground/50 pl-4">
-                No agents
-              </p>
-            ) : (
-              <div className="space-y-1 pl-1">
-                {plugin.agents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    className="flex items-start gap-2 rounded-md px-2 py-1.5"
-                  >
-                    <span
-                      className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${
-                        agentColors[agent.id]
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{agent.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {agent.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      <input
+        type="text"
+        value={pluginName}
+        onChange={(e) => { setPluginName(e.target.value); setError(''); }}
+        placeholder="Plugin name"
+        className="w-full rounded border border-border bg-muted px-3 py-2 text-sm focus:border-primary focus:outline-none"
+      />
 
-          {/* Commands with agent connections */}
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground/60">
-              <Terminal className="h-3 w-3" />
-              Commands ({plugin.commands.length})
-            </div>
-            {plugin.commands.length === 0 ? (
-              <p className="text-xs text-muted-foreground/50 pl-4">
-                No commands
-              </p>
-            ) : (
-              <div className="space-y-1 pl-1">
-                {plugin.commands.map((cmd) => {
-                  const linkedAgent = cmd.agentId
-                    ? plugin.agents.find((a) => a.id === cmd.agentId)
-                    : null;
-                  const agentColor = cmd.agentId
-                    ? agentColors[cmd.agentId]
-                    : null;
+      <input
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description (optional)"
+        className="w-full rounded border border-border bg-muted px-3 py-2 text-sm focus:border-primary focus:outline-none"
+      />
 
-                  return (
-                    <div
-                      key={cmd.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5"
-                    >
-                      <span className="font-mono text-sm text-primary font-medium">
-                        {cmd.name}
-                      </span>
-                      {linkedAgent && (
-                        <>
-                          <ArrowRight className="h-3 w-3 flex-shrink-0 text-muted-foreground/40" />
-                          <span
-                            className={`flex items-center gap-1.5 text-xs text-muted-foreground`}
-                          >
-                            <span
-                              className={`h-2 w-2 rounded-full ${agentColor}`}
-                            />
-                            {linkedAgent.name}
-                          </span>
-                        </>
-                      )}
-                      {!linkedAgent && cmd.shellCommand && (
-                        <span className="font-mono text-[11px] text-muted-foreground/50 truncate">
-                          $ {cmd.shellCommand}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Installation Rules */}
-          {plugin.rules && (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground/60">
-                <BookOpen className="h-3 w-3" />
-                Installation Rules
-              </div>
-              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {plugin.rules}
-              </div>
-            </div>
+      {/* GitHub discovery */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={repoUrl}
+          onChange={(e) => { setRepoUrl(e.target.value); setError(''); }}
+          placeholder="https://github.com/owner/repo"
+          className="flex-1 rounded border border-border bg-muted px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none"
+        />
+        <button
+          onClick={handleDiscover}
+          disabled={!repoUrl || isDiscovering}
+          className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
+        >
+          {isDiscovering ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Search className="h-3 w-3" />
           )}
+          Discover
+        </button>
+      </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-1 border-t border-border/50">
-            <div className="flex items-center gap-2">
-              {plugin.readme && (
-                <button
-                  onClick={() => setShowReadme(true)}
-                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  View README
-                </button>
-              )}
-              {plugin.githubUrl && (
-                <a
-                  href={plugin.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  GitHub
-                </a>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              {!plugin.builtIn && (
-                <button
-                  onClick={onRemove}
-                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Discovery preview */}
+      {preview && discoveredCount > 0 && (
+        <div className="rounded border border-border/50 bg-accent/20 p-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+            Discovered {discoveredCount} items
+          </span>
+          {preview.agents.length > 0 && (
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {preview.agents.length} agent{preview.agents.length !== 1 ? 's' : ''}:
+              {' '}{preview.agents.map((a) => a.filename).join(', ')}
+            </p>
+          )}
+          {preview.commands.length > 0 && (
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {preview.commands.length} command{preview.commands.length !== 1 ? 's' : ''}:
+              {' '}{preview.commands.map((c) => c.filename).join(', ')}
+            </p>
+          )}
+          {preview.rules.length > 0 && (
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              {preview.rules.length} rule{preview.rules.length !== 1 ? 's' : ''}:
+              {' '}{preview.rules.map((r) => r.filename).join(', ')}
+            </p>
+          )}
         </div>
       )}
-      </div>
-    </>
+
+      {error && <p className="text-xs text-red-400">{error}</p>}
+
+      <button
+        onClick={handleCreate}
+        disabled={!pluginName || isCreating}
+        className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
+      >
+        {isCreating ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Plus className="h-3 w-3" />
+        )}
+        Create Plugin
+      </button>
+    </div>
   );
 }
 
-/* ── Add Plugin Form ──────────────────────────────────── */
+/* ─── Main PluginsTab ─── */
 
-function AddPluginForm({
-  onAdd,
-  onCancel,
-}: {
-  onAdd: (plugin: Omit<Plugin, 'id'>) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [githubUrl, setGithubUrl] = useState('');
-  const [rules, setRules] = useState('');
-  const [readme, setReadme] = useState('');
-  const [showReadmeModal, setShowReadmeModal] = useState(false);
-  const [scope, setScope] = useState<'local' | 'git'>('local');
-  const [agents, setAgents] = useState<PluginAgent[]>([]);
-  const [commands, setCommands] = useState<PluginCommand[]>([]);
+export function PluginsTab() {
+  const [plugins, setPlugins] = useState<Plugin[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
 
-  const addAgent = () => {
-    setAgents([
-      ...agents,
-      {
-        id: crypto.randomUUID().slice(0, 8),
-        name: '',
-        description: '',
-        systemPrompt: '',
-        enabled: true,
-      },
-    ]);
+  const loadPlugins = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await pluginsApi.list();
+      if (result.success && result.data) {
+        setPlugins(result.data);
+      }
+    } catch {
+      // Failed to load
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPlugins();
+  }, [loadPlugins]);
+
+  const handleTogglePlugin = async (pluginId: string, currentEnabled: boolean) => {
+    try {
+      await pluginsApi.toggle(pluginId, { enabled: !currentEnabled });
+      await loadPlugins();
+    } catch {
+      // Toggle failed
+    }
   };
 
-  const updateAgent = (idx: number, updates: Partial<PluginAgent>) => {
-    setAgents(agents.map((a, i) => (i === idx ? { ...a, ...updates } : a)));
+  const handleToggleItem = async (pluginId: string, itemType: string, itemName: string) => {
+    const plugin = plugins.find((p) => p.id === pluginId);
+    if (!plugin) return;
+
+    // Find current enabled state of the item
+    type ItemArray = 'agents' | 'commands' | 'rules';
+    const typeMap: Record<string, ItemArray> = {
+      agent: 'agents',
+      command: 'commands',
+      rule: 'rules',
+    };
+    const arr = typeMap[itemType];
+    if (!arr) return;
+    const item = plugin[arr].find((i) => i.name === itemName);
+    if (!item) return;
+
+    try {
+      await pluginsApi.toggle(pluginId, {
+        enabled: !item.enabled,
+        itemType,
+        itemName,
+      });
+      await loadPlugins();
+    } catch {
+      // Toggle failed
+    }
   };
 
-  const removeAgent = (idx: number) => {
-    const removed = agents[idx];
-    setAgents(agents.filter((_, i) => i !== idx));
-    // Unlink commands that referenced this agent
-    setCommands(
-      commands.map((c) =>
-        c.agentId === removed.id ? { ...c, agentId: undefined } : c
-      )
+  const handleDelete = async (pluginId: string) => {
+    try {
+      await pluginsApi.remove(pluginId);
+      await loadPlugins();
+    } catch {
+      // Delete failed
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      </div>
     );
-  };
+  }
 
-  const addCommand = () => {
-    setCommands([
-      ...commands,
-      {
-        id: crypto.randomUUID().slice(0, 8),
-        name: '/',
-        description: '',
-      },
-    ]);
-  };
-
-  const updateCommand = (idx: number, updates: Partial<PluginCommand>) => {
-    setCommands(commands.map((c, i) => (i === idx ? { ...c, ...updates } : c)));
-  };
-
-  const removeCommand = (idx: number) => {
-    setCommands(commands.filter((_, i) => i !== idx));
-  };
-
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    onAdd({
-      name: name.trim(),
-      description: description.trim(),
-      enabled: true,
-      scope,
-      agents,
-      commands,
-      githubUrl: githubUrl.trim() || undefined,
-      rules: rules.trim() || undefined,
-      readme: readme.trim() || undefined,
-    });
-  };
+  const builtIns = plugins.filter((p) => p.builtIn);
+  const custom = plugins.filter((p) => !p.builtIn);
 
   return (
-    <>
-      <ReadmeModal
-        isOpen={showReadmeModal}
-        onClose={() => setShowReadmeModal(false)}
-        content={readme}
-        title="Plugin README Preview"
-      />
-
-      <div className="space-y-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-        <h4 className="font-display text-xs font-bold uppercase tracking-wider text-primary">
-          New Plugin
-        </h4>
-
-      {/* Basic info */}
-      <div className="space-y-2">
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Plugin name"
-          className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm focus:border-primary focus:outline-none"
-          autoFocus
-        />
-        <input
-          type="text"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Short description"
-          className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm focus:border-primary focus:outline-none"
-        />
-        <div className="space-y-1">
-          <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
-            <ExternalLink className="h-3 w-3" />
-            GitHub Repository
-            <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
-          </label>
-          <input
-            type="url"
-            value={githubUrl}
-            onChange={(e) => setGithubUrl(e.target.value)}
-            placeholder="https://github.com/user/repo"
-            className="w-full rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs focus:border-primary focus:outline-none"
-          />
-        </div>
-      </div>
-
-      {/* Scope */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">Scope:</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
+          <Puzzle className="h-4 w-4 text-primary" />
+          Plugins &amp; Agents
+          {plugins.length > 0 && (
+            <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+              {plugins.length}
+            </span>
+          )}
+        </h3>
         <button
-          onClick={() => setScope('local')}
-          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-mono uppercase transition-colors ${
-            scope === 'local'
-              ? 'bg-primary/15 text-primary border border-primary/30'
-              : 'bg-muted text-muted-foreground border border-border'
-          }`}
+          onClick={() => setShowNew(!showNew)}
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
         >
-          <HardDrive className="h-3 w-3" />
-          Local
-        </button>
-        <button
-          onClick={() => setScope('git')}
-          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-mono uppercase transition-colors ${
-            scope === 'git'
-              ? 'bg-secondary/15 text-secondary border border-secondary/30'
-              : 'bg-muted text-muted-foreground border border-border'
-          }`}
-        >
-          <GitBranch className="h-3 w-3" />
-          Git
+          {showNew ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-primary" />}
+          {showNew ? 'Cancel' : 'New Plugin'}
         </button>
       </div>
 
-      {/* Agents section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
-            <Bot className="h-3 w-3" />
-            Agents
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Plugins bundle agents, commands, and rules. Built-in plugins are always
+        available. Add custom plugins from GitHub repos or create them locally.
+      </p>
+
+      {showNew && (
+        <NewPluginForm
+          onClose={() => setShowNew(false)}
+          onCreated={loadPlugins}
+        />
+      )}
+
+      {/* Built-in plugins */}
+      {builtIns.length > 0 && (
+        <div>
+          <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+            Built-in
           </span>
-          <button
-            onClick={addAgent}
-            className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-primary hover:bg-primary/10 transition-colors"
-          >
-            <Plus className="h-3 w-3" />
-            Add
-          </button>
-        </div>
-        {agents.map((agent, idx) => (
-          <div
-            key={agent.id}
-            className="space-y-1.5 rounded-md border border-border bg-muted/50 p-2.5"
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${
-                  AGENT_COLORS[idx % AGENT_COLORS.length]
-                }`}
+          <div className="space-y-2">
+            {builtIns.map((plugin) => (
+              <PluginCard
+                key={plugin.id}
+                plugin={plugin}
+                onToggle={() => handleTogglePlugin(plugin.id, plugin.enabled)}
+                onToggleItem={handleToggleItem}
+                onDelete={() => handleDelete(plugin.id)}
               />
-              <input
-                type="text"
-                value={agent.name}
-                onChange={(e) => updateAgent(idx, { name: e.target.value })}
-                placeholder="Agent name"
-                className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm focus:border-primary focus:outline-none"
-              />
-              <button
-                onClick={() => removeAgent(idx)}
-                className="rounded p-1 text-muted-foreground hover:text-red-500 transition-colors"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <input
-              type="text"
-              value={agent.description}
-              onChange={(e) =>
-                updateAgent(idx, { description: e.target.value })
-              }
-              placeholder="Description"
-              className="w-full rounded border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-            />
-            <textarea
-              value={agent.systemPrompt}
-              onChange={(e) =>
-                updateAgent(idx, { systemPrompt: e.target.value })
-              }
-              placeholder="System prompt / instructions for this agent..."
-              className="w-full resize-none rounded border border-border bg-background p-2 font-mono text-[11px] leading-relaxed focus:border-primary focus:outline-none"
-              rows={3}
-            />
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Commands section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
-            <Terminal className="h-3 w-3" />
-            Commands
+      {/* Custom plugins */}
+      {custom.length > 0 && (
+        <div>
+          <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+            Custom
           </span>
-          <button
-            onClick={addCommand}
-            className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-primary hover:bg-primary/10 transition-colors"
-          >
-            <Plus className="h-3 w-3" />
-            Add
-          </button>
-        </div>
-        {commands.map((cmd, idx) => (
-          <div
-            key={cmd.id}
-            className="flex items-center gap-2 rounded-md border border-border bg-muted/50 p-2.5"
-          >
-            <input
-              type="text"
-              value={cmd.name}
-              onChange={(e) => updateCommand(idx, { name: e.target.value })}
-              placeholder="/command"
-              className="w-24 flex-shrink-0 rounded border border-border bg-background px-2 py-1 font-mono text-sm focus:border-primary focus:outline-none"
-            />
-            <input
-              type="text"
-              value={cmd.description}
-              onChange={(e) =>
-                updateCommand(idx, { description: e.target.value })
-              }
-              placeholder="Description"
-              className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-            />
-            {/* Agent link dropdown */}
-            {agents.length > 0 && (
-              <select
-                value={cmd.agentId || ''}
-                onChange={(e) =>
-                  updateCommand(idx, {
-                    agentId: e.target.value || undefined,
-                  })
-                }
-                className="rounded border border-border bg-background px-2 py-1 text-xs focus:border-primary focus:outline-none"
-              >
-                <option value="">No agent</option>
-                {agents.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name || 'Unnamed'}
-                  </option>
-                ))}
-              </select>
-            )}
-            <button
-              onClick={() => removeCommand(idx)}
-              className="rounded p-1 text-muted-foreground hover:text-red-500 transition-colors"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+          <div className="space-y-2">
+            {custom.map((plugin) => (
+              <PluginCard
+                key={plugin.id}
+                plugin={plugin}
+                onToggle={() => handleTogglePlugin(plugin.id, plugin.enabled)}
+                onToggleItem={handleToggleItem}
+                onDelete={() => handleDelete(plugin.id)}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Rules section */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
-          <BookOpen className="h-3 w-3" />
-          Installation Rules
-          <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
-        </label>
-        <textarea
-          value={rules}
-          onChange={(e) => setRules(e.target.value)}
-          placeholder="Installation instructions, requirements, or setup notes..."
-          className="w-full resize-none rounded-lg border border-border bg-muted p-3 text-xs leading-relaxed focus:border-primary focus:outline-none"
-          rows={3}
-        />
-      </div>
-
-      {/* README section */}
-      <div className="space-y-2">
-        <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
-          <BookOpen className="h-3 w-3" />
-          README Content
-          <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
-        </label>
-        <textarea
-          value={readme}
-          onChange={(e) => setReadme(e.target.value)}
-          placeholder="Plugin README in markdown format..."
-          className="w-full resize-none rounded-lg border border-border bg-muted p-3 font-mono text-xs leading-relaxed focus:border-primary focus:outline-none"
-          rows={4}
-        />
-        {readme.trim() && (
-          <button
-            onClick={() => setShowReadmeModal(true)}
-            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors"
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            Preview README
-          </button>
-        )}
-      </div>
-
-      {/* Submit */}
-      <div className="flex justify-end gap-2 pt-1">
-        <button
-          onClick={onCancel}
-          className="rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-accent transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!name.trim()}
-          className="btn-primary flex items-center gap-1.5 px-4 py-2 text-xs disabled:opacity-50"
-        >
-          <Save className="h-3.5 w-3.5" />
-          Create Plugin
-        </button>
-      </div>
-      </div>
-    </>
+      {plugins.length === 0 && (
+        <p className="text-sm text-muted-foreground py-4 text-center">
+          No plugins configured
+        </p>
+      )}
+    </div>
   );
 }

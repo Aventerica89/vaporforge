@@ -77,6 +77,15 @@ export interface SandboxConfig {
   env?: Record<string, string>;
   /** User's global CLAUDE.md content — injected into ~/.claude/CLAUDE.md */
   claudeMd?: string;
+  /** MCP servers config to inject into ~/.claude.json */
+  mcpServers?: Record<string, Record<string, unknown>>;
+  /** Plugin configs (agents, commands, rules, extra MCP) to inject */
+  pluginConfigs?: {
+    agents: Array<{ filename: string; content: string }>;
+    commands: Array<{ filename: string; content: string }>;
+    rules: Array<{ filename: string; content: string }>;
+    mcpServers: Record<string, Record<string, unknown>>;
+  };
 }
 
 export class SandboxManager {
@@ -170,6 +179,56 @@ export class SandboxManager {
         step = 'writeCLAUDE.md';
         await sandbox.mkdir('/root/.claude', { recursive: true });
         await sandbox.writeFile('/root/.claude/CLAUDE.md', config.claudeMd);
+      }
+
+      // Inject MCP servers + plugin MCP into ~/.claude.json
+      const hasMcp = config?.mcpServers && Object.keys(config.mcpServers).length > 0;
+      const hasPluginMcp = config?.pluginConfigs?.mcpServers
+        && Object.keys(config.pluginConfigs.mcpServers).length > 0;
+      if (hasMcp || hasPluginMcp) {
+        step = 'writeMcpConfig';
+        const mergedMcp: Record<string, Record<string, unknown>> = {
+          ...(config?.mcpServers || {}),
+          ...(config?.pluginConfigs?.mcpServers || {}),
+        };
+        const claudeJson = JSON.stringify({ mcpServers: mergedMcp }, null, 2);
+        await sandbox.writeFile('/root/.claude.json', claudeJson);
+      }
+
+      // Inject plugin agents into ~/.claude/agents/
+      if (config?.pluginConfigs?.agents.length) {
+        step = 'writePluginAgents';
+        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+        for (const agent of config.pluginConfigs.agents) {
+          await sandbox.writeFile(
+            `/root/.claude/agents/${agent.filename}`,
+            agent.content
+          );
+        }
+      }
+
+      // Inject plugin commands into ~/.claude/commands/
+      if (config?.pluginConfigs?.commands.length) {
+        step = 'writePluginCommands';
+        await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+        for (const cmd of config.pluginConfigs.commands) {
+          await sandbox.writeFile(
+            `/root/.claude/commands/${cmd.filename}`,
+            cmd.content
+          );
+        }
+      }
+
+      // Inject plugin rules into ~/.claude/rules/
+      if (config?.pluginConfigs?.rules.length) {
+        step = 'writePluginRules';
+        await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+        for (const rule of config.pluginConfigs.rules) {
+          await sandbox.writeFile(
+            `/root/.claude/rules/${rule.filename}`,
+            rule.content
+          );
+        }
       }
 
       // Clone git repo using SDK's gitCheckout
