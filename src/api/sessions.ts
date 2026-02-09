@@ -305,6 +305,45 @@ sessionRoutes.post('/:sessionId/restore', async (c) => {
   });
 });
 
+// Permanently delete a pending-delete session (purge now)
+sessionRoutes.post('/:sessionId/purge', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'pending-delete') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session must be pending-delete to purge',
+    }, 400);
+  }
+
+  // Delete all messages for this session
+  const msgList = await c.env.SESSIONS_KV.list({ prefix: `message:${sessionId}:` });
+  for (const msgKey of msgList.keys) {
+    await c.env.SESSIONS_KV.delete(msgKey.name);
+  }
+
+  // Delete the session record
+  await c.env.SESSIONS_KV.delete(`session:${sessionId}`);
+
+  return c.json<ApiResponse<{ purged: boolean }>>({
+    success: true,
+    data: { purged: true },
+  });
+});
+
 // Execute command in session
 sessionRoutes.post('/:sessionId/exec', async (c) => {
   const user = c.get('user');

@@ -104,6 +104,11 @@ export const sessionsApi = {
       method: 'POST',
     }),
 
+  purge: (sessionId: string) =>
+    request<{ purged: boolean }>(`/sessions/${sessionId}/purge`, {
+      method: 'POST',
+    }),
+
   exec: (sessionId: string, command: string, cwd?: string) =>
     request<{ stdout: string; stderr: string; exitCode: number }>(
       `/sessions/${sessionId}/exec`,

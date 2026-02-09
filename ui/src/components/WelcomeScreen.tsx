@@ -42,11 +42,13 @@ export function WelcomeScreen() {
     selectSession,
     terminateSession,
     restoreSession,
+    purgeSession,
     renameSession,
     isLoadingSessions,
   } = useSandboxStore();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [purgingId, setPurgingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [showAll, setShowAll] = useState(false);
@@ -428,23 +430,42 @@ export function WelcomeScreen() {
                           : 'Deleting soon...'}
                       </p>
                     </div>
-                    <button
-                      onClick={async () => {
-                        setRestoringId(session.id);
-                        await restoreSession(session.id);
-                        setRestoringId(null);
-                      }}
-                      disabled={restoringId === session.id}
-                      className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-mono uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
-                      title="Restore session"
-                    >
-                      {restoringId === session.id ? (
-                        <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      ) : (
-                        <Undo2 className="h-3.5 w-3.5" />
-                      )}
-                      Undo
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={async () => {
+                          setPurgingId(session.id);
+                          await purgeSession(session.id);
+                          setPurgingId(null);
+                        }}
+                        disabled={purgingId === session.id}
+                        className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-mono uppercase tracking-wide border border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 transition-all"
+                        title="Delete permanently"
+                      >
+                        {purgingId === session.id ? (
+                          <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                        Delete
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setRestoringId(session.id);
+                          await restoreSession(session.id);
+                          setRestoringId(null);
+                        }}
+                        disabled={restoringId === session.id}
+                        className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-mono uppercase tracking-wide border border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
+                        title="Restore session"
+                      >
+                        {restoringId === session.id ? (
+                          <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        ) : (
+                          <Undo2 className="h-3.5 w-3.5" />
+                        )}
+                        Undo
+                      </button>
+                    </div>
                   </div>
                 );
               })}

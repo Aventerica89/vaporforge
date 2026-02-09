@@ -51,6 +51,7 @@ interface SandboxState {
   deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
   restoreSession: (sessionId: string) => Promise<void>;
+  purgeSession: (sessionId: string) => Promise<void>;
 
   renameSession: (sessionId: string, name: string) => Promise<void>;
 
@@ -259,6 +260,19 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           sessions: state.sessions.map((s) =>
             s.id === sessionId ? { ...s, ...result.data! } : s
           ),
+        }));
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  purgeSession: async (sessionId: string) => {
+    try {
+      const result = await sessionsApi.purge(sessionId);
+      if (result.success) {
+        set((state) => ({
+          sessions: state.sessions.filter((s) => s.id !== sessionId),
         }));
       }
     } catch {
