@@ -148,10 +148,11 @@ export function CommandsTab() {
         </h3>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium hover:bg-accent transition-colors"
+          style={{ minHeight: '36px' }}
         >
-          <Plus className="h-3.5 w-3.5 text-primary" />
-          Add
+          <Plus className="h-4 w-4 text-primary" />
+          Add Command
         </button>
       </div>
 
@@ -178,9 +179,9 @@ export function CommandsTab() {
               </button>
               <button
                 onClick={() => handleDelete(cmd.name)}
-                className="rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                className="rounded p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}

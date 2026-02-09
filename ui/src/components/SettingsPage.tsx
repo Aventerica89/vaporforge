@@ -6,6 +6,7 @@ import {
   FileCode,
   Terminal,
   Server,
+  Blocks,
   Key,
   User,
   BookOpen,
@@ -23,6 +24,7 @@ import { KeyboardShortcutsTab } from '@/components/settings/KeyboardShortcutsTab
 import { ClaudeMdTab } from '@/components/settings/ClaudeMdTab';
 import { CommandsTab } from '@/components/settings/CommandsTab';
 import { McpTab } from '@/components/settings/McpTab';
+import { PluginsTab } from '@/components/settings/PluginsTab';
 import { SecretsTab } from '@/components/settings/SecretsTab';
 import { AccountTab } from '@/components/settings/AccountTab';
 import { GuideTab } from '@/components/settings/GuideTab';
@@ -55,6 +57,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
       { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
       { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-4 w-4" /> },
+      { id: 'plugins', label: 'Plugins', icon: <Blocks className="h-4 w-4" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
     ],
   },
@@ -81,6 +84,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   'claude-md': ClaudeMdTab,
   commands: CommandsTab,
   mcp: McpTab,
+  plugins: PluginsTab,
   secrets: SecretsTab,
   account: AccountTab,
   guide: GuideTab,
