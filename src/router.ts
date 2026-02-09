@@ -11,6 +11,7 @@ import { sdkRoutes } from './api/sdk';
 import { userRoutes } from './api/user';
 import { secretsRoutes } from './api/secrets';
 import { mcpRoutes } from './api/mcp';
+import { mcpRelayRoutes } from './api/mcp-relay';
 import { pluginsRoutes } from './api/plugins';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
@@ -117,6 +118,9 @@ export function createRouter(env: Env) {
       },
     });
   });
+
+  // MCP relay route (uses relay token auth, not user JWT)
+  app.route('/api/mcp-relay', mcpRelayRoutes);
 
   // Protected routes - require authentication
   const protectedRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();

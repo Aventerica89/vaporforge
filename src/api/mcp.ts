@@ -72,7 +72,7 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
-  const { name, transport, url, command, args } = parsed.data;
+  const { name, transport, url, command, args, localUrl } = parsed.data;
 
   // Transport-specific validation
   if (transport === 'http' && !url) {
@@ -86,6 +86,13 @@ mcpRoutes.post('/', async (c) => {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Command is required for stdio transport',
+    }, 400);
+  }
+
+  if (transport === 'relay' && !localUrl) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Local URL is required for relay transport',
     }, 400);
   }
 
@@ -113,6 +120,7 @@ mcpRoutes.post('/', async (c) => {
     url,
     command,
     args,
+    localUrl,
     enabled: true,
     addedAt: new Date().toISOString(),
   };
@@ -182,6 +190,9 @@ mcpRoutes.put('/:name/toggle', async (c) => {
 /**
  * Collect enabled MCP servers for a user, returning them in the
  * ~/.claude.json mcpServers format.
+ *
+ * Relay transport servers are transformed to HTTP pointing at the
+ * in-container mcp-relay-proxy on localhost:9788.
  */
 export async function collectMcpConfig(
   kv: KVNamespace,
@@ -203,8 +214,23 @@ export async function collectMcpConfig(
         command: server.command,
         args: server.args || [],
       };
+    } else if (server.transport === 'relay' && server.localUrl) {
+      // Relay: SDK talks to the in-container proxy which tunnels to the browser
+      result[server.name] = {
+        type: 'http',
+        url: `http://127.0.0.1:9788/mcp/${server.name}`,
+      };
     }
   }
 
   return result;
+}
+
+/** Check if a user has any enabled relay-transport MCP servers */
+export async function hasRelayServers(
+  kv: KVNamespace,
+  userId: string
+): Promise<boolean> {
+  const servers = await readServers(kv, userId);
+  return servers.some((s) => s.transport === 'relay' && s.enabled && s.localUrl);
 }

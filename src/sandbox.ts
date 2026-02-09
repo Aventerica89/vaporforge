@@ -86,6 +86,8 @@ export interface SandboxConfig {
     rules: Array<{ filename: string; content: string }>;
     mcpServers: Record<string, Record<string, unknown>>;
   };
+  /** Start the MCP relay proxy in the container (for relay transport servers) */
+  startRelayProxy?: boolean;
 }
 
 export class SandboxManager {
@@ -251,7 +253,16 @@ export class SandboxManager {
       if (!ready) {
         throw new Error('Container started but shell never became responsive');
       }
-      console.log(`[createSandbox] ${sessionId.slice(0, 8)}: health check PASSED, marking active`);
+      console.log(`[createSandbox] ${sessionId.slice(0, 8)}: health check PASSED`);
+
+      // Start MCP relay proxy if relay servers are configured
+      // Command is a fixed string (no user input) — safe for sandbox.exec
+      if (config?.startRelayProxy) {
+        step = 'startRelayProxy';
+        const proxyCmd = 'nohup node /opt/claude-agent/mcp-relay-proxy.js > /tmp/mcp-relay.log 2>&1 &';
+        console.log(`[createSandbox] ${sessionId.slice(0, 8)}: starting MCP relay proxy`);
+        await sandbox.exec(proxyCmd, { timeout: 5000 });
+      }
 
       // Update session status
       step = 'updateStatus';

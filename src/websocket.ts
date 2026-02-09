@@ -159,11 +159,21 @@ export class WebSocketHandler {
   }
 }
 
+/** Pending MCP relay request awaiting browser response */
+interface PendingRelayRequest {
+  resolve: (body: Record<string, unknown>) => void;
+  reject: (error: Error) => void;
+  timeout: ReturnType<typeof setTimeout>;
+}
+
+const RELAY_TIMEOUT_MS = 30000;
+
 // Durable Object for WebSocket state persistence
 export class SessionDurableObject {
   private state: DurableObjectState;
   private wsHandler: WebSocketHandler;
   private sessions: Map<string, { userId: string; createdAt: string }> = new Map();
+  private pendingRelayRequests: Map<string, PendingRelayRequest> = new Map();
 
   constructor(state: DurableObjectState) {
     this.state = state;
@@ -198,6 +208,30 @@ export class SessionDurableObject {
       server.accept();
       this.wsHandler.handleConnection(server, connectionId, sessionId);
 
+      // Listen for mcp_relay_response messages from browser
+      server.addEventListener('message', (event) => {
+        try {
+          const data = JSON.parse(event.data as string);
+          if (data.type === 'mcp_relay_response' && data.requestId) {
+            const pending = this.pendingRelayRequests.get(data.requestId);
+            if (pending) {
+              clearTimeout(pending.timeout);
+              this.pendingRelayRequests.delete(data.requestId);
+              if (data.error) {
+                pending.resolve({
+                  jsonrpc: '2.0',
+                  error: { code: -32603, message: data.error },
+                });
+              } else {
+                pending.resolve(data.body || {});
+              }
+            }
+          }
+        } catch {
+          // Ignore non-JSON messages
+        }
+      });
+
       return new Response(null, {
         status: 101,
         webSocket: client,
@@ -229,6 +263,52 @@ export class SessionDurableObject {
 
       this.wsHandler.broadcastToSession(body.sessionId, body.message);
       return new Response(JSON.stringify({ success: true }));
+    }
+
+    // MCP relay: forward request to browser via WebSocket and wait for response
+    if (url.pathname === '/mcp-relay' && request.method === 'POST') {
+      const body = await request.json() as {
+        sessionId: string;
+        serverName: string;
+        body: Record<string, unknown>;
+      };
+
+      if (!this.wsHandler.hasActiveConnections(body.sessionId)) {
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'No browser connected for relay' },
+        }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+
+      const requestId = crypto.randomUUID();
+
+      // Create a Promise that will be resolved by the WS message handler
+      const result = await new Promise<Record<string, unknown>>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          this.pendingRelayRequests.delete(requestId);
+          resolve({
+            jsonrpc: '2.0',
+            error: { code: -32603, message: 'Relay request timed out (30s)' },
+          });
+        }, RELAY_TIMEOUT_MS);
+
+        this.pendingRelayRequests.set(requestId, { resolve, reject, timeout });
+
+        // Send relay request to the first connected browser client
+        this.wsHandler.broadcastToSession(body.sessionId, {
+          type: 'mcp_relay_request',
+          requestId,
+          serverName: body.serverName,
+          body: body.body,
+        } as WSMessage);
+      });
+
+      return new Response(JSON.stringify(result), {
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     return new Response('Not found', { status: 404 });

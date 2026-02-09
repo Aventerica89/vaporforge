@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
-import { collectMcpConfig } from './mcp';
+import { collectMcpConfig, hasRelayServers } from './mcp';
 import { collectPluginConfigs } from './plugins';
 
 type Variables = {
@@ -60,6 +60,16 @@ sessionRoutes.post('/create', async (c) => {
       ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
     };
 
+    // Generate relay token if user has relay MCP servers
+    const needsRelay = await hasRelayServers(c.env.SESSIONS_KV, user.id);
+    const relayToken = needsRelay ? crypto.randomUUID() : undefined;
+
+    if (needsRelay && relayToken) {
+      const relayUrl = `https://vaporforge.jbcloud.app/api/mcp-relay/${sessionId}`;
+      sandboxEnv.RELAY_TOKEN = relayToken;
+      sandboxEnv.RELAY_URL = relayUrl;
+    }
+
     // Fetch user's global CLAUDE.md for injection into sandbox
     const claudeMd = await c.env.SESSIONS_KV.get(
       `user-config:${user.id}:claude-md`
@@ -76,11 +86,16 @@ sessionRoutes.post('/create', async (c) => {
       claudeMd: claudeMd || undefined,
       mcpServers,
       pluginConfigs,
+      startRelayProxy: needsRelay,
     });
 
-    // Persist session name to KV (createSandbox already saved without it)
-    if (parsed.data.name) {
-      session.metadata = { ...(session.metadata ?? {}), name: parsed.data.name };
+    // Persist session name and relay token to KV metadata
+    const extraMeta: Record<string, unknown> = {};
+    if (parsed.data.name) extraMeta.name = parsed.data.name;
+    if (relayToken) extraMeta.relayToken = relayToken;
+
+    if (Object.keys(extraMeta).length > 0) {
+      session.metadata = { ...(session.metadata ?? {}), ...extraMeta };
       await c.env.SESSIONS_KV.put(
         `session:${sessionId}`,
         JSON.stringify(session)

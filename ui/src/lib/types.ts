@@ -118,10 +118,12 @@ export interface ImageAttachment {
 // MCP Server config
 export interface McpServerConfig {
   name: string;
-  transport: 'http' | 'stdio';
+  transport: 'http' | 'stdio' | 'relay';
   url?: string;
   command?: string;
   args?: string[];
+  /** Local URL for relay transport (e.g. http://localhost:9222) */
+  localUrl?: string;
   enabled: boolean;
   addedAt: string;
 }
@@ -163,4 +165,6 @@ export type WSMessage =
   | { type: 'terminal_output'; sessionId: string; output: string }
   | { type: 'error'; message: string; code?: string }
   | { type: 'ping' }
-  | { type: 'pong' };
+  | { type: 'pong' }
+  | { type: 'mcp_relay_request'; requestId: string; serverName: string; body: Record<string, unknown> }
+  | { type: 'mcp_relay_response'; requestId: string; body: Record<string, unknown>; error?: string };

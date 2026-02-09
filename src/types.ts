@@ -110,6 +110,18 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('pong'),
   }),
+  z.object({
+    type: z.literal('mcp_relay_request'),
+    requestId: z.string(),
+    serverName: z.string(),
+    body: z.record(z.unknown()),
+  }),
+  z.object({
+    type: z.literal('mcp_relay_response'),
+    requestId: z.string(),
+    body: z.record(z.unknown()),
+    error: z.string().optional(),
+  }),
 ]);
 
 export type WSMessage = z.infer<typeof WSMessageSchema>;
@@ -190,10 +202,12 @@ export const McpServerConfigSchema = z.object({
     /^[a-zA-Z0-9_-]+$/,
     'Name must be alphanumeric, dashes, or underscores'
   ),
-  transport: z.enum(['http', 'stdio']),
+  transport: z.enum(['http', 'stdio', 'relay']),
   url: z.string().url().optional(),
   command: z.string().min(1).optional(),
   args: z.array(z.string()).optional(),
+  /** Local URL for relay transport (e.g. http://localhost:9222) */
+  localUrl: z.string().url().optional(),
   enabled: z.boolean().default(true),
   addedAt: z.string(),
 });
