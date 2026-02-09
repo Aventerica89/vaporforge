@@ -148,7 +148,7 @@ export function CommandsTab() {
         </h3>
         <button
           onClick={handleNew}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
           style={{ minHeight: '36px' }}
         >
           <Plus className="h-4 w-4 text-primary" />

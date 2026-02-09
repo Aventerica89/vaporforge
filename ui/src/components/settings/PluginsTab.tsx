@@ -68,7 +68,7 @@ export function PluginsTab() {
         </h3>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
           style={{ minHeight: '36px' }}
         >
           {showAddForm ? (
