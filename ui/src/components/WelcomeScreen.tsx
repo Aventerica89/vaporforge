@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X, Undo2 } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Undo2, Star } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useFavoritesStore } from '@/hooks/useFavorites';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 
@@ -50,6 +51,8 @@ export function WelcomeScreen() {
   const [editName, setEditName] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
+  const { favorites, removeFavorite } = useFavoritesStore();
+  const [cloningFavUrl, setCloningFavUrl] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -89,6 +92,20 @@ export function WelcomeScreen() {
   const cancelRename = () => {
     setEditingId(null);
     setEditName('');
+  };
+
+  const handleCloneFavorite = async (url: string) => {
+    setCloningFavUrl(url);
+    try {
+      const session = await createSession(undefined, url);
+      if (session) {
+        await selectSession(session.id);
+      }
+    } catch {
+      // Error handled by createSession
+    } finally {
+      setCloningFavUrl(null);
+    }
   };
 
   const activeSessions = sessions.filter((s) => s.status !== 'pending-delete');
@@ -173,6 +190,61 @@ export function WelcomeScreen() {
             </div>
           </button>
         </div>
+
+        {/* Favorites Quick Clone */}
+        {favorites.length > 0 && (
+          <div className="space-y-3 animate-fade-up stagger-2">
+            <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
+              Favorites
+              <span className="ml-2 text-yellow-500/60">{favorites.length}</span>
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {favorites.slice(0, 6).map((repo) => (
+                <div
+                  key={repo.url}
+                  className="glass-card group flex items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
+                >
+                  <button
+                    onClick={() => handleCloneFavorite(repo.url)}
+                    disabled={cloningFavUrl !== null}
+                    className="flex-1 min-w-0 text-left"
+                  >
+                    <p className="font-mono text-sm font-semibold truncate">
+                      <span className="text-muted-foreground">{repo.owner}/</span>
+                      {repo.name}
+                    </p>
+                    {repo.description && (
+                      <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
+                        {repo.description}
+                      </p>
+                    )}
+                  </button>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                    {cloningFavUrl === repo.url ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      <button
+                        onClick={() => removeFavorite(repo.url)}
+                        className="rounded p-1 text-yellow-500 opacity-0 group-hover:opacity-100 hover:bg-yellow-500/10 transition-all"
+                        title="Remove from favorites"
+                      >
+                        <Star className="h-3 w-3 fill-current" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {favorites.length > 6 && (
+              <button
+                onClick={() => setShowCloneModal(true)}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                View all favorites ({favorites.length})
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Error display */}
         {createError && (
