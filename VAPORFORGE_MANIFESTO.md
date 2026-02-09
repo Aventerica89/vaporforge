@@ -6,7 +6,7 @@
 **Date:** February 7, 2026
 **Author:** JB + Claude Code (Opus 4.6)
 **Live:** https://vaporforge.jbcloud.app
-**Repo:** github.com/Aventerica89/vaporforge
+**Repo:** github.com/Aventerica89/VaporForge
 
 ---
 
