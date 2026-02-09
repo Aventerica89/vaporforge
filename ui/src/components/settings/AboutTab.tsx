@@ -54,7 +54,7 @@ export function AboutTab() {
       </section>
 
       <a
-        href="https://github.com/Aventerica89/vaporforge"
+        href="https://github.com/Aventerica89/VaporForge"
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center gap-2 text-sm text-primary hover:underline"

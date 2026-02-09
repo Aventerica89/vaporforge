@@ -16,8 +16,8 @@ export function McpTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [error, setError] = useState('');
   const [newServer, setNewServer] = useState({ name: '', url: '', command: '' });
+  const [error, setError] = useState('');
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
 
   // Read raw config from ~/.claude.json
@@ -84,17 +84,21 @@ export function McpTab() {
     setError('');
 
     try {
+      console.log('[McpTab] Adding server:', newServer);
+
       // Read existing config, add server, write back
       const config = await readConfig();
       const mcpServers = (config.mcpServers || {}) as Record<string, unknown>;
 
       if (newServer.url) {
+        console.log('[McpTab] Adding HTTP server:', newServer.name, newServer.url);
         mcpServers[newServer.name] = {
           type: 'http',
           url: newServer.url,
         };
       } else {
         const parts = newServer.command.split(/\s+/);
+        console.log('[McpTab] Adding stdio server:', newServer.name, parts[0], parts.slice(1));
         mcpServers[newServer.name] = {
           command: parts[0],
           args: parts.slice(1),
@@ -104,10 +108,12 @@ export function McpTab() {
       config.mcpServers = mcpServers;
       await writeConfig(config);
 
+      console.log('[McpTab] Server added successfully');
       setShowAdd(false);
       setNewServer({ name: '', url: '', command: '' });
       await loadServers();
     } catch (err) {
+      console.error('[McpTab] Error adding server:', err);
       setError(err instanceof Error ? err.message : 'Failed to add server');
     } finally {
       setIsSaving(false);
@@ -130,22 +136,6 @@ export function McpTab() {
     }
   };
 
-  if (!sessionId) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Start a session to manage MCP servers.
-      </p>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -155,8 +145,10 @@ export function McpTab() {
         </h3>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+          disabled={!sessionId}
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ minHeight: '36px' }}
+          title={!sessionId ? 'Start a session to manage MCP servers' : ''}
         >
           {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4 text-primary" />}
           {showAdd ? 'Cancel' : 'Add Server'}
@@ -176,7 +168,7 @@ export function McpTab() {
         </div>
       )}
 
-      {showAdd && (
+      {showAdd && sessionId && (
         <div className="space-y-2 rounded-lg border border-border p-3">
           <input
             type="text"
@@ -218,7 +210,15 @@ export function McpTab() {
         </div>
       )}
 
-      {servers.length === 0 ? (
+      {!sessionId ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">
+          Start a session to manage MCP servers
+        </p>
+      ) : isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        </div>
+      ) : servers.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">No MCP servers configured</p>
       ) : (
         <div className="space-y-1">

@@ -41,8 +41,8 @@ VaporForge uses your existing Claude Pro/Max subscription. No API keys needed.
 
 1. Clone the repository
 ```bash
-git clone https://github.com/Aventerica89/vaporforge.git
-cd vaporforge
+git clone https://github.com/Aventerica89/VaporForge.git
+cd VaporForge
 ```
 
 2. Install dependencies
