@@ -1,7 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="96" fill="#0f1419"/>
-  <!-- Terminal prompt > -->
-  <polyline points="128 352 240 240 128 128" fill="none" stroke="#1dd3e6" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Cursor _ -->
-  <line x1="272" y1="384" x2="400" y2="384" stroke="#1dd3e6" stroke-width="40" stroke-linecap="round"/>
+  <!-- Circuit board pattern -->
+  <g opacity="0.15">
+    <path d="M100 100 H200 V200 H300 V300 H400" stroke="#E945F5" stroke-width="3"/>
+    <path d="M100 200 H150 V250 H200" stroke="#1dd3e6" stroke-width="3"/>
+    <circle cx="200" cy="200" r="5" fill="#E945F5"/>
+    <circle cx="300" cy="300" r="5" fill="#1dd3e6"/>
+  </g>
+  <!-- Cyan < -->
+  <path d="M 222 230 L 162 296 L 222 362" stroke="#1dd3e6" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Purple > -->
+  <path d="M 290 230 L 350 296 L 290 362" stroke="#E945F5" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>
