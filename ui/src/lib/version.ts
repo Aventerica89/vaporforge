@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.7.0';
+export const APP_VERSION = '0.9.1';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,57 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.9.1',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'Landing Page Visual Overhaul + 3-Tier Pricing',
+    items: [
+      '3-tier pricing: Free/$0, Pro/$20, Premium/$80 with feature highlights',
+      'Compare table: VF Pro, VF Premium, Cursor, Codespaces, and Replit side-by-side',
+      'Feature cards: bigger titles, gradient text, keyword pills, hover lift',
+      'Premium tier numbers highlighted in cyan to show upgrade value',
+      'Nav restyled: all links brighter, accent links in purple with separator',
+      'FAQ brighter borders with hover glow, TechStack card-wrapped details',
+    ],
+  },
+  {
+    version: '0.9.0',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'Frontend MCP Relay',
+    items: [
+      'Connect local MCP servers to cloud SDK via WebSocket relay chain',
+      'Relay proxy in container forwards JSON-RPC to local stdio servers',
+      'Relay status indicator in header with connection state',
+      'McpTab settings UI for adding/removing relay servers',
+      'Session API extended with MCP relay config persistence',
+    ],
+  },
+  {
+    version: '0.8.0',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'MCP Persistence + Plugins System',
+    items: [
+      'MCP servers now persist — writes directly to ~/.claude.json in sandbox',
+      'Plugins and Agents settings tab with visual agent-command connections',
+      'iPad safe area fix, GitHub repo browser, and favorites list',
+      'Add/remove buttons visible and usable on touch devices',
+      'Favicon updated to match landing page logo',
+    ],
+  },
+  {
+    version: '0.7.1',
+    date: '2026-02-08',
+    tag: 'fix',
+    title: 'Chat Persistence Fix',
+    items: [
+      'SDK stream endpoint now writes messages to KV for persistence',
+      'User messages saved before stream, assistant messages saved after',
+      'Chat history survives page refresh and session reconnect',
+    ],
+  },
   {
     version: '0.7.0',
     date: '2026-02-08',
