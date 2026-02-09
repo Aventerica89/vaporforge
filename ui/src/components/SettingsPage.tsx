@@ -119,8 +119,7 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 safe-top"
-        style={{ minHeight: '48px' }}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] h-12"
       >
         <button
           onClick={closeSettings}
