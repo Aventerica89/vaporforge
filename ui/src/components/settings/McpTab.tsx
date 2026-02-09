@@ -44,7 +44,7 @@ export function McpTab() {
     const b64 = btoa(unescape(encodeURIComponent(json)));
     await sessionsApi.exec(
       sessionId,
-      \`echo '\${b64}' | base64 -d > ~/.claude.json\`
+      `echo '${b64}' | base64 -d > ~/.claude.json`
     );
   };
 
@@ -238,7 +238,7 @@ export function McpTab() {
                   )}
                 </div>
                 <p className="mt-0.5 truncate pl-[22px] text-[10px] text-muted-foreground font-mono">
-                  {server.url || (server.command ? \`\${server.command} \${(server.args || []).join(' ')}\` : 'stdio')}
+                  {server.url || (server.command ? `${server.command} ${(server.args || []).join(' ')}` : 'stdio')}
                 </p>
               </div>
               <button
