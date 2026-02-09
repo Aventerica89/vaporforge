@@ -26,11 +26,11 @@ const technologies = [
   },
   {
     label: 'SECURITY',
-    title: '1Password Secrets Pipeline',
-    description: 'Environment variables and API keys flow through 1Password — never hardcoded, never exposed. Secrets are injected into your sandbox at runtime via encrypted Cloudflare bindings. Your keys never touch disk.',
+    title: 'Encrypted Secrets Pipeline',
+    description: 'Environment variables and API keys are stored encrypted in Cloudflare KV and injected into your sandbox at runtime. Your keys never touch disk.',
     color: 'scan',
     details: [
-      'op inject templates for reproducible envs',
+      'Per-project encrypted secret storage',
       'Secrets stored encrypted at rest in CF KV',
       'Per-session isolation — no cross-user leaks',
       'Rotate keys without redeploying',
@@ -45,7 +45,7 @@ const technologies = [
       'Streaming SSE for real-time AI responses',
       'Tool use: file write, edit, terminal exec',
       'Session persistence with conversation resume',
-      'Chain-of-thought and artifact rendering',
+      'MCP relay: connect local tools to cloud SDK',
     ],
   },
 ];
@@ -91,7 +91,7 @@ const colorMap: Record<string, { border: string; text: string; glow: string; bg:
       </h2>
       <p class="mx-auto mt-5 max-w-2xl text-vapor-muted leading-relaxed">
         The same Cloudflare stack that serves 20% of the internet.
-        The same Claude engine from Anthropic. Real security from 1Password.
+        The same Claude engine from Anthropic. Encrypted secrets management.
         All for $20/month.
       </p>
     </div>
@@ -116,15 +116,17 @@ const colorMap: Record<string, { border: string; text: string; glow: string; bg:
                 </div>
 
                 <!-- Details list -->
-                <div class="shrink-0 lg:w-[320px]">
-                  <ul class="space-y-3">
-                    {details.map((detail) => (
-                      <li class="flex items-start gap-3 text-sm">
-                        <span class={`mt-1.5 block h-1.5 w-1.5 shrink-0 rounded-full ${c.text} bg-current`} />
-                        <span class="text-vapor-muted/90">{detail}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div class="shrink-0 lg:w-[340px]">
+                  <div class={`rounded-xl border ${c.border} bg-vapor-card/50 p-5`}>
+                    <ul class="space-y-3.5">
+                      {details.map((detail) => (
+                        <li class="flex items-start gap-3 text-sm">
+                          <span class={`mt-1.5 block h-2 w-2 shrink-0 rounded-full ${c.text} bg-current`} />
+                          <span class="text-white/80">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>

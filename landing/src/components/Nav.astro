@@ -2,14 +2,18 @@
 const links = [
   { href: '/#features', label: 'Features' },
   { href: '/#technology', label: 'Technology' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/#pricing', label: 'Pricing' },
+];
+
+const accents = [
+  { href: '/#deploy', label: '60s Deploy' },
+  { href: '/#faq', label: 'FAQs' },
 ];
 ---
 
-<nav class="sticky top-0 z-50 border-b border-vapor-purple-bg/50 bg-vapor-bg/90 backdrop-blur-md">
+<nav class="sticky top-0 z-50 border-b border-vapor-purple/20 bg-vapor-bg/90 backdrop-blur-md">
   <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
     <a href="/" class="flex items-center gap-2.5 font-display text-lg font-bold tracking-wide">
-      <!-- VaporForge cyberpunk logo - aligned brackets -->
       <div class="relative flex h-8 w-8 items-center justify-center">
         <svg width="32" height="32" viewBox="0 0 512 512" fill="none"
           class="drop-shadow-[0_0_8px_rgba(29,211,230,0.5)]">
@@ -43,9 +47,15 @@ const links = [
     </a>
 
     <!-- Desktop links -->
-    <div class="hidden items-center gap-6 md:flex">
+    <div class="hidden items-center gap-5 md:flex">
       {links.map(({ href, label }) => (
-        <a href={href} class="text-sm text-vapor-muted hover:text-vapor-accent transition-colors">
+        <a href={href} class="text-[13px] font-medium text-white/70 hover:text-white transition-colors">
+          {label}
+        </a>
+      ))}
+      <span class="h-4 w-px bg-vapor-purple/25" />
+      {accents.map(({ href, label }) => (
+        <a href={href} class="text-[13px] font-semibold text-vapor-purple hover:text-white transition-colors">
           {label}
         </a>
       ))}
@@ -57,7 +67,7 @@ const links = [
       </a>
     </div>
 
-    <!-- Mobile hamburger (CSS-only) -->
+    <!-- Mobile hamburger -->
     <label for="nav-toggle" class="cursor-pointer md:hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
         fill="none" stroke="currentColor" stroke-width="2"
@@ -69,11 +79,17 @@ const links = [
     </label>
   </div>
 
-  <!-- Mobile menu (checkbox toggle, no JS) -->
+  <!-- Mobile menu -->
   <input type="checkbox" id="nav-toggle" class="peer hidden" />
-  <div class="hidden flex-col gap-2 border-t border-vapor-purple-bg/50 bg-vapor-bg/95 px-4 pb-4 peer-checked:flex md:hidden">
+  <div class="hidden flex-col gap-2 border-t border-vapor-purple/20 bg-vapor-bg/95 px-4 pb-4 peer-checked:flex md:hidden">
     {links.map(({ href, label }) => (
-      <a href={href} class="text-sm text-vapor-muted hover:text-vapor-accent transition-colors py-2">
+      <a href={href} class="text-[13px] font-medium text-white/70 hover:text-white transition-colors py-2">
+        {label}
+      </a>
+    ))}
+    <div class="h-px bg-vapor-purple/20 my-1" />
+    {accents.map(({ href, label }) => (
+      <a href={href} class="text-[13px] font-semibold text-vapor-purple hover:text-white transition-colors py-2">
         {label}
       </a>
     ))}

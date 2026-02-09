@@ -5,8 +5,12 @@ const questions = [
     a: 'Yes. VaporForge requires a Claude Pro or Max subscription from Anthropic. You bring your own account and connect it via a setup token. VaporForge does not charge for API usage.',
   },
   {
-    q: "What's included?",
-    a: 'Cloud sandboxes with a full Linux environment, file persistence, real-time AI chat, terminal access, file upload/download, session management, and mobile-optimized access from any device.',
+    q: 'What do I get on the Free tier?',
+    a: 'A cloud sandbox with 1/4 vCPU, 1 GiB RAM, and 4 GB disk. You get 2 hours of usage per day, one session at a time, and ephemeral storage that resets when your sandbox sleeps.',
+  },
+  {
+    q: 'What does Pro add over Free?',
+    a: 'Pro gives you a much larger sandbox (1 vCPU, 6 GiB RAM, 12 GB disk), up to 3 concurrent sessions, unlimited daily usage, 7-day file persistence, secrets management, file export, and custom CLAUDE.md support.',
   },
   {
     q: 'How is this different from local Claude Code?',
@@ -18,12 +22,16 @@ const questions = [
   },
   {
     q: 'When will billing go live?',
-    a: 'Billing is planned for early 2026. During the development phase, VaporForge is available for testing. Follow our updates for launch announcements.',
+    a: 'Billing is coming soon. During the current beta phase, VaporForge is available for free testing. Follow our updates for launch announcements.',
+  },
+  {
+    q: 'Can I use my local MCP servers?',
+    a: 'Yes. VaporForge supports MCP relay — connect MCP servers running on your machine (like chrome-devtools or Playwright) to the cloud IDE. Requests tunnel through your browser via WebSocket. Add relay servers in Settings > MCP.',
   },
 ];
 ---
 
-<section class="px-4 py-16 sm:px-6">
+<section id="faq" class="px-4 py-16 sm:px-6">
   <div class="mx-auto max-w-2xl">
     <h2 class="text-center font-display text-2xl font-bold tracking-wide sm:text-3xl cyber-glow">
       Frequently asked questions
@@ -31,7 +39,7 @@ const questions = [
 
     <div class="mt-10 space-y-2">
       {questions.map(({ q, a }) => (
-        <details class="group rounded-lg border border-vapor-purple-bg/50">
+        <details class="group rounded-lg border border-vapor-purple/25 hover:border-vapor-purple/45 transition-all hover:shadow-sm hover:shadow-vapor-purple/5">
           <summary class="flex cursor-pointer items-center justify-between px-5 py-4 text-sm font-medium text-white">
             {q}
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
