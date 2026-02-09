@@ -53,7 +53,7 @@ export function MobileLayout() {
     >
       {/* Top bar */}
       <div
-        className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 safe-top"
+        className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 safe-area-header"
         style={{ minHeight: '48px' }}
       >
         {/* Left: hamburger */}

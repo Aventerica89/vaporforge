@@ -6,6 +6,7 @@ export type SettingsTab =
   | 'claude-md'
   | 'commands'
   | 'mcp'
+  | 'plugins'
   | 'secrets'
   | 'account'
   | 'guide'

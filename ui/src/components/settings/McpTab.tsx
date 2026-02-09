@@ -115,10 +115,11 @@ export function McpTab() {
         </h3>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium hover:bg-accent transition-colors"
+          style={{ minHeight: '36px' }}
         >
-          {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-primary" />}
-          {showAdd ? 'Cancel' : 'Add'}
+          {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4 text-primary" />}
+          {showAdd ? 'Cancel' : 'Add Server'}
         </button>
       </div>
 
@@ -184,9 +185,9 @@ export function McpTab() {
               </div>
               <button
                 onClick={() => handleRemove(server.name)}
-                className="ml-2 flex-shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                className="ml-2 flex-shrink-0 rounded p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </button>
             </div>
           ))}

@@ -96,7 +96,7 @@ export function Header() {
   };
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-border bg-card px-3">
+    <header className="flex min-h-12 items-center justify-between border-b border-border bg-card px-3 safe-area-header">
       {/* Left section */}
       <div className="flex items-center gap-2">
         {/* Home / Logo */}

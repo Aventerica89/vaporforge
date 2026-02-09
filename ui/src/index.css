@@ -403,6 +403,11 @@
   .safe-top {
     padding-top: max(env(safe-area-inset-top), var(--space-md));
   }
+
+  /* Extends element into safe area with its own background */
+  .safe-area-header {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 }
 
 /* Focus Visible for Accessibility */
