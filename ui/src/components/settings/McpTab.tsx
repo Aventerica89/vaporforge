@@ -109,15 +109,15 @@ function CatalogSection({
     <div className="space-y-3">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="group flex w-full items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="group flex w-full items-center gap-2.5 rounded-lg bg-gradient-to-r from-primary/5 to-secondary/5 px-4 py-3 text-sm font-semibold transition-all hover:from-primary/10 hover:to-secondary/10 border border-primary/10"
       >
-        <BookOpen className="h-3.5 w-3.5 text-primary" />
-        <span className="uppercase tracking-wider">Browse Recommended</span>
-        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+        <BookOpen className="h-4 w-4 text-primary" />
+        <span className="uppercase tracking-wide text-foreground">Browse Recommended</span>
+        <span className="rounded-full bg-primary/20 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/30">
           {MCP_CATALOG.length}
         </span>
         <ChevronDown
-          className={`ml-auto h-3.5 w-3.5 transition-transform duration-200 ${
+          className={`ml-auto h-4 w-4 text-primary transition-transform duration-300 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -126,15 +126,15 @@ function CatalogSection({
       {isOpen && (
         <div className="space-y-3 animate-fade-up">
           {/* Category filter pills */}
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                   filter === cat
-                    ? 'bg-primary/20 text-primary'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
                 }`}
               >
                 {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
@@ -143,7 +143,7 @@ function CatalogSection({
           </div>
 
           {/* Server cards */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {filtered.map((entry) => {
               const installed = installedNames.has(entry.name);
               const isAdding = addingName === entry.name;
@@ -153,32 +153,34 @@ function CatalogSection({
               return (
                 <div
                   key={entry.name}
-                  className={`group flex items-start gap-3 rounded-lg border border-border/50 px-3 py-2.5 transition-colors hover:border-border ${
-                    installed ? 'opacity-60' : ''
+                  className={`group flex items-start gap-3 rounded-lg border bg-card px-4 py-3 transition-all ${
+                    installed
+                      ? 'border-green-500/30 bg-green-500/5'
+                      : 'border-border hover:border-primary/30 hover:shadow-sm'
                   }`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-foreground">
+                      <span className="text-sm font-semibold text-foreground">
                         {entry.name}
                       </span>
                       <span
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${catColor}`}
+                        className={`rounded-md px-2 py-0.5 text-[10px] font-semibold ${catColor}`}
                       >
                         {CATEGORY_LABELS[entry.category]}
                       </span>
                       {entry.auth !== 'none' && (
-                        <span className={`flex items-center gap-0.5 text-[10px] ${authInfo.className}`}>
-                          <Lock className="h-2.5 w-2.5" />
+                        <span className={`flex items-center gap-1 text-[10px] font-medium ${authInfo.className}`}>
+                          <Lock className="h-3 w-3" />
                           {authInfo.label}
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
                       {entry.description}
                     </p>
                     {entry.authNote && entry.auth !== 'none' && (
-                      <p className="mt-0.5 text-[10px] text-muted-foreground/70 italic">
+                      <p className="mt-1 text-[10px] text-muted-foreground/70 italic">
                         {entry.authNote}
                       </p>
                     )}
@@ -187,18 +189,18 @@ function CatalogSection({
                   <button
                     onClick={() => handleAdd(entry)}
                     disabled={installed || isAdding}
-                    className={`mt-0.5 flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                    className={`mt-0.5 flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
                       installed
-                        ? 'bg-green-500/10 text-green-400 cursor-default'
-                        : 'bg-primary/10 text-primary hover:bg-primary/20'
+                        ? 'bg-green-500/10 text-green-500 cursor-default border border-green-500/20'
+                        : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
                     } disabled:opacity-70`}
                   >
                     {isAdding ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : installed ? (
-                      <Check className="h-3 w-3" />
+                      <Check className="h-3.5 w-3.5" />
                     ) : (
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-3.5 w-3.5" />
                     )}
                     {installed ? 'Added' : 'Add'}
                   </button>
@@ -352,66 +354,66 @@ export function McpTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
-          <Server className="h-4 w-4 text-primary" />
+        <h3 className="flex items-center gap-2.5 font-display text-sm font-bold uppercase tracking-wider text-foreground">
+          <Server className="h-5 w-5 text-primary" />
           MCP Servers
           {servers.length > 0 && (
-            <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            <span className="ml-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary border border-primary/20">
               {servers.length}
             </span>
           )}
         </h3>
         <button
           onClick={() => { setShowAdd(!showAdd); setError(''); setNameError(''); }}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
         >
-          {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5 text-primary" />}
-          {showAdd ? 'Cancel' : 'Add'}
+          {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          {showAdd ? 'Cancel' : 'Add Server'}
         </button>
       </div>
 
-      <p className="text-xs text-muted-foreground leading-relaxed">
+      <p className="text-sm text-muted-foreground leading-relaxed bg-muted/50 rounded-lg px-4 py-3 border border-border/50">
         MCP servers are persisted and injected into every new session.
         No active session required.
       </p>
 
       {showAdd && (
-        <div className="space-y-3 rounded-lg border border-border p-3">
+        <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
           {/* Transport toggle — 3 options */}
-          <div className="flex gap-1 rounded-md bg-muted p-0.5">
+          <div className="flex gap-1.5 rounded-lg bg-muted p-1">
             <button
               onClick={() => { setTransport('http'); setError(''); }}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
                 transport === 'http'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
               }`}
             >
-              <Globe className="h-3 w-3" />
+              <Globe className="h-3.5 w-3.5" />
               HTTP
             </button>
             <button
               onClick={() => { setTransport('stdio'); setError(''); }}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
                 transport === 'stdio'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
               }`}
             >
-              <Terminal className="h-3 w-3" />
+              <Terminal className="h-3.5 w-3.5" />
               stdio
             </button>
             <button
               onClick={() => { setTransport('relay'); setError(''); }}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-semibold transition-all ${
                 transport === 'relay'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
               }`}
             >
-              <Radio className="h-3 w-3" />
+              <Radio className="h-3.5 w-3.5" />
               Relay
             </button>
           </div>
@@ -423,14 +425,14 @@ export function McpTab() {
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
               placeholder="Server name (e.g. my-server)"
-              className={`w-full rounded border bg-muted px-3 py-2 text-sm focus:outline-none ${
+              className={`w-full rounded-lg border bg-background px-4 py-2.5 text-sm transition-colors focus:outline-none focus:ring-2 ${
                 nameError
-                  ? 'border-red-400 focus:border-red-400'
-                  : 'border-border focus:border-primary'
+                  ? 'border-red-400 focus:border-red-400 focus:ring-red-400/20'
+                  : 'border-border focus:border-primary focus:ring-primary/20'
               }`}
             />
             {nameError && (
-              <p className="mt-1 text-xs text-red-400">{nameError}</p>
+              <p className="mt-1.5 text-xs text-red-400 font-medium">{nameError}</p>
             )}
           </div>
 
@@ -442,9 +444,9 @@ export function McpTab() {
                 value={url}
                 onChange={(e) => { setUrl(e.target.value); setError(''); }}
                 placeholder="https://mcp.example.com/sse"
-                className="w-full rounded border border-border bg-muted px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Full URL of the HTTP MCP server endpoint
               </p>
             </div>
@@ -457,9 +459,9 @@ export function McpTab() {
                 value={command}
                 onChange={(e) => { setCommand(e.target.value); setError(''); }}
                 placeholder="node /path/to/server.js --flag"
-                className="w-full rounded border border-border bg-muted px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 Command and arguments to start the stdio MCP server
               </p>
             </div>
@@ -472,27 +474,27 @@ export function McpTab() {
                 value={localUrl}
                 onChange={(e) => { setLocalUrl(e.target.value); setError(''); }}
                 placeholder="http://localhost:9222"
-                className="w-full rounded border border-border bg-muted px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 URL of the MCP server running on your machine (must be localhost)
               </p>
             </div>
           )}
 
           {error && (
-            <p className="text-xs text-red-400">{error}</p>
+            <p className="text-xs text-red-400 font-medium bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">{error}</p>
           )}
 
           <button
             onClick={handleAdd}
             disabled={addDisabled}
-            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isAdding ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Plus className="h-3 w-3" />
+              <Plus className="h-4 w-4" />
             )}
             Add Server
           </button>
@@ -500,11 +502,11 @@ export function McpTab() {
       )}
 
       {servers.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">
-          No MCP servers configured
+        <p className="text-sm text-muted-foreground py-6 text-center bg-muted/30 rounded-lg border border-dashed border-border">
+          No MCP servers configured yet
         </p>
       ) : (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {servers.map((server) => {
             const badge = TRANSPORT_BADGE[server.transport] || TRANSPORT_BADGE.http;
             const subtitle = server.transport === 'relay'
@@ -514,8 +516,8 @@ export function McpTab() {
             return (
               <div
                 key={server.name}
-                className={`group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors ${
-                  !server.enabled ? 'opacity-50' : ''
+                className={`group flex items-center justify-between rounded-lg border bg-card px-4 py-3 transition-all hover:border-primary/30 hover:shadow-sm ${
+                  !server.enabled ? 'opacity-50 bg-muted/30' : 'border-border'
                 }`}
               >
                 <div className="min-w-0 flex-1">

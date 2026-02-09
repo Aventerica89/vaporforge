@@ -119,23 +119,23 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] h-12"
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] h-14"
       >
         <button
           onClick={closeSettings}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium bg-primary/10 text-primary transition-colors hover:bg-primary/20 border border-primary/20"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Back</span>
+          <span>Back</span>
         </button>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-5 w-px bg-border" />
 
-        <h1 className="font-display text-sm font-bold uppercase tracking-wider text-primary">
+        <h1 className="font-display text-base font-bold uppercase tracking-wider text-foreground">
           Settings
         </h1>
 
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground/40">
+        <span className="ml-auto font-mono text-xs text-muted-foreground/60">
           v{APP_VERSION}
         </span>
       </div>
