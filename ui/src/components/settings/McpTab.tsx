@@ -16,6 +16,7 @@ export function McpTab() {
   const [isLoading, setIsLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [newServer, setNewServer] = useState({ name: '', url: '', command: '' });
+  const [error, setError] = useState('');
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
 
   const loadServers = useCallback(async () => {
@@ -57,9 +58,14 @@ export function McpTab() {
 
   const handleAdd = async () => {
     if (!sessionId || !newServer.name) return;
+    setError('');
     try {
+      console.log('[McpTab] Adding server:', newServer);
+      let result;
+
       if (newServer.url) {
-        await sessionsApi.exec(
+        console.log('[McpTab] Adding HTTP server:', newServer.name, newServer.url);
+        result = await sessionsApi.exec(
           sessionId,
           `claude mcp add --transport http "${newServer.name}" "${newServer.url}"`
         );
@@ -67,16 +73,29 @@ export function McpTab() {
         const parts = newServer.command.split(' ');
         const cmd = parts[0];
         const args = parts.slice(1).map((a) => `"${a}"`).join(' ');
-        await sessionsApi.exec(
+        console.log('[McpTab] Adding stdio server:', newServer.name, cmd, args);
+        result = await sessionsApi.exec(
           sessionId,
           `claude mcp add "${newServer.name}" -- ${cmd} ${args}`
         );
       }
+
+      console.log('[McpTab] Add result:', result);
+
+      if (!result?.success) {
+        const errorMsg = result?.data?.stderr || 'Failed to add server';
+        console.error('[McpTab] Add failed:', errorMsg);
+        setError(errorMsg);
+        return;
+      }
+
       setShowAdd(false);
       setNewServer({ name: '', url: '', command: '' });
+      console.log('[McpTab] Reloading servers...');
       await loadServers();
-    } catch {
-      // Add failed
+    } catch (err) {
+      console.error('[McpTab] Error adding server:', err);
+      setError(err instanceof Error ? err.message : 'Failed to add server');
     }
   };
 
@@ -154,6 +173,9 @@ export function McpTab() {
           <p className="text-[10px] text-muted-foreground">
             Provide either a URL (HTTP transport) or a command (stdio transport).
           </p>
+          {error && (
+            <p className="text-xs text-red-500 animate-fade-up">{error}</p>
+          )}
           <button
             onClick={handleAdd}
             disabled={!newServer.name || (!newServer.url && !newServer.command)}

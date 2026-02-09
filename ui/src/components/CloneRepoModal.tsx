@@ -53,7 +53,8 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
       setError('');
       setGhError('');
     }
-  }, [isOpen, favorites.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const isValidUrl = (url: string) => {
     try {

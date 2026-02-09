@@ -28,6 +28,9 @@ export interface Plugin {
   agents: PluginAgent[];
   commands: PluginCommand[];
   builtIn?: boolean;
+  githubUrl?: string;
+  rules?: string;
+  readme?: string;
 }
 
 /* ── Starter templates ────────────────────────────────── */

@@ -13,10 +13,13 @@ import {
   Save,
   GitBranch,
   HardDrive,
+  BookOpen,
+  ExternalLink,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { usePluginsStore } from '@/hooks/usePlugins';
 import type { Plugin, PluginAgent, PluginCommand } from '@/hooks/usePlugins';
+import { ReadmeModal } from '../ReadmeModal';
 
 /* ── Main Tab ─────────────────────────────────────────── */
 
@@ -152,6 +155,7 @@ function PluginCard({
   sessionId: string;
 }) {
   const { setScope } = usePluginsStore();
+  const [showReadme, setShowReadme] = useState(false);
 
   // Build agent color map
   const agentColors: Record<string, string> = {};
@@ -160,13 +164,23 @@ function PluginCard({
   });
 
   return (
-    <div
-      className={`rounded-lg border transition-colors ${
-        plugin.enabled
-          ? 'border-primary/30 bg-primary/5'
-          : 'border-border bg-card/50'
-      }`}
-    >
+    <>
+      {plugin.readme && (
+        <ReadmeModal
+          isOpen={showReadme}
+          onClose={() => setShowReadme(false)}
+          content={plugin.readme}
+          title={`${plugin.name} - README`}
+        />
+      )}
+
+      <div
+        className={`rounded-lg border transition-colors ${
+          plugin.enabled
+            ? 'border-primary/30 bg-primary/5'
+            : 'border-border bg-card/50'
+        }`}
+      >
       {/* Header row */}
       <div className="flex items-center gap-2 px-3 py-2.5">
         <button
@@ -334,21 +348,59 @@ function PluginCard({
             )}
           </div>
 
+          {/* Installation Rules */}
+          {plugin.rules && (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground/60">
+                <BookOpen className="h-3 w-3" />
+                Installation Rules
+              </div>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                {plugin.rules}
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
-          <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/50">
-            {!plugin.builtIn && (
-              <button
-                onClick={onRemove}
-                className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
-              </button>
-            )}
+          <div className="flex items-center justify-between pt-1 border-t border-border/50">
+            <div className="flex items-center gap-2">
+              {plugin.readme && (
+                <button
+                  onClick={() => setShowReadme(true)}
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  View README
+                </button>
+              )}
+              {plugin.githubUrl && (
+                <a
+                  href={plugin.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  GitHub
+                </a>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!plugin.builtIn && (
+                <button
+                  onClick={onRemove}
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -363,6 +415,10 @@ function AddPluginForm({
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
+  const [rules, setRules] = useState('');
+  const [readme, setReadme] = useState('');
+  const [showReadmeModal, setShowReadmeModal] = useState(false);
   const [scope, setScope] = useState<'local' | 'git'>('local');
   const [agents, setAgents] = useState<PluginAgent[]>([]);
   const [commands, setCommands] = useState<PluginCommand[]>([]);
@@ -423,14 +479,25 @@ function AddPluginForm({
       scope,
       agents,
       commands,
+      githubUrl: githubUrl.trim() || undefined,
+      rules: rules.trim() || undefined,
+      readme: readme.trim() || undefined,
     });
   };
 
   return (
-    <div className="space-y-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-      <h4 className="font-display text-xs font-bold uppercase tracking-wider text-primary">
-        New Plugin
-      </h4>
+    <>
+      <ReadmeModal
+        isOpen={showReadmeModal}
+        onClose={() => setShowReadmeModal(false)}
+        content={readme}
+        title="Plugin README Preview"
+      />
+
+      <div className="space-y-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+        <h4 className="font-display text-xs font-bold uppercase tracking-wider text-primary">
+          New Plugin
+        </h4>
 
       {/* Basic info */}
       <div className="space-y-2">
@@ -449,6 +516,20 @@ function AddPluginForm({
           placeholder="Short description"
           className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm focus:border-primary focus:outline-none"
         />
+        <div className="space-y-1">
+          <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
+            <ExternalLink className="h-3 w-3" />
+            GitHub Repository
+            <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
+          </label>
+          <input
+            type="url"
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+            placeholder="https://github.com/user/repo"
+            className="w-full rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs focus:border-primary focus:outline-none"
+          />
+        </div>
       </div>
 
       {/* Scope */}
@@ -605,6 +686,47 @@ function AddPluginForm({
         ))}
       </div>
 
+      {/* Rules section */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
+          <BookOpen className="h-3 w-3" />
+          Installation Rules
+          <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
+        </label>
+        <textarea
+          value={rules}
+          onChange={(e) => setRules(e.target.value)}
+          placeholder="Installation instructions, requirements, or setup notes..."
+          className="w-full resize-none rounded-lg border border-border bg-muted p-3 text-xs leading-relaxed focus:border-primary focus:outline-none"
+          rows={3}
+        />
+      </div>
+
+      {/* README section */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground">
+          <BookOpen className="h-3 w-3" />
+          README Content
+          <span className="font-normal normal-case text-muted-foreground/60">(optional)</span>
+        </label>
+        <textarea
+          value={readme}
+          onChange={(e) => setReadme(e.target.value)}
+          placeholder="Plugin README in markdown format..."
+          className="w-full resize-none rounded-lg border border-border bg-muted p-3 font-mono text-xs leading-relaxed focus:border-primary focus:outline-none"
+          rows={4}
+        />
+        {readme.trim() && (
+          <button
+            onClick={() => setShowReadmeModal(true)}
+            className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-primary hover:bg-primary/10 transition-colors"
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Preview README
+          </button>
+        )}
+      </div>
+
       {/* Submit */}
       <div className="flex justify-end gap-2 pt-1">
         <button
@@ -622,6 +744,7 @@ function AddPluginForm({
           Create Plugin
         </button>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
