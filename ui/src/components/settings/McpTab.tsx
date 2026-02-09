@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   Trash2,
@@ -8,9 +8,19 @@ import {
   Globe,
   Terminal,
   Radio,
+  Check,
+  BookOpen,
+  ChevronDown,
+  Lock,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
+import {
+  MCP_CATALOG,
+  CATEGORY_LABELS,
+  CATEGORY_COLORS,
+  type CatalogServer,
+} from '@/lib/mcp-catalog';
 
 type Transport = 'http' | 'stdio' | 'relay';
 
@@ -52,6 +62,157 @@ const TRANSPORT_BADGE: Record<Transport, { bg: string; text: string }> = {
   stdio: { bg: 'bg-green-500/10', text: 'text-green-400' },
   relay: { bg: 'bg-purple-500/10', text: 'text-purple-400' },
 };
+
+const AUTH_BADGE: Record<CatalogServer['auth'], { label: string; className: string }> = {
+  none: { label: 'No auth', className: 'text-green-400' },
+  oauth: { label: 'OAuth', className: 'text-yellow-400' },
+  'api-key': { label: 'API Key', className: 'text-yellow-400' },
+};
+
+/* ─── Catalog browse section ──────────────────────────── */
+
+function CatalogSection({
+  servers,
+  onAdd,
+}: {
+  servers: McpServerConfig[];
+  onAdd: (entry: CatalogServer) => Promise<void>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [addingName, setAddingName] = useState<string | null>(null);
+  const [filter, setFilter] = useState<CatalogServer['category'] | 'all'>('all');
+
+  const installedNames = useMemo(
+    () => new Set(servers.map((s) => s.name)),
+    [servers],
+  );
+
+  const filtered = filter === 'all'
+    ? MCP_CATALOG
+    : MCP_CATALOG.filter((s) => s.category === filter);
+
+  const categories = useMemo(() => {
+    const cats = new Set(MCP_CATALOG.map((s) => s.category));
+    return ['all' as const, ...Array.from(cats)] as const;
+  }, []);
+
+  const handleAdd = async (entry: CatalogServer) => {
+    setAddingName(entry.name);
+    try {
+      await onAdd(entry);
+    } finally {
+      setAddingName(null);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <button
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="group flex w-full items-center gap-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <BookOpen className="h-3.5 w-3.5 text-primary" />
+        <span className="uppercase tracking-wider">Browse Recommended</span>
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">
+          {MCP_CATALOG.length}
+        </span>
+        <ChevronDown
+          className={`ml-auto h-3.5 w-3.5 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="space-y-3 animate-fade-up">
+          {/* Category filter pills */}
+          <div className="flex flex-wrap gap-1">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className={`rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors ${
+                  filter === cat
+                    ? 'bg-primary/20 text-primary'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {cat === 'all' ? 'All' : CATEGORY_LABELS[cat]}
+              </button>
+            ))}
+          </div>
+
+          {/* Server cards */}
+          <div className="space-y-1.5">
+            {filtered.map((entry) => {
+              const installed = installedNames.has(entry.name);
+              const isAdding = addingName === entry.name;
+              const catColor = CATEGORY_COLORS[entry.category];
+              const authInfo = AUTH_BADGE[entry.auth];
+
+              return (
+                <div
+                  key={entry.name}
+                  className={`group flex items-start gap-3 rounded-lg border border-border/50 px-3 py-2.5 transition-colors hover:border-border ${
+                    installed ? 'opacity-60' : ''
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-foreground">
+                        {entry.name}
+                      </span>
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${catColor}`}
+                      >
+                        {CATEGORY_LABELS[entry.category]}
+                      </span>
+                      {entry.auth !== 'none' && (
+                        <span className={`flex items-center gap-0.5 text-[10px] ${authInfo.className}`}>
+                          <Lock className="h-2.5 w-2.5" />
+                          {authInfo.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                      {entry.description}
+                    </p>
+                    {entry.authNote && entry.auth !== 'none' && (
+                      <p className="mt-0.5 text-[10px] text-muted-foreground/70 italic">
+                        {entry.authNote}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleAdd(entry)}
+                    disabled={installed || isAdding}
+                    className={`mt-0.5 flex shrink-0 items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      installed
+                        ? 'bg-green-500/10 text-green-400 cursor-default'
+                        : 'bg-primary/10 text-primary hover:bg-primary/20'
+                    } disabled:opacity-70`}
+                  >
+                    {isAdding ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : installed ? (
+                      <Check className="h-3 w-3" />
+                    ) : (
+                      <Plus className="h-3 w-3" />
+                    )}
+                    {installed ? 'Added' : 'Add'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main McpTab ─────────────────────────────────────── */
 
 export function McpTab() {
   const [servers, setServers] = useState<McpServerConfig[]>([]);
@@ -144,6 +305,18 @@ export function McpTab() {
       setError(err instanceof Error ? err.message : 'Failed to add server');
     } finally {
       setIsAdding(false);
+    }
+  };
+
+  const handleCatalogAdd = async (entry: CatalogServer) => {
+    const server = {
+      name: entry.name,
+      transport: 'http' as const,
+      url: entry.url,
+    };
+    const result = await mcpApi.add(server);
+    if (result.success) {
+      await loadServers();
     }
   };
 
@@ -387,6 +560,12 @@ export function McpTab() {
           })}
         </div>
       )}
+
+      {/* Divider */}
+      <div className="border-t border-border/50" />
+
+      {/* Recommended catalog */}
+      <CatalogSection servers={servers} onAdd={handleCatalogAdd} />
     </div>
   );
 }
