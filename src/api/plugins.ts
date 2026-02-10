@@ -10,7 +10,7 @@ type Variables = {
 export const pluginsRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /** Max custom plugins per user */
-const MAX_PLUGINS = 20;
+const MAX_PLUGINS = 50;
 
 /** Max items per category per plugin */
 const MAX_ITEMS_PER_CATEGORY = 10;
@@ -364,9 +364,12 @@ pluginsRoutes.post('/', async (c) => {
 
   const parsed = PluginSchema.safeParse(pluginData);
   if (!parsed.success) {
+    const detail = parsed.error.issues
+      .map((i) => `${i.path.join('.')}: ${i.message}`)
+      .join('; ');
     return c.json<ApiResponse<never>>({
       success: false,
-      error: parsed.error.issues[0]?.message || 'Invalid plugin data',
+      error: `Invalid plugin data — ${detail}`,
     }, 400);
   }
 

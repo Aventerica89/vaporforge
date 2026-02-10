@@ -228,7 +228,7 @@ export type PluginItem = z.infer<typeof PluginItemSchema>;
 export const PluginSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(2000).optional(),
   repoUrl: z.string().url().optional(),
   scope: z.enum(['local', 'git']),
   enabled: z.boolean().default(true),

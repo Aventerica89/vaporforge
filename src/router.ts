@@ -56,9 +56,17 @@ export function createRouter(env: Env) {
       },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization'],
+      exposeHeaders: ['X-VF-Version'],
       credentials: true,
     })
   );
+
+  // Version header — allows clients to detect deploys
+  const VF_VERSION = '0.9.5';
+  app.use('*', async (c, next) => {
+    await next();
+    c.header('X-VF-Version', VF_VERSION);
+  });
 
   // Initialize services
   app.use('*', async (c, next) => {

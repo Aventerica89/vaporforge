@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { AuthGuard } from './components/AuthGuard';
 import { McpRelayProvider } from './components/McpRelayProvider';
+import { UpdateToast } from './components/UpdateToast';
 import { useAuthStore } from './hooks/useAuth';
 
 export default function App() {
@@ -28,10 +29,13 @@ export default function App() {
   }
 
   return (
-    <AuthGuard>
-      <McpRelayProvider>
-        <Layout />
-      </McpRelayProvider>
-    </AuthGuard>
+    <>
+      <AuthGuard>
+        <McpRelayProvider>
+          <Layout />
+        </McpRelayProvider>
+      </AuthGuard>
+      <UpdateToast />
+    </>
   );
 }

@@ -100,7 +100,7 @@ export function ClaudeMdTab() {
         onChange={(e) => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={CLAUDE_MD_PLACEHOLDER}
-        className="flex-1 min-h-[240px] w-full resize-none rounded-lg border border-border bg-muted p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+        className="flex-1 min-h-[480px] w-full resize-y rounded-lg border border-border bg-muted p-3 font-mono text-xs text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
         spellCheck={false}
       />
 

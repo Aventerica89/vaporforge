@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2, Flame } from 'lucide-react';
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { haptics } from '@/lib/haptics';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { useCommandRegistry } from '@/hooks/useCommandRegistry';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useReforge } from '@/hooks/useReforge';
 import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
+import { ReforgeModal } from '@/components/chat/ReforgeModal';
 import {
   Attachments,
   Attachment,
@@ -287,15 +289,25 @@ export function PromptInput({
         compact && !keyboardOpen ? 'safe-bottom' : ''
       }`}
     >
-      {/* Context chip */}
-      {currentFileName && (
-        <div className="mb-1.5 flex items-center gap-1.5">
-          <Paperclip className="h-3 w-3 text-muted-foreground/60" />
-          <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {currentFileName}
-          </span>
-        </div>
-      )}
+      {/* Context chips */}
+      <div className="mb-1.5 flex items-center gap-1.5">
+        {currentFileName && (
+          <>
+            <Paperclip className="h-3 w-3 text-muted-foreground/60" />
+            <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {currentFileName}
+            </span>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => useReforge.getState().open()}
+          className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Flame className="h-3 w-3" />
+          Reforge
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="relative">
         {/* Slash command autocomplete */}
@@ -397,6 +409,11 @@ export function PromptInput({
           Enter or Cmd+Enter to send, Shift+Enter for new line
         </p>
       )}
+
+      {/* Reforge context recovery modal */}
+      <ReforgeModal
+        onInsert={(text) => setInput((prev) => (prev ? prev + '\n\n' + text : text))}
+      />
     </div>
   );
 }

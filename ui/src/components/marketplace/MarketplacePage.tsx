@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useMarketplace, type StatusTab } from '@/hooks/useMarketplace';
 import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
@@ -36,6 +36,8 @@ export function MarketplacePage() {
     clearFilters,
     installedRepoUrls,
     installing,
+    installError,
+    clearInstallError,
     installPlugin,
     uninstallPlugin,
   } = useMarketplace();
@@ -206,6 +208,19 @@ export function MarketplacePage() {
 
         {/* Main grid area */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+          {/* Install error banner */}
+          {installError && (
+            <div className="shrink-0 mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+              <span className="flex-1">{installError}</span>
+              <button
+                onClick={clearInstallError}
+                className="rounded p-0.5 hover:bg-red-500/20 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Count */}
           <div className="shrink-0 px-5 pt-4 pb-2">
             <div className="text-sm text-muted-foreground">

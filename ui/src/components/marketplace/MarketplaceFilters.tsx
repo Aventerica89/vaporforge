@@ -1,5 +1,6 @@
 import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
 import { useMemo } from 'react';
+import { Check } from 'lucide-react';
 
 interface MarketplaceFiltersProps {
   selectedSource: 'all' | 'anthropic-official' | 'awesome-community';
@@ -19,6 +20,20 @@ const SOURCES = [
 ];
 
 const TYPES = ['agent', 'skill', 'command', 'rule'] as const;
+
+function FilterCheckbox({ checked }: { checked: boolean }) {
+  return (
+    <div
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+        checked
+          ? 'border-violet-500 bg-violet-500'
+          : 'border-muted-foreground/40 bg-transparent'
+      }`}
+    >
+      {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+    </div>
+  );
+}
 
 export function MarketplaceFilters({
   selectedSource,
@@ -84,22 +99,20 @@ export function MarketplaceFilters({
               source.id === 'anthropic-official'
                 ? catalogStats.official
                 : catalogStats.community;
+            const checked = selectedSource === source.id;
             return (
-              <label
+              <button
                 key={source.id}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() => onSourceChange(checked ? 'all' : source.id)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedSource === source.id}
-                  onChange={() => onSourceChange(selectedSource === source.id ? 'all' : source.id)}
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
+                <FilterCheckbox checked={checked} />
                 <span className="text-sm group-hover:text-foreground transition-colors flex-1">
                   {source.label}
                 </span>
                 <span className="text-xs text-muted-foreground">{count}</span>
-              </label>
+              </button>
             );
           })}
         </div>
@@ -111,22 +124,20 @@ export function MarketplaceFilters({
         <div className="flex flex-col gap-2">
           {TYPES.map((type) => {
             const count = typeCounts[type];
+            const checked = selectedTypes.includes(type);
             return (
-              <label
+              <button
                 key={type}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() => onTypeToggle(type)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedTypes.includes(type)}
-                  onChange={() => onTypeToggle(type)}
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
+                <FilterCheckbox checked={checked} />
                 <span className="text-sm group-hover:text-foreground transition-colors flex-1 capitalize">
                   {type}s
                 </span>
                 <span className="text-xs text-muted-foreground">{count}</span>
-              </label>
+              </button>
             );
           })}
         </div>
@@ -136,23 +147,23 @@ export function MarketplaceFilters({
       <div className="flex flex-col gap-3 pt-3 border-t border-border">
         <div className="text-sm font-medium text-muted-foreground">Category</div>
         <div className="flex flex-col gap-2">
-          {categories.slice(0, 10).map(({ name, count }) => (
-            <label
-              key={name}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <input
-                type="checkbox"
-                checked={selectedCategories.includes(name)}
-                onChange={() => onCategoryToggle(name)}
-                className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-              />
-              <span className="text-sm group-hover:text-foreground transition-colors flex-1">
-                {name}
-              </span>
-              <span className="text-xs text-muted-foreground">{count}</span>
-            </label>
-          ))}
+          {categories.slice(0, 10).map(({ name, count }) => {
+            const checked = selectedCategories.includes(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => onCategoryToggle(name)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
+              >
+                <FilterCheckbox checked={checked} />
+                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                  {name}
+                </span>
+                <span className="text-xs text-muted-foreground">{count}</span>
+              </button>
+            );
+          })}
           {categories.length > 10 && (
             <div className="text-xs text-muted-foreground pl-6">
               +{categories.length - 10} more
@@ -172,25 +183,21 @@ export function MarketplaceFilters({
               'cloud-ready': 'Cloud Ready',
               'relay-required': 'Relay Required',
             };
+            const checked = selectedCompatibility === c;
             return (
-              <label
+              <button
                 key={c}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() =>
+                  onCompatibilityChange(checked ? 'all' : c)
+                }
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedCompatibility === c}
-                  onChange={() =>
-                    onCompatibilityChange(
-                      selectedCompatibility === c ? 'all' : c
-                    )
-                  }
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
+                <FilterCheckbox checked={checked} />
                 <span className="text-sm group-hover:text-foreground transition-colors flex-1">
                   {labels[c]}
                 </span>
-              </label>
+              </button>
             );
           })}
         </div>
