@@ -22,7 +22,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-4 safe-top safe-bottom">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
@@ -65,6 +65,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
               }}
               placeholder="Paste your token here"
               className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              style={{ fontSize: '16px' }}
               autoComplete="off"
             />
           </div>
@@ -72,7 +73,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
           <button
             type="submit"
             disabled={isLoading || !token.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ minHeight: '44px' }}
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
