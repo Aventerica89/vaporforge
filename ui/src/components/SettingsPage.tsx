@@ -119,15 +119,13 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 safe-area-header"
-        style={{ minHeight: '48px' }}
-      >
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3 safe-area-header">
         <button
           onClick={closeSettings}
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Back"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">Back</span>
+          <ArrowLeft className="h-5 w-5" />
         </button>
 
         <div className="h-4 w-px bg-border" />
