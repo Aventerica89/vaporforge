@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { collectMcpConfig, hasRelayServers } from './mcp';
+import { collectPluginConfigs } from './plugins';
 
 type Variables = {
   user: User;
@@ -58,21 +60,42 @@ sessionRoutes.post('/create', async (c) => {
       ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
     };
 
+    // Generate relay token if user has relay MCP servers
+    const needsRelay = await hasRelayServers(c.env.SESSIONS_KV, user.id);
+    const relayToken = needsRelay ? crypto.randomUUID() : undefined;
+
+    if (needsRelay && relayToken) {
+      const relayUrl = `https://vaporforge.jbcloud.app/api/mcp-relay/${sessionId}`;
+      sandboxEnv.RELAY_TOKEN = relayToken;
+      sandboxEnv.RELAY_URL = relayUrl;
+    }
+
     // Fetch user's global CLAUDE.md for injection into sandbox
     const claudeMd = await c.env.SESSIONS_KV.get(
       `user-config:${user.id}:claude-md`
     );
+
+    // Collect MCP servers + plugin configs for sandbox injection
+    const mcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
+    const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
       env: sandboxEnv,
       claudeMd: claudeMd || undefined,
+      mcpServers,
+      pluginConfigs,
+      startRelayProxy: needsRelay,
     });
 
-    // Persist session name to KV (createSandbox already saved without it)
-    if (parsed.data.name) {
-      session.metadata = { ...(session.metadata ?? {}), name: parsed.data.name };
+    // Persist session name and relay token to KV metadata
+    const extraMeta: Record<string, unknown> = {};
+    if (parsed.data.name) extraMeta.name = parsed.data.name;
+    if (relayToken) extraMeta.relayToken = relayToken;
+
+    if (Object.keys(extraMeta).length > 0) {
+      session.metadata = { ...(session.metadata ?? {}), ...extraMeta };
       await c.env.SESSIONS_KV.put(
         `session:${sessionId}`,
         JSON.stringify(session)
@@ -279,6 +302,45 @@ sessionRoutes.post('/:sessionId/restore', async (c) => {
   return c.json<ApiResponse<Session>>({
     success: true,
     data: restoredSession,
+  });
+});
+
+// Permanently delete a pending-delete session (purge now)
+sessionRoutes.post('/:sessionId/purge', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'pending-delete') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session must be pending-delete to purge',
+    }, 400);
+  }
+
+  // Delete all messages for this session
+  const msgList = await c.env.SESSIONS_KV.list({ prefix: `message:${sessionId}:` });
+  for (const msgKey of msgList.keys) {
+    await c.env.SESSIONS_KV.delete(msgKey.name);
+  }
+
+  // Delete the session record
+  await c.env.SESSIONS_KV.delete(`session:${sessionId}`);
+
+  return c.json<ApiResponse<{ purged: boolean }>>({
+    success: true,
+    data: { purged: true },
   });
 });
 

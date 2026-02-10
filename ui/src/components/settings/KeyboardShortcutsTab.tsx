@@ -21,8 +21,8 @@ const SHORTCUT_GROUPS: Array<{
     label: 'Panels',
     shortcuts: [
       { action: 'Toggle files', keys: ['\u2318', '1'] },
-      { action: 'Toggle terminal', keys: ['\u2318', '2'] },
-      { action: 'Toggle chat', keys: ['\u2318', '3'] },
+      { action: 'Toggle editor/terminal', keys: ['\u2318', '2'] },
+      { action: 'Focus mode (full-screen chat)', keys: ['\u2318', '3'] },
     ],
   },
   {

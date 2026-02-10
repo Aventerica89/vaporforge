@@ -1,4 +1,4 @@
-import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User } from './types';
+import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin } from './types';
 import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
@@ -101,6 +101,11 @@ export const sessionsApi = {
 
   restore: (sessionId: string) =>
     request<Session>(`/sessions/${sessionId}/restore`, {
+      method: 'POST',
+    }),
+
+  purge: (sessionId: string) =>
+    request<{ purged: boolean }>(`/sessions/${sessionId}/purge`, {
       method: 'POST',
     }),
 
@@ -327,6 +332,57 @@ export const secretsApi = {
   remove: (name: string) =>
     request<{ deleted: boolean }>(`/secrets/${encodeURIComponent(name)}`, {
       method: 'DELETE',
+    }),
+};
+
+// MCP API
+export const mcpApi = {
+  list: () =>
+    request<McpServerConfig[]>('/mcp'),
+
+  add: (server: Omit<McpServerConfig, 'addedAt' | 'enabled'>) =>
+    request<McpServerConfig>('/mcp', {
+      method: 'POST',
+      body: JSON.stringify(server),
+    }),
+
+  remove: (name: string) =>
+    request<{ deleted: boolean }>(`/mcp/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+
+  toggle: (name: string) =>
+    request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}/toggle`, {
+      method: 'PUT',
+    }),
+};
+
+// Plugins API
+export const pluginsApi = {
+  list: () =>
+    request<Plugin[]>('/plugins'),
+
+  add: (plugin: Omit<Plugin, 'id' | 'addedAt' | 'updatedAt'>) =>
+    request<Plugin>('/plugins', {
+      method: 'POST',
+      body: JSON.stringify(plugin),
+    }),
+
+  remove: (id: string) =>
+    request<{ deleted: boolean }>(`/plugins/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  toggle: (id: string, data: { enabled: boolean; itemType?: string; itemName?: string }) =>
+    request<Plugin>(`/plugins/${encodeURIComponent(id)}/toggle`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  discover: (repoUrl: string) =>
+    request<Plugin>('/plugins/discover', {
+      method: 'POST',
+      body: JSON.stringify({ repoUrl }),
     }),
 };
 

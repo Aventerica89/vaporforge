@@ -1,6 +1,7 @@
 import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
+import { generateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import type { Session, FileInfo, Message, MessagePart, GitStatus, ImageAttachment } from '@/lib/types';
 
@@ -51,6 +52,7 @@ interface SandboxState {
   deselectSession: () => void;
   terminateSession: (sessionId: string) => Promise<void>;
   restoreSession: (sessionId: string) => Promise<void>;
+  purgeSession: (sessionId: string) => Promise<void>;
 
   renameSession: (sessionId: string, name: string) => Promise<void>;
 
@@ -124,7 +126,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   createSession: async (name?: string, gitRepo?: string, branch?: string) => {
-    const result = await sessionsApi.create({ name, gitRepo, branch });
+    const sessionName = name || generateSessionName();
+    const result = await sessionsApi.create({ name: sessionName, gitRepo, branch });
     if (result.success && result.data) {
       const session = result.data;
       set((state) => ({
@@ -259,6 +262,19 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           sessions: state.sessions.map((s) =>
             s.id === sessionId ? { ...s, ...result.data! } : s
           ),
+        }));
+      }
+    } catch {
+      // Handle error
+    }
+  },
+
+  purgeSession: async (sessionId: string) => {
+    try {
+      const result = await sessionsApi.purge(sessionId);
+      if (result.success) {
+        set((state) => ({
+          sessions: state.sessions.filter((s) => s.id !== sessionId),
         }));
       }
     } catch {

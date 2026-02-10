@@ -110,6 +110,18 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('pong'),
   }),
+  z.object({
+    type: z.literal('mcp_relay_request'),
+    requestId: z.string(),
+    serverName: z.string(),
+    body: z.record(z.unknown()),
+  }),
+  z.object({
+    type: z.literal('mcp_relay_response'),
+    requestId: z.string(),
+    body: z.record(z.unknown()),
+    error: z.string().optional(),
+  }),
 ]);
 
 export type WSMessage = z.infer<typeof WSMessageSchema>;
@@ -183,3 +195,50 @@ export const SetupTokenRequestSchema = z.object({
 });
 
 export type SetupTokenRequest = z.infer<typeof SetupTokenRequestSchema>;
+
+// MCP Server config (KV-persisted)
+export const McpServerConfigSchema = z.object({
+  name: z.string().min(1).max(100).regex(
+    /^[a-zA-Z0-9_-]+$/,
+    'Name must be alphanumeric, dashes, or underscores'
+  ),
+  transport: z.enum(['http', 'stdio', 'relay']),
+  url: z.string().url().optional(),
+  command: z.string().min(1).optional(),
+  args: z.array(z.string()).optional(),
+  /** Local URL for relay transport (e.g. http://localhost:9222) */
+  localUrl: z.string().url().optional(),
+  enabled: z.boolean().default(true),
+  addedAt: z.string(),
+});
+
+export type McpServerConfig = z.infer<typeof McpServerConfigSchema>;
+
+// Plugin item (agent, command, or rule)
+export const PluginItemSchema = z.object({
+  name: z.string().min(1).max(100),
+  filename: z.string().min(1).max(200),
+  content: z.string().max(50_000),
+  enabled: z.boolean().default(true),
+});
+
+export type PluginItem = z.infer<typeof PluginItemSchema>;
+
+// Plugin (KV-persisted)
+export const PluginSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+  repoUrl: z.string().url().optional(),
+  scope: z.enum(['local', 'git']),
+  enabled: z.boolean().default(true),
+  builtIn: z.boolean().default(false),
+  agents: z.array(PluginItemSchema).default([]),
+  commands: z.array(PluginItemSchema).default([]),
+  rules: z.array(PluginItemSchema).default([]),
+  mcpServers: z.array(McpServerConfigSchema).default([]),
+  addedAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type Plugin = z.infer<typeof PluginSchema>;

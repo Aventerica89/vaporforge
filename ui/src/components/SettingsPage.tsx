@@ -6,7 +6,7 @@ import {
   FileCode,
   Terminal,
   Server,
-  Blocks,
+  Puzzle,
   Key,
   User,
   BookOpen,
@@ -57,7 +57,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
       { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
       { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-4 w-4" /> },
-      { id: 'plugins', label: 'Plugins', icon: <Blocks className="h-4 w-4" /> },
+      { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-4 w-4" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
     ],
   },
@@ -128,13 +128,13 @@ export function SettingsPage() {
           <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <div className="h-4 w-px bg-border" />
+        <div className="h-5 w-px bg-border" />
 
-        <h1 className="font-display text-sm font-bold uppercase tracking-wider text-primary">
+        <h1 className="font-display text-base font-bold uppercase tracking-wider text-foreground">
           Settings
         </h1>
 
-        <span className="ml-auto font-mono text-[10px] text-muted-foreground/40">
+        <span className="ml-auto font-mono text-xs text-muted-foreground/60">
           v{APP_VERSION}
         </span>
       </div>

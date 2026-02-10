@@ -1,0 +1,242 @@
+import { useMemo, useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
+import { useMarketplace, type StatusTab } from '@/hooks/useMarketplace';
+import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
+import type { CatalogPlugin } from '@/lib/generated/catalog-types';
+import { MarketplaceFilters } from './MarketplaceFilters';
+import { MarketplaceGrid } from './MarketplaceGrid';
+import { CardSizeToggle } from './CardSizeToggle';
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+function extractRepoUrl(repositoryUrl: string): string {
+  const match = repositoryUrl.match(
+    /^(https:\/\/github\.com\/[^/]+\/[^/]+)/
+  );
+  return match ? match[1] : repositoryUrl;
+}
+
+export function MarketplacePage() {
+  const {
+    closeMarketplace,
+    searchQuery,
+    setSearchQuery,
+    statusTab,
+    setStatusTab,
+    cardSize,
+    setCardSize,
+    selectedSource,
+    setSelectedSource,
+    selectedCategories,
+    toggleCategory,
+    selectedTypes,
+    toggleType,
+    selectedCompatibility,
+    setSelectedCompatibility,
+    clearFilters,
+    installedRepoUrls,
+    installing,
+    installPlugin,
+    uninstallPlugin,
+  } = useMarketplace();
+
+  const debouncedQuery = useDebounce(searchQuery, 300);
+
+  // Derive installed count
+  const installedCount = useMemo(() => {
+    let count = 0;
+    for (const p of catalog) {
+      const repoUrl = extractRepoUrl(p.repository_url);
+      if (installedRepoUrls.has(repoUrl)) count++;
+    }
+    return count;
+  }, [installedRepoUrls]);
+
+  // Filter the catalog
+  const filtered: CatalogPlugin[] = useMemo(() => {
+    let result = catalog;
+
+    // Status tab filter
+    if (statusTab === 'installed') {
+      result = result.filter((p) => {
+        const repoUrl = extractRepoUrl(p.repository_url);
+        return installedRepoUrls.has(repoUrl);
+      });
+    }
+
+    // Source filter
+    if (selectedSource !== 'all') {
+      result = result.filter((p) => p.source_id === selectedSource);
+    }
+
+    // Category filter
+    if (selectedCategories.length > 0) {
+      result = result.filter((p) =>
+        p.categories.some((c) => selectedCategories.includes(c))
+      );
+    }
+
+    // Type filter
+    if (selectedTypes.length > 0) {
+      result = result.filter((p) => {
+        const typeMap: Record<string, number> = {
+          agent: p.agent_count,
+          skill: p.skill_count,
+          command: p.command_count,
+          rule: p.rule_count,
+        };
+        return selectedTypes.some((t) => (typeMap[t] || 0) > 0);
+      });
+    }
+
+    // Compatibility filter
+    if (selectedCompatibility !== 'all') {
+      result = result.filter(
+        (p) => p.compatibility === selectedCompatibility
+      );
+    }
+
+    // Search
+    if (debouncedQuery.trim()) {
+      const q = debouncedQuery.toLowerCase().trim();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q)) ||
+          (p.author && p.author.toLowerCase().includes(q)) ||
+          p.categories.some((c) => c.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [
+    statusTab,
+    selectedSource,
+    selectedCategories,
+    selectedTypes,
+    selectedCompatibility,
+    debouncedQuery,
+    installedRepoUrls,
+  ]);
+
+  // Escape to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMarketplace();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [closeMarketplace]);
+
+  const STATUS_TABS: Array<{ key: StatusTab; label: string; count: number }> = [
+    { key: 'all', label: 'All', count: catalogStats.total },
+    { key: 'installed', label: 'Installed', count: installedCount },
+  ];
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
+      {/* Header area */}
+      <div className="shrink-0 border-b border-border px-6 py-5">
+        {/* Back + Title */}
+        <div className="flex items-center gap-4 mb-4">
+          <button
+            onClick={closeMarketplace}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            title="Back (Escape)"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Plugin Catalog</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Browse and manage {catalogStats.total} Claude Code plugins
+            </p>
+          </div>
+        </div>
+
+        {/* Status Tabs */}
+        <div className="flex items-center gap-2 mb-4">
+          {STATUS_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusTab(tab.key)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors border ${
+                statusTab === tab.key
+                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/30'
+                  : 'bg-foreground/5 text-muted-foreground hover:text-foreground border-transparent'
+              }`}
+            >
+              {tab.label}
+              <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search Bar + Controls */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search plugins..."
+              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              autoFocus
+            />
+          </div>
+          <CardSizeToggle size={cardSize} onChange={setCardSize} />
+        </div>
+      </div>
+
+      {/* Body: sidebar + grid */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Filters sidebar (desktop) */}
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-5 lg:block">
+          <MarketplaceFilters
+            selectedSource={selectedSource}
+            selectedCategories={selectedCategories}
+            selectedTypes={selectedTypes}
+            selectedCompatibility={selectedCompatibility}
+            onSourceChange={setSelectedSource}
+            onCategoryToggle={toggleCategory}
+            onTypeToggle={toggleType}
+            onCompatibilityChange={setSelectedCompatibility}
+            onClearAll={clearFilters}
+          />
+        </aside>
+
+        {/* Main grid area */}
+        <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+          {/* Count */}
+          <div className="shrink-0 px-5 pt-4 pb-2">
+            <div className="text-sm text-muted-foreground">
+              {filtered.length} plugin{filtered.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+
+          {/* Grid */}
+          <div className="flex-1 overflow-y-auto px-5 pb-5">
+            <MarketplaceGrid
+              plugins={filtered}
+              installedRepoUrls={installedRepoUrls}
+              installing={installing}
+              cardSize={cardSize}
+              onInstall={installPlugin}
+              onUninstall={uninstallPlugin}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

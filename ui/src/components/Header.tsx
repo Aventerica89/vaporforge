@@ -18,6 +18,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { McpRelayStatus } from '@/components/McpRelayStatus';
 
 export function Header() {
   const {
@@ -294,6 +295,9 @@ export function Header() {
             <span className="capitalize">{currentSession.status}</span>
           </div>
         )}
+
+        {/* MCP Relay status */}
+        {currentSession && <McpRelayStatus />}
 
         {/* Theme toggle */}
         <button

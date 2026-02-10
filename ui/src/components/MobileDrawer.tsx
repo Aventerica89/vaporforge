@@ -7,10 +7,12 @@ import {
   Terminal,
   LogOut,
   Settings,
+  Puzzle,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useMarketplace } from '@/hooks/useMarketplace';
 import { haptics } from '@/lib/haptics';
 
 interface MobileDrawerProps {
@@ -99,6 +101,11 @@ export function MobileDrawer({
 
   const handleOpenTerminal = () => {
     onOpenTerminal();
+    onClose();
+  };
+
+  const handleOpenMarketplace = () => {
+    useMarketplace.getState().openMarketplace();
     onClose();
   };
 
@@ -255,6 +262,13 @@ export function MobileDrawer({
 
         {/* Footer */}
         <div className="border-t border-border p-3 safe-bottom space-y-0.5">
+          <button
+            onClick={handleOpenMarketplace}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Puzzle className="h-4 w-4 text-primary" />
+            Plugin Marketplace
+          </button>
           <button
             onClick={handleOpenSettings}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"

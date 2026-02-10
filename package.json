@@ -1,6 +1,6 @@
 {
   "name": "vaporforge",
-  "version": "0.4.6",
+  "version": "0.9.0",
   "description": "Web-based AI coding IDE on Cloudflare Sandboxes",
   "private": true,
   "type": "module",
@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest",
+    "catalog": "node scripts/generate-plugin-catalog.mjs",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {

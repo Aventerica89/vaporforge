@@ -115,6 +115,44 @@ export interface ImageAttachment {
   uploadedPath?: string;
 }
 
+// MCP Server config
+export interface McpServerConfig {
+  name: string;
+  transport: 'http' | 'stdio' | 'relay';
+  url?: string;
+  command?: string;
+  args?: string[];
+  /** Local URL for relay transport (e.g. http://localhost:9222) */
+  localUrl?: string;
+  enabled: boolean;
+  addedAt: string;
+}
+
+// Plugin item (agent, command, or rule)
+export interface PluginItem {
+  name: string;
+  filename: string;
+  content: string;
+  enabled: boolean;
+}
+
+// Plugin
+export interface Plugin {
+  id: string;
+  name: string;
+  description?: string;
+  repoUrl?: string;
+  scope: 'local' | 'git';
+  enabled: boolean;
+  builtIn: boolean;
+  agents: PluginItem[];
+  commands: PluginItem[];
+  rules: PluginItem[];
+  mcpServers: McpServerConfig[];
+  addedAt: string;
+  updatedAt: string;
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }
@@ -127,4 +165,6 @@ export type WSMessage =
   | { type: 'terminal_output'; sessionId: string; output: string }
   | { type: 'error'; message: string; code?: string }
   | { type: 'ping' }
-  | { type: 'pong' };
+  | { type: 'pong' }
+  | { type: 'mcp_relay_request'; requestId: string; serverName: string; body: Record<string, unknown> }
+  | { type: 'mcp_relay_response'; requestId: string; body: Record<string, unknown>; error?: string };
