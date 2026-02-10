@@ -1,9 +1,18 @@
 import { create } from 'zustand';
 import { pluginsApi } from '@/lib/api';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 
 const MAX_ITEMS_PER_CATEGORY = 10;
+
+/** Best-effort sync plugins into the active sandbox (non-blocking). */
+function syncToActiveSession(): void {
+  const session = useSandboxStore.getState().currentSession;
+  if (session?.id) {
+    pluginsApi.sync(session.id).catch(() => {});
+  }
+}
 
 export type CardSize = 'compact' | 'normal' | 'large';
 export type StatusTab = 'all' | 'installed';
@@ -19,6 +28,7 @@ interface MarketplaceState {
   selectedCompatibility: 'all' | 'cloud-ready' | 'relay-required';
   installedRepoUrls: Set<string>;
   installing: Set<string>;
+  installError: string | null;
 
   openMarketplace: () => void;
   closeMarketplace: () => void;
@@ -30,6 +40,7 @@ interface MarketplaceState {
   toggleType: (type: string) => void;
   setSelectedCompatibility: (c: MarketplaceState['selectedCompatibility']) => void;
   clearFilters: () => void;
+  clearInstallError: () => void;
   installPlugin: (catalogPlugin: CatalogPlugin) => Promise<void>;
   uninstallPlugin: (repoUrl: string) => Promise<void>;
   syncInstalledPlugins: () => Promise<void>;
@@ -46,6 +57,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   selectedCompatibility: 'all',
   installedRepoUrls: new Set(),
   installing: new Set(),
+  installError: null,
 
   openMarketplace: () => {
     set({ isOpen: true });
@@ -89,12 +101,15 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       selectedCompatibility: 'all',
     }),
 
+  clearInstallError: () => set({ installError: null }),
+
   installPlugin: async (catalogPlugin) => {
     // Store the full repository_url (including /tree/main/plugins/X subpath)
     // as the repoUrl. This ensures monorepo plugins each have a unique ID.
     const repoUrl = catalogPlugin.repository_url;
     set((state) => ({
       installing: new Set([...state.installing, catalogPlugin.id]),
+      installError: null,
     }));
 
     try {
@@ -127,7 +142,8 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
 
       const plugin: Omit<Plugin, 'id' | 'addedAt' | 'updatedAt'> = {
         name: discovered?.name || catalogPlugin.name,
-        description: catalogPlugin.description || discovered?.description || undefined,
+        description: (catalogPlugin.description || discovered?.description || '')
+          .slice(0, 2000) || undefined,
         repoUrl,
         scope: 'git',
         enabled: true,
@@ -144,8 +160,10 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       set((state) => ({
         installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
       }));
-    } catch {
-      // Install failed — spinner will stop, user can retry
+      syncToActiveSession();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Install failed';
+      set({ installError: `Failed to install ${catalogPlugin.name}: ${msg}` });
     } finally {
       set((state) => {
         const next = new Set(state.installing);
@@ -167,6 +185,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
             next.delete(repoUrl);
             return { installedRepoUrls: next };
           });
+          syncToActiveSession();
         }
       }
     } catch {

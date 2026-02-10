@@ -12,6 +12,28 @@ function debugLog(
   useDebugLog.getState().addEntry({ category, level, summary, detail });
 }
 
+// Version tracking — detect deploys so the client can prompt a refresh
+let _knownVersion: string | null = null;
+let _updateAvailable = false;
+
+function checkVersionHeader(response: Response) {
+  const serverVersion = response.headers.get('X-VF-Version');
+  if (!serverVersion) return;
+
+  if (_knownVersion === null) {
+    _knownVersion = serverVersion;
+  } else if (serverVersion !== _knownVersion && !_updateAvailable) {
+    _updateAvailable = true;
+    window.dispatchEvent(new CustomEvent('vf:update-available', {
+      detail: { from: _knownVersion, to: serverVersion },
+    }));
+  }
+}
+
+export function isUpdateAvailable(): boolean {
+  return _updateAvailable;
+}
+
 async function request<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -26,6 +48,8 @@ async function request<T>(
       ...options.headers,
     },
   });
+
+  checkVersionHeader(response);
 
   const data = await response.json();
 
@@ -416,6 +440,11 @@ export const pluginsApi = {
 
   refresh: () =>
     request<{ refreshed: number; plugins: Plugin[] }>('/plugins/refresh', {
+      method: 'POST',
+    }),
+
+  sync: (sessionId: string) =>
+    request<{ synced: boolean }>(`/plugins/sync/${sessionId}`, {
       method: 'POST',
     }),
 };

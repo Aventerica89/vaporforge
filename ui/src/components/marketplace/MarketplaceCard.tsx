@@ -13,19 +13,19 @@ interface MarketplaceCardProps {
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
   'anthropic-official': {
     label: 'Official',
-    className: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
   },
   'awesome-community': {
     label: 'Community',
-    className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    className: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
   },
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  agent: 'text-purple-400',
-  skill: 'text-green-400',
+  agent: 'text-violet-400',
+  skill: 'text-cyan-400',
   command: 'text-blue-400',
-  rule: 'text-orange-400',
+  rule: 'text-amber-400',
 };
 
 export function MarketplaceCard({
@@ -44,20 +44,20 @@ export function MarketplaceCard({
 
   return (
     <div
-      className={`group relative flex flex-col bg-card border border-border rounded-lg hover:border-violet-500/30 transition-all duration-200 ${padding}`}
+      className={`group relative flex flex-col rounded-lg border border-white/[0.06] bg-[hsl(215,22%,11%)] transition-all duration-300 hover:border-cyan-500/30 hover:shadow-[0_0_20px_-4px_hsl(185,95%,55%,0.15)] ${padding}`}
     >
       {/* Source Badge + Status Dot + Install/Toggle */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isInstalled && (
             <span
-              className="w-2 h-2 rounded-full shrink-0 bg-green-400"
+              className="w-2 h-2 rounded-full shrink-0 bg-cyan-400 shadow-[0_0_6px_hsl(185,95%,55%,0.6)]"
               title="Installed"
             />
           )}
           {source && (
             <span
-              className={`text-xs font-medium px-2 py-0.5 rounded border ${source.className}`}
+              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${source.className}`}
             >
               {source.label}
             </span>
@@ -68,12 +68,12 @@ export function MarketplaceCard({
         <div onClick={(e) => e.stopPropagation()}>
           {isInstalling ? (
             <span className="flex items-center gap-1 text-xs text-muted-foreground px-2.5 py-1">
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3 w-3 animate-spin text-cyan-400" />
             </span>
           ) : isInstalled ? (
             <button
               onClick={onUninstall}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-violet-500`}
+              className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-cyan-500 shadow-[0_0_8px_hsl(185,95%,55%,0.3)]"
               title="Uninstall"
             >
               <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-4" />
@@ -81,7 +81,7 @@ export function MarketplaceCard({
           ) : (
             <button
               onClick={onInstall}
-              className="text-xs font-medium px-2.5 py-1 rounded transition-colors bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/20"
+              className="text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
             >
               Install
             </button>
@@ -92,7 +92,7 @@ export function MarketplaceCard({
       {/* Plugin Name */}
       <div className="flex-1">
         <h3
-          className={`font-semibold group-hover:text-violet-400 transition-colors ${
+          className={`font-semibold text-[hsl(180,5%,95%)] group-hover:text-cyan-400 transition-colors duration-200 ${
             isCompact ? 'text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-base'
           }`}
         >
@@ -102,7 +102,7 @@ export function MarketplaceCard({
         {/* Description */}
         {!isCompact && plugin.description && (
           <p
-            className={`text-muted-foreground mt-1 ${
+            className={`text-[hsl(180,5%,55%)] mt-1.5 leading-relaxed ${
               isLarge ? 'text-sm line-clamp-3' : 'text-xs line-clamp-2'
             }`}
           >
@@ -111,12 +111,12 @@ export function MarketplaceCard({
         )}
       </div>
 
-      {/* Component Counts (text-based) */}
+      {/* Component Counts */}
       <div className={`flex gap-3 ${isCompact ? 'text-xs flex-wrap' : 'text-sm'}`}>
         {plugin.agent_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.agent}>{plugin.agent_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               agent{plugin.agent_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -124,7 +124,7 @@ export function MarketplaceCard({
         {plugin.skill_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.skill}>{plugin.skill_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               skill{plugin.skill_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -132,7 +132,7 @@ export function MarketplaceCard({
         {plugin.command_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.command}>{plugin.command_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               command{plugin.command_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -140,7 +140,7 @@ export function MarketplaceCard({
         {plugin.rule_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.rule}>{plugin.rule_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               rule{plugin.rule_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -149,25 +149,22 @@ export function MarketplaceCard({
 
       {/* Categories */}
       {!isCompact && plugin.categories.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <div className="flex flex-wrap gap-1.5 mt-0.5">
           {plugin.categories.slice(0, isLarge ? 5 : 3).map((cat) => (
             <span
               key={cat}
-              className="text-xs px-2 py-0.5 rounded bg-foreground/5 text-muted-foreground"
+              className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-[hsl(180,5%,55%)] border border-white/[0.04]"
             >
               {cat}
             </span>
           ))}
           {plugin.categories.length > (isLarge ? 5 : 3) && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-[hsl(180,5%,45%)]">
               +{plugin.categories.length - (isLarge ? 5 : 3)}
             </span>
           )}
         </div>
       )}
-
-      {/* Hover ring indicator */}
-      <div className="absolute inset-0 rounded-lg pointer-events-none ring-2 ring-violet-500/0 group-hover:ring-violet-500/10 transition-all duration-200" />
     </div>
   );
 }

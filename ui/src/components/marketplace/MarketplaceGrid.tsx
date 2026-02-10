@@ -29,11 +29,11 @@ export function MarketplaceGrid({
   if (plugins.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <Puzzle className="mb-3 h-10 w-10 text-muted-foreground/30" />
-        <p className="text-sm font-medium text-muted-foreground">
+        <Puzzle className="mb-3 h-10 w-10 text-[hsl(180,5%,25%)]" />
+        <p className="text-sm font-medium text-[hsl(180,5%,55%)]">
           No plugins match your filters
         </p>
-        <p className="mt-1 text-xs text-muted-foreground/60">
+        <p className="mt-1 text-xs text-[hsl(180,5%,35%)]">
           Try adjusting your search or clearing filters
         </p>
       </div>
