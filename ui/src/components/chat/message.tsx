@@ -115,12 +115,23 @@ export function MessageFooter({ children, className = '' }: MessageFooterProps) 
 // ---------------------------------------------------------------------------
 
 const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
+const COMMAND_RE = /^\[command:(\/[^\]]+)\]\n/;
 
 interface MessageAttachmentsProps {
   message: MessageType;
 }
 
 export function MessageAttachments({ message }: MessageAttachmentsProps) {
+  // Detect slash command marker — show just the command chip
+  const commandMatch = message.content.match(COMMAND_RE);
+  if (commandMatch) {
+    return (
+      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+        {commandMatch[1]}
+      </span>
+    );
+  }
+
   const { textOnly, imagePaths } = useMemo(() => {
     const paths: string[] = [];
     let match: RegExpExecArray | null;

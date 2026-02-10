@@ -16,13 +16,6 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
-function extractRepoUrl(repositoryUrl: string): string {
-  const match = repositoryUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)/
-  );
-  return match ? match[1] : repositoryUrl;
-}
-
 export function MarketplacePage() {
   const {
     closeMarketplace,
@@ -49,12 +42,11 @@ export function MarketplacePage() {
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // Derive installed count
+  // Derive installed count — match on full repository_url (unique per plugin)
   const installedCount = useMemo(() => {
     let count = 0;
     for (const p of catalog) {
-      const repoUrl = extractRepoUrl(p.repository_url);
-      if (installedRepoUrls.has(repoUrl)) count++;
+      if (installedRepoUrls.has(p.repository_url)) count++;
     }
     return count;
   }, [installedRepoUrls]);
@@ -65,10 +57,7 @@ export function MarketplacePage() {
 
     // Status tab filter
     if (statusTab === 'installed') {
-      result = result.filter((p) => {
-        const repoUrl = extractRepoUrl(p.repository_url);
-        return installedRepoUrls.has(repoUrl);
-      });
+      result = result.filter((p) => installedRepoUrls.has(p.repository_url));
     }
 
     // Source filter

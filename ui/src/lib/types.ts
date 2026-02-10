@@ -153,6 +153,17 @@ export interface Plugin {
   updatedAt: string;
 }
 
+// Config file (standalone rules, commands, agents — KV-persisted)
+export interface ConfigFile {
+  filename: string;
+  content: string;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ConfigCategory = 'rules' | 'commands' | 'agents';
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }

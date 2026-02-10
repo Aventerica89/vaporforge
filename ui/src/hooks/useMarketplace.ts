@@ -3,6 +3,8 @@ import { pluginsApi } from '@/lib/api';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 
+const MAX_ITEMS_PER_CATEGORY = 10;
+
 export type CardSize = 'compact' | 'normal' | 'large';
 export type StatusTab = 'all' | 'installed';
 
@@ -31,13 +33,6 @@ interface MarketplaceState {
   installPlugin: (catalogPlugin: CatalogPlugin) => Promise<void>;
   uninstallPlugin: (repoUrl: string) => Promise<void>;
   syncInstalledPlugins: () => Promise<void>;
-}
-
-function extractRepoUrl(repositoryUrl: string): string {
-  const match = repositoryUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)/
-  );
-  return match ? match[1] : repositoryUrl;
 }
 
 export const useMarketplace = create<MarketplaceState>((set, get) => ({
@@ -95,31 +90,60 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
     }),
 
   installPlugin: async (catalogPlugin) => {
-    const repoUrl = extractRepoUrl(catalogPlugin.repository_url);
+    // Store the full repository_url (including /tree/main/plugins/X subpath)
+    // as the repoUrl. This ensures monorepo plugins each have a unique ID.
+    const repoUrl = catalogPlugin.repository_url;
     set((state) => ({
       installing: new Set([...state.installing, catalogPlugin.id]),
     }));
 
     try {
+      // Discover from GitHub — pass full URL so subpath plugins are found
       const result = await pluginsApi.discover(repoUrl);
-      if (result.success && result.data) {
-        const plugin: Omit<Plugin, 'id' | 'addedAt' | 'updatedAt'> = {
-          name: result.data.name || catalogPlugin.name,
-          description: result.data.description || catalogPlugin.description || undefined,
-          repoUrl,
-          scope: 'git',
-          enabled: true,
-          builtIn: false,
-          agents: result.data.agents || [],
-          commands: result.data.commands || [],
-          rules: result.data.rules || [],
-          mcpServers: result.data.mcpServers || [],
-        };
-        await pluginsApi.add(plugin);
-        set((state) => ({
-          installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
-        }));
+
+      // Build plugin from discovery results + catalog metadata as fallback
+      const discovered = result.success && result.data ? result.data : null;
+      const hasDiscoveredContent = discovered &&
+        (discovered.agents.length > 0 ||
+         discovered.commands.length > 0 ||
+         discovered.rules.length > 0);
+
+      // If discovery found nothing, create placeholder commands from catalog
+      // components so the plugin isn't completely empty
+      let fallbackCommands: Array<{
+        name: string; filename: string; content: string; enabled: boolean;
+      }> = [];
+      if (!hasDiscoveredContent && catalogPlugin.components.length > 0) {
+        fallbackCommands = catalogPlugin.components
+          .filter((comp) => comp.type === 'command' || comp.type === 'skill')
+          .slice(0, MAX_ITEMS_PER_CATEGORY)
+          .map((comp) => ({
+            name: comp.name.replace(/-/g, ' '),
+            filename: `${comp.slug}.md`,
+            content: `Run the ${comp.name} command from ${catalogPlugin.name}.`,
+            enabled: true,
+          }));
       }
+
+      const plugin: Omit<Plugin, 'id' | 'addedAt' | 'updatedAt'> = {
+        name: discovered?.name || catalogPlugin.name,
+        description: catalogPlugin.description || discovered?.description || undefined,
+        repoUrl,
+        scope: 'git',
+        enabled: true,
+        builtIn: false,
+        agents: discovered?.agents || [],
+        commands: hasDiscoveredContent
+          ? (discovered?.commands || [])
+          : fallbackCommands,
+        rules: discovered?.rules || [],
+        mcpServers: discovered?.mcpServers || [],
+      };
+
+      await pluginsApi.add(plugin);
+      set((state) => ({
+        installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
+      }));
     } catch {
       // Install failed — spinner will stop, user can retry
     } finally {

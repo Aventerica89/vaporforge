@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { haptics } from '@/lib/haptics';
 import { useDebugLog } from '@/hooks/useDebugLog';
+import { useCommandRegistry } from '@/hooks/useCommandRegistry';
+import { useSettingsStore } from '@/hooks/useSettings';
+import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
 import {
   Attachments,
   Attachment,
@@ -53,6 +56,40 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
+
+  // Slash command autocomplete
+  const { commands, refresh: refreshCommands } = useCommandRegistry();
+  const settingsOpen = useSettingsStore((s) => s.isOpen);
+  const prevSettingsOpen = useRef(settingsOpen);
+  const [slashIndex, setSlashIndex] = useState(0);
+
+  // Refresh commands when settings modal closes
+  useEffect(() => {
+    if (prevSettingsOpen.current && !settingsOpen) {
+      refreshCommands();
+    }
+    prevSettingsOpen.current = settingsOpen;
+  }, [settingsOpen, refreshCommands]);
+
+  // Detect slash prefix: "/query" with no whitespace
+  const slashQuery = useMemo(() => {
+    const match = input.match(/^\/(\S*)$/);
+    return match ? match[1] : null;
+  }, [input]);
+
+  const filteredCommands = useMemo(() => {
+    if (slashQuery === null) return [];
+    return commands.filter((cmd) =>
+      cmd.name.toLowerCase().startsWith(slashQuery.toLowerCase())
+    );
+  }, [slashQuery, commands]);
+
+  const slashMenuOpen = slashQuery !== null && filteredCommands.length > 0;
+
+  // Reset index when filter changes
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [slashQuery]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -178,7 +215,54 @@ export function PromptInput({
     }
   };
 
+  // Submit a slash command: send content with a display marker
+  const handleSlashSelect = useCallback(
+    (cmd: (typeof commands)[number]) => {
+      onSubmit(`[command:/${cmd.name}]\n${cmd.content}`);
+      setInput('');
+      setSlashIndex(0);
+      haptics.light();
+    },
+    [onSubmit]
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Slash menu keyboard navigation
+    if (slashMenuOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'Tab') {
+        // Tab: autocomplete the name (trailing space closes the menu)
+        e.preventDefault();
+        const selected = filteredCommands[slashIndex];
+        if (selected) {
+          setInput(`/${selected.name} `);
+          setSlashIndex(0);
+        }
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Enter: submit the command content immediately
+        e.preventDefault();
+        const selected = filteredCommands[slashIndex];
+        if (selected) handleSlashSelect(selected);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setInput('');
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -214,6 +298,17 @@ export function PromptInput({
       )}
 
       <form onSubmit={handleSubmit} className="relative">
+        {/* Slash command autocomplete */}
+        {slashMenuOpen && (
+          <SlashCommandMenu
+            query={slashQuery ?? ''}
+            commands={commands}
+            selectedIndex={slashIndex}
+            onSelect={handleSlashSelect}
+            onDismiss={() => setInput('')}
+          />
+        )}
+
         <div className="relative rounded-xl border border-border/60 bg-background transition-colors focus-within:border-primary/50 focus-within:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]">
           {/* Image preview strip — AI Elements grid variant */}
           {images.length > 0 && (
@@ -248,7 +343,12 @@ export function PromptInput({
             rows={1}
             disabled={isStreaming}
             className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
-            style={{ fontSize: '16px', color: 'hsl(var(--foreground))' }}
+            style={{
+              fontSize: '16px',
+              color: slashMenuOpen
+                ? 'hsl(var(--primary))'
+                : 'hsl(var(--foreground))',
+            }}
           />
 
           {/* Action buttons */}

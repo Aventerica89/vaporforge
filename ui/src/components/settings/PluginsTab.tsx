@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Search,
   Shield,
+  RefreshCw,
 } from 'lucide-react';
 import { pluginsApi } from '@/lib/api';
 import { useMarketplace } from '@/hooks/useMarketplace';
@@ -413,6 +414,8 @@ export function PluginsTab() {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<string | null>(null);
 
   const loadPlugins = useCallback(async () => {
     setIsLoading(true);
@@ -475,6 +478,27 @@ export function PluginsTab() {
       await loadPlugins();
     } catch {
       // Delete failed
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const result = await pluginsApi.refresh();
+      if (result.success && result.data) {
+        setPlugins(result.data.plugins);
+        const n = result.data.refreshed;
+        setRefreshResult(
+          `Refreshed ${n} plugin${n !== 1 ? 's' : ''}`
+        );
+        setTimeout(() => setRefreshResult(null), 3000);
+      }
+    } catch {
+      setRefreshResult('Refresh failed');
+      setTimeout(() => setRefreshResult(null), 3000);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -557,9 +581,26 @@ export function PluginsTab() {
       {/* Custom plugins */}
       {custom.length > 0 && (
         <div>
-          <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-            Custom
-          </span>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+              Custom
+            </span>
+            <div className="flex items-center gap-2">
+              {refreshResult && (
+                <span className="text-[10px] text-primary animate-fade-up">
+                  {refreshResult}
+                </span>
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
           <div className="space-y-2">
             {custom.map((plugin) => (
               <PluginCard

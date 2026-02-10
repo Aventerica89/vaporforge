@@ -18,13 +18,6 @@ const GRID_CLASSES: Record<CardSize, string> = {
   large: 'grid-cols-1 md:grid-cols-2',
 };
 
-function extractRepoUrl(repositoryUrl: string): string {
-  const match = repositoryUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)/
-  );
-  return match ? match[1] : repositoryUrl;
-}
-
 export function MarketplaceGrid({
   plugins,
   installedRepoUrls,
@@ -49,20 +42,17 @@ export function MarketplaceGrid({
 
   return (
     <div className={`grid gap-4 ${GRID_CLASSES[cardSize]}`}>
-      {plugins.map((plugin) => {
-        const repoUrl = extractRepoUrl(plugin.repository_url);
-        return (
-          <MarketplaceCard
-            key={plugin.id}
-            plugin={plugin}
-            size={cardSize}
-            isInstalled={installedRepoUrls.has(repoUrl)}
-            isInstalling={installing.has(plugin.id)}
-            onInstall={() => onInstall(plugin)}
-            onUninstall={() => onUninstall(repoUrl)}
-          />
-        );
-      })}
+      {plugins.map((plugin) => (
+        <MarketplaceCard
+          key={plugin.id}
+          plugin={plugin}
+          size={cardSize}
+          isInstalled={installedRepoUrls.has(plugin.repository_url)}
+          isInstalling={installing.has(plugin.id)}
+          onInstall={() => onInstall(plugin)}
+          onUninstall={() => onUninstall(plugin.repository_url)}
+        />
+      ))}
     </div>
   );
 }
