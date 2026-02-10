@@ -1,4 +1,4 @@
-import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin } from './types';
+import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory } from './types';
 import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
@@ -318,6 +318,23 @@ export const userApi = {
     }),
 };
 
+// VF Internal Rules API
+export const vfRulesApi = {
+  get: () =>
+    request<{ content: string; isDefault: boolean }>('/user/vf-rules'),
+
+  save: (content: string) =>
+    request<{ saved: boolean }>('/user/vf-rules', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
+
+  reset: () =>
+    request<{ content: string }>('/user/vf-rules', {
+      method: 'DELETE',
+    }),
+};
+
 // Secrets API
 export const secretsApi = {
   list: () =>
@@ -355,6 +372,18 @@ export const mcpApi = {
     request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}/toggle`, {
       method: 'PUT',
     }),
+
+  /** Batch health-check all enabled HTTP servers */
+  ping: () =>
+    request<Record<string, { status: string; httpStatus?: number }>>('/mcp/ping', {
+      method: 'POST',
+    }),
+
+  /** Single server health-check */
+  pingOne: (name: string) =>
+    request<{ status: string; httpStatus?: number }>(`/mcp/${encodeURIComponent(name)}/ping`, {
+      method: 'POST',
+    }),
 };
 
 // Plugins API
@@ -383,6 +412,34 @@ export const pluginsApi = {
     request<Plugin>('/plugins/discover', {
       method: 'POST',
       body: JSON.stringify({ repoUrl }),
+    }),
+
+  refresh: () =>
+    request<{ refreshed: number; plugins: Plugin[] }>('/plugins/refresh', {
+      method: 'POST',
+    }),
+};
+
+// Config API (standalone rules, commands, agents)
+export const configApi = {
+  list: (category: ConfigCategory) =>
+    request<ConfigFile[]>(`/config/${category}`),
+
+  add: (category: ConfigCategory, data: { filename: string; content: string; enabled?: boolean }) =>
+    request<ConfigFile>(`/config/${category}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (category: ConfigCategory, filename: string, data: { content?: string; enabled?: boolean }) =>
+    request<ConfigFile>(`/config/${category}/${encodeURIComponent(filename)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  remove: (category: ConfigCategory, filename: string) =>
+    request<{ deleted: boolean }>(`/config/${category}/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
     }),
 };
 

@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.9.1';
+export const APP_VERSION = '0.9.4';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,47 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.9.4',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'Command Center + Plugin Refresh',
+    items: [
+      'Command Center settings tab: edit internal container rules for Claude SDK',
+      'VF rules prepended to CLAUDE.md in every sandbox — Claude now knows its environment',
+      'Default rules cover container awareness, MCP relay, secrets, and what NOT to do',
+      'Reset to defaults button to restore original VF rules',
+      'Plugin refresh endpoint: re-discover all git-sourced plugins from GitHub',
+      'Refresh preserves user toggle states (enabled/disabled) while updating content',
+      'Config injection order documented in Command Center UI',
+    ],
+  },
+  {
+    version: '0.9.3',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'Slash Commands + Plugin Pipeline Fix',
+    items: [
+      'Slash command autocomplete: type / in chat to see matching commands',
+      'Rich built-in command templates for /review, /test, /docs, /refactor',
+      'Plugin discover supports monorepo subpaths and root-level convention dirs',
+      'Catalog toggle bug fixed: plugins no longer share URLs',
+      'Marketplace install creates fallback commands from catalog metadata',
+    ],
+  },
+  {
+    version: '0.9.2',
+    date: '2026-02-09',
+    tag: 'feature',
+    title: 'Warp-Style Layout Overhaul',
+    items: [
+      'Chat moved to center panel (55%), editor+terminal to right sidebar (30%)',
+      'SessionTabBar: horizontal tabs with click, double-click rename, hover close',
+      'Focus mode (Cmd+3): collapse both sidebars for full-screen chat',
+      'Right panel auto-expands when file opened from file tree',
+      'Delete All button for pending-delete sessions section',
+    ],
+  },
   {
     version: '0.9.1',
     date: '2026-02-09',

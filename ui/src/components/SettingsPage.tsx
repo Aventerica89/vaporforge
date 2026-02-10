@@ -5,12 +5,15 @@ import {
   Keyboard,
   FileCode,
   Terminal,
+  ScrollText,
+  Bot,
   Server,
   Puzzle,
   Key,
   User,
   BookOpen,
   Info,
+  Shield,
 } from 'lucide-react';
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
@@ -23,12 +26,15 @@ import { AppearanceTab } from '@/components/settings/AppearanceTab';
 import { KeyboardShortcutsTab } from '@/components/settings/KeyboardShortcutsTab';
 import { ClaudeMdTab } from '@/components/settings/ClaudeMdTab';
 import { CommandsTab } from '@/components/settings/CommandsTab';
+import { RulesTab } from '@/components/settings/RulesTab';
+import { AgentsTab } from '@/components/settings/AgentsTab';
 import { McpTab } from '@/components/settings/McpTab';
 import { PluginsTab } from '@/components/settings/PluginsTab';
 import { SecretsTab } from '@/components/settings/SecretsTab';
 import { AccountTab } from '@/components/settings/AccountTab';
 import { GuideTab } from '@/components/settings/GuideTab';
 import { AboutTab } from '@/components/settings/AboutTab';
+import { CommandCenterTab } from '@/components/settings/CommandCenterTab';
 
 /* ─── Tab definitions ─── */
 
@@ -55,10 +61,13 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Workspace',
     tabs: [
       { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
+      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-4 w-4" /> },
       { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
+      { id: 'agents', label: 'Agents', icon: <Bot className="h-4 w-4" /> },
       { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-4 w-4" /> },
       { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-4 w-4" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
+      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-4 w-4" /> },
     ],
   },
   {
@@ -82,10 +91,13 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   appearance: AppearanceTab,
   shortcuts: KeyboardShortcutsTab,
   'claude-md': ClaudeMdTab,
+  rules: RulesTab,
   commands: CommandsTab,
+  agents: AgentsTab,
   mcp: McpTab,
   plugins: PluginsTab,
   secrets: SecretsTab,
+  'command-center': CommandCenterTab,
   account: AccountTab,
   guide: GuideTab,
   about: AboutTab,

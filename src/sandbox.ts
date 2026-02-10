@@ -86,6 +86,14 @@ export interface SandboxConfig {
     rules: Array<{ filename: string; content: string }>;
     mcpServers: Record<string, Record<string, unknown>>;
   };
+  /** Standalone user config files (rules, commands, agents) to inject */
+  userConfigs?: {
+    rules: Array<{ filename: string; content: string }>;
+    commands: Array<{ filename: string; content: string }>;
+    agents: Array<{ filename: string; content: string }>;
+  };
+  /** VaporForge internal rules — prepended to CLAUDE.md in container */
+  vfRules?: string;
   /** Start the MCP relay proxy in the container (for relay transport servers) */
   startRelayProxy?: boolean;
 }
@@ -176,11 +184,16 @@ export class SandboxManager {
         await sandbox.setEnvVars(config.env);
       }
 
-      // Inject user's global CLAUDE.md into ~/.claude/
-      if (config?.claudeMd) {
+      // Inject CLAUDE.md into ~/.claude/ (VF rules + user CLAUDE.md)
+      const hasVfRules = config?.vfRules && config.vfRules.trim().length > 0;
+      const hasClaudeMd = config?.claudeMd && config.claudeMd.trim().length > 0;
+      if (hasVfRules || hasClaudeMd) {
         step = 'writeCLAUDE.md';
         await sandbox.mkdir('/root/.claude', { recursive: true });
-        await sandbox.writeFile('/root/.claude/CLAUDE.md', config.claudeMd);
+        const parts: string[] = [];
+        if (hasVfRules) parts.push(config!.vfRules!.trim());
+        if (hasClaudeMd) parts.push(config!.claudeMd!.trim());
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', parts.join('\n\n---\n\n'));
       }
 
       // Inject MCP servers + plugin MCP into ~/.claude.json
@@ -229,6 +242,42 @@ export class SandboxManager {
           await sandbox.writeFile(
             `/root/.claude/rules/${rule.filename}`,
             rule.content
+          );
+        }
+      }
+
+      // Inject user config rules into ~/.claude/rules/ (after plugins, so user overrides plugin)
+      if (config?.userConfigs?.rules.length) {
+        step = 'writeUserRules';
+        await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+        for (const rule of config.userConfigs.rules) {
+          await sandbox.writeFile(
+            `/root/.claude/rules/${rule.filename}`,
+            rule.content
+          );
+        }
+      }
+
+      // Inject user config commands into ~/.claude/commands/
+      if (config?.userConfigs?.commands.length) {
+        step = 'writeUserCommands';
+        await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+        for (const cmd of config.userConfigs.commands) {
+          await sandbox.writeFile(
+            `/root/.claude/commands/${cmd.filename}`,
+            cmd.content
+          );
+        }
+      }
+
+      // Inject user config agents into ~/.claude/agents/
+      if (config?.userConfigs?.agents.length) {
+        step = 'writeUserAgents';
+        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+        for (const agent of config.userConfigs.agents) {
+          await sandbox.writeFile(
+            `/root/.claude/agents/${agent.filename}`,
+            agent.content
           );
         }
       }

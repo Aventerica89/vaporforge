@@ -4,6 +4,8 @@ import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 import { collectMcpConfig, hasRelayServers } from './mcp';
 import { collectPluginConfigs } from './plugins';
+import { collectUserConfigs } from './config';
+import { getVfRules } from './user';
 
 type Variables = {
   user: User;
@@ -75,9 +77,11 @@ sessionRoutes.post('/create', async (c) => {
       `user-config:${user.id}:claude-md`
     );
 
-    // Collect MCP servers + plugin configs for sandbox injection
+    // Collect MCP servers + plugin configs + user configs + VF rules for sandbox injection
     const mcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
     const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+    const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
+    const vfRules = await getVfRules(c.env.SESSIONS_KV, user.id);
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
@@ -86,6 +90,8 @@ sessionRoutes.post('/create', async (c) => {
       claudeMd: claudeMd || undefined,
       mcpServers,
       pluginConfigs,
+      userConfigs,
+      vfRules,
       startRelayProxy: needsRelay,
     });
 
