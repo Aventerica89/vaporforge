@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   X,
+  Home,
   GitBranch,
   Moon,
   Sun,
@@ -21,6 +22,7 @@ export function SessionTabBar() {
     currentSession,
     sessions,
     selectSession,
+    deselectSession,
     createSession,
     terminateSession,
     renameSession,
@@ -102,6 +104,17 @@ export function SessionTabBar() {
     <div className="flex h-10 items-center border-b border-border bg-card">
       {/* Left: New session + tabs */}
       <div className="flex min-w-0 flex-1 items-center overflow-x-auto scrollbar-none">
+        {/* Home button */}
+        <button
+          onClick={() => deselectSession()}
+          className={`flex h-10 shrink-0 items-center gap-1 px-3 transition-colors hover:bg-accent hover:text-foreground ${
+            !currentSession ? 'text-foreground bg-background' : 'text-muted-foreground'
+          }`}
+          title="Home"
+        >
+          <Home className="h-3.5 w-3.5" />
+        </button>
+
         {/* New session button */}
         <button
           onClick={() => createSession()}
