@@ -189,7 +189,7 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4 safe-top safe-bottom"
       onClick={handleClose}
     >
       {/* Backdrop */}
@@ -197,19 +197,20 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
 
       {/* Modal */}
       <div
-        className="glass-card relative w-full max-w-lg p-6 space-y-4 animate-scale-in"
+        className="glass-card relative w-full max-w-lg p-4 sm:p-6 space-y-4 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold uppercase tracking-wider text-primary">
+          <h2 className="font-display text-base sm:text-lg font-bold uppercase tracking-wider text-primary">
             Clone Repository
           </h2>
           <button
             onClick={handleClose}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-accent hover:text-foreground transition-colors text-muted-foreground"
+            aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 

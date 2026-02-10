@@ -14,7 +14,7 @@ export function ReadmeModal({ isOpen, onClose, content, title = 'README' }: Read
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4 safe-top safe-bottom"
       onClick={onClose}
     >
       {/* Backdrop */}
@@ -22,24 +22,25 @@ export function ReadmeModal({ isOpen, onClose, content, title = 'README' }: Read
 
       {/* Modal */}
       <div
-        className="glass-card relative w-full max-w-6xl max-h-[90vh] flex flex-col animate-scale-in"
+        className="glass-card relative w-full max-w-6xl max-h-[85vh] flex flex-col animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border flex-shrink-0">
-          <h2 className="font-display text-lg font-bold uppercase tracking-wider text-primary">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex-shrink-0">
+          <h2 className="font-display text-base sm:text-lg font-bold uppercase tracking-wider text-primary">
             {title}
           </h2>
           <button
             onClick={onClose}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-accent hover:text-foreground transition-colors text-muted-foreground"
+            aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
           <div className="prose prose-invert prose-sm max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -149,7 +150,7 @@ export function ReadmeModal({ isOpen, onClose, content, title = 'README' }: Read
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end px-6 py-4 border-t border-border flex-shrink-0">
+        <div className="flex items-center justify-end px-4 sm:px-6 py-3 sm:py-4 border-t border-border flex-shrink-0">
           <button onClick={onClose} className="btn-secondary">
             Close
           </button>
