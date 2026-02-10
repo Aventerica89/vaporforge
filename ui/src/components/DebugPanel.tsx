@@ -100,7 +100,11 @@ export function DebugPanel() {
       {/* Floating debug button */}
       <button
         onClick={toggle}
-        className="fixed bottom-4 right-4 z-50 flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border shadow-lg transition-transform hover:scale-105 active:scale-95"
+        className="fixed z-50 flex h-10 w-10 items-center justify-center rounded-full bg-card border border-border shadow-lg transition-transform hover:scale-105 active:scale-95"
+        style={{
+          bottom: 'max(env(safe-area-inset-bottom, 0px) + 1rem, 1rem)',
+          right: 'max(env(safe-area-inset-right, 0px) + 1rem, 1rem)',
+        }}
         title="Debug panel"
       >
         <Bug className="h-4 w-4 text-muted-foreground" />
@@ -113,7 +117,13 @@ export function DebugPanel() {
 
       {/* Panel */}
       {isOpen && (
-        <div className="fixed bottom-16 right-4 z-50 flex w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed z-50 flex w-[420px] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+          style={{
+            bottom: 'max(env(safe-area-inset-bottom, 0px) + 4rem, 4rem)',
+            right: 'max(env(safe-area-inset-right, 0px) + 1rem, 1rem)',
+          }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-3 py-2">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

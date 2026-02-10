@@ -120,21 +120,26 @@ function ImageLightbox({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4 py-4 safe-top safe-bottom"
       onClick={onClose}
     >
       <button
         type="button"
         onClick={onClose}
-        className="absolute right-4 top-4 z-[101] flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+        className="absolute z-[101] flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+        style={{
+          top: 'max(env(safe-area-inset-top, 0px) + 1rem, 1rem)',
+          right: 'max(env(safe-area-inset-right, 0px) + 1rem, 1rem)',
+        }}
         title="Close"
+        aria-label="Close"
       >
         <X className="h-5 w-5" />
       </button>
       <img
         src={src}
         alt={alt}
-        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+        className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
         onClick={(e) => e.stopPropagation()}
         draggable={false}
       />
