@@ -702,7 +702,7 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of agentPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      const name = filename.replace(/\.md$/, '');
       agents.push({
         name,
         filename,
@@ -715,11 +715,12 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of commandPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      let name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      // Keep dashes for slash-command-friendly names (/code-map not /code map)
+      let name = filename.replace(/\.md$/, '');
       // SKILL.md is Claude's convention for skill entry points — use parent dir name
       if (filename === 'SKILL.md') {
         const parts = p.split('/');
-        if (parts.length >= 2) name = parts[parts.length - 2].replace(/-/g, ' ');
+        if (parts.length >= 2) name = parts[parts.length - 2];
       }
       commands.push({
         name,
@@ -733,7 +734,7 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of rulePaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      const name = filename.replace(/\.md$/, '');
       rules.push({
         name,
         filename,
@@ -866,11 +867,12 @@ async function discoverPluginContent(
       for (const p of paths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
         const content = await fetchContent(p);
         const filename = p.split('/').pop() || p;
-        let name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+        // Keep dashes for slash-command-friendly names (/code-map not /code map)
+        let name = filename.replace(/\.md$/, '');
         // SKILL.md is Claude's convention for skill entry points — use parent dir name
         if (filename === 'SKILL.md') {
           const parts = p.split('/');
-          if (parts.length >= 2) name = parts[parts.length - 2].replace(/-/g, ' ');
+          if (parts.length >= 2) name = parts[parts.length - 2];
         }
         items.push({
           name,

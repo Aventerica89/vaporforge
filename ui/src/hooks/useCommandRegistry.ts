@@ -55,14 +55,15 @@ export function useCommandRegistry() {
         }
       }
 
-      // Plugin commands
+      // Plugin commands — use cmd.name (curated: SKILL.md → parent dir name)
+      // Fall back to filename if name is missing
       if (pluginsResult.success && pluginsResult.data) {
         for (const plugin of pluginsResult.data) {
           if (!plugin.enabled) continue;
           for (const cmd of plugin.commands) {
             if (!cmd.enabled) continue;
             entries.push({
-              name: stripExtension(cmd.filename),
+              name: cmd.name || stripExtension(cmd.filename),
               description: extractDescription(cmd.content),
               source: plugin.name,
               content: cmd.content,

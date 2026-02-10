@@ -15,9 +15,8 @@ function buildFallbackContent(
   pluginDescription: string,
   pluginName: string,
 ): string {
-  const displayName = componentName.replace(/-/g, ' ');
   return [
-    `# /${displayName}`,
+    `# /${componentName}`,
     '',
     `> From the **${pluginName}** plugin`,
     '',
@@ -25,7 +24,7 @@ function buildFallbackContent(
     '',
     '## Instructions',
     '',
-    `You are running the "/${displayName}" command.`,
+    `You are running the "/${componentName}" command.`,
     `Use the description above to understand what this tool does,`,
     'then help the user accomplish their goal.',
     '',
@@ -166,7 +165,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
           .filter((comp) => comp.type === 'command' || comp.type === 'skill')
           .slice(0, MAX_ITEMS_PER_CATEGORY)
           .map((comp) => ({
-            name: comp.name.replace(/-/g, ' '),
+            name: comp.name,
             filename: `${comp.slug}.md`,
             content: buildFallbackContent(comp.name, pluginDesc, catalogPlugin.name),
             enabled: true,
