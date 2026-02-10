@@ -56,10 +56,10 @@ export function MobileLayout() {
         className="flex shrink-0 items-center justify-between border-b border-border bg-card px-3 safe-area-header"
         style={{ minHeight: '48px' }}
       >
-        {/* Left: hamburger */}
+        {/* Left: hamburger - iOS compliant 44x44px touch target */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-accent"
           aria-label="Open menu"
         >
           <Menu className="h-5 w-5 text-muted-foreground" />
@@ -75,10 +75,13 @@ export function MobileLayout() {
           </span>
         </div>
 
-        {/* Right: avatar */}
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+        {/* Right: avatar - iOS compliant 44x44px touch target */}
+        <button
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          aria-label="User menu"
+        >
           U
-        </div>
+        </button>
       </div>
 
       {/* Main content area */}

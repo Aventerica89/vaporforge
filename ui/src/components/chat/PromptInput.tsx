@@ -247,8 +247,8 @@ export function PromptInput({
             }
             rows={1}
             disabled={isStreaming}
-            className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
-            style={{ color: 'hsl(var(--foreground))' }}
+            className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
+            style={{ fontSize: '16px', color: 'hsl(var(--foreground))' }}
           />
 
           {/* Action buttons */}

@@ -144,7 +144,8 @@ export function Header() {
                   if (e.key === 'Escape') cancelEditName();
                 }}
                 onBlur={confirmEditName}
-                className="w-[140px] sm:w-[180px] rounded border border-primary/50 bg-background px-2 py-0.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-[140px] sm:w-[180px] rounded border border-primary/50 bg-background px-2 py-0.5 text-base font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                style={{ fontSize: '16px' }}
                 placeholder="Session name..."
                 maxLength={60}
               />

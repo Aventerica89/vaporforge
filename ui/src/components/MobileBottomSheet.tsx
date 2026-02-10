@@ -93,20 +93,22 @@ export function MobileBottomSheet({
         style={{
           maxHeight,
           background: 'hsl(var(--card) / 0.95)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
           backdropFilter: 'blur(20px) saturate(150%)',
           border: '1px solid hsl(var(--border))',
           borderBottom: 'none',
-        }}
+        } as React.CSSProperties}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
         {/* Drag handle */}
+        {/* Drag handle with iOS-compliant touch target */}
         <div
           data-drag-handle
-          className="flex flex-col items-center pt-3 pb-1 cursor-grab active:cursor-grabbing"
+          className="flex flex-col items-center py-4 cursor-grab active:cursor-grabbing"
         >
-          <div className="h-1 w-10 rounded-full bg-muted-foreground/30" />
+          <div className="h-1 w-12 rounded-full bg-muted-foreground/30" />
         </div>
 
         {/* Header */}
@@ -116,9 +118,10 @@ export function MobileBottomSheet({
           </h3>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent"
+            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-accent active:scale-95 transition-transform"
+            aria-label="Close"
           >
-            <X className="h-4 w-4 text-muted-foreground" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 

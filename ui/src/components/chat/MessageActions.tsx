@@ -20,26 +20,28 @@ export function MessageActions({ content, onRetry }: MessageActionsProps) {
   };
 
   return (
-    <div className={`flex items-center gap-0.5 transition-opacity ${isTouch ? 'opacity-100' : 'opacity-0 group-hover/message:opacity-100'}`}>
+    <div className={`flex items-center gap-1 transition-opacity ${isTouch ? 'opacity-100' : 'opacity-0 group-hover/message:opacity-100'}`}>
       <button
         onClick={handleCopy}
-        className="rounded p-1 text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground"
+        className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground active:scale-95 transition-all"
         title="Copy message"
+        aria-label="Copy message"
       >
         {copied ? (
-          <Check className="h-3.5 w-3.5 text-success" />
+          <Check className="h-4 w-4 text-success" />
         ) : (
-          <Copy className="h-3.5 w-3.5" />
+          <Copy className="h-4 w-4" />
         )}
       </button>
 
       {onRetry && (
         <button
           onClick={onRetry}
-          className="rounded p-1 text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground"
+          className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground active:scale-95 transition-all"
           title="Retry"
+          aria-label="Retry message"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
+          <RotateCcw className="h-4 w-4" />
         </button>
       )}
     </div>
