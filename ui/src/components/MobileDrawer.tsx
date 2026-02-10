@@ -131,9 +131,10 @@ export function MobileDrawer({
         }`}
         style={{
           background: 'hsl(var(--card) / 0.98)',
+          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
           backdropFilter: 'blur(20px) saturate(150%)',
           borderRight: '1px solid hsl(var(--border))',
-        }}
+        } as React.CSSProperties}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -149,9 +150,10 @@ export function MobileDrawer({
             </span>
             <button
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-accent"
+              className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-accent active:scale-95 transition-transform"
+              aria-label="Close menu"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
         </div>
