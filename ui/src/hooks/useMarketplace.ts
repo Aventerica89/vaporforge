@@ -6,6 +6,36 @@ import type { Plugin } from '@/lib/types';
 
 const MAX_ITEMS_PER_CATEGORY = 10;
 
+/**
+ * Build rich fallback content when GitHub discovery returns empty.
+ * Gives the SDK actionable context instead of a useless stub.
+ */
+function buildFallbackContent(
+  componentName: string,
+  pluginDescription: string,
+  pluginName: string,
+): string {
+  const displayName = componentName.replace(/-/g, ' ');
+  return [
+    `# /${displayName}`,
+    '',
+    `> From the **${pluginName}** plugin`,
+    '',
+    pluginDescription,
+    '',
+    '## Instructions',
+    '',
+    `You are running the "/${displayName}" command.`,
+    `Use the description above to understand what this tool does,`,
+    'then help the user accomplish their goal.',
+    '',
+    '- Read any files the user references for context',
+    '- Generate complete, working output',
+    '- Write files to the workspace when appropriate',
+    '- Explain what you created and how to use it',
+  ].join('\n');
+}
+
 /** Best-effort sync plugins into the active sandbox (non-blocking). */
 function syncToActiveSession(): void {
   const session = useSandboxStore.getState().currentSession;
@@ -124,18 +154,21 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
          discovered.rules.length > 0);
 
       // If discovery found nothing, create placeholder commands from catalog
-      // components so the plugin isn't completely empty
+      // components so the plugin isn't completely empty.
+      // Include the plugin description + actionable instructions so the SDK
+      // can actually do something useful (not just "Run the X command").
       let fallbackCommands: Array<{
         name: string; filename: string; content: string; enabled: boolean;
       }> = [];
       if (!hasDiscoveredContent && catalogPlugin.components.length > 0) {
+        const pluginDesc = catalogPlugin.description || catalogPlugin.name;
         fallbackCommands = catalogPlugin.components
           .filter((comp) => comp.type === 'command' || comp.type === 'skill')
           .slice(0, MAX_ITEMS_PER_CATEGORY)
           .map((comp) => ({
             name: comp.name.replace(/-/g, ' '),
             filename: `${comp.slug}.md`,
-            content: `Run the ${comp.name} command from ${catalogPlugin.name}.`,
+            content: buildFallbackContent(comp.name, pluginDesc, catalogPlugin.name),
             enabled: true,
           }));
       }

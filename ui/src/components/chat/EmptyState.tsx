@@ -5,20 +5,20 @@ interface EmptyStateProps {
 }
 
 const SUGGESTIONS = [
-  { icon: Code, text: 'Explain this code', color: 'text-blue-400' },
-  { icon: Bug, text: 'Help me fix this bug', color: 'text-red-400' },
-  { icon: TestTube, text: 'Write tests for this file', color: 'text-green-400' },
-  { icon: Lightbulb, text: 'Suggest improvements', color: 'text-yellow-400' },
+  { icon: Code, text: 'Explain this code', color: 'text-primary' },
+  { icon: Bug, text: 'Help me fix this bug', color: 'text-secondary' },
+  { icon: TestTube, text: 'Write tests for this file', color: 'text-primary/80' },
+  { icon: Lightbulb, text: 'Suggest improvements', color: 'text-secondary/80' },
 ];
 
 export function EmptyState({ onSuggestion }: EmptyStateProps) {
   return (
     <div className="flex h-full flex-col items-center justify-center text-center">
       <div className="relative mb-4">
-        <Bot className="h-14 w-14 text-muted-foreground/20" />
-        <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-primary/20" />
+        <Bot className="h-14 w-14 text-primary/30" />
+        <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-primary/30 shadow-[0_0_8px_hsl(var(--primary)/0.4)] animate-pulse" />
       </div>
-      <p className="mb-1 text-sm font-medium text-foreground">
+      <p className="mb-1 text-sm font-semibold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">
         How can I help?
       </p>
       <p className="mb-5 text-xs text-muted-foreground">

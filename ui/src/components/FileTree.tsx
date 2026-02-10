@@ -192,17 +192,17 @@ export function FileTree() {
     : files;
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-card">
+    <div className="flex h-full flex-col border-r border-border/60 bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-xs font-medium uppercase text-muted-foreground">
+      <div className="flex items-center justify-between border-b border-border/60 px-3 py-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Explorer
         </span>
         <div className="flex items-center gap-1">
           {!isAtRoot && (
             <button
               onClick={() => handleNavigate('/workspace')}
-              className="rounded p-1 hover:bg-accent"
+              className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
               title="Go to workspace root"
             >
               <Home className="h-4 w-4" />
@@ -210,7 +210,7 @@ export function FileTree() {
           )}
           <button
             onClick={() => loadFiles()}
-            className="rounded p-1 hover:bg-accent"
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Refresh"
           >
             <RefreshCw
@@ -220,7 +220,7 @@ export function FileTree() {
           <button
             onClick={expandAll}
             disabled={isExpandingAll}
-            className="rounded p-1 hover:bg-accent disabled:opacity-50"
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
             title="Expand all folders"
           >
             {isExpandingAll ? (
@@ -231,7 +231,7 @@ export function FileTree() {
           </button>
           <button
             onClick={collapseAll}
-            className="rounded p-1 hover:bg-accent"
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Collapse all folders"
           >
             <ChevronsDownUp className="h-4 w-4" />
@@ -239,7 +239,7 @@ export function FileTree() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="rounded p-1 hover:bg-accent disabled:opacity-50"
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
             title="Upload files"
           >
             {isUploading ? (
@@ -250,12 +250,12 @@ export function FileTree() {
           </button>
           <button
             onClick={() => downloadWorkspace()}
-            className="rounded p-1 hover:bg-accent"
+            className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Download workspace (.tar.gz)"
           >
             <Download className="h-4 w-4" />
           </button>
-          <button className="rounded p-1 hover:bg-accent" title="New File">
+          <button className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors" title="New File">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -272,7 +272,7 @@ export function FileTree() {
 
       {/* Breadcrumbs */}
       {!isAtRoot && (
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-border px-3 py-1.5 text-xs">
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border/60 px-3 py-1.5 text-xs">
           <button
             onClick={() => handleNavigate('/workspace')}
             className="flex-shrink-0 text-muted-foreground hover:text-foreground"
@@ -298,15 +298,15 @@ export function FileTree() {
       )}
 
       {/* Search */}
-      <div className="border-b border-border px-2 py-2">
+      <div className="border-b border-border/60 px-2 py-2">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search files..."
-            className="w-full rounded-md border border-border bg-background py-1 pl-8 pr-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+            className="w-full rounded-md border border-border/60 bg-background py-1 pl-8 pr-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_8px_-2px_hsl(var(--primary)/0.15)] transition-all"
           />
         </div>
       </div>
@@ -354,11 +354,11 @@ export function FileTree() {
                       .join('/') || '/workspace';
                   handleNavigate(parentPath);
                 }}
-                className="flex w-full items-center gap-1 px-2 py-1 text-sm text-muted-foreground hover:bg-accent"
+                className="flex w-full items-center gap-1 px-2 py-1 text-sm text-muted-foreground hover:bg-primary/5 transition-colors"
                 style={{ paddingLeft: '8px' }}
               >
                 <ChevronRight className="h-4 w-4 flex-shrink-0 rotate-180" />
-                <Folder className="h-4 w-4 flex-shrink-0 text-yellow-500" />
+                <Folder className="h-4 w-4 flex-shrink-0 text-primary" />
                 <span>..</span>
               </button>
             )}
@@ -419,7 +419,7 @@ function FileTreeItem({
   return (
     <>
       <div
-        className="group flex w-full items-center hover:bg-accent"
+        className="group flex w-full items-center hover:bg-primary/5 transition-colors"
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
         <button
@@ -437,7 +437,7 @@ function FileTreeItem({
           )}
           <Icon
             className={`h-4 w-4 flex-shrink-0 ${
-              isDirectory ? 'text-yellow-500' : 'text-muted-foreground'
+              isDirectory ? 'text-primary' : 'text-muted-foreground'
             }`}
           />
           <span className="truncate">{file.name}</span>

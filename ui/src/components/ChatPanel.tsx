@@ -70,16 +70,16 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
     });
 
   return (
-    <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border'}`}>
+    <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border/60'}`}>
       {/* Header — hidden in compact (mobile) or primary (center workspace) mode */}
       {!compact && !primary && (
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase text-muted-foreground">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Chat
             </span>
             {currentFile && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-primary/60">
                 — {currentFile.name}
               </span>
             )}
@@ -87,10 +87,10 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
           {messages.length > 0 && (
             <button
               onClick={clearMessages}
-              className="rounded p-1.5 hover:bg-accent/10"
+              className="rounded p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
               title="Clear chat"
             >
-              <Trash2 className="h-4 w-4 text-muted-foreground" />
+              <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>
@@ -101,7 +101,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
         <div className="flex justify-end px-3 pt-2">
           <button
             onClick={clearMessages}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent/10"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Clear chat"
           >
             <Trash2 className="h-3 w-3" />

@@ -131,18 +131,21 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3 safe-area-header">
+      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card px-4 py-3 safe-area-header">
         <button
           onClick={closeSettings}
-          className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
           aria-label="Back"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
 
-        <div className="h-5 w-px bg-border" />
+        <div className="h-5 w-px bg-border/60" />
 
-        <h1 className="font-display text-base font-bold uppercase tracking-wider text-foreground">
+        <h1
+          className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
+          style={{ fontFamily: 'var(--font-display)' }}
+        >
           Settings
         </h1>
 
@@ -153,14 +156,14 @@ export function SettingsPage() {
 
       {/* ─── Mobile: horizontal tab bar ─── */}
       {isMobile && (
-        <div className="flex shrink-0 overflow-x-auto border-b border-border px-3 scrollbar-none">
+        <div className="flex shrink-0 overflow-x-auto border-b border-border/60 px-3 scrollbar-none">
           {ALL_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${
+              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs font-medium transition-all border-b-2 -mb-px ${
                 activeTab === tab.id
-                  ? 'border-primary text-primary'
+                  ? 'border-primary text-primary shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.3)]'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -175,7 +178,7 @@ export function SettingsPage() {
       <div className="flex flex-1 min-h-0">
         {/* Desktop sidebar */}
         {!isMobile && (
-          <nav className="flex w-[220px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border px-3 py-4">
+          <nav className="flex w-[220px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-4">
             {TAB_GROUPS.map((group) => (
               <div key={group.label} className="mb-2">
                 <span className="mb-1 block px-3 font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
@@ -185,10 +188,10 @@ export function SettingsPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors text-left ${
+                    className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all text-left ${
                       activeTab === tab.id
-                        ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/30 border-l-2 border-transparent -ml-px'
+                        ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3)]'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-primary/5 border-l-2 border-transparent -ml-px'
                     }`}
                   >
                     {tab.icon}
@@ -205,7 +208,7 @@ export function SettingsPage() {
           <div className="max-w-2xl">
             {/* Section title (desktop only — mobile shows in tab bar) */}
             {!isMobile && (
-              <h2 className="mb-6 font-display text-lg font-bold uppercase tracking-wider text-foreground">
+              <h2 className="mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">
                 {activeLabel}
               </h2>
             )}

@@ -663,7 +663,8 @@ pluginsRoutes.post('/discover', async (c) => {
       }
 
       // Match skills as commands (Claude plugins use skills/ for commands)
-      if (relative.match(/^skills\/[^/]+\.md$/)) {
+      // Supports nested: skills/playground/SKILL.md, skills/playground/templates/*.md
+      if (relative.match(/^skills\/.+\.md$/)) {
         commandPaths.push(entry.path);
       }
 
@@ -714,7 +715,12 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of commandPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      let name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      // SKILL.md is Claude's convention for skill entry points — use parent dir name
+      if (filename === 'SKILL.md') {
+        const parts = p.split('/');
+        if (parts.length >= 2) name = parts[parts.length - 2].replace(/-/g, ' ');
+      }
       commands.push({
         name,
         filename,
@@ -830,7 +836,8 @@ async function discoverPluginContent(
       if (/^(?:\.claude\/)?commands\/[^/]+\.md$/.test(rel)) {
         commandPaths.push(e.path);
       }
-      if (/^skills\/[^/]+\.md$/.test(rel)) {
+      // Supports nested: skills/playground/SKILL.md, skills/*/templates/*.md
+      if (/^skills\/.+\.md$/.test(rel)) {
         commandPaths.push(e.path);
       }
       if (/^(?:\.claude\/)?rules\/[^/]+\.md$/.test(rel)) {
@@ -859,7 +866,12 @@ async function discoverPluginContent(
       for (const p of paths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
         const content = await fetchContent(p);
         const filename = p.split('/').pop() || p;
-        const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+        let name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+        // SKILL.md is Claude's convention for skill entry points — use parent dir name
+        if (filename === 'SKILL.md') {
+          const parts = p.split('/');
+          if (parts.length >= 2) name = parts[parts.length - 2].replace(/-/g, ' ');
+        }
         items.push({
           name,
           filename,
