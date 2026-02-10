@@ -461,6 +461,19 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       streamingParts: [],
     }));
 
+    // Strip [command:/name] UI prefix before sending to SDK.
+    // The prefix is only for the chat UI chip display (MessageAttachments).
+    // Sending it raw causes the SDK model to try invoking a Skill tool
+    // (a Claude Code CLI feature that doesn't exist in the sandbox).
+    const COMMAND_PREFIX_RE = /^\[command:\/([^\]]+)\]\n/;
+    const cmdMatch = message.match(COMMAND_PREFIX_RE);
+    let sdkMessage = message;
+    if (cmdMatch) {
+      const cmdName = cmdMatch[1];
+      const cmdContent = message.slice(cmdMatch[0].length);
+      sdkMessage = `The user is running the /${cmdName} command. Follow the instructions below:\n\n${cmdContent}`;
+    }
+
     // Timeout: abort if no meaningful data within 5 min (matches backend)
     const controller = new AbortController();
     let timeoutId = setTimeout(() => controller.abort(), 300000);
@@ -478,7 +491,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // lastToolStart removed — artifact detection uses post-stream scan
 
       for await (const chunk of sdkApi.stream(
-        session.id, message, undefined, controller.signal
+        session.id, sdkMessage, undefined, controller.signal
       )) {
         // Skip connection and heartbeat events — just reset the timeout
         if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
