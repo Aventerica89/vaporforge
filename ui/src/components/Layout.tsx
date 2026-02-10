@@ -11,10 +11,12 @@ import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
+import { MarketplacePage } from './marketplace';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useMarketplace } from '@/hooks/useMarketplace';
 
 export function Layout() {
   const { loadSessions, selectSession, currentSession, openFiles } =
@@ -22,6 +24,7 @@ export function Layout() {
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
+  const { isOpen: marketplaceOpen } = useMarketplace();
   const isMobile = layoutTier === 'phone';
   const isTablet = layoutTier === 'tablet';
 
@@ -104,12 +107,26 @@ export function Layout() {
     }
   }, [isTablet]);
 
-  // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (focus)
+  // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (focus), Cmd+Shift+P (marketplace)
   useEffect(() => {
-    if (isMobile || !currentSession) return;
+    if (isMobile) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
+
+      // Cmd+Shift+P — open marketplace
+      if (e.shiftKey && e.key === 'p') {
+        e.preventDefault();
+        const mp = useMarketplace.getState();
+        if (mp.isOpen) {
+          mp.closeMarketplace();
+        } else {
+          mp.openMarketplace();
+        }
+        return;
+      }
+
+      if (!currentSession) return;
 
       if (e.key === '1') {
         e.preventDefault();
@@ -131,6 +148,16 @@ export function Layout() {
   const fileTreeDefaultSize = isTablet ? 0 : 15;
   const chatDefaultSize = isTablet ? 65 : 55;
   const rightDefaultSize = isTablet ? 35 : 30;
+
+  // Full-page marketplace view
+  if (marketplaceOpen) {
+    return (
+      <>
+        <MarketplacePage />
+        <DebugPanel />
+      </>
+    );
+  }
 
   // Full-page settings view (both mobile and desktop)
   if (settingsOpen) {

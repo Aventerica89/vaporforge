@@ -17,6 +17,8 @@ import {
   Shield,
 } from 'lucide-react';
 import { pluginsApi } from '@/lib/api';
+import { useMarketplace } from '@/hooks/useMarketplace';
+import { useSettingsStore } from '@/hooks/useSettings';
 import type { Plugin, PluginItem } from '@/lib/types';
 
 /* ─── Sub-item row ─── */
@@ -512,6 +514,18 @@ export function PluginsTab() {
         Plugins bundle agents, commands, and rules. Built-in plugins are always
         available. Add custom plugins from GitHub repos or create them locally.
       </p>
+
+      <button
+        onClick={() => {
+          useSettingsStore.getState().closeSettings();
+          useMarketplace.getState().openMarketplace();
+        }}
+        className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+      >
+        <Puzzle className="h-3.5 w-3.5" />
+        Browse Marketplace
+        <span className="ml-auto text-[10px] text-muted-foreground">146 plugins</span>
+      </button>
 
       {showNew && (
         <NewPluginForm
