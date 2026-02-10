@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft, X, Search } from 'lucide-react';
 import { useMarketplace, type StatusTab } from '@/hooks/useMarketplace';
 import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
@@ -135,21 +135,26 @@ export function MarketplacePage() {
   ];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-screen flex-col overflow-hidden bg-[hsl(215,25%,7%)]">
       {/* Header area */}
-      <div className="shrink-0 border-b border-border px-6 py-5">
+      <div className="shrink-0 border-b border-white/[0.06] px-6 py-5">
         {/* Back + Title */}
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={closeMarketplace}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="rounded-md p-1.5 text-[hsl(180,5%,55%)] transition-colors hover:bg-white/[0.06] hover:text-cyan-400"
             title="Back (Escape)"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Plugin Catalog</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h1
+              className="text-2xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-400"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Plugin Catalog
+            </h1>
+            <p className="text-sm text-[hsl(180,5%,50%)] mt-0.5">
               Browse and manage {catalogStats.total} Claude Code plugins
             </p>
           </div>
@@ -161,14 +166,14 @@ export function MarketplacePage() {
             <button
               key={tab.key}
               onClick={() => setStatusTab(tab.key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors border ${
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 border ${
                 statusTab === tab.key
-                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/30'
-                  : 'bg-foreground/5 text-muted-foreground hover:text-foreground border-transparent'
+                  ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_-2px_hsl(185,95%,55%,0.2)]'
+                  : 'bg-white/[0.03] text-[hsl(180,5%,55%)] hover:text-[hsl(180,5%,80%)] border-white/[0.06] hover:border-white/[0.1]'
               }`}
             >
               {tab.label}
-              <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+              <span className="ml-1.5 text-xs opacity-60">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -176,12 +181,13 @@ export function MarketplacePage() {
         {/* Search Bar + Controls */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(180,5%,40%)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search plugins..."
-              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] pl-10 pr-4 py-2.5 text-sm text-[hsl(180,5%,90%)] placeholder:text-[hsl(180,5%,35%)] focus:outline-none focus:border-cyan-500/40 focus:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.15)] transition-all duration-200"
               autoFocus
             />
           </div>
@@ -192,7 +198,7 @@ export function MarketplacePage() {
       {/* Body: sidebar + grid */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Filters sidebar (desktop) */}
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-5 lg:block">
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-white/[0.06] p-5 lg:block">
           <MarketplaceFilters
             selectedSource={selectedSource}
             selectedCategories={selectedCategories}
@@ -223,7 +229,7 @@ export function MarketplacePage() {
 
           {/* Count */}
           <div className="shrink-0 px-5 pt-4 pb-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-[hsl(180,5%,45%)]">
               {filtered.length} plugin{filtered.length !== 1 ? 's' : ''}
             </div>
           </div>

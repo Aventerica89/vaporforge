@@ -24,13 +24,13 @@ const TYPES = ['agent', 'skill', 'command', 'rule'] as const;
 function FilterCheckbox({ checked }: { checked: boolean }) {
   return (
     <div
-      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200 ${
         checked
-          ? 'border-violet-500 bg-violet-500'
-          : 'border-muted-foreground/40 bg-transparent'
+          ? 'border-cyan-500 bg-cyan-500 shadow-[0_0_6px_hsl(185,95%,55%,0.3)]'
+          : 'border-white/20 bg-transparent hover:border-white/30'
       }`}
     >
-      {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+      {checked && <Check className="h-3 w-3 text-[hsl(215,25%,8%)]" strokeWidth={3} />}
     </div>
   );
 }
@@ -79,11 +79,11 @@ export function MarketplaceFilters({
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Filters</h3>
+        <h3 className="font-semibold text-[hsl(180,5%,90%)] tracking-wide text-sm uppercase">Filters</h3>
         {hasActiveFilters && (
           <button
             onClick={onClearAll}
-            className="text-xs text-violet-400 hover:text-violet-300"
+            className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
           >
             Clear all
           </button>
@@ -92,7 +92,7 @@ export function MarketplaceFilters({
 
       {/* Source */}
       <div className="flex flex-col gap-3">
-        <div className="text-sm font-medium text-muted-foreground">Source</div>
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Source</div>
         <div className="flex flex-col gap-2">
           {SOURCES.map((source) => {
             const count =
@@ -108,10 +108,10 @@ export function MarketplaceFilters({
                 className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
                 <FilterCheckbox checked={checked} />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
                   {source.label}
                 </span>
-                <span className="text-xs text-muted-foreground">{count}</span>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
               </button>
             );
           })}
@@ -119,8 +119,8 @@ export function MarketplaceFilters({
       </div>
 
       {/* Type */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">Type</div>
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Type</div>
         <div className="flex flex-col gap-2">
           {TYPES.map((type) => {
             const count = typeCounts[type];
@@ -133,10 +133,10 @@ export function MarketplaceFilters({
                 className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
                 <FilterCheckbox checked={checked} />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1 capitalize">
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1 capitalize">
                   {type}s
                 </span>
-                <span className="text-xs text-muted-foreground">{count}</span>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
               </button>
             );
           })}
@@ -144,8 +144,8 @@ export function MarketplaceFilters({
       </div>
 
       {/* Category */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">Category</div>
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Category</div>
         <div className="flex flex-col gap-2">
           {categories.slice(0, 10).map(({ name, count }) => {
             const checked = selectedCategories.includes(name);
@@ -157,15 +157,15 @@ export function MarketplaceFilters({
                 className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
                 <FilterCheckbox checked={checked} />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
                   {name}
                 </span>
-                <span className="text-xs text-muted-foreground">{count}</span>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
               </button>
             );
           })}
           {categories.length > 10 && (
-            <div className="text-xs text-muted-foreground pl-6">
+            <div className="text-xs text-[hsl(180,5%,40%)] pl-6">
               +{categories.length - 10} more
             </div>
           )}
@@ -173,8 +173,8 @@ export function MarketplaceFilters({
       </div>
 
       {/* Compatibility */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">
           Compatibility
         </div>
         <div className="flex flex-col gap-2">
@@ -194,7 +194,7 @@ export function MarketplaceFilters({
                 className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
                 <FilterCheckbox checked={checked} />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
                   {labels[c]}
                 </span>
               </button>

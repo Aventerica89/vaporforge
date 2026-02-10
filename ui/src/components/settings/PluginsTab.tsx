@@ -20,6 +20,7 @@ import {
 import { pluginsApi } from '@/lib/api';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import type { Plugin, PluginItem } from '@/lib/types';
 
 /* ─── Sub-item row ─── */
@@ -493,6 +494,9 @@ export function PluginsTab() {
           `Refreshed ${n} plugin${n !== 1 ? 's' : ''}`
         );
         setTimeout(() => setRefreshResult(null), 3000);
+        // Sync refreshed plugins to active sandbox
+        const sid = useSandboxStore.getState().currentSession?.id;
+        if (sid) pluginsApi.sync(sid).catch(() => {});
       }
     } catch {
       setRefreshResult('Refresh failed');

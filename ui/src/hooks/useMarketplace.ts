@@ -1,9 +1,18 @@
 import { create } from 'zustand';
 import { pluginsApi } from '@/lib/api';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 
 const MAX_ITEMS_PER_CATEGORY = 10;
+
+/** Best-effort sync plugins into the active sandbox (non-blocking). */
+function syncToActiveSession(): void {
+  const session = useSandboxStore.getState().currentSession;
+  if (session?.id) {
+    pluginsApi.sync(session.id).catch(() => {});
+  }
+}
 
 export type CardSize = 'compact' | 'normal' | 'large';
 export type StatusTab = 'all' | 'installed';
@@ -151,6 +160,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       set((state) => ({
         installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
       }));
+      syncToActiveSession();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Install failed';
       set({ installError: `Failed to install ${catalogPlugin.name}: ${msg}` });
@@ -175,6 +185,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
             next.delete(repoUrl);
             return { installedRepoUrls: next };
           });
+          syncToActiveSession();
         }
       }
     } catch {

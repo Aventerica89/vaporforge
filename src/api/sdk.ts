@@ -303,6 +303,15 @@ sdkRoutes.post('/stream', async (c) => {
           }
         }
 
+        // Safety net: if the stream ended with no SDK data and no text,
+        // the command was likely unrecognized or the plugin isn't installed.
+        if (!hasData && !fullText) {
+          await writeEvent({
+            type: 'error',
+            content: 'Claude returned no output. The command may not be recognized — check if the plugin is installed.',
+          });
+        }
+
         // Update session with new SDK sessionId for continuity.
         // Also persist when sdkSessionId was cleared (session-reset) so we
         // don't keep retrying a stale session on the next message.

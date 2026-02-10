@@ -442,6 +442,11 @@ export const pluginsApi = {
     request<{ refreshed: number; plugins: Plugin[] }>('/plugins/refresh', {
       method: 'POST',
     }),
+
+  sync: (sessionId: string) =>
+    request<{ synced: boolean }>(`/plugins/sync/${sessionId}`, {
+      method: 'POST',
+    }),
 };
 
 // Config API (standalone rules, commands, agents)

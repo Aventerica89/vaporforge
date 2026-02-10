@@ -2,9 +2,12 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { User, ApiResponse, Plugin, PluginItem } from '../types';
 import { PluginSchema, PluginItemSchema, McpServerConfigSchema } from '../types';
+import type { SandboxManager } from '../sandbox';
+import { collectUserConfigs } from './config';
 
 type Variables = {
   user: User;
+  sandboxManager: SandboxManager;
 };
 
 export const pluginsRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -937,6 +940,43 @@ pluginsRoutes.post('/refresh', async (c) => {
     success: true,
     data: { refreshed: refreshedCount, plugins: all },
   });
+});
+
+// POST /sync/:sessionId — push current plugins into an active sandbox
+pluginsRoutes.post('/sync/:sessionId', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const { sessionId } = c.req.param();
+
+  // Verify session ownership + ensure sandbox is alive
+  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  try {
+    // Collect current plugin + user configs from KV
+    const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+    const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
+
+    // Inject into sandbox (clear + rewrite plugin files, then user configs)
+    await sandboxManager.injectPluginFiles(sessionId, pluginConfigs);
+    await sandboxManager.injectUserConfigs(sessionId, userConfigs);
+
+    return c.json<ApiResponse<{ synced: boolean }>>({
+      success: true,
+      data: { synced: true },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Sync failed';
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: msg,
+    }, 500);
+  }
 });
 
 /**
