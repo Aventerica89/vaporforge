@@ -88,10 +88,19 @@ sdkRoutes.post('/stream', async (c) => {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
+  // Strip [command:/name] UI prefix before sending to Claude.
+  // KV already has the original (for chip display in MessageAttachments).
+  // Sending the prefix raw causes Claude to try invoking a Skill tool
+  // (a Claude Code CLI feature not available in the sandbox).
+  const cmdPrefixMatch = prompt.match(/^\[command:\/([^\]]+)\]\n/);
+  const sdkPrompt = cmdPrefixMatch
+    ? `The user is running the /${cmdPrefixMatch[1]} command. Follow the instructions below:\n\n${prompt.slice(cmdPrefixMatch[0].length)}`
+    : prompt;
+
   // Build command to run SDK script
   const cmd = [
     'node /opt/claude-agent/claude-agent.js',
-    shellEscape(prompt),
+    shellEscape(sdkPrompt),
     shellEscape(sdkSessionId),
     shellEscape(cwd),
   ].join(' ');
