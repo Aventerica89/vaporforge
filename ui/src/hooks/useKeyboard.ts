@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface KeyboardState {
   /** Whether the virtual keyboard is currently visible */
@@ -23,6 +23,8 @@ export function useKeyboard(): KeyboardState {
     viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
 
+  const wasVisibleRef = useRef(false);
+
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
@@ -34,9 +36,12 @@ export function useKeyboard(): KeyboardState {
       const kbHeight = fullHeight - vpHeight;
       const isVisible = kbHeight > 150;
 
-      // Force scroll to origin on every viewport resize — prevents iOS
-      // Safari from pushing the page up when the keyboard opens
-      window.scrollTo(0, 0);
+      // Only scroll on keyboard close to prevent bounce when typing
+      if (wasVisibleRef.current && !isVisible) {
+        window.scrollTo(0, 0);
+      }
+
+      wasVisibleRef.current = isVisible;
 
       setState({
         isVisible,
