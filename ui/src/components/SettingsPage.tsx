@@ -119,14 +119,13 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 pt-[env(safe-area-inset-top)] h-14"
-      >
+      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card px-4 py-3 safe-area-header">
         <button
           onClick={closeSettings}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium bg-primary/10 text-primary transition-colors hover:bg-primary/20 border border-primary/20"
+          className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Back"
         >
-          <ArrowLeft className="h-4 w-4" />
-          <span>Back</span>
+          <ArrowLeft className="h-5 w-5" />
         </button>
 
         <div className="h-5 w-px bg-border" />
