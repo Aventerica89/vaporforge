@@ -133,6 +133,14 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       set((state) => ({
         sessions: [session, ...state.sessions],
         currentSession: session,
+        messages: [],
+        streamingContent: '',
+        files: [],
+        filesByPath: {},
+        currentPath: '/workspace',
+        openFiles: [],
+        activeFileIndex: -1,
+        terminalOutput: [],
       }));
       localStorage.setItem('vf_active_session', session.id);
       return session;

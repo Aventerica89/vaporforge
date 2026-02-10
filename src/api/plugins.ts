@@ -170,6 +170,25 @@ const REFACTOR_CMD_CONTENT = [
   'Focus purely on internal code quality improvements.',
 ].join('\n');
 
+const MCP_SERVERS_CMD_CONTENT = [
+  'Show the user their configured MCP servers.',
+  '',
+  'Instructions (follow exactly):',
+  '1. Read the file /root/.claude.json',
+  '2. Parse the "mcpServers" key from the JSON.',
+  '3. Present a clean, formatted list of every server:',
+  '   - Name (the key)',
+  '   - Transport type (stdio, http, sse)',
+  '   - URL or command',
+  '   - Whether it appears reachable from this sandbox',
+  '     (local URLs like 127.0.0.1 are NOT reachable)',
+  '4. Show the total count.',
+  '',
+  'Do NOT search the filesystem or run discovery commands.',
+  'The config is ONLY in /root/.claude.json — read it directly.',
+  'If the file does not exist, tell the user no MCP servers are configured.',
+].join('\n');
+
 const BUILTIN_PLUGINS: Plugin[] = [
   {
     id: 'builtin-code-review',
@@ -260,6 +279,25 @@ const BUILTIN_PLUGINS: Plugin[] = [
       name: 'Refactor',
       filename: 'refactor.md',
       content: REFACTOR_CMD_CONTENT,
+      enabled: true,
+    }],
+    rules: [],
+    mcpServers: [],
+    addedAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'builtin-mcp-servers',
+    name: 'MCP Servers',
+    description: '/mcp-servers command to list configured MCP servers',
+    scope: 'local' as const,
+    enabled: true,
+    builtIn: true,
+    agents: [],
+    commands: [{
+      name: 'mcp-servers',
+      filename: 'mcp-servers.md',
+      content: MCP_SERVERS_CMD_CONTENT,
       enabled: true,
     }],
     rules: [],

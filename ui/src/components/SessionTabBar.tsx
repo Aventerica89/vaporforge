@@ -9,12 +9,14 @@ import {
   Settings,
   LogOut,
   Puzzle,
+  Bug,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { McpRelayStatus } from '@/components/McpRelayStatus';
 
 export function SessionTabBar() {
@@ -255,6 +257,15 @@ export function SessionTabBar() {
           title="Plugin Marketplace (Cmd+Shift+P)"
         >
           <Puzzle className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Issue Tracker */}
+        <button
+          onClick={() => useIssueTracker.getState().openTracker()}
+          className="rounded-md p-1.5 hover:bg-accent"
+          title="Issue Tracker"
+        >
+          <Bug className="h-3.5 w-3.5" />
         </button>
 
         {/* Settings */}

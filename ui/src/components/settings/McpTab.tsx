@@ -16,6 +16,7 @@ import {
   RefreshCw,
   ExternalLink,
   Circle,
+  Search,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
@@ -245,6 +246,7 @@ export function McpTab() {
   const [nameError, setNameError] = useState('');
   const [statuses, setStatuses] = useState<Record<string, ServerHealth>>({});
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
 
   const toggleExpanded = (name: string) => {
     setExpandedServers((prev) => {
@@ -450,6 +452,20 @@ export function McpTab() {
         No active session required.
       </p>
 
+      {/* Search */}
+      {servers.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search servers..."
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
+
       {showAdd && (
         <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
           {/* Transport toggle — 3 options */}
@@ -578,7 +594,13 @@ export function McpTab() {
         </p>
       ) : (
         <div className="space-y-2">
-          {servers.map((server) => {
+          {servers.filter((s) => {
+            const sq = searchQuery.toLowerCase().trim();
+            if (!sq) return true;
+            const catalogEntry = MCP_CATALOG.find((c) => c.name === s.name);
+            return s.name.toLowerCase().includes(sq)
+              || (catalogEntry?.description || '').toLowerCase().includes(sq);
+          }).map((server) => {
             const badge = TRANSPORT_BADGE[server.transport] || TRANSPORT_BADGE.http;
             const subtitle = server.transport === 'relay'
               ? server.localUrl

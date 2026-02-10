@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Loader2, Save, X, ToggleLeft, ToggleRight, Puzzle } from 'lucide-react';
+import { Plus, Trash2, Loader2, Save, X, ToggleLeft, ToggleRight, Puzzle, Search } from 'lucide-react';
 import { configApi, pluginsApi } from '@/lib/api';
 import type { ConfigFile, ConfigCategory, PluginItem } from '@/lib/types';
 
@@ -48,6 +48,7 @@ export function ConfigFileTab({
   const [editing, setEditing] = useState<EditState | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true);
@@ -183,9 +184,18 @@ export function ConfigFileTab({
     );
   }
 
+  // Filter by search query
+  const q = searchQuery.toLowerCase().trim();
+  const filteredFiles = q
+    ? files.filter((f) => f.filename.toLowerCase().includes(q))
+    : files;
+  const filteredPluginItems = q
+    ? pluginItems.filter((i) => i.filename.toLowerCase().includes(q) || i.pluginName.toLowerCase().includes(q))
+    : pluginItems;
+
   // List view
-  const hasUserFiles = files.length > 0;
-  const hasPluginItems = pluginItems.length > 0;
+  const hasUserFiles = filteredFiles.length > 0;
+  const hasPluginItems = filteredPluginItems.length > 0;
   const hasNothing = !hasUserFiles && !hasPluginItems;
 
   return (
@@ -209,6 +219,20 @@ export function ConfigFileTab({
         {description}
       </p>
 
+      {/* Search */}
+      {(files.length > 0 || pluginItems.length > 0) && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${title.toLowerCase()}...`}
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -225,7 +249,7 @@ export function ConfigFileTab({
                   Your {title}
                 </span>
               )}
-              {files.map((file) => (
+              {filteredFiles.map((file) => (
                 <div
                   key={file.filename}
                   className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors"
@@ -269,7 +293,7 @@ export function ConfigFileTab({
                 <Puzzle className="h-3 w-3" />
                 From Plugins
               </span>
-              {pluginItems.map((item) => (
+              {filteredPluginItems.map((item) => (
                 <div
                   key={`${item.pluginName}-${item.filename}`}
                   className="flex items-center justify-between rounded-lg px-3 py-2.5 opacity-70"

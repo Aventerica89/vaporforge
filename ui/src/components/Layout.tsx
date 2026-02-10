@@ -12,6 +12,7 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
+import { IssueTracker } from './IssueTracker';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
@@ -93,7 +94,17 @@ export function Layout() {
       await loadSessions();
       const savedId = localStorage.getItem('vf_active_session');
       if (savedId && !useSandboxStore.getState().currentSession) {
-        selectSession(savedId);
+        // Only restore if the session is still alive (not pending-delete or gone)
+        const alive = useSandboxStore
+          .getState()
+          .sessions.find(
+            (s) => s.id === savedId && s.status !== 'pending-delete'
+          );
+        if (alive) {
+          selectSession(savedId);
+        } else {
+          localStorage.removeItem('vf_active_session');
+        }
       }
     };
     init();
@@ -154,6 +165,7 @@ export function Layout() {
     return (
       <>
         <MarketplacePage />
+        <IssueTracker />
         <DebugPanel />
       </>
     );
@@ -164,6 +176,7 @@ export function Layout() {
     return (
       <>
         <SettingsPage />
+        <IssueTracker />
         <DebugPanel />
       </>
     );
@@ -174,6 +187,7 @@ export function Layout() {
     return (
       <div className="bg-background overflow-hidden">
         <MobileLayout />
+        <IssueTracker />
         <DebugPanel />
       </div>
     );
@@ -284,6 +298,7 @@ export function Layout() {
         <WelcomeScreen />
       )}
 
+      <IssueTracker />
       <DebugPanel />
     </div>
   );

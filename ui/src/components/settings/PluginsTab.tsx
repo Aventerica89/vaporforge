@@ -417,6 +417,7 @@ export function PluginsTab() {
   const [showNew, setShowNew] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadPlugins = useCallback(async () => {
     setIsLoading(true);
@@ -514,8 +515,11 @@ export function PluginsTab() {
     );
   }
 
-  const builtIns = plugins.filter((p) => p.builtIn);
-  const custom = plugins.filter((p) => !p.builtIn);
+  const q = searchQuery.toLowerCase().trim();
+  const matchesQuery = (p: Plugin) =>
+    !q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+  const builtIns = plugins.filter((p) => p.builtIn && matchesQuery(p));
+  const custom = plugins.filter((p) => !p.builtIn && matchesQuery(p));
 
   return (
     <div className="space-y-4">
@@ -554,6 +558,20 @@ export function PluginsTab() {
         Browse Marketplace
         <span className="ml-auto text-[10px] text-muted-foreground">146 plugins</span>
       </button>
+
+      {/* Search */}
+      {plugins.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search plugins..."
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
 
       {showNew && (
         <NewPluginForm
