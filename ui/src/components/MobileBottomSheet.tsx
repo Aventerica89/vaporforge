@@ -118,7 +118,7 @@ export function MobileBottomSheet({
           </h3>
           <button
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-accent active:scale-95 transition-transform"
+            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-accent active:scale-95 transition-transform"
             aria-label="Close"
           >
             <X className="h-5 w-5 text-muted-foreground" />
