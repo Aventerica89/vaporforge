@@ -146,13 +146,15 @@ export function MarketplacePage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {/* Header area */}
-      <div className="shrink-0 border-b border-border px-6 py-5">
+      <div className="shrink-0 border-b border-border px-4 sm:px-6 py-4 sm:py-5 safe-area-header">
         {/* Back + Title */}
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-3 sm:gap-4 mb-4">
           <button
             onClick={closeMarketplace}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            style={{ minHeight: '44px', minWidth: '44px' }}
             title="Back (Escape)"
+            aria-label="Back"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -191,6 +193,7 @@ export function MarketplacePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search plugins..."
               className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              style={{ fontSize: '16px' }}
               autoFocus
             />
           </div>
@@ -201,7 +204,7 @@ export function MarketplacePage() {
       {/* Body: sidebar + grid */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Filters sidebar (desktop) */}
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-5 lg:block">
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-5 lg:block" style={{ overscrollBehavior: 'contain' }}>
           <MarketplaceFilters
             selectedSource={selectedSource}
             selectedCategories={selectedCategories}
@@ -218,14 +221,14 @@ export function MarketplacePage() {
         {/* Main grid area */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           {/* Count */}
-          <div className="shrink-0 px-5 pt-4 pb-2">
+          <div className="shrink-0 px-4 sm:px-5 pt-4 pb-2">
             <div className="text-sm text-muted-foreground">
               {filtered.length} plugin{filtered.length !== 1 ? 's' : ''}
             </div>
           </div>
 
           {/* Grid */}
-          <div className="flex-1 overflow-y-auto px-5 pb-5">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-5 safe-bottom" style={{ overscrollBehavior: 'contain' }}>
             <MarketplaceGrid
               plugins={filtered}
               installedRepoUrls={installedRepoUrls}

@@ -40,7 +40,7 @@ export function MarketplaceCard({
   const isLarge = size === 'large';
   const source = SOURCE_BADGE[plugin.source_id];
 
-  const padding = isCompact ? 'p-3 gap-2' : isLarge ? 'p-5 gap-4' : 'p-4 gap-3';
+  const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-4 gap-3';
 
   return (
     <div
@@ -67,21 +67,24 @@ export function MarketplaceCard({
         {/* Install / Toggle Control */}
         <div onClick={(e) => e.stopPropagation()}>
           {isInstalling ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground px-2.5 py-1">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground px-3 py-2">
               <Loader2 className="h-3 w-3 animate-spin" />
             </span>
           ) : isInstalled ? (
             <button
               onClick={onUninstall}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-violet-500`}
+              className={`relative inline-flex h-6 w-11 sm:h-5 sm:w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-violet-500`}
+              style={{ minHeight: '44px', minWidth: '44px' }}
               title="Uninstall"
+              aria-label="Uninstall plugin"
             >
-              <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-4" />
+              <span className="pointer-events-none inline-block h-5 w-5 sm:h-4 sm:w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-5 sm:translate-x-4" />
             </button>
           ) : (
             <button
               onClick={onInstall}
-              className="text-xs font-medium px-2.5 py-1 rounded transition-colors bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/20"
+              className="text-xs font-medium px-4 py-2 sm:px-2.5 sm:py-1 rounded transition-colors bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/20"
+              style={{ minHeight: '44px' }}
             >
               Install
             </button>
@@ -93,7 +96,7 @@ export function MarketplaceCard({
       <div className="flex-1">
         <h3
           className={`font-semibold group-hover:text-violet-400 transition-colors ${
-            isCompact ? 'text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-base'
+            isCompact ? 'text-base sm:text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-base'
           }`}
         >
           {plugin.name}
@@ -103,7 +106,7 @@ export function MarketplaceCard({
         {!isCompact && plugin.description && (
           <p
             className={`text-muted-foreground mt-1 ${
-              isLarge ? 'text-sm line-clamp-3' : 'text-xs line-clamp-2'
+              isLarge ? 'text-sm line-clamp-3' : 'text-sm sm:text-xs line-clamp-2'
             }`}
           >
             {plugin.description}
