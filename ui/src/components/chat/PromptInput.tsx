@@ -290,11 +290,11 @@ export function PromptInput({
       }`}
     >
       {/* Context chips */}
-      <div className="mb-1.5 flex items-center gap-1.5">
+      <div className="mb-3 flex items-center gap-2">
         {currentFileName && (
           <>
             <Paperclip className="h-3 w-3 text-muted-foreground/60" />
-            <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
               {currentFileName}
             </span>
           </>
@@ -302,7 +302,7 @@ export function PromptInput({
         <button
           type="button"
           onClick={() => useReforge.getState().open()}
-          className="flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+          className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
         >
           <Flame className="h-3 w-3" />
           Reforge
