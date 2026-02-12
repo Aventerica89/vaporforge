@@ -242,7 +242,7 @@ export function IssueCard({
               console.error('Failed to copy:', err);
             }
           }}
-          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
           title="Copy issue with VaporFiles URLs"
         >
           <ClipboardCopy className="h-3 w-3" />
@@ -251,7 +251,7 @@ export function IssueCard({
         {/* Delete */}
         <button
           onClick={() => removeIssue(issue.id)}
-          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-100 transition-opacity hover:text-red-500 md:opacity-0 md:group-hover:opacity-100"
           title="Delete issue"
         >
           <Trash2 className="h-3 w-3" />
