@@ -14,6 +14,7 @@ import { mcpRoutes } from './api/mcp';
 import { mcpRelayRoutes } from './api/mcp-relay';
 import { pluginsRoutes } from './api/plugins';
 import { configRoutes } from './api/config';
+import { issuesRoutes } from './api/issues-routes';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -157,6 +158,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/mcp', mcpRoutes);
   protectedRoutes.route('/plugins', pluginsRoutes);
   protectedRoutes.route('/config', configRoutes);
+  protectedRoutes.route('/issues', issuesRoutes);
 
   app.route('/api', protectedRoutes);
 

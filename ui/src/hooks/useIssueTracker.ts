@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { api } from '@/lib/api';
 
 export interface IssueScreenshot {
   id: string;
@@ -25,6 +26,8 @@ interface IssueTrackerState {
   suggestions: string;
   isOpen: boolean;
   filter: IssueFilter;
+  syncing: boolean;
+  migrated: boolean;
 
   openTracker: () => void;
   closeTracker: () => void;
@@ -43,6 +46,10 @@ interface IssueTrackerState {
   setSuggestions: (text: string) => void;
 
   exportMarkdown: () => string;
+
+  // Backend sync methods
+  loadFromBackend: () => Promise<void>;
+  syncToBackend: () => Promise<void>;
 }
 
 export function buildMarkdown(issues: Issue[], suggestions: string): string {
@@ -92,6 +99,15 @@ export function formatIssue(issue: Issue): string {
   return lines.join('\n');
 }
 
+// Debounced sync helper
+let syncTimeout: NodeJS.Timeout | null = null;
+function debouncedSync(fn: () => Promise<void>, delay = 1000) {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    fn().catch(console.error);
+  }, delay);
+}
+
 export const useIssueTracker = create<IssueTrackerState>()(
   persist(
     (set, get) => ({
@@ -99,6 +115,8 @@ export const useIssueTracker = create<IssueTrackerState>()(
       suggestions: '',
       isOpen: false,
       filter: 'all',
+      syncing: false,
+      migrated: false,
 
       openTracker: () => set({ isOpen: true }),
       closeTracker: () => set({ isOpen: false }),
@@ -113,45 +131,56 @@ export const useIssueTracker = create<IssueTrackerState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ issues: [issue, ...state.issues] }));
+        debouncedSync(() => get().syncToBackend());
       },
 
-      updateIssue: (id, updates) =>
+      updateIssue: (id, updates) => {
         set((state) => ({
           issues: state.issues.map((i) =>
             i.id === id ? { ...i, ...updates } : i
           ),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      removeIssue: (id) =>
+      removeIssue: (id) => {
         set((state) => ({
           issues: state.issues.filter((i) => i.id !== id),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      toggleResolved: (id) =>
+      toggleResolved: (id) => {
         set((state) => ({
           issues: state.issues.map((i) =>
             i.id === id ? { ...i, resolved: !i.resolved } : i
           ),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      reorderIssues: (fromIndex, toIndex) =>
+      reorderIssues: (fromIndex, toIndex) => {
         set((state) => {
           const next = [...state.issues];
           const [moved] = next.splice(fromIndex, 1);
           next.splice(toIndex, 0, moved);
           return { issues: next };
-        }),
+        });
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      addScreenshot: (issueId, screenshot) =>
+      addScreenshot: (issueId, screenshot) => {
         set((state) => ({
           issues: state.issues.map((i) =>
             i.id === issueId
               ? { ...i, screenshots: [...i.screenshots, screenshot] }
               : i
           ),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      removeScreenshot: (issueId, screenshotId) =>
+      removeScreenshot: (issueId, screenshotId) => {
         set((state) => ({
           issues: state.issues.map((i) =>
             i.id === issueId
@@ -163,22 +192,73 @@ export const useIssueTracker = create<IssueTrackerState>()(
                 }
               : i
           ),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      setClaudeNote: (issueId, note) =>
+      setClaudeNote: (issueId, note) => {
         set((state) => ({
           issues: state.issues.map((i) =>
             i.id === issueId ? { ...i, claudeNote: note } : i
           ),
-        })),
+        }));
+        debouncedSync(() => get().syncToBackend());
+      },
 
-      setSuggestions: (text) => set({ suggestions: text }),
+      setSuggestions: (text) => {
+        set({ suggestions: text });
+        debouncedSync(() => get().syncToBackend());
+      },
 
       exportMarkdown: () => {
         const { issues, suggestions } = get();
         const md = buildMarkdown(issues, suggestions);
         navigator.clipboard.writeText(md).catch(() => {});
         return md;
+      },
+
+      // Load issues from backend
+      loadFromBackend: async () => {
+        try {
+          set({ syncing: true });
+          const response = await api.get<{
+            issues: Issue[];
+            suggestions: string;
+            filter: string;
+          }>('/issues');
+
+          if (response.data) {
+            set({
+              issues: response.data.issues || [],
+              suggestions: response.data.suggestions || '',
+              filter: (response.data.filter as IssueFilter) || 'all',
+              migrated: true,
+            });
+          }
+        } catch (error) {
+          console.error('Failed to load issues from backend:', error);
+        } finally {
+          set({ syncing: false });
+        }
+      },
+
+      // Save issues to backend
+      syncToBackend: async () => {
+        const { issues, suggestions, filter, syncing } = get();
+        if (syncing) return; // Skip if already syncing
+
+        try {
+          set({ syncing: true });
+          await api.post('/issues', {
+            issues,
+            suggestions,
+            filter,
+          });
+        } catch (error) {
+          console.error('Failed to sync issues to backend:', error);
+        } finally {
+          set({ syncing: false });
+        }
       },
     }),
     {
@@ -187,7 +267,42 @@ export const useIssueTracker = create<IssueTrackerState>()(
         issues: state.issues,
         suggestions: state.suggestions,
         filter: state.filter,
+        migrated: state.migrated,
       }),
     }
   )
 );
+
+// Auto-load and migrate on app start
+if (typeof window !== 'undefined') {
+  const store = useIssueTracker.getState();
+
+  // Load from backend on mount
+  store.loadFromBackend().then(() => {
+    // If we have localStorage data but haven't migrated yet, migrate now
+    const localData = localStorage.getItem('vf-issue-tracker');
+    if (localData && !store.migrated) {
+      try {
+        const parsed = JSON.parse(localData);
+        const hasData =
+          parsed.state?.issues?.length > 0 || parsed.state?.suggestions?.trim();
+
+        if (hasData) {
+          console.log('[Issue Tracker] Migrating localStorage data to backend...');
+          // Set the data and sync it
+          useIssueTracker.setState({
+            issues: parsed.state.issues || [],
+            suggestions: parsed.state.suggestions || '',
+            filter: parsed.state.filter || 'all',
+          });
+          store.syncToBackend().then(() => {
+            console.log('[Issue Tracker] Migration complete!');
+            useIssueTracker.setState({ migrated: true });
+          });
+        }
+      } catch (error) {
+        console.error('[Issue Tracker] Migration failed:', error);
+      }
+    }
+  });
+}
