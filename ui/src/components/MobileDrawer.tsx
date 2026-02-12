@@ -138,8 +138,8 @@ export function MobileDrawer({
         }`}
         style={{
           background: 'hsl(var(--card) / 0.98)',
-          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+          backdropFilter: 'blur(12px) saturate(150%)',
           borderRight: '1px solid hsl(var(--border))',
         } as React.CSSProperties}
         onTouchStart={handleTouchStart}

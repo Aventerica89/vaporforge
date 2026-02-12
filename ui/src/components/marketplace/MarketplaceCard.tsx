@@ -74,7 +74,9 @@ export function MarketplaceCard({
             <button
               onClick={onUninstall}
               className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-cyan-500 shadow-[0_0_8px_hsl(185,95%,55%,0.3)]"
+              style={{ minHeight: '44px', minWidth: '44px' }}
               title="Uninstall"
+              aria-label="Uninstall plugin"
             >
               <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-4" />
             </button>
@@ -82,6 +84,8 @@ export function MarketplaceCard({
             <button
               onClick={onInstall}
               className="text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
+              style={{ minHeight: '44px' }}
+              aria-label="Install plugin"
             >
               Install
             </button>
