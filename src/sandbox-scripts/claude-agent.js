@@ -23,6 +23,65 @@ try {
   process.exit(1);
 }
 
+const fs = require('fs');
+const path = require('path');
+
+// Minimal YAML frontmatter parser (no external deps needed in container)
+function parseFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return { meta: {}, body: content };
+
+  const meta = {};
+  for (const line of match[1].split('\n')) {
+    const kv = line.match(/^(\w[\w-]*):\s*(.+)$/);
+    if (kv) meta[kv[1]] = kv[2].trim();
+  }
+  return { meta, body: match[2] };
+}
+
+// Scan /root/.claude/agents/ for .md files → build options.agents Record
+// Per 1code research: settingSources does NOT discover agents.
+// Agents MUST be explicitly loaded and passed via options.agents.
+function loadAgentsFromDisk() {
+  const agentsDir = '/root/.claude/agents';
+  const agents = {};
+
+  try {
+    if (!fs.existsSync(agentsDir)) return agents;
+    const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(agentsDir, file), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+      const name = meta.name || file.replace(/\.md$/, '');
+
+      agents[name] = {
+        description: meta.description || '',
+        prompt: body.trim(),
+      };
+
+      if (meta.tools) {
+        agents[name].tools = meta.tools.split(',').map(t => t.trim()).filter(Boolean);
+      }
+      if (meta.disallowedTools) {
+        agents[name].disallowedTools = meta.disallowedTools.split(',').map(t => t.trim()).filter(Boolean);
+      }
+      if (meta.model) {
+        agents[name].model = meta.model;
+      }
+    }
+
+    const count = Object.keys(agents).length;
+    if (count > 0) {
+      console.error(`[claude-agent] Loaded ${count} agent(s): ${Object.keys(agents).join(', ')}`);
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to load agents: ${err.message}`);
+  }
+
+  return agents;
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
@@ -38,15 +97,22 @@ function cleanErrorMessage(err) {
 
 function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
+  const agents = loadAgentsFromDisk();
+
   return {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
+    agents,
     includePartialMessages: true,
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     continue: true,
-    systemPrompt: 'You are working in a cloud sandbox. Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+    systemPrompt: {
+      type: 'preset',
+      preset: 'claude_code',
+      append: 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+    },
     env: {
       ...process.env,
       ...(oauthToken ? { CLAUDE_CODE_OAUTH_TOKEN: oauthToken } : {}),
