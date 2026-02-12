@@ -13,16 +13,16 @@ const SIZES: Array<{ value: CardSize; label: string }> = [
 
 export function CardSizeToggle({ size, onChange }: CardSizeToggleProps) {
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-accent p-0.5">
+    <div className="flex items-center gap-0.5 rounded-lg border border-white/[0.08] bg-white/[0.03] p-0.5">
       {SIZES.map((s) => (
         <button
           key={s.value}
           onClick={() => onChange(s.value)}
           title={s.label}
-          className={`rounded-md p-1.5 transition-colors ${
+          className={`rounded-md p-1.5 transition-all duration-200 ${
             size === s.value
-              ? 'bg-background shadow-sm text-foreground'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-cyan-500/15 text-cyan-400 shadow-sm'
+              : 'text-[hsl(180,5%,40%)] hover:text-[hsl(180,5%,65%)]'
           }`}
         >
           <SizeIcon size={s.value} />

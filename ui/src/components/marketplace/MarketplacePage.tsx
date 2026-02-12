@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, X, Search } from 'lucide-react';
 import { useMarketplace, type StatusTab } from '@/hooks/useMarketplace';
 import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
@@ -14,13 +14,6 @@ function useDebounce<T>(value: T, delay: number): T {
     return () => clearTimeout(timer);
   }, [value, delay]);
   return debounced;
-}
-
-function extractRepoUrl(repositoryUrl: string): string {
-  const match = repositoryUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)/
-  );
-  return match ? match[1] : repositoryUrl;
 }
 
 export function MarketplacePage() {
@@ -42,22 +35,33 @@ export function MarketplacePage() {
     setSelectedCompatibility,
     clearFilters,
     installedRepoUrls,
+    favoriteRepoUrls,
     installing,
+    installError,
+    clearInstallError,
     installPlugin,
     uninstallPlugin,
+    toggleFavorite,
   } = useMarketplace();
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // Derive installed count
+  // Derive installed and favorites count
   const installedCount = useMemo(() => {
     let count = 0;
     for (const p of catalog) {
-      const repoUrl = extractRepoUrl(p.repository_url);
-      if (installedRepoUrls.has(repoUrl)) count++;
+      if (installedRepoUrls.has(p.repository_url)) count++;
     }
     return count;
   }, [installedRepoUrls]);
+
+  const favoritesCount = useMemo(() => {
+    let count = 0;
+    for (const p of catalog) {
+      if (favoriteRepoUrls.has(p.repository_url)) count++;
+    }
+    return count;
+  }, [favoriteRepoUrls]);
 
   // Filter the catalog
   const filtered: CatalogPlugin[] = useMemo(() => {
@@ -65,10 +69,9 @@ export function MarketplacePage() {
 
     // Status tab filter
     if (statusTab === 'installed') {
-      result = result.filter((p) => {
-        const repoUrl = extractRepoUrl(p.repository_url);
-        return installedRepoUrls.has(repoUrl);
-      });
+      result = result.filter((p) => installedRepoUrls.has(p.repository_url));
+    } else if (statusTab === 'favorites') {
+      result = result.filter((p) => favoriteRepoUrls.has(p.repository_url));
     }
 
     // Source filter
@@ -124,6 +127,7 @@ export function MarketplacePage() {
     selectedCompatibility,
     debouncedQuery,
     installedRepoUrls,
+    favoriteRepoUrls,
   ]);
 
   // Escape to close
@@ -141,26 +145,32 @@ export function MarketplacePage() {
   const STATUS_TABS: Array<{ key: StatusTab; label: string; count: number }> = [
     { key: 'all', label: 'All', count: catalogStats.total },
     { key: 'installed', label: 'Installed', count: installedCount },
+    { key: 'favorites', label: 'Favorites', count: favoritesCount },
   ];
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-screen flex-col overflow-hidden bg-[hsl(215,25%,7%)]">
       {/* Header area */}
-      <div className="shrink-0 border-b border-border px-4 sm:px-6 py-4 sm:py-5 safe-area-header">
+      <div className="shrink-0 border-b border-white/[0.06] px-4 sm:px-6 py-4 sm:py-5 safe-area-header">
         {/* Back + Title */}
         <div className="flex items-center gap-3 sm:gap-4 mb-4">
           <button
             onClick={closeMarketplace}
-            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center justify-center rounded-md text-[hsl(180,5%,55%)] transition-colors hover:bg-white/[0.06] hover:text-cyan-400"
             style={{ minHeight: '44px', minWidth: '44px' }}
             title="Back (Escape)"
-            aria-label="Back"
+            aria-label="Back to main view"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Plugin Catalog</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h1
+              className="text-2xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-400"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Plugin Catalog
+            </h1>
+            <p className="text-sm text-[hsl(180,5%,50%)] mt-0.5">
               Browse and manage {catalogStats.total} Claude Code plugins
             </p>
           </div>
@@ -172,14 +182,14 @@ export function MarketplacePage() {
             <button
               key={tab.key}
               onClick={() => setStatusTab(tab.key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors border ${
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-200 border ${
                 statusTab === tab.key
-                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/30'
-                  : 'bg-foreground/5 text-muted-foreground hover:text-foreground border-transparent'
+                  ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30 shadow-[0_0_10px_-2px_hsl(185,95%,55%,0.2)]'
+                  : 'bg-white/[0.03] text-[hsl(180,5%,55%)] hover:text-[hsl(180,5%,80%)] border-white/[0.06] hover:border-white/[0.1]'
               }`}
             >
               {tab.label}
-              <span className="ml-1.5 text-xs opacity-70">{tab.count}</span>
+              <span className="ml-1.5 text-xs opacity-60">{tab.count}</span>
             </button>
           ))}
         </div>
@@ -187,12 +197,13 @@ export function MarketplacePage() {
         {/* Search Bar + Controls */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[hsl(180,5%,40%)]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search plugins..."
-              className="w-full rounded-lg border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] pl-10 pr-4 py-2.5 text-sm text-[hsl(180,5%,90%)] placeholder:text-[hsl(180,5%,35%)] focus:outline-none focus:border-cyan-500/40 focus:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.15)] transition-all duration-200"
               style={{ fontSize: '16px' }}
               autoFocus
             />
@@ -204,7 +215,7 @@ export function MarketplacePage() {
       {/* Body: sidebar + grid */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Filters sidebar (desktop) */}
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border p-5 lg:block" style={{ overscrollBehavior: 'contain' }}>
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-white/[0.06] p-5 lg:block" style={{ overscrollBehavior: 'contain' }}>
           <MarketplaceFilters
             selectedSource={selectedSource}
             selectedCategories={selectedCategories}
@@ -220,9 +231,24 @@ export function MarketplacePage() {
 
         {/* Main grid area */}
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+          {/* Install error banner */}
+          {installError && (
+            <div className="shrink-0 mx-4 sm:mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+              <span className="flex-1">{installError}</span>
+              <button
+                onClick={clearInstallError}
+                className="rounded p-0.5 hover:bg-red-500/20 transition-colors"
+                style={{ minHeight: '44px', minWidth: '44px' }}
+                aria-label="Dismiss error"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Count */}
           <div className="shrink-0 px-4 sm:px-5 pt-4 pb-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-sm text-[hsl(180,5%,45%)]">
               {filtered.length} plugin{filtered.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -232,10 +258,12 @@ export function MarketplacePage() {
             <MarketplaceGrid
               plugins={filtered}
               installedRepoUrls={installedRepoUrls}
+              favoriteRepoUrls={favoriteRepoUrls}
               installing={installing}
               cardSize={cardSize}
               onInstall={installPlugin}
               onUninstall={uninstallPlugin}
+              onToggleFavorite={toggleFavorite}
             />
           </div>
         </div>

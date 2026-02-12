@@ -4,10 +4,13 @@ export type SettingsTab =
   | 'appearance'
   | 'shortcuts'
   | 'claude-md'
+  | 'rules'
   | 'commands'
+  | 'agents'
   | 'mcp'
   | 'plugins'
   | 'secrets'
+  | 'command-center'
   | 'account'
   | 'guide'
   | 'about';

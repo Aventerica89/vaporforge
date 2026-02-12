@@ -1,90 +1,119 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 
 interface MarketplaceCardProps {
   plugin: CatalogPlugin;
   size: 'compact' | 'normal' | 'large';
   isInstalled: boolean;
+  isFavorite: boolean;
   isInstalling: boolean;
   onInstall: () => void;
   onUninstall: () => void;
+  onToggleFavorite: () => void;
 }
 
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
   'anthropic-official': {
     label: 'Official',
-    className: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+    className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30',
   },
   'awesome-community': {
     label: 'Community',
-    className: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
+    className: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
   },
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  agent: 'text-purple-400',
-  skill: 'text-green-400',
+  agent: 'text-violet-400',
+  skill: 'text-cyan-400',
   command: 'text-blue-400',
-  rule: 'text-orange-400',
+  rule: 'text-amber-400',
 };
 
 export function MarketplaceCard({
   plugin,
   size,
   isInstalled,
+  isFavorite,
   isInstalling,
   onInstall,
   onUninstall,
+  onToggleFavorite,
 }: MarketplaceCardProps) {
   const isCompact = size === 'compact';
   const isLarge = size === 'large';
   const source = SOURCE_BADGE[plugin.source_id];
 
-  const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-4 gap-3';
+  // iOS-friendly: Larger padding on mobile for better touch targets
+  const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-5 sm:p-4 gap-4 sm:gap-3';
 
   return (
     <div
-      className={`group relative flex flex-col bg-card border border-border rounded-lg hover:border-violet-500/30 transition-all duration-200 ${padding}`}
+      className={`group relative flex flex-col rounded-lg border border-white/[0.06] bg-[hsl(215,22%,11%)] transition-all duration-300 hover:border-cyan-500/30 hover:shadow-[0_0_20px_-4px_hsl(185,95%,55%,0.15)] ${padding}`}
     >
-      {/* Source Badge + Status Dot + Install/Toggle */}
+      {/* Source Badge + Status Dot + Favorite + Install/Toggle */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isInstalled && (
             <span
-              className="w-2 h-2 rounded-full shrink-0 bg-green-400"
+              className="w-2 h-2 rounded-full shrink-0 bg-cyan-400 shadow-[0_0_6px_hsl(185,95%,55%,0.6)]"
               title="Installed"
             />
           )}
           {source && (
             <span
-              className={`text-xs font-medium px-2 py-0.5 rounded border ${source.className}`}
+              className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded border ${source.className}`}
             >
               {source.label}
             </span>
           )}
+          {/* Favorite star */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite();
+            }}
+            className={`transition-colors ${
+              isFavorite
+                ? 'text-yellow-400 hover:text-yellow-500'
+                : 'text-muted-foreground/30 hover:text-yellow-400'
+            }`}
+            style={{ minHeight: '44px', minWidth: '44px' }}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Star
+              className="h-3.5 w-3.5"
+              fill={isFavorite ? 'currentColor' : 'none'}
+            />
+          </button>
         </div>
 
         {/* Install / Toggle Control */}
         <div onClick={(e) => e.stopPropagation()}>
           {isInstalling ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground px-3 py-2">
-              <Loader2 className="h-3 w-3 animate-spin" />
+            <span className="flex items-center justify-center text-xs text-muted-foreground" style={{ minHeight: '44px', minWidth: '44px' }}>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
             </span>
           ) : isInstalled ? (
+            /* Touch-target wrapper (44px) keeps the visual toggle correctly sized */
             <button
               onClick={onUninstall}
-              className={`relative inline-flex h-6 w-11 sm:h-5 sm:w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-violet-500`}
+              className="flex items-center justify-center"
               style={{ minHeight: '44px', minWidth: '44px' }}
               title="Uninstall"
               aria-label="Uninstall plugin"
             >
-              <span className="pointer-events-none inline-block h-5 w-5 sm:h-4 sm:w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-5 sm:translate-x-4" />
+              <span className="relative inline-flex h-5 w-9 shrink-0 rounded-full bg-cyan-500 shadow-[0_0_8px_hsl(185,95%,55%,0.3)] transition-colors duration-200">
+                <span className="pointer-events-none inline-block h-4 w-4 translate-x-4 translate-y-0.5 rounded-full bg-white shadow-sm transition-transform duration-200" />
+              </span>
             </button>
           ) : (
             <button
               onClick={onInstall}
-              className="text-xs font-medium px-4 py-2 sm:px-2.5 sm:py-1 rounded transition-colors bg-violet-500/10 text-violet-400 hover:bg-violet-500/20 border border-violet-500/20"
+              className="flex items-center justify-center text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
               style={{ minHeight: '44px' }}
+              aria-label="Install plugin"
             >
               Install
             </button>
@@ -95,8 +124,8 @@ export function MarketplaceCard({
       {/* Plugin Name */}
       <div className="flex-1">
         <h3
-          className={`font-semibold group-hover:text-violet-400 transition-colors ${
-            isCompact ? 'text-base sm:text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-base'
+          className={`font-semibold text-[hsl(180,5%,95%)] group-hover:text-cyan-400 transition-colors duration-200 ${
+            isCompact ? 'text-base sm:text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-lg sm:text-base'
           }`}
         >
           {plugin.name}
@@ -105,7 +134,7 @@ export function MarketplaceCard({
         {/* Description */}
         {!isCompact && plugin.description && (
           <p
-            className={`text-muted-foreground mt-1 ${
+            className={`text-[hsl(180,5%,55%)] mt-1.5 leading-relaxed ${
               isLarge ? 'text-sm line-clamp-3' : 'text-sm sm:text-xs line-clamp-2'
             }`}
           >
@@ -114,12 +143,12 @@ export function MarketplaceCard({
         )}
       </div>
 
-      {/* Component Counts (text-based) */}
-      <div className={`flex gap-3 ${isCompact ? 'text-xs flex-wrap' : 'text-sm'}`}>
+      {/* Component Counts */}
+      <div className={`flex gap-3 ${isCompact ? 'text-sm sm:text-xs flex-wrap' : 'text-base sm:text-sm'}`}>
         {plugin.agent_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.agent}>{plugin.agent_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               agent{plugin.agent_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -127,7 +156,7 @@ export function MarketplaceCard({
         {plugin.skill_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.skill}>{plugin.skill_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               skill{plugin.skill_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -135,7 +164,7 @@ export function MarketplaceCard({
         {plugin.command_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.command}>{plugin.command_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               command{plugin.command_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -143,7 +172,7 @@ export function MarketplaceCard({
         {plugin.rule_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.rule}>{plugin.rule_count}</span>
-            <span className="text-muted-foreground">
+            <span className="text-[hsl(180,5%,50%)]">
               rule{plugin.rule_count !== 1 ? 's' : ''}
             </span>
           </div>
@@ -152,25 +181,22 @@ export function MarketplaceCard({
 
       {/* Categories */}
       {!isCompact && plugin.categories.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-1">
+        <div className="flex flex-wrap gap-1.5 mt-0.5">
           {plugin.categories.slice(0, isLarge ? 5 : 3).map((cat) => (
             <span
               key={cat}
-              className="text-xs px-2 py-0.5 rounded bg-foreground/5 text-muted-foreground"
+              className="text-[10px] px-2 py-0.5 rounded bg-white/[0.04] text-[hsl(180,5%,55%)] border border-white/[0.04]"
             >
               {cat}
             </span>
           ))}
           {plugin.categories.length > (isLarge ? 5 : 3) && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-[10px] text-[hsl(180,5%,45%)]">
               +{plugin.categories.length - (isLarge ? 5 : 3)}
             </span>
           )}
         </div>
       )}
-
-      {/* Hover ring indicator */}
-      <div className="absolute inset-0 rounded-lg pointer-events-none ring-2 ring-violet-500/0 group-hover:ring-violet-500/10 transition-all duration-200" />
     </div>
   );
 }

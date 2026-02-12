@@ -11,7 +11,12 @@ import {
   Check,
   BookOpen,
   ChevronDown,
+  ChevronRight,
   Lock,
+  RefreshCw,
+  ExternalLink,
+  Circle,
+  Search,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
@@ -23,6 +28,17 @@ import {
 } from '@/lib/mcp-catalog';
 
 type Transport = 'http' | 'stdio' | 'relay';
+type ServerHealth = 'online' | 'offline' | 'auth-required' | 'checking' | 'unknown' | 'relay' | 'disabled';
+
+const STATUS_CONFIG: Record<ServerHealth, { dot: string; label: string }> = {
+  online: { dot: 'bg-green-500', label: 'Connected' },
+  offline: { dot: 'bg-red-500', label: 'Disconnected' },
+  'auth-required': { dot: 'bg-yellow-500', label: 'Auth Required' },
+  checking: { dot: 'bg-yellow-500 animate-pulse', label: 'Checking...' },
+  unknown: { dot: 'bg-gray-500', label: 'Unknown' },
+  relay: { dot: 'bg-purple-500', label: 'Relay' },
+  disabled: { dot: 'bg-gray-500', label: 'Disabled' },
+};
 
 const NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
@@ -228,6 +244,18 @@ export function McpTab() {
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState('');
   const [nameError, setNameError] = useState('');
+  const [statuses, setStatuses] = useState<Record<string, ServerHealth>>({});
+  const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleExpanded = (name: string) => {
+    setExpandedServers((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
 
   const loadServers = useCallback(async () => {
     setIsLoading(true);
@@ -246,6 +274,13 @@ export function McpTab() {
   useEffect(() => {
     loadServers();
   }, [loadServers]);
+
+  // Auto-ping servers after loading
+  useEffect(() => {
+    if (!isLoading && servers.length > 0) {
+      pingAll(servers);
+    }
+  }, [isLoading, servers.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resetForm = () => {
     setName('');
@@ -340,6 +375,44 @@ export function McpTab() {
     }
   };
 
+  /** Batch ping all servers */
+  const pingAll = useCallback(async (serverList: McpServerConfig[]) => {
+    if (serverList.length === 0) return;
+
+    const checking: Record<string, ServerHealth> = {};
+    for (const s of serverList) checking[s.name] = 'checking';
+    setStatuses(checking);
+
+    try {
+      const result = await mcpApi.ping();
+      if (result.success && result.data) {
+        const next: Record<string, ServerHealth> = {};
+        for (const [name, info] of Object.entries(result.data)) {
+          next[name] = info.status as ServerHealth;
+        }
+        setStatuses(next);
+      }
+    } catch {
+      // Keep checking states — don't overwrite
+    }
+  }, []);
+
+  /** Single server reconnect / ping */
+  const handlePingOne = async (serverName: string) => {
+    setStatuses((prev) => ({ ...prev, [serverName]: 'checking' }));
+    try {
+      const result = await mcpApi.pingOne(serverName);
+      if (result.success && result.data) {
+        setStatuses((prev) => ({
+          ...prev,
+          [serverName]: result.data!.status as ServerHealth,
+        }));
+      }
+    } catch {
+      setStatuses((prev) => ({ ...prev, [serverName]: 'offline' }));
+    }
+  };
+
   /** Whether the add button should be disabled */
   const addDisabled = !name
     || (transport === 'http' ? !url : transport === 'stdio' ? !command : !localUrl)
@@ -378,6 +451,20 @@ export function McpTab() {
         MCP servers are persisted and injected into every new session.
         No active session required.
       </p>
+
+      {/* Search */}
+      {servers.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search servers..."
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
 
       {showAdd && (
         <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
@@ -507,56 +594,157 @@ export function McpTab() {
         </p>
       ) : (
         <div className="space-y-2">
-          {servers.map((server) => {
+          {servers.filter((s) => {
+            const sq = searchQuery.toLowerCase().trim();
+            if (!sq) return true;
+            const catalogEntry = MCP_CATALOG.find((c) => c.name === s.name);
+            return s.name.toLowerCase().includes(sq)
+              || (catalogEntry?.description || '').toLowerCase().includes(sq);
+          }).map((server) => {
             const badge = TRANSPORT_BADGE[server.transport] || TRANSPORT_BADGE.http;
             const subtitle = server.transport === 'relay'
               ? server.localUrl
               : server.url || server.command || 'stdio';
+            const catalogEntry = MCP_CATALOG.find((c) => c.name === server.name);
+            const health = statuses[server.name] || 'unknown';
+            const { dot, label } = STATUS_CONFIG[health];
+            const isExpanded = expandedServers.has(server.name);
+            const isPinging = health === 'checking';
 
             return (
               <div
                 key={server.name}
-                className={`group flex items-center justify-between rounded-lg border bg-card px-4 py-3 transition-all hover:border-primary/30 hover:shadow-sm ${
-                  !server.enabled ? 'opacity-50 bg-muted/30' : 'border-border'
+                className={`rounded-lg border bg-card transition-all ${
+                  !server.enabled
+                    ? 'opacity-50 bg-muted/30 border-border'
+                    : health === 'online'
+                      ? 'border-green-500/20'
+                      : health === 'offline'
+                        ? 'border-red-500/20'
+                        : health === 'auth-required'
+                          ? 'border-yellow-500/20'
+                          : 'border-border'
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Server className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                    <span className="text-sm font-medium truncate">{server.name}</span>
-                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>
-                      {server.transport}
-                    </span>
+                {/* Main row — clickable to expand */}
+                <div
+                  onClick={() => toggleExpanded(server.name)}
+                  className="group flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-accent/30 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      {/* Status dot */}
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${dot}`}
+                        title={label}
+                      />
+                      <span className="text-sm font-medium truncate">{server.name}</span>
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>
+                        {server.transport}
+                      </span>
+                      {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
+                        <Lock className="h-3 w-3 shrink-0 text-yellow-400" />
+                      )}
+                      {/* Expand chevron */}
+                      {isExpanded ? (
+                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground font-mono">
+                      {subtitle}
+                    </p>
                   </div>
-                  <p className="mt-0.5 truncate pl-[22px] text-[10px] text-muted-foreground font-mono">
-                    {subtitle}
-                  </p>
-                </div>
 
-                <div className="ml-2 flex items-center gap-1.5">
-                  {/* Toggle switch */}
-                  <button
-                    onClick={() => handleToggle(server.name)}
-                    className={`relative h-5 w-9 rounded-full transition-colors ${
-                      server.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                    }`}
-                    title={server.enabled ? 'Disable' : 'Enable'}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                        server.enabled ? 'left-[18px]' : 'left-0.5'
+                  <div className="ml-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {/* Reconnect / ping button */}
+                    {server.enabled && server.transport === 'http' && (
+                      <button
+                        onClick={() => handlePingOne(server.name)}
+                        disabled={isPinging}
+                        className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-all disabled:opacity-50"
+                        title="Check connection"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isPinging ? 'animate-spin' : ''}`} />
+                      </button>
+                    )}
+
+                    {/* Toggle switch */}
+                    <button
+                      onClick={() => handleToggle(server.name)}
+                      className={`relative h-5 w-9 rounded-full transition-colors ${
+                        server.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
                       }`}
-                    />
-                  </button>
+                      title={server.enabled ? 'Disable' : 'Enable'}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                          server.enabled ? 'left-[18px]' : 'left-0.5'
+                        }`}
+                      />
+                    </button>
 
-                  {/* Delete button */}
-                  <button
-                    onClick={() => handleRemove(server.name)}
-                    className="flex-shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                    {/* Delete button */}
+                    <button
+                      onClick={() => handleRemove(server.name)}
+                      className="flex-shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t border-border/50 px-4 py-3 space-y-2 animate-fade-up">
+                    {/* Description */}
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {catalogEntry?.description || 'Custom MCP server'}
+                    </p>
+
+                    {/* Status line */}
+                    <div className="flex items-center gap-2 text-[11px]">
+                      <Circle className={`h-2.5 w-2.5 fill-current ${
+                        health === 'online' ? 'text-green-500'
+                          : health === 'offline' ? 'text-red-500'
+                          : health === 'auth-required' ? 'text-yellow-500'
+                          : 'text-gray-500'
+                      }`} />
+                      <span className={
+                        health === 'online' ? 'text-green-400'
+                          : health === 'offline' ? 'text-red-400'
+                          : health === 'auth-required' ? 'text-yellow-400'
+                          : 'text-muted-foreground'
+                      }>
+                        {label}
+                      </span>
+                      <span className="text-muted-foreground/50">
+                        Added {new Date(server.addedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {/* Auth note */}
+                    {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
+                      <p className="text-[11px] text-yellow-400/80 bg-yellow-500/5 rounded px-2.5 py-1.5 border border-yellow-500/10">
+                        {catalogEntry.authNote || `${catalogEntry.auth} authentication required`}
+                      </p>
+                    )}
+
+                    {/* Repo link */}
+                    {catalogEntry?.repoUrl && (
+                      <a
+                        href={catalogEntry.repoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        View on GitHub
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

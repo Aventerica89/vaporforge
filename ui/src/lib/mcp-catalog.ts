@@ -9,6 +9,8 @@ export interface CatalogServer {
   readonly auth: 'none' | 'oauth' | 'api-key';
   /** Short note shown when auth is required */
   readonly authNote?: string;
+  /** GitHub repo URL */
+  readonly repoUrl?: string;
 }
 
 export const CATEGORY_LABELS: Record<CatalogServer['category'], string> = {
@@ -37,6 +39,7 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Up-to-date docs for any library or framework',
     category: 'docs',
     auth: 'none',
+    repoUrl: 'https://github.com/upstash/context7',
   },
   {
     name: 'deepwiki',
@@ -44,6 +47,7 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'AI-generated docs and architecture for any GitHub repo',
     category: 'docs',
     auth: 'none',
+    repoUrl: 'https://github.com/AsyncFuncAI/deepwiki-open',
   },
   {
     name: 'fetch',
@@ -65,6 +69,7 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Static analysis and code security scanning',
     category: 'security',
     auth: 'none',
+    repoUrl: 'https://github.com/semgrep/semgrep',
   },
   {
     name: 'edgeone-pages',
@@ -80,7 +85,8 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Manage Supabase projects, databases, and auth',
     category: 'database',
     auth: 'oauth',
-    authNote: 'OAuth sign-in required',
+    authNote: 'OAuth — auth happens when Claude first uses this server',
+    repoUrl: 'https://github.com/supabase-community/supabase-mcp',
   },
   {
     name: 'neon',
@@ -88,7 +94,8 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Serverless Postgres — create DBs, run queries, branching',
     category: 'database',
     auth: 'oauth',
-    authNote: 'OAuth sign-in required',
+    authNote: 'OAuth — auth happens when Claude first uses this server',
+    repoUrl: 'https://github.com/neondatabase/mcp-server-neon',
   },
   {
     name: 'exa',
@@ -97,6 +104,7 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     category: 'search',
     auth: 'none',
     authNote: 'Free credits, no signup',
+    repoUrl: 'https://github.com/exa-labs/exa-mcp-server',
   },
   {
     name: 'sentry',
@@ -104,7 +112,8 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Error tracking, performance monitoring, debugging',
     category: 'cloud',
     auth: 'oauth',
-    authNote: 'OAuth sign-in required',
+    authNote: 'OAuth — auth happens when Claude first uses this server',
+    repoUrl: 'https://github.com/getsentry/sentry-mcp',
   },
   {
     name: 'cloudflare',
@@ -112,6 +121,7 @@ export const MCP_CATALOG: readonly CatalogServer[] = [
     description: 'Workers logs, analytics, and error traces',
     category: 'cloud',
     auth: 'oauth',
-    authNote: 'OAuth sign-in required',
+    authNote: 'OAuth — auth happens when Claude first uses this server',
+    repoUrl: 'https://github.com/cloudflare/mcp-server-cloudflare',
   },
 ];

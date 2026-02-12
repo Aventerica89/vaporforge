@@ -228,7 +228,7 @@ export type PluginItem = z.infer<typeof PluginItemSchema>;
 export const PluginSchema = z.object({
   id: z.string(),
   name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
+  description: z.string().max(2000).optional(),
   repoUrl: z.string().url().optional(),
   scope: z.enum(['local', 'git']),
   enabled: z.boolean().default(true),
@@ -242,3 +242,21 @@ export const PluginSchema = z.object({
 });
 
 export type Plugin = z.infer<typeof PluginSchema>;
+
+// User config file (standalone rules, commands, agents — KV-persisted)
+export const ConfigFileSchema = z.object({
+  filename: z.string().min(1).max(200).regex(
+    /^[a-zA-Z0-9._-]+\.md$/,
+    'Filename must end in .md and contain only alphanumeric, dots, dashes, or underscores'
+  ),
+  content: z.string().max(50_000),
+  enabled: z.boolean().default(true),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export type ConfigFile = z.infer<typeof ConfigFileSchema>;
+
+/** Valid categories for user config files */
+export const CONFIG_CATEGORIES = ['rules', 'commands', 'agents'] as const;
+export type ConfigCategory = typeof CONFIG_CATEGORIES[number];

@@ -4,6 +4,8 @@ import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 import { collectMcpConfig, hasRelayServers } from './mcp';
 import { collectPluginConfigs } from './plugins';
+import { collectUserConfigs } from './config';
+import { getVfRules } from './user';
 
 type Variables = {
   user: User;
@@ -65,7 +67,8 @@ sessionRoutes.post('/create', async (c) => {
     const relayToken = needsRelay ? crypto.randomUUID() : undefined;
 
     if (needsRelay && relayToken) {
-      const relayUrl = `https://vaporforge.jbcloud.app/api/mcp-relay/${sessionId}`;
+      const origin = new URL(c.req.url).origin;
+      const relayUrl = `${origin}/api/mcp-relay/${sessionId}`;
       sandboxEnv.RELAY_TOKEN = relayToken;
       sandboxEnv.RELAY_URL = relayUrl;
     }
@@ -75,9 +78,11 @@ sessionRoutes.post('/create', async (c) => {
       `user-config:${user.id}:claude-md`
     );
 
-    // Collect MCP servers + plugin configs for sandbox injection
+    // Collect MCP servers + plugin configs + user configs + VF rules for sandbox injection
     const mcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
     const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+    const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
+    const vfRules = await getVfRules(c.env.SESSIONS_KV, user.id);
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
@@ -86,8 +91,23 @@ sessionRoutes.post('/create', async (c) => {
       claudeMd: claudeMd || undefined,
       mcpServers,
       pluginConfigs,
+      userConfigs,
+      vfRules,
       startRelayProxy: needsRelay,
     });
+
+    // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
+    const allMcpServers = {
+      ...(mcpServers || {}),
+      ...(pluginConfigs?.mcpServers || {}),
+    };
+    if (Object.keys(allMcpServers).length > 0) {
+      await c.env.SESSIONS_KV.put(
+        `session-mcp:${sessionId}`,
+        JSON.stringify(allMcpServers),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      );
+    }
 
     // Persist session name and relay token to KV metadata
     const extraMeta: Record<string, unknown> = {};
@@ -382,6 +402,7 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
   // Inject Claude token + NODE_PATH + project secrets + user secrets
   const execEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
@@ -444,6 +465,7 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
   // Inject Claude token + NODE_PATH + project secrets + user secrets
   const streamEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };

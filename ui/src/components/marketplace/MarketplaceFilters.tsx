@@ -1,5 +1,6 @@
 import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
 import { useMemo } from 'react';
+import { Check } from 'lucide-react';
 
 interface MarketplaceFiltersProps {
   selectedSource: 'all' | 'anthropic-official' | 'awesome-community';
@@ -19,6 +20,20 @@ const SOURCES = [
 ];
 
 const TYPES = ['agent', 'skill', 'command', 'rule'] as const;
+
+function FilterCheckbox({ checked }: { checked: boolean }) {
+  return (
+    <div
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200 ${
+        checked
+          ? 'border-cyan-500 bg-cyan-500 shadow-[0_0_6px_hsl(185,95%,55%,0.3)]'
+          : 'border-white/20 bg-transparent hover:border-white/30'
+      }`}
+    >
+      {checked && <Check className="h-3 w-3 text-[hsl(215,25%,8%)]" strokeWidth={3} />}
+    </div>
+  );
+}
 
 export function MarketplaceFilters({
   selectedSource,
@@ -64,11 +79,11 @@ export function MarketplaceFilters({
     <div className="flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-foreground">Filters</h3>
+        <h3 className="font-semibold text-[hsl(180,5%,90%)] tracking-wide text-sm uppercase">Filters</h3>
         {hasActiveFilters && (
           <button
             onClick={onClearAll}
-            className="text-xs text-violet-400 hover:text-violet-300"
+            className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
           >
             Clear all
           </button>
@@ -77,84 +92,80 @@ export function MarketplaceFilters({
 
       {/* Source */}
       <div className="flex flex-col gap-3">
-        <div className="text-sm font-medium text-muted-foreground">Source</div>
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Source</div>
         <div className="flex flex-col gap-2">
           {SOURCES.map((source) => {
             const count =
               source.id === 'anthropic-official'
                 ? catalogStats.official
                 : catalogStats.community;
+            const checked = selectedSource === source.id;
             return (
-              <label
+              <button
                 key={source.id}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() => onSourceChange(checked ? 'all' : source.id)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedSource === source.id}
-                  onChange={() => onSourceChange(selectedSource === source.id ? 'all' : source.id)}
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                <FilterCheckbox checked={checked} />
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
                   {source.label}
                 </span>
-                <span className="text-xs text-muted-foreground">{count}</span>
-              </label>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
       {/* Type */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">Type</div>
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Type</div>
         <div className="flex flex-col gap-2">
           {TYPES.map((type) => {
             const count = typeCounts[type];
+            const checked = selectedTypes.includes(type);
             return (
-              <label
+              <button
                 key={type}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() => onTypeToggle(type)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedTypes.includes(type)}
-                  onChange={() => onTypeToggle(type)}
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1 capitalize">
+                <FilterCheckbox checked={checked} />
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1 capitalize">
                   {type}s
                 </span>
-                <span className="text-xs text-muted-foreground">{count}</span>
-              </label>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
       {/* Category */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">Category</div>
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Category</div>
         <div className="flex flex-col gap-2">
-          {categories.slice(0, 10).map(({ name, count }) => (
-            <label
-              key={name}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <input
-                type="checkbox"
-                checked={selectedCategories.includes(name)}
-                onChange={() => onCategoryToggle(name)}
-                className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-              />
-              <span className="text-sm group-hover:text-foreground transition-colors flex-1">
-                {name}
-              </span>
-              <span className="text-xs text-muted-foreground">{count}</span>
-            </label>
-          ))}
+          {categories.slice(0, 10).map(({ name, count }) => {
+            const checked = selectedCategories.includes(name);
+            return (
+              <button
+                key={name}
+                type="button"
+                onClick={() => onCategoryToggle(name)}
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
+              >
+                <FilterCheckbox checked={checked} />
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
+                  {name}
+                </span>
+                <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
+              </button>
+            );
+          })}
           {categories.length > 10 && (
-            <div className="text-xs text-muted-foreground pl-6">
+            <div className="text-xs text-[hsl(180,5%,40%)] pl-6">
               +{categories.length - 10} more
             </div>
           )}
@@ -162,8 +173,8 @@ export function MarketplaceFilters({
       </div>
 
       {/* Compatibility */}
-      <div className="flex flex-col gap-3 pt-3 border-t border-border">
-        <div className="text-sm font-medium text-muted-foreground">
+      <div className="flex flex-col gap-3 pt-3 border-t border-white/[0.06]">
+        <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">
           Compatibility
         </div>
         <div className="flex flex-col gap-2">
@@ -172,25 +183,21 @@ export function MarketplaceFilters({
               'cloud-ready': 'Cloud Ready',
               'relay-required': 'Relay Required',
             };
+            const checked = selectedCompatibility === c;
             return (
-              <label
+              <button
                 key={c}
-                className="flex items-center gap-2 cursor-pointer group"
+                type="button"
+                onClick={() =>
+                  onCompatibilityChange(checked ? 'all' : c)
+                }
+                className="flex items-center gap-2.5 cursor-pointer group text-left"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedCompatibility === c}
-                  onChange={() =>
-                    onCompatibilityChange(
-                      selectedCompatibility === c ? 'all' : c
-                    )
-                  }
-                  className="w-4 h-4 rounded border-border text-violet-500 focus:ring-violet-500/50 cursor-pointer"
-                />
-                <span className="text-sm group-hover:text-foreground transition-colors flex-1">
+                <FilterCheckbox checked={checked} />
+                <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1">
                   {labels[c]}
                 </span>
-              </label>
+              </button>
             );
           })}
         </div>

@@ -14,16 +14,12 @@ function isSandboxNotReady(error: unknown): boolean {
 }
 
 // Keys to forward from Worker secrets to sandbox containers.
-// Add a new key here + `npx wrangler secret put KEY` to make it available.
+// SECURITY: Only forward secrets the container actually needs.
+// VF infrastructure secrets (TURSO_*, AUTH_SECRET, ENCRYPTION_SECRET, SUPABASE_*)
+// must NOT leak into user sandboxes.
 const PROJECT_SECRET_KEYS = [
-  'OP_SERVICE_ACCOUNT_TOKEN',
-  'TURSO_DATABASE_URL',
-  'TURSO_AUTH_TOKEN',
-  'GITHUB_TOKEN',
-  'ENCRYPTION_SECRET',
-  'AUTH_SECRET',
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
+  'OP_SERVICE_ACCOUNT_TOKEN',  // 1Password CLI for `op read` in container
+  'GITHUB_TOKEN',              // Git clone/push for private repos
 ] as const;
 
 /** Collect defined project secrets from Worker env into a plain object. */
@@ -86,6 +82,14 @@ export interface SandboxConfig {
     rules: Array<{ filename: string; content: string }>;
     mcpServers: Record<string, Record<string, unknown>>;
   };
+  /** Standalone user config files (rules, commands, agents) to inject */
+  userConfigs?: {
+    rules: Array<{ filename: string; content: string }>;
+    commands: Array<{ filename: string; content: string }>;
+    agents: Array<{ filename: string; content: string }>;
+  };
+  /** VaporForge internal rules — prepended to CLAUDE.md in container */
+  vfRules?: string;
   /** Start the MCP relay proxy in the container (for relay transport servers) */
   startRelayProxy?: boolean;
 }
@@ -170,17 +174,23 @@ export class SandboxManager {
 
     let step = 'init';
     try {
-      // Set environment variables if provided
-      if (config?.env) {
-        step = 'setEnvVars';
-        await sandbox.setEnvVars(config.env);
-      }
+      // Set environment variables (always includes CLAUDE_CONFIG_DIR)
+      step = 'setEnvVars';
+      await sandbox.setEnvVars({
+        ...(config?.env || {}),
+        CLAUDE_CONFIG_DIR: '/root/.claude',
+      });
 
-      // Inject user's global CLAUDE.md into ~/.claude/
-      if (config?.claudeMd) {
+      // Inject CLAUDE.md into ~/.claude/ (VF rules + user CLAUDE.md)
+      const hasVfRules = config?.vfRules && config.vfRules.trim().length > 0;
+      const hasClaudeMd = config?.claudeMd && config.claudeMd.trim().length > 0;
+      if (hasVfRules || hasClaudeMd) {
         step = 'writeCLAUDE.md';
         await sandbox.mkdir('/root/.claude', { recursive: true });
-        await sandbox.writeFile('/root/.claude/CLAUDE.md', config.claudeMd);
+        const parts: string[] = [];
+        if (hasVfRules) parts.push(config!.vfRules!.trim());
+        if (hasClaudeMd) parts.push(config!.claudeMd!.trim());
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', parts.join('\n\n---\n\n'));
       }
 
       // Inject MCP servers + plugin MCP into ~/.claude.json
@@ -197,40 +207,34 @@ export class SandboxManager {
         await sandbox.writeFile('/root/.claude.json', claudeJson);
       }
 
-      // Inject plugin agents into ~/.claude/agents/
-      if (config?.pluginConfigs?.agents.length) {
-        step = 'writePluginAgents';
-        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
-        for (const agent of config.pluginConfigs.agents) {
-          await sandbox.writeFile(
-            `/root/.claude/agents/${agent.filename}`,
-            agent.content
-          );
+      // Inject plugin files (agents, commands, rules) into ~/.claude/
+      // During creation we skip the rm -rf clear (dirs don't exist yet).
+      if (config?.pluginConfigs) {
+        step = 'writePluginFiles';
+        if (config.pluginConfigs.agents.length) {
+          await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+          for (const agent of config.pluginConfigs.agents) {
+            await sandbox.writeFile(`/root/.claude/agents/${agent.filename}`, agent.content);
+          }
+        }
+        if (config.pluginConfigs.commands.length) {
+          await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+          for (const cmd of config.pluginConfigs.commands) {
+            await sandbox.writeFile(`/root/.claude/commands/${cmd.filename}`, cmd.content);
+          }
+        }
+        if (config.pluginConfigs.rules.length) {
+          await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+          for (const rule of config.pluginConfigs.rules) {
+            await sandbox.writeFile(`/root/.claude/rules/${rule.filename}`, rule.content);
+          }
         }
       }
 
-      // Inject plugin commands into ~/.claude/commands/
-      if (config?.pluginConfigs?.commands.length) {
-        step = 'writePluginCommands';
-        await sandbox.mkdir('/root/.claude/commands', { recursive: true });
-        for (const cmd of config.pluginConfigs.commands) {
-          await sandbox.writeFile(
-            `/root/.claude/commands/${cmd.filename}`,
-            cmd.content
-          );
-        }
-      }
-
-      // Inject plugin rules into ~/.claude/rules/
-      if (config?.pluginConfigs?.rules.length) {
-        step = 'writePluginRules';
-        await sandbox.mkdir('/root/.claude/rules', { recursive: true });
-        for (const rule of config.pluginConfigs.rules) {
-          await sandbox.writeFile(
-            `/root/.claude/rules/${rule.filename}`,
-            rule.content
-          );
-        }
+      // Inject user config files (after plugins, so user overrides plugin)
+      if (config?.userConfigs) {
+        step = 'writeUserConfigs';
+        await this.injectUserConfigs(sessionId, config.userConfigs);
       }
 
       // Clone git repo using SDK's gitCheckout
@@ -537,6 +541,124 @@ export class SandboxManager {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Inject plugin files (agents, commands, rules) into a sandbox's ~/.claude/ dir.
+   * Clears old plugin files first so uninstalled plugins are removed.
+   * Does NOT touch user config files — call injectUserConfigs() after this.
+   */
+  async injectPluginFiles(
+    sessionId: string,
+    pluginConfigs: {
+      agents: Array<{ filename: string; content: string }>;
+      commands: Array<{ filename: string; content: string }>;
+      rules: Array<{ filename: string; content: string }>;
+      mcpServers: Record<string, Record<string, unknown>>;
+    }
+  ): Promise<void> {
+    const sandbox = this.getSandboxInstance(sessionId);
+
+    // Clear old plugin files so uninstalled plugin files are removed.
+    // Safe: hardcoded path, no user input.
+    await sandbox.exec(
+      'rm -rf /root/.claude/agents /root/.claude/commands /root/.claude/rules',
+      { timeout: 5000 }
+    );
+
+    if (pluginConfigs.agents.length) {
+      await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+      for (const agent of pluginConfigs.agents) {
+        await sandbox.writeFile(
+          `/root/.claude/agents/${agent.filename}`,
+          agent.content
+        );
+      }
+    }
+
+    if (pluginConfigs.commands.length) {
+      await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+      for (const cmd of pluginConfigs.commands) {
+        await sandbox.writeFile(
+          `/root/.claude/commands/${cmd.filename}`,
+          cmd.content
+        );
+      }
+    }
+
+    if (pluginConfigs.rules.length) {
+      await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+      for (const rule of pluginConfigs.rules) {
+        await sandbox.writeFile(
+          `/root/.claude/rules/${rule.filename}`,
+          rule.content
+        );
+      }
+    }
+
+    // Update ~/.claude.json MCP config if plugin MCP servers changed
+    if (Object.keys(pluginConfigs.mcpServers).length > 0) {
+      let existingMcp: Record<string, Record<string, unknown>> = {};
+      try {
+        const existing = await sandbox.readFile('/root/.claude.json');
+        if (existing.content) {
+          const parsed = JSON.parse(existing.content);
+          existingMcp = parsed.mcpServers || {};
+        }
+      } catch {
+        // No existing config
+      }
+      const mergedMcp = { ...existingMcp, ...pluginConfigs.mcpServers };
+      await sandbox.writeFile(
+        '/root/.claude.json',
+        JSON.stringify({ mcpServers: mergedMcp }, null, 2)
+      );
+    }
+  }
+
+  /**
+   * Inject user config files (rules, commands, agents from Command Center)
+   * into a sandbox. Called AFTER injectPluginFiles() so user configs take priority.
+   */
+  async injectUserConfigs(
+    sessionId: string,
+    userConfigs: {
+      rules: Array<{ filename: string; content: string }>;
+      commands: Array<{ filename: string; content: string }>;
+      agents: Array<{ filename: string; content: string }>;
+    }
+  ): Promise<void> {
+    const sandbox = this.getSandboxInstance(sessionId);
+
+    if (userConfigs.rules.length) {
+      await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+      for (const rule of userConfigs.rules) {
+        await sandbox.writeFile(
+          `/root/.claude/rules/${rule.filename}`,
+          rule.content
+        );
+      }
+    }
+
+    if (userConfigs.commands.length) {
+      await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+      for (const cmd of userConfigs.commands) {
+        await sandbox.writeFile(
+          `/root/.claude/commands/${cmd.filename}`,
+          cmd.content
+        );
+      }
+    }
+
+    if (userConfigs.agents.length) {
+      await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+      for (const agent of userConfigs.agents) {
+        await sandbox.writeFile(
+          `/root/.claude/agents/${agent.filename}`,
+          agent.content
+        );
+      }
     }
   }
 

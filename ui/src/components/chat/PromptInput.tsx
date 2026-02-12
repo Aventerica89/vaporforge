@@ -1,9 +1,14 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2, Flame } from 'lucide-react';
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { haptics } from '@/lib/haptics';
 import { useDebugLog } from '@/hooks/useDebugLog';
+import { useCommandRegistry } from '@/hooks/useCommandRegistry';
+import { useSettingsStore } from '@/hooks/useSettings';
+import { useReforge } from '@/hooks/useReforge';
+import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
+import { ReforgeModal } from '@/components/chat/ReforgeModal';
 import {
   Attachments,
   Attachment,
@@ -53,6 +58,44 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
+
+  // Command (/) and agent (@) autocomplete
+  const { commands, refresh: refreshCommands } = useCommandRegistry();
+  const settingsOpen = useSettingsStore((s) => s.isOpen);
+  const prevSettingsOpen = useRef(settingsOpen);
+  const [menuIndex, setMenuIndex] = useState(0);
+
+  // Refresh commands when settings modal closes
+  useEffect(() => {
+    if (prevSettingsOpen.current && !settingsOpen) {
+      refreshCommands();
+    }
+    prevSettingsOpen.current = settingsOpen;
+  }, [settingsOpen, refreshCommands]);
+
+  // Detect prefix: "/" for commands, "@" for agents
+  const menuState = useMemo(() => {
+    const slashMatch = input.match(/^\/(\S*)$/);
+    if (slashMatch) return { kind: 'command' as const, query: slashMatch[1] };
+    const atMatch = input.match(/^@(\S*)$/);
+    if (atMatch) return { kind: 'agent' as const, query: atMatch[1] };
+    return null;
+  }, [input]);
+
+  const filteredCommands = useMemo(() => {
+    if (!menuState) return [];
+    return commands.filter((cmd) =>
+      cmd.kind === menuState.kind &&
+      cmd.name.toLowerCase().startsWith(menuState.query.toLowerCase())
+    );
+  }, [menuState, commands]);
+
+  const menuOpen = menuState !== null && filteredCommands.length > 0;
+
+  // Reset index when filter changes
+  useEffect(() => {
+    setMenuIndex(0);
+  }, [menuState?.query, menuState?.kind]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -178,7 +221,55 @@ export function PromptInput({
     }
   };
 
+  // Submit a slash command or agent: send content with a display marker
+  const handleSlashSelect = useCallback(
+    (cmd: (typeof commands)[number]) => {
+      const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
+      onSubmit(`[${prefix}:/${cmd.name}]\n${cmd.content}`);
+      setInput('');
+      setMenuIndex(0);
+      haptics.light();
+    },
+    [onSubmit]
+  );
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Slash menu keyboard navigation
+    if (menuOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMenuIndex((i) => (i + 1) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMenuIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        return;
+      }
+      if (e.key === 'Tab') {
+        // Tab: autocomplete the name (trailing space closes the menu)
+        e.preventDefault();
+        const selected = filteredCommands[menuIndex];
+        if (selected) {
+          setInput(`/${selected.name} `);
+          setMenuIndex(0);
+        }
+        return;
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        // Enter: submit the command content immediately
+        e.preventDefault();
+        const selected = filteredCommands[menuIndex];
+        if (selected) handleSlashSelect(selected);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setInput('');
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -203,17 +294,38 @@ export function PromptInput({
         compact && !keyboardOpen ? 'safe-bottom' : ''
       }`}
     >
-      {/* Context chip */}
-      {currentFileName && (
-        <div className="mb-1.5 flex items-center gap-1.5">
-          <Paperclip className="h-3 w-3 text-muted-foreground/60" />
-          <span className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {currentFileName}
-          </span>
-        </div>
-      )}
+      {/* Context chips */}
+      <div className="mb-3 flex items-center gap-2">
+        {currentFileName && (
+          <>
+            <Paperclip className="h-3 w-3 text-muted-foreground/60" />
+            <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+              {currentFileName}
+            </span>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => useReforge.getState().open()}
+          className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Flame className="h-3 w-3" />
+          Reforge
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="relative">
+        {/* Slash command autocomplete */}
+        {menuOpen && (
+          <SlashCommandMenu
+            query={menuState?.query ?? ''}
+            commands={commands}
+            selectedIndex={menuIndex}
+            onSelect={handleSlashSelect}
+            onDismiss={() => setInput('')}
+          />
+        )}
+
         <div className="relative rounded-xl border border-border/60 bg-background transition-colors focus-within:border-primary/50 focus-within:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]">
           {/* Image preview strip — AI Elements grid variant */}
           {images.length > 0 && (
@@ -248,7 +360,14 @@ export function PromptInput({
             rows={1}
             disabled={isStreaming}
             className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
-            style={{ fontSize: '16px', color: 'hsl(var(--foreground))' }}
+            style={{
+              fontSize: '16px',
+              color: menuOpen
+                ? menuState?.kind === 'agent'
+                  ? 'hsl(var(--secondary))'
+                  : 'hsl(var(--primary))'
+                : 'hsl(var(--foreground))',
+            }}
           />
 
           {/* Action buttons */}
@@ -297,6 +416,11 @@ export function PromptInput({
           Enter or Cmd+Enter to send, Shift+Enter for new line
         </p>
       )}
+
+      {/* Reforge context recovery modal */}
+      <ReforgeModal
+        onInsert={(text) => setInput((prev) => (prev ? prev + '\n\n' + text : text))}
+      />
     </div>
   );
 }

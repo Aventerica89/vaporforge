@@ -15,10 +15,12 @@ import {
   ExternalLink,
   Search,
   Shield,
+  RefreshCw,
 } from 'lucide-react';
 import { pluginsApi } from '@/lib/api';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import type { Plugin, PluginItem } from '@/lib/types';
 
 /* ─── Sub-item row ─── */
@@ -413,6 +415,9 @@ export function PluginsTab() {
   const [plugins, setPlugins] = useState<Plugin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const loadPlugins = useCallback(async () => {
     setIsLoading(true);
@@ -436,6 +441,8 @@ export function PluginsTab() {
     try {
       await pluginsApi.toggle(pluginId, { enabled: !currentEnabled });
       await loadPlugins();
+      const sid = useSandboxStore.getState().currentSession?.id;
+      if (sid) pluginsApi.sync(sid).catch(console.error);
     } catch {
       // Toggle failed
     }
@@ -464,6 +471,8 @@ export function PluginsTab() {
         itemName,
       });
       await loadPlugins();
+      const sid = useSandboxStore.getState().currentSession?.id;
+      if (sid) pluginsApi.sync(sid).catch(console.error);
     } catch {
       // Toggle failed
     }
@@ -478,6 +487,30 @@ export function PluginsTab() {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const result = await pluginsApi.refresh();
+      if (result.success && result.data) {
+        setPlugins(result.data.plugins);
+        const n = result.data.refreshed;
+        setRefreshResult(
+          `Refreshed ${n} plugin${n !== 1 ? 's' : ''}`
+        );
+        setTimeout(() => setRefreshResult(null), 3000);
+        // Sync refreshed plugins to active sandbox
+        const sid = useSandboxStore.getState().currentSession?.id;
+        if (sid) pluginsApi.sync(sid).catch(console.error);
+      }
+    } catch {
+      setRefreshResult('Refresh failed');
+      setTimeout(() => setRefreshResult(null), 3000);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -486,8 +519,11 @@ export function PluginsTab() {
     );
   }
 
-  const builtIns = plugins.filter((p) => p.builtIn);
-  const custom = plugins.filter((p) => !p.builtIn);
+  const q = searchQuery.toLowerCase().trim();
+  const matchesQuery = (p: Plugin) =>
+    !q || p.name.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+  const builtIns = plugins.filter((p) => p.builtIn && matchesQuery(p));
+  const custom = plugins.filter((p) => !p.builtIn && matchesQuery(p));
 
   return (
     <div className="space-y-4">
@@ -527,6 +563,20 @@ export function PluginsTab() {
         <span className="ml-auto text-[10px] text-muted-foreground">146 plugins</span>
       </button>
 
+      {/* Search */}
+      {plugins.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search plugins..."
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      )}
+
       {showNew && (
         <NewPluginForm
           onClose={() => setShowNew(false)}
@@ -557,9 +607,26 @@ export function PluginsTab() {
       {/* Custom plugins */}
       {custom.length > 0 && (
         <div>
-          <span className="mb-2 block text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-            Custom
-          </span>
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+              Custom
+            </span>
+            <div className="flex items-center gap-2">
+              {refreshResult && (
+                <span className="text-[10px] text-primary animate-fade-up">
+                  {refreshResult}
+                </span>
+              )}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            </div>
+          </div>
           <div className="space-y-2">
             {custom.map((plugin) => (
               <PluginCard

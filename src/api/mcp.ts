@@ -226,6 +226,94 @@ export async function collectMcpConfig(
   return result;
 }
 
+// POST /ping — batch health-check all enabled HTTP servers
+mcpRoutes.post('/ping', async (c) => {
+  const user = c.get('user');
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+
+  const results: Record<string, { status: string; httpStatus?: number }> = {};
+  const httpServers = servers.filter((s) => s.enabled && s.transport === 'http' && s.url);
+
+  await Promise.all(
+    httpServers.map(async (server) => {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(server.url!, {
+          method: 'GET',
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+
+        if (res.status === 401 || res.status === 403) {
+          results[server.name] = { status: 'auth-required', httpStatus: res.status };
+        } else {
+          results[server.name] = { status: 'online', httpStatus: res.status };
+        }
+      } catch {
+        results[server.name] = { status: 'offline' };
+      }
+    })
+  );
+
+  // Mark non-HTTP / disabled servers
+  for (const server of servers) {
+    if (results[server.name]) continue;
+    if (!server.enabled) {
+      results[server.name] = { status: 'disabled' };
+    } else if (server.transport === 'relay') {
+      results[server.name] = { status: 'relay' };
+    } else {
+      results[server.name] = { status: 'unknown' };
+    }
+  }
+
+  return c.json<ApiResponse<Record<string, { status: string; httpStatus?: number }>>>({
+    success: true,
+    data: results,
+  });
+});
+
+// POST /:name/ping — single server health-check
+mcpRoutes.post('/:name/ping', async (c) => {
+  const user = c.get('user');
+  const name = c.req.param('name');
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const server = servers.find((s) => s.name === name);
+
+  if (!server) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Not found' }, 404);
+  }
+
+  if (server.transport !== 'http' || !server.url) {
+    return c.json<ApiResponse<{ status: string }>>({
+      success: true,
+      data: { status: server.transport === 'relay' ? 'relay' : 'unknown' },
+    });
+  }
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(server.url, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    const status = res.status === 401 || res.status === 403 ? 'auth-required' : 'online';
+    return c.json<ApiResponse<{ status: string; httpStatus: number }>>({
+      success: true,
+      data: { status, httpStatus: res.status },
+    });
+  } catch {
+    return c.json<ApiResponse<{ status: string }>>({
+      success: true,
+      data: { status: 'offline' },
+    });
+  }
+});
+
 /** Check if a user has any enabled relay-transport MCP servers */
 export async function hasRelayServers(
   kv: KVNamespace,

@@ -9,9 +9,11 @@ import { ChatPanel } from './ChatPanel';
 import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
+import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
+import { IssueTracker } from './IssueTracker';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
@@ -19,7 +21,7 @@ import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 
 export function Layout() {
-  const { loadSessions, selectSession, currentSession, openFiles } =
+  const { loadSessions, selectSession, currentSession, openFiles, isCreatingSession } =
     useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
@@ -93,7 +95,17 @@ export function Layout() {
       await loadSessions();
       const savedId = localStorage.getItem('vf_active_session');
       if (savedId && !useSandboxStore.getState().currentSession) {
-        selectSession(savedId);
+        // Only restore if the session is still alive (not pending-delete or gone)
+        const alive = useSandboxStore
+          .getState()
+          .sessions.find(
+            (s) => s.id === savedId && s.status !== 'pending-delete'
+          );
+        if (alive) {
+          selectSession(savedId);
+        } else {
+          localStorage.removeItem('vf_active_session');
+        }
       }
     };
     init();
@@ -154,6 +166,7 @@ export function Layout() {
     return (
       <>
         <MarketplacePage />
+        <IssueTracker />
         <DebugPanel />
       </>
     );
@@ -164,6 +177,7 @@ export function Layout() {
     return (
       <>
         <SettingsPage />
+        <IssueTracker />
         <DebugPanel />
       </>
     );
@@ -174,6 +188,7 @@ export function Layout() {
     return (
       <div className="bg-background overflow-hidden">
         <MobileLayout />
+        <IssueTracker />
         <DebugPanel />
       </div>
     );
@@ -183,7 +198,9 @@ export function Layout() {
     <div className="flex h-screen flex-col bg-background overflow-hidden">
       <SessionTabBar />
 
-      {currentSession ? (
+      {isCreatingSession ? (
+        <SessionBootScreen />
+      ) : currentSession ? (
         /* Desktop/Tablet Layout - Resizable Panels */
         /* Order: Files (15%) | Chat (55%) | Editor+Terminal (30%) */
         <PanelGroup direction="horizontal" className="flex-1">
@@ -284,6 +301,7 @@ export function Layout() {
         <WelcomeScreen />
       )}
 
+      <IssueTracker />
       <DebugPanel />
     </div>
   );

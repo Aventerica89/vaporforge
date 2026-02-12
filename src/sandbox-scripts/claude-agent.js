@@ -23,6 +23,72 @@ try {
   process.exit(1);
 }
 
+const fs = require('fs');
+const path = require('path');
+
+// Keys to strip from the env passed to the SDK's CLI child process.
+// These are VF internal transport vars the SDK doesn't need directly.
+const STRIP_FROM_SDK_ENV = new Set([
+  'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
+]);
+
+// Minimal YAML frontmatter parser (no external deps needed in container)
+function parseFrontmatter(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return { meta: {}, body: content };
+
+  const meta = {};
+  for (const line of match[1].split('\n')) {
+    const kv = line.match(/^(\w[\w-]*):\s*(.+)$/);
+    if (kv) meta[kv[1]] = kv[2].trim();
+  }
+  return { meta, body: match[2] };
+}
+
+// Scan agents dir for .md files → build options.agents Record
+// Per 1code research: settingSources does NOT discover agents.
+// Agents MUST be explicitly loaded and passed via options.agents.
+function loadAgentsFromDisk() {
+  const configDir = process.env.CLAUDE_CONFIG_DIR || '/root/.claude';
+  const agentsDir = path.join(configDir, 'agents');
+  const agents = {};
+
+  try {
+    if (!fs.existsSync(agentsDir)) return agents;
+    const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+
+    for (const file of files) {
+      const content = fs.readFileSync(path.join(agentsDir, file), 'utf8');
+      const { meta, body } = parseFrontmatter(content);
+      const name = meta.name || file.replace(/\.md$/, '');
+
+      agents[name] = {
+        description: meta.description || '',
+        prompt: body.trim(),
+      };
+
+      if (meta.tools) {
+        agents[name].tools = meta.tools.split(',').map(t => t.trim()).filter(Boolean);
+      }
+      if (meta.disallowedTools) {
+        agents[name].disallowedTools = meta.disallowedTools.split(',').map(t => t.trim()).filter(Boolean);
+      }
+      if (meta.model) {
+        agents[name].model = meta.model;
+      }
+    }
+
+    const count = Object.keys(agents).length;
+    if (count > 0) {
+      console.error(`[claude-agent] Loaded ${count} agent(s): ${Object.keys(agents).join(', ')}`);
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to load agents: ${err.message}`);
+  }
+
+  return agents;
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
@@ -38,19 +104,49 @@ function cleanErrorMessage(err) {
 
 function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
+  const agents = loadAgentsFromDisk();
+
+  // Filter out keys the SDK's CLI child process shouldn't see
+  const filteredEnv = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !STRIP_FROM_SDK_ENV.has(k))
+  );
+
+  // Parse MCP servers from env if provided (set by VF Worker)
+  let mcpServers;
+  try {
+    const mcpRaw = process.env.CLAUDE_MCP_SERVERS;
+    if (mcpRaw) {
+      mcpServers = JSON.parse(mcpRaw);
+      const count = Object.keys(mcpServers).length;
+      if (count > 0) {
+        console.error(`[claude-agent] Loaded ${count} MCP server(s): ${Object.keys(mcpServers).join(', ')}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to parse CLAUDE_MCP_SERVERS: ${err.message}`);
+  }
+
   return {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
+    settingSources: ['user', 'project'],
+    agents,
+    ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
     continue: true,
-    systemPrompt: 'You are working in a cloud sandbox. Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+    systemPrompt: {
+      type: 'preset',
+      preset: 'claude_code',
+      append: 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+    },
     env: {
-      ...process.env,
+      ...filteredEnv,
       ...(oauthToken ? { CLAUDE_CODE_OAUTH_TOKEN: oauthToken } : {}),
       NODE_PATH: process.env.NODE_PATH || '/usr/local/lib/node_modules',
       PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR || '/root/.claude',
       IS_SANDBOX: '1',
     },
     ...(useResume && sessionId ? { resume: sessionId } : {}),

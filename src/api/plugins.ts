@@ -2,15 +2,19 @@ import { Hono } from 'hono';
 import type { Context } from 'hono';
 import type { User, ApiResponse, Plugin, PluginItem } from '../types';
 import { PluginSchema, PluginItemSchema, McpServerConfigSchema } from '../types';
+import type { SandboxManager } from '../sandbox';
+import { collectUserConfigs } from './config';
+import { collectMcpConfig } from './mcp';
 
 type Variables = {
   user: User;
+  sandboxManager: SandboxManager;
 };
 
 export const pluginsRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /** Max custom plugins per user */
-const MAX_PLUGINS = 20;
+const MAX_PLUGINS = 50;
 
 /** Max items per category per plugin */
 const MAX_ITEMS_PER_CATEGORY = 10;
@@ -23,6 +27,169 @@ function kvKey(userId: string): string {
   return `user-plugins:${userId}`;
 }
 
+// ---------------------------------------------------------------------------
+// Built-in command templates — rich prompts sent to the Claude SDK
+// ---------------------------------------------------------------------------
+
+const REVIEW_AGENT_CONTENT = [
+  'You are an expert code review agent.',
+  'Review code for quality, security, performance, and maintainability.',
+  '',
+  'For every issue found, provide:',
+  '1. Severity: CRITICAL / HIGH / MEDIUM / LOW',
+  '2. File and line reference',
+  '3. What the problem is',
+  '4. A concrete fix (code snippet)',
+  '',
+  'Check for: security vulnerabilities (OWASP Top 10), race conditions,',
+  'memory leaks, error handling gaps, type safety, naming clarity,',
+  'dead code, and adherence to project conventions.',
+].join('\n');
+
+const REVIEW_CMD_CONTENT = [
+  'Review the code in this workspace for quality, security, and best practices.',
+  '',
+  'Follow this process:',
+  '1. Read the project structure to understand the tech stack and conventions.',
+  '2. Identify recently changed or active files (check git status if available).',
+  '3. Review each file for:',
+  '   - Security vulnerabilities (injection, XSS, auth bypass, secrets in code)',
+  '   - Logic errors and edge cases',
+  '   - Error handling gaps (unhandled promises, empty catches, missing validation)',
+  '   - Performance issues (N+1 queries, unnecessary re-renders, large bundles)',
+  '   - Code quality (naming, duplication, complexity, dead code)',
+  '   - Type safety issues',
+  '4. Output a structured report grouped by severity:',
+  '   - CRITICAL: Must fix before deploy (security, data loss)',
+  '   - HIGH: Should fix soon (logic errors, bad error handling)',
+  '   - MEDIUM: Improve when possible (code quality, performance)',
+  '   - LOW: Nice to have (style, minor naming)',
+  '',
+  'For each issue, include the file path, line number, description,',
+  'and a concrete code fix. End with a summary of the overall health.',
+].join('\n');
+
+const TEST_AGENT_CONTENT = [
+  'You are an expert test writing agent.',
+  'Generate comprehensive unit and integration tests.',
+  'Follow TDD principles. Target 80%+ coverage.',
+  '',
+  'For each test:',
+  '- Use descriptive test names that explain the expected behavior',
+  '- Follow the Arrange-Act-Assert pattern',
+  '- Test both happy paths and error cases',
+  '- Mock external dependencies, not internal logic',
+  '- Include edge cases: empty inputs, boundary values, null/undefined',
+].join('\n');
+
+const TEST_CMD_CONTENT = [
+  'Generate comprehensive tests for the code in this workspace.',
+  '',
+  'Follow this process:',
+  '1. Identify the testing framework already in use (vitest, jest, playwright, etc.).',
+  '   If none exists, recommend one appropriate for the stack.',
+  '2. Find the key modules, functions, and components to test.',
+  '3. For each, generate tests covering:',
+  '   - Happy path: normal expected behavior',
+  '   - Edge cases: empty inputs, boundary values, large inputs',
+  '   - Error cases: invalid input, network failures, missing data',
+  '   - Integration: how components work together',
+  '4. Use descriptive test names: "should return empty array when no items match"',
+  '5. Follow Arrange-Act-Assert pattern in each test.',
+  '6. Mock external services (APIs, databases) but not internal logic.',
+  '7. Aim for 80%+ code coverage on critical paths.',
+  '',
+  'Write the actual test files with proper imports and setup.',
+  'Include setup/teardown if needed. Run the tests to verify they pass.',
+].join('\n');
+
+const DOCS_AGENT_CONTENT = [
+  'You are an expert documentation agent.',
+  'Write clear, accurate, developer-focused documentation.',
+  '',
+  'Documentation should be:',
+  '- Scannable: use headings, lists, and code blocks',
+  '- Practical: include working examples for every concept',
+  '- Current: match the actual code, not aspirational behavior',
+  '- Concise: no filler, every sentence adds value',
+].join('\n');
+
+const DOCS_CMD_CONTENT = [
+  'Generate or update documentation for this project.',
+  '',
+  'Follow this process:',
+  '1. Read the project structure, package.json, and existing README.',
+  '2. Understand the tech stack, entry points, and key modules.',
+  '3. Generate documentation covering:',
+  '   - Overview: what the project does in 2-3 sentences',
+  '   - Quick Start: how to install, configure, and run locally',
+  '   - Architecture: key files/folders and how they connect',
+  '   - API Reference: endpoints, parameters, response shapes',
+  '   - Configuration: env vars, config files, feature flags',
+  '   - Common Tasks: how to add a feature, run tests, deploy',
+  '4. Use code blocks with language tags for all examples.',
+  '5. Keep it practical — working examples over abstract descriptions.',
+  '',
+  'If a README already exists, update it rather than replacing it.',
+  'Preserve any existing sections the user has customized.',
+].join('\n');
+
+const REFACTOR_AGENT_CONTENT = [
+  'You are an expert refactoring agent.',
+  'Improve code structure without changing external behavior.',
+  '',
+  'Focus areas:',
+  '- Extract repeated code into shared functions',
+  '- Simplify complex conditionals and nested logic',
+  '- Improve naming for clarity',
+  '- Apply SOLID principles where they reduce complexity',
+  '- Remove dead code and unused imports',
+  '',
+  'Rules: never change public APIs or behavior.',
+  'Every refactor must be verifiable by existing tests.',
+].join('\n');
+
+const REFACTOR_CMD_CONTENT = [
+  'Refactor the code in this workspace for better structure and maintainability.',
+  '',
+  'Follow this process:',
+  '1. Read the codebase and identify the areas with the most technical debt.',
+  '2. Prioritize refactoring by impact:',
+  '   - Duplicated code that can be extracted into shared functions',
+  '   - Complex functions (>50 lines or >4 levels of nesting)',
+  '   - God files (>500 lines) that should be split',
+  '   - Unclear naming that requires reading the implementation to understand',
+  '   - Dead code: unused functions, imports, variables',
+  '   - Inconsistent patterns across similar modules',
+  '3. For each refactor:',
+  '   - Explain what you are changing and why',
+  '   - Ensure external behavior is preserved',
+  '   - Verify existing tests still pass after the change',
+  '4. Make changes incrementally — one logical refactor per step.',
+  '',
+  'Do NOT add new features or change any public API.',
+  'Focus purely on internal code quality improvements.',
+].join('\n');
+
+const MCP_SERVERS_CMD_CONTENT = [
+  'Show the user their configured MCP servers.',
+  '',
+  'Instructions (follow exactly):',
+  '1. Read the file /root/.claude.json',
+  '2. Parse the "mcpServers" key from the JSON.',
+  '3. Present a clean, formatted list of every server:',
+  '   - Name (the key)',
+  '   - Transport type (stdio, http, sse)',
+  '   - URL or command',
+  '   - Whether it appears reachable from this sandbox',
+  '     (local URLs like 127.0.0.1 are NOT reachable)',
+  '4. Show the total count.',
+  '',
+  'Do NOT search the filesystem or run discovery commands.',
+  'The config is ONLY in /root/.claude.json — read it directly.',
+  'If the file does not exist, tell the user no MCP servers are configured.',
+].join('\n');
+
 const BUILTIN_PLUGINS: Plugin[] = [
   {
     id: 'builtin-code-review',
@@ -34,13 +201,13 @@ const BUILTIN_PLUGINS: Plugin[] = [
     agents: [{
       name: 'Code Reviewer',
       filename: 'code-reviewer.md',
-      content: 'You are a code review agent. Review code for quality, security, and maintainability issues. Provide specific, actionable feedback.',
+      content: REVIEW_AGENT_CONTENT,
       enabled: true,
     }],
     commands: [{
       name: 'Review',
       filename: 'review.md',
-      content: 'Review the current code changes for quality, security, and best practices.',
+      content: REVIEW_CMD_CONTENT,
       enabled: true,
     }],
     rules: [],
@@ -58,13 +225,13 @@ const BUILTIN_PLUGINS: Plugin[] = [
     agents: [{
       name: 'Test Writer',
       filename: 'test-writer.md',
-      content: 'You are a test writing agent. Generate comprehensive unit and integration tests. Follow TDD principles. Target 80% coverage.',
+      content: TEST_AGENT_CONTENT,
       enabled: true,
     }],
     commands: [{
       name: 'Test',
       filename: 'test.md',
-      content: 'Generate tests for the current code. Include edge cases and error scenarios.',
+      content: TEST_CMD_CONTENT,
       enabled: true,
     }],
     rules: [],
@@ -82,13 +249,13 @@ const BUILTIN_PLUGINS: Plugin[] = [
     agents: [{
       name: 'Doc Writer',
       filename: 'doc-writer.md',
-      content: 'You are a documentation agent. Write clear, concise documentation. Include examples and usage patterns.',
+      content: DOCS_AGENT_CONTENT,
       enabled: true,
     }],
     commands: [{
       name: 'Docs',
       filename: 'docs.md',
-      content: 'Generate or update documentation for the current project or file.',
+      content: DOCS_CMD_CONTENT,
       enabled: true,
     }],
     rules: [],
@@ -106,13 +273,32 @@ const BUILTIN_PLUGINS: Plugin[] = [
     agents: [{
       name: 'Refactorer',
       filename: 'refactorer.md',
-      content: 'You are a refactoring agent. Improve code structure without changing behavior. Focus on readability, DRY, and SOLID principles.',
+      content: REFACTOR_AGENT_CONTENT,
       enabled: true,
     }],
     commands: [{
       name: 'Refactor',
       filename: 'refactor.md',
-      content: 'Refactor the current code for better structure and maintainability.',
+      content: REFACTOR_CMD_CONTENT,
+      enabled: true,
+    }],
+    rules: [],
+    mcpServers: [],
+    addedAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'builtin-mcp-servers',
+    name: 'MCP Servers',
+    description: '/mcp-servers command to list configured MCP servers',
+    scope: 'local' as const,
+    enabled: true,
+    builtIn: true,
+    agents: [],
+    commands: [{
+      name: 'mcp-servers',
+      filename: 'mcp-servers.md',
+      content: MCP_SERVERS_CMD_CONTENT,
       enabled: true,
     }],
     rules: [],
@@ -220,9 +406,12 @@ pluginsRoutes.post('/', async (c) => {
 
   const parsed = PluginSchema.safeParse(pluginData);
   if (!parsed.success) {
+    const detail = parsed.error.issues
+      .map((i) => `${i.path.join('.')}: ${i.message}`)
+      .join('; ');
     return c.json<ApiResponse<never>>({
       success: false,
-      error: parsed.error.issues[0]?.message || 'Invalid plugin data',
+      error: `Invalid plugin data — ${detail}`,
     }, 400);
   }
 
@@ -414,6 +603,11 @@ async function applyToggle(
 }
 
 // POST /discover — GitHub repo discovery
+// Supports three directory structures:
+// 1. Monorepo subdir: github.com/owner/repo/tree/branch/path/to/plugin
+//    -> look for agents/, commands/, skills/ under that subpath
+// 2. Plugin root: agents/, commands/, rules/, skills/ at repo root
+// 3. Claude convention: .claude/agents/, .claude/commands/, .claude/rules/
 pluginsRoutes.post('/discover', async (c) => {
   const body = await c.req.json() as { repoUrl: string };
 
@@ -424,19 +618,21 @@ pluginsRoutes.post('/discover', async (c) => {
     }, 400);
   }
 
-  // Parse owner/repo from URL
-  const match = body.repoUrl.match(
-    /github\.com\/([^/]+)\/([^/\s#?]+)/
+  // Parse owner/repo and optional subpath from URL
+  // Matches: github.com/owner/repo or github.com/owner/repo/tree/branch/sub/path
+  const fullMatch = body.repoUrl.match(
+    /github\.com\/([^/]+)\/([^/\s#?]+)(?:\/tree\/[^/]+\/(.+))?/
   );
-  if (!match) {
+  if (!fullMatch) {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Invalid GitHub URL format',
     }, 400);
   }
 
-  const owner = match[1];
-  const repo = match[2].replace(/\.git$/, '');
+  const owner = fullMatch[1];
+  const repo = fullMatch[2].replace(/\.git$/, '');
+  const subPath = fullMatch[3] || ''; // e.g. "plugins/agent-sdk-dev"
 
   try {
     // Fetch repo tree
@@ -474,6 +670,9 @@ pluginsRoutes.post('/discover', async (c) => {
       tree: Array<{ path: string; type: string }>;
     };
 
+    // Build base prefix for path matching
+    const base = subPath ? `${subPath}/` : '';
+
     const agentPaths: string[] = [];
     const commandPaths: string[] = [];
     const rulePaths: string[] = [];
@@ -481,13 +680,42 @@ pluginsRoutes.post('/discover', async (c) => {
 
     for (const entry of tree.tree) {
       if (entry.type !== 'blob') continue;
-      if (entry.path.match(/^\.claude\/agents\/.*\.md$/)) {
+
+      // Only consider files under the subpath (if specified)
+      if (base && !entry.path.startsWith(base)) continue;
+
+      // Strip base prefix for pattern matching
+      const relative = base ? entry.path.slice(base.length) : entry.path;
+
+      // Match agents: agents/*.md or .claude/agents/*.md
+      if (relative.match(/^agents\/[^/]+\.md$/)) {
         agentPaths.push(entry.path);
-      } else if (entry.path.match(/^\.claude\/commands\/.*\.md$/)) {
+      } else if (relative.match(/^\.claude\/agents\/[^/]+\.md$/)) {
+        agentPaths.push(entry.path);
+      }
+
+      // Match commands: commands/*.md or .claude/commands/*.md
+      if (relative.match(/^commands\/[^/]+\.md$/)) {
         commandPaths.push(entry.path);
-      } else if (entry.path.match(/^\.claude\/rules\/.*\.md$/)) {
+      } else if (relative.match(/^\.claude\/commands\/[^/]+\.md$/)) {
+        commandPaths.push(entry.path);
+      }
+
+      // Match skills as commands (Claude plugins use skills/ for commands)
+      // Supports nested: skills/playground/SKILL.md, skills/playground/templates/*.md
+      if (relative.match(/^skills\/.+\.md$/)) {
+        commandPaths.push(entry.path);
+      }
+
+      // Match rules: rules/*.md or .claude/rules/*.md
+      if (relative.match(/^rules\/[^/]+\.md$/)) {
         rulePaths.push(entry.path);
-      } else if (entry.path === 'README.md') {
+      } else if (relative.match(/^\.claude\/rules\/[^/]+\.md$/)) {
+        rulePaths.push(entry.path);
+      }
+
+      // README at the plugin root (not nested READMEs)
+      if (relative === 'README.md') {
         readmePath = entry.path;
       }
     }
@@ -513,7 +741,7 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of agentPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      const name = filename.replace(/\.md$/, '');
       agents.push({
         name,
         filename,
@@ -526,7 +754,13 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of commandPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      // Keep dashes for slash-command-friendly names (/code-map not /code map)
+      let name = filename.replace(/\.md$/, '');
+      // SKILL.md is Claude's convention for skill entry points — use parent dir name
+      if (filename === 'SKILL.md') {
+        const parts = p.split('/');
+        if (parts.length >= 2) name = parts[parts.length - 2];
+      }
       commands.push({
         name,
         filename,
@@ -539,7 +773,7 @@ pluginsRoutes.post('/discover', async (c) => {
     for (const p of rulePaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
       const filename = p.split('/').pop() || p;
-      const name = filename.replace(/\.md$/, '').replace(/-/g, ' ');
+      const name = filename.replace(/\.md$/, '');
       rules.push({
         name,
         filename,
@@ -547,6 +781,11 @@ pluginsRoutes.post('/discover', async (c) => {
         enabled: true,
       });
     }
+
+    // Determine plugin name from subpath or repo name
+    const pluginName = subPath
+      ? subPath.split('/').pop() || repo
+      : repo;
 
     let description = `Plugin from ${owner}/${repo}`;
     if (readmePath) {
@@ -558,7 +797,7 @@ pluginsRoutes.post('/discover', async (c) => {
 
     const preview: Plugin = {
       id: `discovered-${crypto.randomUUID()}`,
-      name: repo,
+      name: pluginName,
       description,
       repoUrl: body.repoUrl,
       scope: 'git' as const,
@@ -580,6 +819,229 @@ pluginsRoutes.post('/discover', async (c) => {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Failed to discover plugin from repository',
+    }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Shared discovery helper — reusable for refresh endpoint
+// ---------------------------------------------------------------------------
+
+async function discoverPluginContent(
+  repoUrl: string
+): Promise<{
+  name: string;
+  description: string;
+  agents: PluginItem[];
+  commands: PluginItem[];
+  rules: PluginItem[];
+} | null> {
+  const m = repoUrl.match(
+    /github\.com\/([^/]+)\/([^/\s#?]+)(?:\/tree\/[^/]+\/(.+))?/
+  );
+  if (!m) return null;
+  const [, owner, rawRepo, subPath = ''] = m;
+  const repo = rawRepo.replace(/\.git$/, '');
+
+  try {
+    const treeRes = await fetch(
+      `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
+      {
+        headers: {
+          Accept: 'application/vnd.github.v3+json',
+          'User-Agent': 'VaporForge/1.0',
+        },
+      }
+    );
+    if (!treeRes.ok) return null;
+
+    const { tree } = await treeRes.json() as {
+      tree: Array<{ path: string; type: string }>;
+    };
+
+    const base = subPath ? `${subPath}/` : '';
+    const agentPaths: string[] = [];
+    const commandPaths: string[] = [];
+    const rulePaths: string[] = [];
+    let readmePath: string | null = null;
+
+    for (const e of tree) {
+      if (e.type !== 'blob') continue;
+      if (base && !e.path.startsWith(base)) continue;
+      const rel = base ? e.path.slice(base.length) : e.path;
+
+      if (/^(?:\.claude\/)?agents\/[^/]+\.md$/.test(rel)) {
+        agentPaths.push(e.path);
+      }
+      if (/^(?:\.claude\/)?commands\/[^/]+\.md$/.test(rel)) {
+        commandPaths.push(e.path);
+      }
+      // Supports nested: skills/playground/SKILL.md, skills/*/templates/*.md
+      if (/^skills\/.+\.md$/.test(rel)) {
+        commandPaths.push(e.path);
+      }
+      if (/^(?:\.claude\/)?rules\/[^/]+\.md$/.test(rel)) {
+        rulePaths.push(e.path);
+      }
+      if (rel === 'README.md') readmePath = e.path;
+    }
+
+    const fetchContent = async (path: string): Promise<string> => {
+      const res = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+        {
+          headers: {
+            Accept: 'application/vnd.github.v3+json',
+            'User-Agent': 'VaporForge/1.0',
+          },
+        }
+      );
+      if (!res.ok) return '';
+      const d = await res.json() as { content?: string };
+      return d.content ? atob(d.content.replace(/\n/g, '')) : '';
+    };
+
+    const buildItems = async (paths: string[]): Promise<PluginItem[]> => {
+      const items: PluginItem[] = [];
+      for (const p of paths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
+        const content = await fetchContent(p);
+        const filename = p.split('/').pop() || p;
+        // Keep dashes for slash-command-friendly names (/code-map not /code map)
+        let name = filename.replace(/\.md$/, '');
+        // SKILL.md is Claude's convention for skill entry points — use parent dir name
+        if (filename === 'SKILL.md') {
+          const parts = p.split('/');
+          if (parts.length >= 2) name = parts[parts.length - 2];
+        }
+        items.push({
+          name,
+          filename,
+          content: content.slice(0, MAX_ITEM_CONTENT),
+          enabled: true,
+        });
+      }
+      return items;
+    };
+
+    const agents = await buildItems(agentPaths);
+    const commands = await buildItems(commandPaths);
+    const rules = await buildItems(rulePaths);
+
+    const pluginName = subPath
+      ? subPath.split('/').pop() || repo
+      : repo;
+
+    let description = `Plugin from ${owner}/${repo}`;
+    if (readmePath) {
+      const readme = await fetchContent(readmePath);
+      if (readme) description = readme.slice(0, 500);
+    }
+
+    return { name: pluginName, description, agents, commands, rules };
+  } catch {
+    return null;
+  }
+}
+
+/** Merge fresh items into existing, preserving user's enabled states */
+function mergeItems(
+  existing: PluginItem[],
+  fresh: PluginItem[]
+): PluginItem[] {
+  const enabledMap = new Map(
+    existing.map((i) => [i.filename, i.enabled])
+  );
+  return fresh.map((i) => ({
+    ...i,
+    enabled: enabledMap.get(i.filename) ?? true,
+  }));
+}
+
+// POST /refresh — re-discover all git-sourced plugins with latest content
+pluginsRoutes.post('/refresh', async (c) => {
+  const user = c.get('user');
+  const userPlugins = await readPlugins(c.env.SESSIONS_KV, user.id);
+  const updated = [...userPlugins];
+  let refreshedCount = 0;
+
+  for (let i = 0; i < updated.length; i++) {
+    const plugin = updated[i];
+    if (plugin.builtIn || !plugin.repoUrl) continue;
+
+    const discovered = await discoverPluginContent(plugin.repoUrl);
+    if (!discovered) continue;
+
+    const hasContent = discovered.agents.length > 0
+      || discovered.commands.length > 0
+      || discovered.rules.length > 0;
+    if (!hasContent) continue;
+
+    updated[i] = {
+      ...plugin,
+      agents: mergeItems(plugin.agents, discovered.agents),
+      commands: mergeItems(plugin.commands, discovered.commands),
+      rules: mergeItems(plugin.rules, discovered.rules),
+      updatedAt: new Date().toISOString(),
+    };
+    refreshedCount++;
+  }
+
+  await writePlugins(c.env.SESSIONS_KV, user.id, updated);
+  const all = mergeWithBuiltIns(updated);
+
+  return c.json<ApiResponse<{ refreshed: number; plugins: Plugin[] }>>({
+    success: true,
+    data: { refreshed: refreshedCount, plugins: all },
+  });
+});
+
+// POST /sync/:sessionId — push current plugins into an active sandbox
+pluginsRoutes.post('/sync/:sessionId', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const { sessionId } = c.req.param();
+
+  // Verify session ownership + ensure sandbox is alive
+  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  try {
+    // Collect current plugin + user configs from KV
+    const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+    const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
+
+    // Inject into sandbox (clear + rewrite plugin files, then user configs)
+    await sandboxManager.injectPluginFiles(sessionId, pluginConfigs);
+    await sandboxManager.injectUserConfigs(sessionId, userConfigs);
+
+    // Update KV MCP config so future SDK calls pick up the latest servers
+    const userMcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
+    const allMcpServers = {
+      ...(userMcpServers || {}),
+      ...(pluginConfigs.mcpServers || {}),
+    };
+    if (Object.keys(allMcpServers).length > 0) {
+      await c.env.SESSIONS_KV.put(
+        `session-mcp:${sessionId}`,
+        JSON.stringify(allMcpServers),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      );
+    }
+
+    return c.json<ApiResponse<{ synced: boolean }>>({
+      success: true,
+      data: { synced: true },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Sync failed';
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: msg,
     }, 500);
   }
 });
