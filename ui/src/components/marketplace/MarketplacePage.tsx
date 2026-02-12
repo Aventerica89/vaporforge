@@ -237,7 +237,7 @@ export function MarketplacePage() {
               <span className="flex-1">{installError}</span>
               <button
                 onClick={clearInstallError}
-                className="rounded p-0.5 hover:bg-red-500/20 transition-colors"
+                className="flex items-center justify-center rounded p-0.5 hover:bg-red-500/20 transition-colors"
                 style={{ minHeight: '44px', minWidth: '44px' }}
                 aria-label="Dismiss error"
               >
