@@ -230,11 +230,48 @@ export function IssueCard({
 
         {/* Copy single issue */}
         <button
-          onClick={() => {
-            navigator.clipboard.writeText(formatIssue(issue)).catch(() => {});
+          onClick={async () => {
+            try {
+              const markdown = formatIssue(issue);
+
+              // If there are screenshots, try to copy them along with the markdown
+              if (issue.screenshots.length > 0) {
+                try {
+                  // Try modern clipboard API with images
+                  const clipboardItems: ClipboardItem[] = [];
+
+                  // Add text item
+                  clipboardItems.push(
+                    new ClipboardItem({
+                      'text/plain': new Blob([markdown], { type: 'text/plain' }),
+                    })
+                  );
+
+                  // Add first screenshot as image (most relevant one)
+                  const firstScreenshot = issue.screenshots[0];
+                  const response = await fetch(firstScreenshot.dataUrl);
+                  const blob = await response.blob();
+                  clipboardItems.push(
+                    new ClipboardItem({
+                      [blob.type]: blob,
+                    })
+                  );
+
+                  await navigator.clipboard.write(clipboardItems);
+                } catch {
+                  // Fallback: just copy the markdown with data URLs
+                  await navigator.clipboard.writeText(markdown);
+                }
+              } else {
+                // No screenshots, just copy markdown
+                await navigator.clipboard.writeText(markdown);
+              }
+            } catch (err) {
+              console.error('Failed to copy:', err);
+            }
           }}
           className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
-          title="Copy as Markdown"
+          title="Copy issue (text + first screenshot)"
         >
           <ClipboardCopy className="h-3 w-3" />
         </button>

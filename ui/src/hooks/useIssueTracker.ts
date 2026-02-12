@@ -93,7 +93,10 @@ export function formatIssue(issue: Issue): string {
     lines.push(`  - Claude: ${issue.claudeNote.trim()}`);
   }
   if (issue.screenshots.length > 0) {
-    lines.push(`  - ${issue.screenshots.length} screenshot(s) attached`);
+    lines.push(`  - Screenshots (${issue.screenshots.length}):`);
+    for (const ss of issue.screenshots) {
+      lines.push(`    - ${ss.dataUrl}`);
+    }
   }
   lines.push('');
   return lines.join('\n');
