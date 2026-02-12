@@ -209,11 +209,14 @@ export function IssueTracker() {
       {/* Modal */}
       <div
         className="glass-card relative flex w-full max-w-2xl flex-col animate-scale-in"
-        style={{ maxHeight: 'calc(100vh - 4rem)' }}
+        style={{
+          maxHeight: 'calc(100vh - 4rem)',
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-5">
           <div className="flex items-center gap-3">
             <h2 className="font-display text-base font-bold uppercase tracking-wider text-primary">
               Issue Tracker
@@ -226,31 +229,32 @@ export function IssueTracker() {
             {/* Copy MD */}
             <button
               onClick={handleExportMarkdown}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
               title="Copy as Markdown"
             >
-              <ClipboardCopy className="h-3.5 w-3.5" />
-              {copied ? 'Copied!' : 'Copy MD'}
+              <ClipboardCopy className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy MD'}</span>
+              <span className="sm:hidden">{copied ? '✓' : 'MD'}</span>
             </button>
 
             {/* Export JSON */}
             <button
               onClick={handleExportJSON}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
               title="Export as JSON"
             >
-              <Download className="h-3.5 w-3.5" />
-              Export
+              <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Export</span>
             </button>
 
             {/* Import JSON */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
               title="Import from JSON"
             >
-              <Upload className="h-3.5 w-3.5" />
-              Import
+              <Upload className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Import</span>
             </button>
             <input
               ref={fileInputRef}
@@ -263,31 +267,31 @@ export function IssueTracker() {
             {/* Add button */}
             <button
               onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors"
+              className="flex min-h-[44px] items-center gap-1 rounded-md bg-primary/10 px-3 py-2.5 text-xs text-primary hover:bg-primary/20 transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add
+              <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              <span className="hidden sm:inline">Add</span>
             </button>
 
             {/* Close */}
             <button
               onClick={closeTracker}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:h-8 sm:w-8"
               aria-label="Close"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>
           </div>
         </div>
 
         {/* Filter tabs + search */}
-        <div className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-2">
-          <div className="flex gap-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-5 sm:py-2">
+          <div className="flex flex-wrap gap-2 sm:gap-1">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
-                className={`rounded-md px-2.5 py-1 text-[11px] font-display font-bold uppercase tracking-wider transition-colors ${
+                className={`min-h-[44px] rounded-md px-3 py-2.5 text-xs font-display font-bold uppercase tracking-wider transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px] ${
                   filter === tab.id
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -298,20 +302,20 @@ export function IssueTracker() {
             ))}
           </div>
           <div className="relative ml-auto">
-            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground sm:left-2 sm:h-3 sm:w-3" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="w-36 rounded border border-border bg-muted pl-7 pr-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="min-h-[44px] w-40 rounded border border-border bg-muted pl-9 pr-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:min-h-0 sm:w-36 sm:pl-7 sm:pr-2 sm:py-1 sm:text-xs"
             />
           </div>
         </div>
 
         {/* Add form (inline) */}
         {showForm && (
-          <div className="shrink-0 space-y-3 border-b border-border bg-muted/30 px-5 py-4">
+          <div className="shrink-0 space-y-3 border-b border-border bg-muted/30 px-4 py-4 sm:px-5">
             <input
               ref={titleRef}
               type="text"
@@ -322,7 +326,7 @@ export function IssueTracker() {
                 if (e.key === 'Escape') setShowForm(false);
               }}
               placeholder="Issue title..."
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full min-h-[44px] rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-sm"
             />
             <div className="flex items-center gap-3">
               {/* Type selector */}
@@ -330,7 +334,7 @@ export function IssueTracker() {
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as Issue['type'])}
-                  className="appearance-none rounded border border-border bg-background pl-2 pr-6 py-1 text-xs text-foreground focus:border-primary focus:outline-none"
+                  className="appearance-none min-h-[44px] rounded border border-border bg-background pl-3 pr-8 py-2.5 text-base text-foreground focus:border-primary focus:outline-none sm:min-h-0 sm:pl-2 sm:pr-6 sm:py-1 sm:text-xs"
                 >
                   {ISSUE_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -338,16 +342,16 @@ export function IssueTracker() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-1 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground sm:right-1 sm:h-3 sm:w-3" />
               </div>
 
               {/* Size chips */}
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 {ISSUE_SIZES.map((s) => (
                   <button
                     key={s}
                     onClick={() => setSize(s)}
-                    className={`rounded px-2 py-0.5 text-[10px] font-bold transition-colors ${
+                    className={`min-h-[44px] min-w-[44px] rounded px-3 py-2.5 text-sm font-bold transition-colors sm:min-h-0 sm:min-w-0 sm:px-2 sm:py-0.5 sm:text-[10px] ${
                       size === s
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted text-muted-foreground hover:text-foreground'
@@ -363,7 +367,7 @@ export function IssueTracker() {
               <button
                 onClick={handleAddIssue}
                 disabled={!title.trim()}
-                className="rounded-md bg-primary px-3 py-1 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                className="min-h-[44px] rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50 sm:min-h-0 sm:px-3 sm:py-1 sm:text-xs"
               >
                 Create
               </button>
@@ -372,7 +376,7 @@ export function IssueTracker() {
         )}
 
         {/* Issue list */}
-        <div className="flex-1 overflow-y-auto px-5 py-3">
+        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5" style={{ overscrollBehavior: 'contain' }}>
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <p className="text-sm text-muted-foreground/60">
@@ -398,7 +402,10 @@ export function IssueTracker() {
         </div>
 
         {/* Claude suggestions */}
-        <div className="shrink-0 border-t border-border px-5 py-3">
+        <div
+          className="shrink-0 border-t border-border px-4 pt-3 sm:px-5"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0.75rem)' }}
+        >
           <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             Claude Suggestions
           </label>
@@ -407,7 +414,7 @@ export function IssueTracker() {
             onChange={(e) => setSuggestions(e.target.value)}
             placeholder="Paste Claude recommendations here..."
             rows={2}
-            className="w-full resize-none rounded border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full min-h-[44px] resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-xs"
           />
         </div>
       </div>
