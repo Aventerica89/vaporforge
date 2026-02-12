@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Plus, ClipboardCopy, ChevronDown, Search, Download, Upload } from 'lucide-react';
-import { useIssueTracker, buildMarkdown } from '@/hooks/useIssueTracker';
+import { useIssueTracker, buildMarkdown, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
 import { IssueCard } from '@/components/IssueCard';
 import type { Issue, IssueFilter } from '@/hooks/useIssueTracker';
 
@@ -104,11 +104,22 @@ export function IssueTracker() {
   const openCount = issues.filter((i) => !i.resolved).length;
   const resolvedCount = issues.filter((i) => i.resolved).length;
 
-  const handleExportMarkdown = () => {
-    const md = buildMarkdown(filtered, suggestions);
-    navigator.clipboard.writeText(md).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleExportMarkdown = async () => {
+    try {
+      // Upload screenshots for all filtered issues
+      const issuesWithUrls = await Promise.all(
+        filtered.map((issue) => uploadIssueScreenshots(issue))
+      );
+
+      // Build markdown with VaporFiles URLs
+      const md = buildMarkdown(issuesWithUrls, suggestions);
+      await navigator.clipboard.writeText(md);
+
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to export markdown:', err);
+    }
   };
 
   const handleExportJSON = () => {

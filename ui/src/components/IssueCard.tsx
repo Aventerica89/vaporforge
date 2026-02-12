@@ -8,7 +8,7 @@ import {
   ClipboardCopy,
   Check,
 } from 'lucide-react';
-import { useIssueTracker, formatIssue } from '@/hooks/useIssueTracker';
+import { useIssueTracker, formatIssue, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
 import type { Issue } from '@/hooks/useIssueTracker';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -232,41 +232,18 @@ export function IssueCard({
         <button
           onClick={async () => {
             try {
-              const markdown = formatIssue(issue);
+              // Upload screenshots to VaporFiles first
+              const issueWithUrls = await uploadIssueScreenshots(issue);
+              const markdown = formatIssue(issueWithUrls, true);
 
-              // If there are screenshots, copy both text and image as separate items
-              if (issue.screenshots.length > 0) {
-                try {
-                  // Fetch the first screenshot as a blob
-                  const firstScreenshot = issue.screenshots[0];
-                  const response = await fetch(firstScreenshot.dataUrl);
-                  const blob = await response.blob();
-
-                  // Create separate ClipboardItems for text and image
-                  const textItem = new ClipboardItem({
-                    'text/plain': new Blob([markdown], { type: 'text/plain' }),
-                  });
-
-                  const imageItem = new ClipboardItem({
-                    [blob.type]: blob,
-                  });
-
-                  // Write both items to clipboard
-                  await navigator.clipboard.write([textItem, imageItem]);
-                } catch {
-                  // Fallback: just copy the markdown with data URLs
-                  await navigator.clipboard.writeText(markdown);
-                }
-              } else {
-                // No screenshots, just copy markdown
-                await navigator.clipboard.writeText(markdown);
-              }
+              // Copy markdown with VaporFiles URLs
+              await navigator.clipboard.writeText(markdown);
             } catch (err) {
               console.error('Failed to copy:', err);
             }
           }}
           className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
-          title="Copy issue (text + first screenshot)"
+          title="Copy issue with VaporFiles URLs"
         >
           <ClipboardCopy className="h-3 w-3" />
         </button>

@@ -466,6 +466,57 @@ export const issuesApi = {
     }),
 };
 
+// VaporFiles API (R2-backed file storage)
+export interface VaporFile {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export const vaporFilesApi = {
+  uploadBase64: (dataUrl: string, name?: string) =>
+    request<{ id: string; url: string; metadata: any }>('/vaporfiles/upload-base64', {
+      method: 'POST',
+      body: JSON.stringify({ dataUrl, name }),
+    }),
+
+  uploadFile: async (file: File, name?: string): Promise<ApiResponse<VaporFile>> => {
+    const token = localStorage.getItem('session_token');
+    const formData = new FormData();
+    formData.append('file', file);
+    if (name) formData.append('name', name);
+
+    const response = await fetch(`${API_BASE}/vaporfiles/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    checkVersionHeader(response);
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errMsg = data.error || 'Upload failed';
+      debugLog('api', 'error', `POST /vaporfiles/upload — ${response.status}`, JSON.stringify(data, null, 2));
+      throw new Error(errMsg);
+    }
+
+    return data;
+  },
+
+  list: () => request<VaporFile[]>('/vaporfiles/list'),
+
+  delete: (id: string) =>
+    request<{ id: string }>(`/vaporfiles/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 // Config API (standalone rules, commands, agents)
 export const configApi = {
   list: (category: ConfigCategory) =>

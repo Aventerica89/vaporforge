@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { issuesApi } from '@/lib/api';
+import { issuesApi, vaporFilesApi } from '@/lib/api';
 
 export interface IssueScreenshot {
   id: string;
   dataUrl: string;
+  fileUrl?: string; // VaporFiles URL (if uploaded)
 }
 
 export interface Issue {
@@ -52,7 +53,7 @@ interface IssueTrackerState {
   syncToBackend: () => Promise<void>;
 }
 
-export function buildMarkdown(issues: Issue[], suggestions: string): string {
+export function buildMarkdown(issues: Issue[], suggestions: string, useFileUrls = true): string {
   const lines: string[] = ['# Issue Tracker Export', ''];
   const now = new Date().toISOString().slice(0, 10);
   lines.push(`Exported: ${now}`, '');
@@ -63,14 +64,14 @@ export function buildMarkdown(issues: Issue[], suggestions: string): string {
   if (open.length > 0) {
     lines.push('## Open Issues', '');
     for (const issue of open) {
-      lines.push(formatIssue(issue));
+      lines.push(formatIssue(issue, useFileUrls));
     }
   }
 
   if (resolved.length > 0) {
     lines.push('## Resolved', '');
     for (const issue of resolved) {
-      lines.push(formatIssue(issue));
+      lines.push(formatIssue(issue, useFileUrls));
     }
   }
 
@@ -81,7 +82,7 @@ export function buildMarkdown(issues: Issue[], suggestions: string): string {
   return lines.join('\n');
 }
 
-export function formatIssue(issue: Issue): string {
+export function formatIssue(issue: Issue, useFileUrls = true): string {
   const badge = issue.type.toUpperCase();
   const check = issue.resolved ? 'x' : ' ';
   const lines: string[] = [];
@@ -95,11 +96,48 @@ export function formatIssue(issue: Issue): string {
   if (issue.screenshots.length > 0) {
     lines.push(`  - Screenshots (${issue.screenshots.length}):`);
     for (const ss of issue.screenshots) {
-      lines.push(`    - ${ss.dataUrl}`);
+      // Prefer VaporFiles URL if available, fallback to dataUrl
+      const url = useFileUrls && ss.fileUrl ? ss.fileUrl : ss.dataUrl;
+      lines.push(`    - ${url}`);
     }
   }
   lines.push('');
   return lines.join('\n');
+}
+
+/**
+ * Upload screenshots to VaporFiles and return updated issue with file URLs
+ */
+export async function uploadIssueScreenshots(issue: Issue): Promise<Issue> {
+  const uploadedScreenshots: IssueScreenshot[] = [];
+
+  for (const screenshot of issue.screenshots) {
+    // Skip if already uploaded
+    if (screenshot.fileUrl) {
+      uploadedScreenshots.push(screenshot);
+      continue;
+    }
+
+    try {
+      const result = await vaporFilesApi.uploadBase64(
+        screenshot.dataUrl,
+        `issue-${issue.id}-${screenshot.id}.png`
+      );
+      uploadedScreenshots.push({
+        ...screenshot,
+        fileUrl: result.data?.url,
+      });
+    } catch (error) {
+      console.error('Failed to upload screenshot:', error);
+      // Keep original dataUrl on failure
+      uploadedScreenshots.push(screenshot);
+    }
+  }
+
+  return {
+    ...issue,
+    screenshots: uploadedScreenshots,
+  };
 }
 
 // Debounced sync helper

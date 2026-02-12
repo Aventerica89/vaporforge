@@ -15,6 +15,8 @@ import { mcpRelayRoutes } from './api/mcp-relay';
 import { pluginsRoutes } from './api/plugins';
 import { configRoutes } from './api/config';
 import { issuesRoutes } from './api/issues-routes';
+import { vaporFilesRoutes } from './api/vaporfiles';
+import { FileService } from './services/files';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -133,6 +135,29 @@ export function createRouter(env: Env) {
   // MCP relay route (uses relay token auth, not user JWT)
   app.route('/api/mcp-relay', mcpRelayRoutes);
 
+  // Public file download endpoint (no auth required)
+  app.get('/files/:key', async (c) => {
+    const key = c.req.param('key');
+    const fileService = new FileService(
+      env.FILES_BUCKET,
+      `https://${new URL(c.req.url).host}`
+    );
+
+    const file = await fileService.getFile(key);
+    if (!file) {
+      return c.notFound();
+    }
+
+    // Set caching headers (1 year since files are immutable)
+    return new Response(file.body, {
+      headers: {
+        'Content-Type': file.httpMetadata?.contentType || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Disposition': `inline; filename="${file.customMetadata?.originalName || key}"`,
+      },
+    });
+  });
+
   // Protected routes - require authentication
   const protectedRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -160,6 +185,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/plugins', pluginsRoutes);
   protectedRoutes.route('/config', configRoutes);
   protectedRoutes.route('/issues', issuesRoutes);
+  protectedRoutes.route('/vaporfiles', vaporFilesRoutes);
 
   app.route('/api', protectedRoutes);
 
