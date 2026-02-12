@@ -137,7 +137,7 @@ export function MarketplacePage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[hsl(215,25%,7%)]">
       {/* Header area */}
-      <div className="shrink-0 border-b border-white/[0.06] px-6 py-5">
+      <div className="shrink-0 border-b border-white/[0.06] px-6 py-5 safe-area-header">
         {/* Back + Title */}
         <div className="flex items-center gap-4 mb-4">
           <button
