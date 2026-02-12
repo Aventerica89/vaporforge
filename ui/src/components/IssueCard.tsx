@@ -9,6 +9,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useIssueTracker, formatIssue, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
+import { toast } from '@/hooks/useToast';
 import type { Issue } from '@/hooks/useIssueTracker';
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
@@ -238,8 +239,19 @@ export function IssueCard({
 
               // Copy markdown with VaporFiles URLs
               await navigator.clipboard.writeText(markdown);
+              console.log('[IssueCard] Successfully copied issue to clipboard');
+              toast.success('Issue copied to clipboard');
             } catch (err) {
-              console.error('Failed to copy:', err);
+              console.error('[IssueCard] Failed to copy issue:', err);
+              // Log details about the error for debugging
+              if (err instanceof Error) {
+                console.error('[IssueCard] Error details:', {
+                  message: err.message,
+                  name: err.name,
+                  stack: err.stack,
+                });
+              }
+              toast.error('Failed to copy issue to clipboard');
             }
           }}
           className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
@@ -308,13 +320,29 @@ export function IssueCard({
                   <button
                     onClick={async () => {
                       try {
+                        console.log('[IssueCard] Attempting to copy screenshot');
                         const response = await fetch(ss.dataUrl);
                         const blob = await response.blob();
-                        await navigator.clipboard.write([
-                          new ClipboardItem({ [blob.type]: blob })
-                        ]);
+
+                        if (navigator.clipboard && navigator.clipboard.write) {
+                          await navigator.clipboard.write([
+                            new ClipboardItem({ [blob.type]: blob })
+                          ]);
+                          console.log('[IssueCard] Successfully copied screenshot to clipboard');
+                          toast.success('Image copied to clipboard');
+                        } else {
+                          console.warn('[IssueCard] Clipboard API not available');
+                          toast.warning('Clipboard not available in this context');
+                        }
                       } catch (err) {
-                        console.error('Failed to copy image:', err);
+                        console.error('[IssueCard] Failed to copy screenshot:', err);
+                        if (err instanceof Error) {
+                          console.error('[IssueCard] Screenshot copy error details:', {
+                            message: err.message,
+                            name: err.name,
+                          });
+                        }
+                        toast.error('Failed to copy image');
                       }
                     }}
                     className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
@@ -344,13 +372,29 @@ export function IssueCard({
                   onClick={async (e) => {
                     e.stopPropagation();
                     try {
+                      console.log('[IssueCard] Attempting to copy preview image');
                       const response = await fetch(previewImage);
                       const blob = await response.blob();
-                      await navigator.clipboard.write([
-                        new ClipboardItem({ [blob.type]: blob })
-                      ]);
+
+                      if (navigator.clipboard && navigator.clipboard.write) {
+                        await navigator.clipboard.write([
+                          new ClipboardItem({ [blob.type]: blob })
+                        ]);
+                        console.log('[IssueCard] Successfully copied preview image to clipboard');
+                        toast.success('Image copied to clipboard');
+                      } else {
+                        console.warn('[IssueCard] Clipboard API not available');
+                        toast.warning('Clipboard not available in this context');
+                      }
                     } catch (err) {
-                      console.error('Failed to copy image:', err);
+                      console.error('[IssueCard] Failed to copy preview image:', err);
+                      if (err instanceof Error) {
+                        console.error('[IssueCard] Preview copy error details:', {
+                          message: err.message,
+                          name: err.name,
+                        });
+                      }
+                      toast.error('Failed to copy image');
                     }
                   }}
                   className="absolute -left-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600"

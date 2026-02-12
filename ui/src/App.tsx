@@ -3,6 +3,7 @@ import { Layout } from './components/Layout';
 import { AuthGuard } from './components/AuthGuard';
 import { McpRelayProvider } from './components/McpRelayProvider';
 import { UpdateToast } from './components/UpdateToast';
+import { ToastContainer } from './components/ToastContainer';
 import { useAuthStore } from './hooks/useAuth';
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
         </McpRelayProvider>
       </AuthGuard>
       <UpdateToast />
+      <ToastContainer />
     </>
   );
 }

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, Plus, ClipboardCopy, ChevronDown, Search, Download, Upload } from 'lucide-react';
 import { useIssueTracker, buildMarkdown, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
 import { IssueCard } from '@/components/IssueCard';
+import { toast } from '@/hooks/useToast';
+import { validateImportData } from '@/lib/validation';
 import type { Issue, IssueFilter } from '@/hooks/useIssueTracker';
 
 const FILTER_TABS: { id: IssueFilter; label: string }[] = [
@@ -117,27 +119,36 @@ export function IssueTracker() {
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      toast.success('Markdown copied to clipboard');
     } catch (err) {
       console.error('Failed to export markdown:', err);
+      toast.error('Failed to copy markdown to clipboard');
     }
   };
 
   const handleExportJSON = () => {
-    const exportData = {
-      issues,
-      suggestions,
-      filter,
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `vaporforge-issues-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    try {
+      const timestamp = new Date().toISOString();
+      const exportData = {
+        issues,
+        suggestions,
+        filter,
+        exportedAt: timestamp,
+      };
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `vaporforge-issues-${timestamp.slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Issues exported successfully');
+    } catch (err) {
+      console.error('Failed to export JSON:', err);
+      toast.error('Failed to export issues');
+    }
   };
 
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,27 +159,35 @@ export function IssueTracker() {
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
-        const data = JSON.parse(content);
+        const parsedData = JSON.parse(content);
 
-        if (!data.issues || !Array.isArray(data.issues)) {
-          alert('Invalid issue tracker export file');
+        // Validate the imported data structure and content
+        const validation = validateImportData(parsedData);
+
+        if (!validation.success) {
+          console.error('Import validation errors:', validation.errors);
+          toast.error(`Invalid import file: ${validation.errors?.[0] || 'Unknown error'}`);
           return;
         }
 
-        // Import the data
+        // Data is validated and safe to import
+        const { issues, suggestions, filter } = validation.data!;
+
+        // Import the validated data
         useIssueTracker.setState({
-          issues: data.issues,
-          suggestions: data.suggestions || '',
-          filter: data.filter || 'all',
+          issues,
+          suggestions,
+          filter,
         });
 
         // Sync to backend
         useIssueTracker.getState().syncToBackend();
 
-        alert(`Successfully imported ${data.issues.length} issues`);
+        toast.success(`Successfully imported ${issues.length} issue${issues.length === 1 ? '' : 's'}`);
       } catch (error) {
-        alert('Failed to import file. Please check the file format.');
+        const message = error instanceof Error ? error.message : 'Invalid JSON format';
         console.error('Import error:', error);
+        toast.error(`Failed to import file: ${message}`);
       }
     };
     reader.readAsText(file);

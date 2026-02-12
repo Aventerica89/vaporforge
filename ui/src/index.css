@@ -348,6 +348,17 @@
   }
 }
 
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 .animate-fade-up {
   animation: fade-slide-up var(--duration-normal) var(--ease-smooth);
 }
@@ -358,6 +369,10 @@
 
 .animate-scale-in {
   animation: scale-in var(--duration-normal) var(--ease-bounce);
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right var(--duration-normal) var(--ease-smooth);
 }
 
 /* Staggered Animation Delays */
