@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '@/lib/api';
+import { issuesApi } from '@/lib/api';
 
 export interface IssueScreenshot {
   id: string;
@@ -221,13 +221,9 @@ export const useIssueTracker = create<IssueTrackerState>()(
       loadFromBackend: async () => {
         try {
           set({ syncing: true });
-          const response = await api.get<{
-            issues: Issue[];
-            suggestions: string;
-            filter: string;
-          }>('/issues');
+          const response = await issuesApi.list();
 
-          if (response.data) {
+          if (response.success && response.data) {
             set({
               issues: response.data.issues || [],
               suggestions: response.data.suggestions || '',
@@ -249,7 +245,7 @@ export const useIssueTracker = create<IssueTrackerState>()(
 
         try {
           set({ syncing: true });
-          await api.post('/issues', {
+          await issuesApi.save({
             issues,
             suggestions,
             filter,

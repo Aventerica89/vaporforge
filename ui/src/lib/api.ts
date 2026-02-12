@@ -449,6 +449,23 @@ export const pluginsApi = {
     }),
 };
 
+// Issues API (bug tracker)
+export const issuesApi = {
+  list: () =>
+    request<{ issues: any[]; suggestions: string; filter: string }>('/issues'),
+
+  save: (data: { issues: any[]; suggestions: string; filter: string }) =>
+    request<{ saved: boolean }>('/issues', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: () =>
+    request<{ deleted: boolean }>('/issues', {
+      method: 'DELETE',
+    }),
+};
+
 // Config API (standalone rules, commands, agents)
 export const configApi = {
   list: (category: ConfigCategory) =>
