@@ -8,11 +8,14 @@ import {
   LogOut,
   Settings,
   Puzzle,
+  Home,
+  Bug,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { haptics } from '@/lib/haptics';
 
 interface MobileDrawerProps {
@@ -39,6 +42,7 @@ export function MobileDrawer({
     createSession,
   } = useSandboxStore();
   const { logout } = useAuthStore();
+  const { openTracker } = useIssueTracker();
   const drawerRef = useRef<HTMLDivElement>(null);
   const dragStartX = useRef<number | null>(null);
   const currentTranslateX = useRef(0);
@@ -117,6 +121,15 @@ export function MobileDrawer({
   const handleSignOut = () => {
     logout();
     onClose();
+  };
+
+  const handleOpenBugTracker = () => {
+    openTracker();
+    onClose();
+  };
+
+  const handleGoHome = () => {
+    window.location.href = '/app/';
   };
 
   return (
@@ -262,6 +275,20 @@ export function MobileDrawer({
 
         {/* Footer */}
         <div className="border-t border-border p-3 safe-bottom space-y-0.5">
+          <button
+            onClick={handleGoHome}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Home className="h-4 w-4 text-blue-500" />
+            Home
+          </button>
+          <button
+            onClick={handleOpenBugTracker}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Bug className="h-4 w-4 text-orange-500" />
+            Bug Tracker
+          </button>
           <button
             onClick={handleOpenMarketplace}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
