@@ -44,6 +44,7 @@ export function MarketplaceCard({
   const isLarge = size === 'large';
   const source = SOURCE_BADGE[plugin.source_id];
 
+  // iOS-friendly: Larger padding on mobile for better touch targets
   const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-5 sm:p-4 gap-4 sm:gap-3';
 
   return (
@@ -77,6 +78,7 @@ export function MarketplaceCard({
                 ? 'text-yellow-400 hover:text-yellow-500'
                 : 'text-muted-foreground/30 hover:text-yellow-400'
             }`}
+            style={{ minHeight: '44px', minWidth: '44px' }}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >

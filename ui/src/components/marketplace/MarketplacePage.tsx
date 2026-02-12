@@ -151,12 +151,12 @@ export function MarketplacePage() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[hsl(215,25%,7%)]">
       {/* Header area */}
-      <div className="shrink-0 border-b border-white/[0.06] px-6 py-5 safe-area-header">
+      <div className="shrink-0 border-b border-white/[0.06] px-4 sm:px-6 py-4 sm:py-5 safe-area-header">
         {/* Back + Title */}
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-3 sm:gap-4 mb-4">
           <button
             onClick={closeMarketplace}
-            className="rounded-md p-1.5 text-[hsl(180,5%,55%)] transition-colors hover:bg-white/[0.06] hover:text-cyan-400"
+            className="flex items-center justify-center rounded-md text-[hsl(180,5%,55%)] transition-colors hover:bg-white/[0.06] hover:text-cyan-400"
             style={{ minHeight: '44px', minWidth: '44px' }}
             title="Back (Escape)"
             aria-label="Back to main view"
@@ -215,7 +215,7 @@ export function MarketplacePage() {
       {/* Body: sidebar + grid */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Filters sidebar (desktop) */}
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-white/[0.06] p-5 lg:block">
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-white/[0.06] p-5 lg:block" style={{ overscrollBehavior: 'contain' }}>
           <MarketplaceFilters
             selectedSource={selectedSource}
             selectedCategories={selectedCategories}
@@ -233,11 +233,13 @@ export function MarketplacePage() {
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           {/* Install error banner */}
           {installError && (
-            <div className="shrink-0 mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+            <div className="shrink-0 mx-4 sm:mx-5 mt-4 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400">
               <span className="flex-1">{installError}</span>
               <button
                 onClick={clearInstallError}
                 className="rounded p-0.5 hover:bg-red-500/20 transition-colors"
+                style={{ minHeight: '44px', minWidth: '44px' }}
+                aria-label="Dismiss error"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -245,14 +247,14 @@ export function MarketplacePage() {
           )}
 
           {/* Count */}
-          <div className="shrink-0 px-5 pt-4 pb-2">
+          <div className="shrink-0 px-4 sm:px-5 pt-4 pb-2">
             <div className="text-sm text-[hsl(180,5%,45%)]">
               {filtered.length} plugin{filtered.length !== 1 ? 's' : ''}
             </div>
           </div>
 
           {/* Grid */}
-          <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ overscrollBehavior: 'contain' }}>
+          <div className="flex-1 overflow-y-auto px-4 sm:px-5 pb-5 safe-bottom" style={{ overscrollBehavior: 'contain' }}>
             <MarketplaceGrid
               plugins={filtered}
               installedRepoUrls={installedRepoUrls}
