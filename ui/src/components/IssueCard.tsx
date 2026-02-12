@@ -234,21 +234,25 @@ export function IssueCard({
             try {
               const markdown = formatIssue(issue);
 
-              // If there are screenshots, try to copy them along with the markdown
+              // If there are screenshots, copy both text and image as separate items
               if (issue.screenshots.length > 0) {
                 try {
-                  // Try modern clipboard API with image and text together
+                  // Fetch the first screenshot as a blob
                   const firstScreenshot = issue.screenshots[0];
                   const response = await fetch(firstScreenshot.dataUrl);
                   const blob = await response.blob();
 
-                  // Single ClipboardItem with both text and image
-                  const clipboardItem = new ClipboardItem({
+                  // Create separate ClipboardItems for text and image
+                  const textItem = new ClipboardItem({
                     'text/plain': new Blob([markdown], { type: 'text/plain' }),
+                  });
+
+                  const imageItem = new ClipboardItem({
                     [blob.type]: blob,
                   });
 
-                  await navigator.clipboard.write([clipboardItem]);
+                  // Write both items to clipboard
+                  await navigator.clipboard.write([textItem, imageItem]);
                 } catch {
                   // Fallback: just copy the markdown with data URLs
                   await navigator.clipboard.writeText(markdown);
