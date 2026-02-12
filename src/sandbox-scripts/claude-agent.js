@@ -26,6 +26,12 @@ try {
 const fs = require('fs');
 const path = require('path');
 
+// Keys to strip from the env passed to the SDK's CLI child process.
+// These are VF internal transport vars the SDK doesn't need directly.
+const STRIP_FROM_SDK_ENV = new Set([
+  'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
+]);
+
 // Minimal YAML frontmatter parser (no external deps needed in container)
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
@@ -39,11 +45,12 @@ function parseFrontmatter(content) {
   return { meta, body: match[2] };
 }
 
-// Scan /root/.claude/agents/ for .md files → build options.agents Record
+// Scan agents dir for .md files → build options.agents Record
 // Per 1code research: settingSources does NOT discover agents.
 // Agents MUST be explicitly loaded and passed via options.agents.
 function loadAgentsFromDisk() {
-  const agentsDir = '/root/.claude/agents';
+  const configDir = process.env.CLAUDE_CONFIG_DIR || '/root/.claude';
+  const agentsDir = path.join(configDir, 'agents');
   const agents = {};
 
   try {
@@ -99,11 +106,32 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const agents = loadAgentsFromDisk();
 
+  // Filter out keys the SDK's CLI child process shouldn't see
+  const filteredEnv = Object.fromEntries(
+    Object.entries(process.env).filter(([k]) => !STRIP_FROM_SDK_ENV.has(k))
+  );
+
+  // Parse MCP servers from env if provided (set by VF Worker)
+  let mcpServers;
+  try {
+    const mcpRaw = process.env.CLAUDE_MCP_SERVERS;
+    if (mcpRaw) {
+      mcpServers = JSON.parse(mcpRaw);
+      const count = Object.keys(mcpServers).length;
+      if (count > 0) {
+        console.error(`[claude-agent] Loaded ${count} MCP server(s): ${Object.keys(mcpServers).join(', ')}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to parse CLAUDE_MCP_SERVERS: ${err.message}`);
+  }
+
   return {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
     agents,
+    ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,
@@ -114,10 +142,11 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
       append: 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
     },
     env: {
-      ...process.env,
+      ...filteredEnv,
       ...(oauthToken ? { CLAUDE_CODE_OAUTH_TOKEN: oauthToken } : {}),
       NODE_PATH: process.env.NODE_PATH || '/usr/local/lib/node_modules',
       PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin',
+      CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR || '/root/.claude',
       IS_SANDBOX: '1',
     },
     ...(useResume && sessionId ? { resume: sessionId } : {}),
