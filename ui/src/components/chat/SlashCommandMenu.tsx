@@ -18,9 +18,12 @@ export function SlashCommandMenu({
 }: SlashCommandMenuProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
+  // Already pre-filtered by kind in PromptInput — just match on query
   const filtered = commands.filter((cmd) =>
     cmd.name.toLowerCase().startsWith(query.toLowerCase())
   );
+
+  const isAgentMode = filtered.length > 0 && filtered[0].kind === 'agent';
 
   // Scroll selected item into view
   useEffect(() => {
@@ -57,7 +60,9 @@ export function SlashCommandMenu({
           aria-selected={i === selectedIndex}
           className={`flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors ${
             i === selectedIndex
-              ? 'bg-primary/10 text-foreground'
+              ? isAgentMode
+                ? 'bg-secondary/10 text-foreground'
+                : 'bg-primary/10 text-foreground'
               : 'text-foreground/80 hover:bg-muted/50'
           }`}
           onMouseDown={(e) => {
@@ -65,9 +70,11 @@ export function SlashCommandMenu({
             onSelect(cmd);
           }}
         >
-          {/* Command name in teal */}
-          <span className="shrink-0 font-mono text-primary">
-            /{cmd.name}
+          {/* Name with prefix: @ for agents (purple), / for commands (teal) */}
+          <span className={`shrink-0 font-mono ${
+            cmd.kind === 'agent' ? 'text-secondary' : 'text-primary'
+          }`}>
+            {cmd.kind === 'agent' ? '@' : '/'}{cmd.name}
           </span>
 
           {/* Description */}

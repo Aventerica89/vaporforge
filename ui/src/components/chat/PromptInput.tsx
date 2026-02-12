@@ -59,11 +59,11 @@ export function PromptInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
 
-  // Slash command autocomplete
+  // Command (/) and agent (@) autocomplete
   const { commands, refresh: refreshCommands } = useCommandRegistry();
   const settingsOpen = useSettingsStore((s) => s.isOpen);
   const prevSettingsOpen = useRef(settingsOpen);
-  const [slashIndex, setSlashIndex] = useState(0);
+  const [menuIndex, setMenuIndex] = useState(0);
 
   // Refresh commands when settings modal closes
   useEffect(() => {
@@ -73,25 +73,29 @@ export function PromptInput({
     prevSettingsOpen.current = settingsOpen;
   }, [settingsOpen, refreshCommands]);
 
-  // Detect slash prefix: "/query" with no whitespace
-  const slashQuery = useMemo(() => {
-    const match = input.match(/^\/(\S*)$/);
-    return match ? match[1] : null;
+  // Detect prefix: "/" for commands, "@" for agents
+  const menuState = useMemo(() => {
+    const slashMatch = input.match(/^\/(\S*)$/);
+    if (slashMatch) return { kind: 'command' as const, query: slashMatch[1] };
+    const atMatch = input.match(/^@(\S*)$/);
+    if (atMatch) return { kind: 'agent' as const, query: atMatch[1] };
+    return null;
   }, [input]);
 
   const filteredCommands = useMemo(() => {
-    if (slashQuery === null) return [];
+    if (!menuState) return [];
     return commands.filter((cmd) =>
-      cmd.name.toLowerCase().startsWith(slashQuery.toLowerCase())
+      cmd.kind === menuState.kind &&
+      cmd.name.toLowerCase().startsWith(menuState.query.toLowerCase())
     );
-  }, [slashQuery, commands]);
+  }, [menuState, commands]);
 
-  const slashMenuOpen = slashQuery !== null && filteredCommands.length > 0;
+  const menuOpen = menuState !== null && filteredCommands.length > 0;
 
   // Reset index when filter changes
   useEffect(() => {
-    setSlashIndex(0);
-  }, [slashQuery]);
+    setMenuIndex(0);
+  }, [menuState?.query, menuState?.kind]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -217,12 +221,13 @@ export function PromptInput({
     }
   };
 
-  // Submit a slash command: send content with a display marker
+  // Submit a slash command or agent: send content with a display marker
   const handleSlashSelect = useCallback(
     (cmd: (typeof commands)[number]) => {
-      onSubmit(`[command:/${cmd.name}]\n${cmd.content}`);
+      const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
+      onSubmit(`[${prefix}:/${cmd.name}]\n${cmd.content}`);
       setInput('');
-      setSlashIndex(0);
+      setMenuIndex(0);
       haptics.light();
     },
     [onSubmit]
@@ -230,31 +235,31 @@ export function PromptInput({
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     // Slash menu keyboard navigation
-    if (slashMenuOpen) {
+    if (menuOpen) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSlashIndex((i) => (i + 1) % filteredCommands.length);
+        setMenuIndex((i) => (i + 1) % filteredCommands.length);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSlashIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
+        setMenuIndex((i) => (i - 1 + filteredCommands.length) % filteredCommands.length);
         return;
       }
       if (e.key === 'Tab') {
         // Tab: autocomplete the name (trailing space closes the menu)
         e.preventDefault();
-        const selected = filteredCommands[slashIndex];
+        const selected = filteredCommands[menuIndex];
         if (selected) {
           setInput(`/${selected.name} `);
-          setSlashIndex(0);
+          setMenuIndex(0);
         }
         return;
       }
       if (e.key === 'Enter' && !e.shiftKey) {
         // Enter: submit the command content immediately
         e.preventDefault();
-        const selected = filteredCommands[slashIndex];
+        const selected = filteredCommands[menuIndex];
         if (selected) handleSlashSelect(selected);
         return;
       }
@@ -311,11 +316,11 @@ export function PromptInput({
 
       <form onSubmit={handleSubmit} className="relative">
         {/* Slash command autocomplete */}
-        {slashMenuOpen && (
+        {menuOpen && (
           <SlashCommandMenu
-            query={slashQuery ?? ''}
+            query={menuState?.query ?? ''}
             commands={commands}
-            selectedIndex={slashIndex}
+            selectedIndex={menuIndex}
             onSelect={handleSlashSelect}
             onDismiss={() => setInput('')}
           />
@@ -357,8 +362,10 @@ export function PromptInput({
             className="w-full resize-none bg-transparent px-4 py-3 pr-12 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none disabled:opacity-50"
             style={{
               fontSize: '16px',
-              color: slashMenuOpen
-                ? 'hsl(var(--primary))'
+              color: menuOpen
+                ? menuState?.kind === 'agent'
+                  ? 'hsl(var(--secondary))'
+                  : 'hsl(var(--primary))'
                 : 'hsl(var(--foreground))',
             }}
           />

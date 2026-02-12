@@ -6,6 +6,7 @@ export interface CommandEntry {
   description: string;
   source: 'user' | string;
   content: string;
+  kind: 'command' | 'agent';
 }
 
 /**
@@ -35,28 +36,43 @@ export function useCommandRegistry() {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [configResult, pluginsResult] = await Promise.all([
+      const [configCmds, configAgents, pluginsResult] = await Promise.all([
         configApi.list('commands'),
+        configApi.list('agents'),
         pluginsApi.list(),
       ]);
 
       const entries: CommandEntry[] = [];
 
       // User-defined standalone commands
-      if (configResult.success && configResult.data) {
-        for (const file of configResult.data) {
+      if (configCmds.success && configCmds.data) {
+        for (const file of configCmds.data) {
           if (!file.enabled) continue;
           entries.push({
             name: stripExtension(file.filename),
             description: extractDescription(file.content),
             source: 'user',
             content: file.content,
+            kind: 'command',
           });
         }
       }
 
-      // Plugin commands — use cmd.name (curated: SKILL.md → parent dir name)
-      // Fall back to filename if name is missing
+      // User-defined standalone agents
+      if (configAgents.success && configAgents.data) {
+        for (const file of configAgents.data) {
+          if (!file.enabled) continue;
+          entries.push({
+            name: stripExtension(file.filename),
+            description: extractDescription(file.content),
+            source: 'user',
+            content: file.content,
+            kind: 'agent',
+          });
+        }
+      }
+
+      // Plugin commands + agents
       if (pluginsResult.success && pluginsResult.data) {
         for (const plugin of pluginsResult.data) {
           if (!plugin.enabled) continue;
@@ -67,6 +83,17 @@ export function useCommandRegistry() {
               description: extractDescription(cmd.content),
               source: plugin.name,
               content: cmd.content,
+              kind: 'command',
+            });
+          }
+          for (const agent of plugin.agents) {
+            if (!agent.enabled) continue;
+            entries.push({
+              name: agent.name || stripExtension(agent.filename),
+              description: extractDescription(agent.content),
+              source: plugin.name,
+              content: agent.content,
+              kind: 'agent',
             });
           }
         }

@@ -96,6 +96,19 @@ sessionRoutes.post('/create', async (c) => {
       startRelayProxy: needsRelay,
     });
 
+    // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
+    const allMcpServers = {
+      ...(mcpServers || {}),
+      ...(pluginConfigs?.mcpServers || {}),
+    };
+    if (Object.keys(allMcpServers).length > 0) {
+      await c.env.SESSIONS_KV.put(
+        `session-mcp:${sessionId}`,
+        JSON.stringify(allMcpServers),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      );
+    }
+
     // Persist session name and relay token to KV metadata
     const extraMeta: Record<string, unknown> = {};
     if (parsed.data.name) extraMeta.name = parsed.data.name;
@@ -389,6 +402,7 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
   // Inject Claude token + NODE_PATH + project secrets + user secrets
   const execEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
@@ -451,6 +465,7 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
   // Inject Claude token + NODE_PATH + project secrets + user secrets
   const streamEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };

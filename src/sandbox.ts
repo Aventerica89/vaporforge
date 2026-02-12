@@ -14,16 +14,12 @@ function isSandboxNotReady(error: unknown): boolean {
 }
 
 // Keys to forward from Worker secrets to sandbox containers.
-// Add a new key here + `npx wrangler secret put KEY` to make it available.
+// SECURITY: Only forward secrets the container actually needs.
+// VF infrastructure secrets (TURSO_*, AUTH_SECRET, ENCRYPTION_SECRET, SUPABASE_*)
+// must NOT leak into user sandboxes.
 const PROJECT_SECRET_KEYS = [
-  'OP_SERVICE_ACCOUNT_TOKEN',
-  'TURSO_DATABASE_URL',
-  'TURSO_AUTH_TOKEN',
-  'GITHUB_TOKEN',
-  'ENCRYPTION_SECRET',
-  'AUTH_SECRET',
-  'SUPABASE_URL',
-  'SUPABASE_SERVICE_ROLE_KEY',
+  'OP_SERVICE_ACCOUNT_TOKEN',  // 1Password CLI for `op read` in container
+  'GITHUB_TOKEN',              // Git clone/push for private repos
 ] as const;
 
 /** Collect defined project secrets from Worker env into a plain object. */
@@ -178,11 +174,12 @@ export class SandboxManager {
 
     let step = 'init';
     try {
-      // Set environment variables if provided
-      if (config?.env) {
-        step = 'setEnvVars';
-        await sandbox.setEnvVars(config.env);
-      }
+      // Set environment variables (always includes CLAUDE_CONFIG_DIR)
+      step = 'setEnvVars';
+      await sandbox.setEnvVars({
+        ...(config?.env || {}),
+        CLAUDE_CONFIG_DIR: '/root/.claude',
+      });
 
       // Inject CLAUDE.md into ~/.claude/ (VF rules + user CLAUDE.md)
       const hasVfRules = config?.vfRules && config.vfRules.trim().length > 0;

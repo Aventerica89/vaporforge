@@ -88,14 +88,19 @@ sdkRoutes.post('/stream', async (c) => {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
-  // Strip [command:/name] UI prefix before sending to Claude.
+  // Strip [command:/name] or [agent:/name] UI prefix before sending to Claude.
   // KV already has the original (for chip display in MessageAttachments).
   // Sending the prefix raw causes Claude to try invoking a Skill tool
   // (a Claude Code CLI feature not available in the sandbox).
-  const cmdPrefixMatch = prompt.match(/^\[command:\/([^\]]+)\]\n/);
-  const sdkPrompt = cmdPrefixMatch
-    ? `The user is running the /${cmdPrefixMatch[1]} command. Follow the instructions below:\n\n${prompt.slice(cmdPrefixMatch[0].length)}`
-    : prompt;
+  const cmdPrefixMatch = prompt.match(/^\[(command|agent):\/([^\]]+)\]\n/);
+  let sdkPrompt = prompt;
+  if (cmdPrefixMatch) {
+    const [fullMatch, kind, name] = cmdPrefixMatch;
+    const body = prompt.slice(fullMatch.length);
+    sdkPrompt = kind === 'agent'
+      ? `Use the "${name}" agent (available via the Task tool) to handle this request. The agent's instructions:\n\n${body}`
+      : `The user is running the /${name} command. Follow the instructions below:\n\n${body}`;
+  }
 
   // Build command to run SDK script
   const cmd = [
@@ -107,6 +112,10 @@ sdkRoutes.post('/stream', async (c) => {
 
   try {
     console.log(`[sdk/stream] session=${sessionId.slice(0, 8)} status=${session.status} sandbox=${session.sandboxId?.slice(0, 8)}`);
+
+    // Retrieve MCP server config for this session (stored at creation / plugin sync)
+    const mcpConfigRaw = await c.env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
+
     // Get streaming output from sandbox
     const stream = await sandboxManager.execStreamInSandbox(
       session.sandboxId,
@@ -116,8 +125,10 @@ sdkRoutes.post('/stream', async (c) => {
         env: {
           CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
           NODE_PATH: '/usr/local/lib/node_modules',
+          CLAUDE_CONFIG_DIR: '/root/.claude',
           ...collectProjectSecrets(c.env),
           ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
+          ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
         },
         timeout: 300000,
       }

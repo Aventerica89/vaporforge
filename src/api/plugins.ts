@@ -4,6 +4,7 @@ import type { User, ApiResponse, Plugin, PluginItem } from '../types';
 import { PluginSchema, PluginItemSchema, McpServerConfigSchema } from '../types';
 import type { SandboxManager } from '../sandbox';
 import { collectUserConfigs } from './config';
+import { collectMcpConfig } from './mcp';
 
 type Variables = {
   user: User;
@@ -1017,6 +1018,20 @@ pluginsRoutes.post('/sync/:sessionId', async (c) => {
     // Inject into sandbox (clear + rewrite plugin files, then user configs)
     await sandboxManager.injectPluginFiles(sessionId, pluginConfigs);
     await sandboxManager.injectUserConfigs(sessionId, userConfigs);
+
+    // Update KV MCP config so future SDK calls pick up the latest servers
+    const userMcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
+    const allMcpServers = {
+      ...(userMcpServers || {}),
+      ...(pluginConfigs.mcpServers || {}),
+    };
+    if (Object.keys(allMcpServers).length > 0) {
+      await c.env.SESSIONS_KV.put(
+        `session-mcp:${sessionId}`,
+        JSON.stringify(allMcpServers),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      );
+    }
 
     return c.json<ApiResponse<{ synced: boolean }>>({
       success: true,
