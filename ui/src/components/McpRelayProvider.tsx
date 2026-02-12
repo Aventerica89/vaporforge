@@ -106,7 +106,10 @@ export function McpRelayProvider({ children }: { children: React.ReactNode }) {
     let attempts = 0;
 
     function connect() {
-      if (wsRef.current?.readyState === WebSocket.OPEN) return;
+      // Prevent double-connection during React StrictMode remount
+      if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
+        return;
+      }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws?sessionId=${sessionId}`;
