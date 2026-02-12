@@ -44,6 +44,9 @@ export function IssueCard({
 }: IssueCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [editingType, setEditingType] = useState(false);
+  const [editingSize, setEditingSize] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -140,19 +143,58 @@ export function IssueCard({
           {issue.resolved && <Check className="h-3 w-3" strokeWidth={3} />}
         </button>
 
-        {/* Type badge */}
-        <span
-          className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${TYPE_COLORS[issue.type]}`}
-        >
-          {issue.type}
-        </span>
+        {/* Type badge - editable */}
+        {editingType ? (
+          <select
+            value={issue.type}
+            onChange={(e) => {
+              updateIssue(issue.id, { type: e.target.value as Issue['type'] });
+              setEditingType(false);
+            }}
+            onBlur={() => setEditingType(false)}
+            autoFocus
+            className="shrink-0 rounded border border-primary bg-card px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+          >
+            <option value="bug">BUG</option>
+            <option value="error">ERROR</option>
+            <option value="feature">FEATURE</option>
+            <option value="suggestion">IDEA</option>
+          </select>
+        ) : (
+          <button
+            onClick={() => setEditingType(true)}
+            className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-opacity hover:opacity-70 ${TYPE_COLORS[issue.type]}`}
+            title="Click to edit type"
+          >
+            {issue.type}
+          </button>
+        )}
 
-        {/* Size chip */}
-        <span
-          className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ${SIZE_COLORS[issue.size]}`}
-        >
-          {issue.size}
-        </span>
+        {/* Size chip - editable */}
+        {editingSize ? (
+          <select
+            value={issue.size}
+            onChange={(e) => {
+              updateIssue(issue.id, { size: e.target.value as Issue['size'] });
+              setEditingSize(false);
+            }}
+            onBlur={() => setEditingSize(false)}
+            autoFocus
+            className="shrink-0 rounded bg-card px-1.5 py-0.5 text-[10px] font-bold border border-primary text-primary"
+          >
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+          </select>
+        ) : (
+          <button
+            onClick={() => setEditingSize(true)}
+            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-opacity hover:opacity-70 ${SIZE_COLORS[issue.size]}`}
+            title="Click to edit size"
+          >
+            {issue.size}
+          </button>
+        )}
 
         {/* Title — click to expand */}
         <button
@@ -244,11 +286,16 @@ export function IssueCard({
             <div className="flex flex-wrap gap-2">
               {issue.screenshots.map((ss) => (
                 <div key={ss.id} className="group/thumb relative">
-                  <img
-                    src={ss.dataUrl}
-                    alt="Screenshot"
-                    className="h-16 w-16 rounded border border-border object-cover"
-                  />
+                  <button
+                    onClick={() => setPreviewImage(ss.dataUrl)}
+                    className="block"
+                  >
+                    <img
+                      src={ss.dataUrl}
+                      alt="Screenshot"
+                      className="h-16 w-16 rounded border border-border object-cover transition-opacity hover:opacity-80"
+                    />
+                  </button>
                   <button
                     onClick={() => removeScreenshot(issue.id, ss.id)}
                     className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
@@ -257,6 +304,29 @@ export function IssueCard({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Image preview modal */}
+          {previewImage && (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+              onClick={() => setPreviewImage(null)}
+            >
+              <div className="relative max-h-[90vh] max-w-[90vw]">
+                <button
+                  onClick={() => setPreviewImage(null)}
+                  className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <img
+                  src={previewImage}
+                  alt="Screenshot preview"
+                  className="max-h-[90vh] max-w-full rounded border-2 border-white/20 object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
             </div>
           )}
 
