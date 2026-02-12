@@ -274,6 +274,12 @@ export function XTerminal({ compact }: XTerminalProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Clear container to prevent React StrictMode double-mount DOM conflicts
+    const container = containerRef.current;
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
+
     const term = new XTerm({
       theme: isDark ? TERMINAL_THEME : TERMINAL_THEME_LIGHT,
       fontFamily: '"JetBrains Mono", "Fira Code", "Cascadia Code", monospace',
@@ -292,7 +298,7 @@ export function XTerminal({ compact }: XTerminalProps) {
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
 
-    term.open(containerRef.current);
+    term.open(container);
     fitAddon.fit();
 
     // Welcome message
