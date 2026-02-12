@@ -30,7 +30,7 @@ export async function getIssues(c: Context<{ Bindings: Env }>) {
   const key = `issues:${userId}`;
   const data = await c.env.AUTH_KV.get<IssueTrackerData>(key, 'json');
 
-  return c.json(data || { issues: [], suggestions: '', filter: 'all' });
+  return c.json({ success: true, data: data || { issues: [], suggestions: '', filter: 'all' } });
 }
 
 // Save issues for current user

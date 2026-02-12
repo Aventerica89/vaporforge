@@ -271,34 +271,36 @@ export const useIssueTracker = create<IssueTrackerState>()(
 
 // Auto-load and migrate on app start
 if (typeof window !== 'undefined') {
-  const store = useIssueTracker.getState();
-
   // Load from backend on mount
-  store.loadFromBackend().then(() => {
-    // If we have localStorage data but haven't migrated yet, migrate now
-    const localData = localStorage.getItem('vf-issue-tracker');
-    if (localData && !store.migrated) {
-      try {
-        const parsed = JSON.parse(localData);
-        const hasData =
-          parsed.state?.issues?.length > 0 || parsed.state?.suggestions?.trim();
+  useIssueTracker.getState().loadFromBackend().then(() => {
+    const current = useIssueTracker.getState();
 
-        if (hasData) {
-          console.log('[Issue Tracker] Migrating localStorage data to backend...');
-          // Set the data and sync it
-          useIssueTracker.setState({
-            issues: parsed.state.issues || [],
-            suggestions: parsed.state.suggestions || '',
-            filter: parsed.state.filter || 'all',
-          });
-          store.syncToBackend().then(() => {
-            console.log('[Issue Tracker] Migration complete!');
-            useIssueTracker.setState({ migrated: true });
-          });
-        }
-      } catch (error) {
-        console.error('[Issue Tracker] Migration failed:', error);
+    // Backend had data — it's the source of truth, done
+    if (current.issues.length > 0) return;
+
+    // Backend is empty — check localStorage for migration
+    const localData = localStorage.getItem('vf-issue-tracker');
+    if (!localData || current.migrated) return;
+
+    try {
+      const parsed = JSON.parse(localData);
+      const hasData =
+        parsed.state?.issues?.length > 0 || parsed.state?.suggestions?.trim();
+
+      if (hasData) {
+        console.log('[Issue Tracker] Migrating localStorage data to backend...');
+        useIssueTracker.setState({
+          issues: parsed.state.issues || [],
+          suggestions: parsed.state.suggestions || '',
+          filter: parsed.state.filter || 'all',
+        });
+        useIssueTracker.getState().syncToBackend().then(() => {
+          console.log('[Issue Tracker] Migration complete!');
+          useIssueTracker.setState({ migrated: true });
+        });
       }
+    } catch (error) {
+      console.error('[Issue Tracker] Migration failed:', error);
     }
   });
 }
