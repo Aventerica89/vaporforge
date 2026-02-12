@@ -100,7 +100,7 @@ export function formatIssue(issue: Issue): string {
 }
 
 // Debounced sync helper
-let syncTimeout: NodeJS.Timeout | null = null;
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 function debouncedSync(fn: () => Promise<void>, delay = 1000) {
   if (syncTimeout) clearTimeout(syncTimeout);
   syncTimeout = setTimeout(() => {
