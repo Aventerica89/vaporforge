@@ -297,6 +297,23 @@ export function IssueCard({
                     />
                   </button>
                   <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(ss.dataUrl);
+                        const blob = await response.blob();
+                        await navigator.clipboard.write([
+                          new ClipboardItem({ [blob.type]: blob })
+                        ]);
+                      } catch (err) {
+                        console.error('Failed to copy image:', err);
+                      }
+                    }}
+                    className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
+                    title="Copy image"
+                  >
+                    <ClipboardCopy className="h-2.5 w-2.5" />
+                  </button>
+                  <button
                     onClick={() => removeScreenshot(issue.id, ss.id)}
                     className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
                   >
@@ -314,6 +331,24 @@ export function IssueCard({
               onClick={() => setPreviewImage(null)}
             >
               <div className="relative max-h-[90vh] max-w-[90vw]">
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      const response = await fetch(previewImage);
+                      const blob = await response.blob();
+                      await navigator.clipboard.write([
+                        new ClipboardItem({ [blob.type]: blob })
+                      ]);
+                    } catch (err) {
+                      console.error('Failed to copy image:', err);
+                    }
+                  }}
+                  className="absolute -left-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                  title="Copy image"
+                >
+                  <ClipboardCopy className="h-4 w-4" />
+                </button>
                 <button
                   onClick={() => setPreviewImage(null)}
                   className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
