@@ -10,11 +10,12 @@ import { MobileDrawer } from './MobileDrawer';
 import { MobileBottomSheet } from './MobileBottomSheet';
 import { CloneRepoModal } from './CloneRepoModal';
 import { WelcomeScreen } from './WelcomeScreen';
+import { SessionBootScreen } from './SessionBootScreen';
 
 type SheetView = 'files' | 'terminal' | null;
 
 export function MobileLayout() {
-  const { currentSession } = useSandboxStore();
+  const { currentSession, isCreatingSession } = useSandboxStore();
   useAutoReconnect();
   const { isVisible: keyboardOpen, viewportHeight } = useKeyboard();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -85,7 +86,9 @@ export function MobileLayout() {
       </div>
 
       {/* Main content area */}
-      {currentSession ? (
+      {isCreatingSession ? (
+        <SessionBootScreen />
+      ) : currentSession ? (
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
           <ChatPanel compact />
         </div>

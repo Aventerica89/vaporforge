@@ -9,6 +9,7 @@ import { ChatPanel } from './ChatPanel';
 import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
 import { WelcomeScreen } from './WelcomeScreen';
+import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
@@ -20,7 +21,7 @@ import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 
 export function Layout() {
-  const { loadSessions, selectSession, currentSession, openFiles } =
+  const { loadSessions, selectSession, currentSession, openFiles, isCreatingSession } =
     useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
@@ -197,7 +198,9 @@ export function Layout() {
     <div className="flex h-screen flex-col bg-background overflow-hidden">
       <SessionTabBar />
 
-      {currentSession ? (
+      {isCreatingSession ? (
+        <SessionBootScreen />
+      ) : currentSession ? (
         /* Desktop/Tablet Layout - Resizable Panels */
         /* Order: Files (15%) | Chat (55%) | Editor+Terminal (30%) */
         <PanelGroup direction="horizontal" className="flex-1">

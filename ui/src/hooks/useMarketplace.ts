@@ -39,7 +39,7 @@ function buildFallbackContent(
 function syncToActiveSession(): void {
   const session = useSandboxStore.getState().currentSession;
   if (session?.id) {
-    pluginsApi.sync(session.id).catch(() => {});
+    pluginsApi.sync(session.id).catch(console.error);
   }
 }
 

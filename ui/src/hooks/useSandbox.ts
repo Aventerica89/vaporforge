@@ -19,6 +19,7 @@ interface SandboxState {
   currentSession: Session | null;
   sessions: Session[];
   isLoadingSessions: boolean;
+  isCreatingSession: boolean;
 
   // File state
   files: FileInfo[];
@@ -92,6 +93,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   currentSession: null,
   sessions: [],
   isLoadingSessions: false,
+  isCreatingSession: false,
 
   files: [],
   filesByPath: {},
@@ -127,27 +129,33 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
   createSession: async (name?: string, gitRepo?: string, branch?: string) => {
     const sessionName = name || generateSessionName();
-    const result = await sessionsApi.create({ name: sessionName, gitRepo, branch });
-    if (result.success && result.data) {
-      const session = result.data;
-      set((state) => ({
-        sessions: [session, ...state.sessions],
-        currentSession: session,
-        messages: [],
-        streamingContent: '',
-        files: [],
-        filesByPath: {},
-        currentPath: '/workspace',
-        openFiles: [],
-        activeFileIndex: -1,
-        terminalOutput: [],
-      }));
-      localStorage.setItem('vf_active_session', session.id);
-      return session;
+    set({ isCreatingSession: true });
+    try {
+      const result = await sessionsApi.create({ name: sessionName, gitRepo, branch });
+      if (result.success && result.data) {
+        const session = result.data;
+        set((state) => ({
+          sessions: [session, ...state.sessions],
+          currentSession: session,
+          isCreatingSession: false,
+          messages: [],
+          streamingContent: '',
+          files: [],
+          filesByPath: {},
+          currentPath: '/workspace',
+          openFiles: [],
+          activeFileIndex: -1,
+          terminalOutput: [],
+        }));
+        localStorage.setItem('vf_active_session', session.id);
+        return session;
+      }
+      const err = result.error || 'Failed to create session';
+      debugLog('sandbox', 'error', `createSession failed: ${err}`);
+      throw new Error(err);
+    } finally {
+      set({ isCreatingSession: false });
     }
-    const err = result.error || 'Failed to create session';
-    debugLog('sandbox', 'error', `createSession failed: ${err}`);
-    throw new Error(err);
   },
 
   selectSession: async (sessionId: string) => {

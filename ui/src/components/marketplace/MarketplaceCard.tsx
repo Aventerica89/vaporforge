@@ -90,23 +90,26 @@ export function MarketplaceCard({
         {/* Install / Toggle Control */}
         <div onClick={(e) => e.stopPropagation()}>
           {isInstalling ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground px-2.5 py-1">
-              <Loader2 className="h-3 w-3 animate-spin text-cyan-400" />
+            <span className="flex items-center justify-center text-xs text-muted-foreground" style={{ minHeight: '44px', minWidth: '44px' }}>
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-400" />
             </span>
           ) : isInstalled ? (
+            /* Touch-target wrapper (44px) keeps the visual toggle correctly sized */
             <button
               onClick={onUninstall}
-              className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 bg-cyan-500 shadow-[0_0_8px_hsl(185,95%,55%,0.3)]"
+              className="flex items-center justify-center"
               style={{ minHeight: '44px', minWidth: '44px' }}
               title="Uninstall"
               aria-label="Uninstall plugin"
             >
-              <span className="pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 translate-x-4" />
+              <span className="relative inline-flex h-5 w-9 shrink-0 rounded-full bg-cyan-500 shadow-[0_0_8px_hsl(185,95%,55%,0.3)] transition-colors duration-200">
+                <span className="pointer-events-none inline-block h-4 w-4 translate-x-4 translate-y-0.5 rounded-full bg-white shadow-sm transition-transform duration-200" />
+              </span>
             </button>
           ) : (
             <button
               onClick={onInstall}
-              className="text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
+              className="flex items-center justify-center text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
               style={{ minHeight: '44px' }}
               aria-label="Install plugin"
             >

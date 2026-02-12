@@ -67,6 +67,7 @@ async function handleQuery(prompt, sessionId, cwd) {
   const options = {
     model: 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
+    settingSources: ['user', 'project'],
     includePartialMessages: true,
     permissionMode: 'bypassPermissions',
     allowDangerouslySkipPermissions: true,

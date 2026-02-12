@@ -67,7 +67,8 @@ sessionRoutes.post('/create', async (c) => {
     const relayToken = needsRelay ? crypto.randomUUID() : undefined;
 
     if (needsRelay && relayToken) {
-      const relayUrl = `https://vaporforge.jbcloud.app/api/mcp-relay/${sessionId}`;
+      const origin = new URL(c.req.url).origin;
+      const relayUrl = `${origin}/api/mcp-relay/${sessionId}`;
       sandboxEnv.RELAY_TOKEN = relayToken;
       sandboxEnv.RELAY_URL = relayUrl;
     }

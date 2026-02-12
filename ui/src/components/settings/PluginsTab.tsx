@@ -441,6 +441,8 @@ export function PluginsTab() {
     try {
       await pluginsApi.toggle(pluginId, { enabled: !currentEnabled });
       await loadPlugins();
+      const sid = useSandboxStore.getState().currentSession?.id;
+      if (sid) pluginsApi.sync(sid).catch(console.error);
     } catch {
       // Toggle failed
     }
@@ -469,6 +471,8 @@ export function PluginsTab() {
         itemName,
       });
       await loadPlugins();
+      const sid = useSandboxStore.getState().currentSession?.id;
+      if (sid) pluginsApi.sync(sid).catch(console.error);
     } catch {
       // Toggle failed
     }
@@ -497,7 +501,7 @@ export function PluginsTab() {
         setTimeout(() => setRefreshResult(null), 3000);
         // Sync refreshed plugins to active sandbox
         const sid = useSandboxStore.getState().currentSession?.id;
-        if (sid) pluginsApi.sync(sid).catch(() => {});
+        if (sid) pluginsApi.sync(sid).catch(console.error);
       }
     } catch {
       setRefreshResult('Refresh failed');
