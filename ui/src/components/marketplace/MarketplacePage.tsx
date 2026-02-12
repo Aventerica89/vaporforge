@@ -143,7 +143,9 @@ export function MarketplacePage() {
           <button
             onClick={closeMarketplace}
             className="rounded-md p-1.5 text-[hsl(180,5%,55%)] transition-colors hover:bg-white/[0.06] hover:text-cyan-400"
+            style={{ minHeight: '44px', minWidth: '44px' }}
             title="Back (Escape)"
+            aria-label="Back to main view"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
@@ -188,6 +190,7 @@ export function MarketplacePage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search plugins..."
               className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] pl-10 pr-4 py-2.5 text-sm text-[hsl(180,5%,90%)] placeholder:text-[hsl(180,5%,35%)] focus:outline-none focus:border-cyan-500/40 focus:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.15)] transition-all duration-200"
+              style={{ fontSize: '16px' }}
               autoFocus
             />
           </div>

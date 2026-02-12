@@ -93,8 +93,8 @@ export function MobileBottomSheet({
         style={{
           maxHeight,
           background: 'hsl(var(--card) / 0.95)',
-          WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-          backdropFilter: 'blur(20px) saturate(150%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(150%)',
+          backdropFilter: 'blur(12px) saturate(150%)',
           border: '1px solid hsl(var(--border))',
           borderBottom: 'none',
         } as React.CSSProperties}
