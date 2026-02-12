@@ -40,6 +40,7 @@ export function createRouter(env: Env) {
         if (!origin) return '*';
 
         const allowedOrigins = [
+          'https://vaporforge.dev',
           'https://vaporforge.jbcloud.app',
         ];
 
