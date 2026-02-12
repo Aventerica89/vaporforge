@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Plus, ClipboardCopy, ChevronDown, Search } from 'lucide-react';
+import { X, Plus, ClipboardCopy, ChevronDown, Search, Download, Upload } from 'lucide-react';
 import { useIssueTracker, buildMarkdown } from '@/hooks/useIssueTracker';
 import { IssueCard } from '@/components/IssueCard';
 import type { Issue, IssueFilter } from '@/hooks/useIssueTracker';
@@ -37,6 +37,7 @@ export function IssueTracker() {
   const [size, setSize] = useState<Issue['size']>('M');
   const [copied, setCopied] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Drag state for reorder
   const dragIndex = useRef<number | null>(null);
@@ -103,11 +104,68 @@ export function IssueTracker() {
   const openCount = issues.filter((i) => !i.resolved).length;
   const resolvedCount = issues.filter((i) => i.resolved).length;
 
-  const handleExport = () => {
+  const handleExportMarkdown = () => {
     const md = buildMarkdown(filtered, suggestions);
     navigator.clipboard.writeText(md).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleExportJSON = () => {
+    const exportData = {
+      issues,
+      suggestions,
+      filter,
+      exportedAt: new Date().toISOString(),
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vaporforge-issues-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        if (!data.issues || !Array.isArray(data.issues)) {
+          alert('Invalid issue tracker export file');
+          return;
+        }
+
+        // Import the data
+        useIssueTracker.setState({
+          issues: data.issues,
+          suggestions: data.suggestions || '',
+          filter: data.filter || 'all',
+        });
+
+        // Sync to backend
+        useIssueTracker.getState().syncToBackend();
+
+        alert(`Successfully imported ${data.issues.length} issues`);
+      } catch (error) {
+        alert('Failed to import file. Please check the file format.');
+        console.error('Import error:', error);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset input
+    if (event.target) {
+      event.target.value = '';
+    }
   };
 
   return (
@@ -137,13 +195,40 @@ export function IssueTracker() {
           <div className="flex items-center gap-2">
             {/* Copy MD */}
             <button
-              onClick={handleExport}
+              onClick={handleExportMarkdown}
               className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               title="Copy as Markdown"
             >
               <ClipboardCopy className="h-3.5 w-3.5" />
               {copied ? 'Copied!' : 'Copy MD'}
             </button>
+
+            {/* Export JSON */}
+            <button
+              onClick={handleExportJSON}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="Export as JSON"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+
+            {/* Import JSON */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="Import from JSON"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImportJSON}
+              className="hidden"
+            />
 
             {/* Add button */}
             <button
