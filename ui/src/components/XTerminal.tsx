@@ -276,9 +276,7 @@ export function XTerminal({ compact }: XTerminalProps) {
 
     // Clear container to prevent React StrictMode double-mount DOM conflicts
     const container = containerRef.current;
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
+    container.replaceChildren();
 
     const term = new XTerm({
       theme: isDark ? TERMINAL_THEME : TERMINAL_THEME_LIGHT,
