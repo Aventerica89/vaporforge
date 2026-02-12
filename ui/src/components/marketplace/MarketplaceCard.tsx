@@ -40,7 +40,7 @@ export function MarketplaceCard({
   const isLarge = size === 'large';
   const source = SOURCE_BADGE[plugin.source_id];
 
-  const padding = isCompact ? 'p-3 gap-2' : isLarge ? 'p-5 gap-4' : 'p-4 gap-3';
+  const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-5 sm:p-4 gap-4 sm:gap-3';
 
   return (
     <div
@@ -97,7 +97,7 @@ export function MarketplaceCard({
       <div className="flex-1">
         <h3
           className={`font-semibold text-[hsl(180,5%,95%)] group-hover:text-cyan-400 transition-colors duration-200 ${
-            isCompact ? 'text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-base'
+            isCompact ? 'text-base sm:text-sm line-clamp-2' : isLarge ? 'text-lg' : 'text-lg sm:text-base'
           }`}
         >
           {plugin.name}
@@ -107,7 +107,7 @@ export function MarketplaceCard({
         {!isCompact && plugin.description && (
           <p
             className={`text-[hsl(180,5%,55%)] mt-1.5 leading-relaxed ${
-              isLarge ? 'text-sm line-clamp-3' : 'text-xs line-clamp-2'
+              isLarge ? 'text-sm line-clamp-3' : 'text-sm sm:text-xs line-clamp-2'
             }`}
           >
             {plugin.description}
@@ -116,7 +116,7 @@ export function MarketplaceCard({
       </div>
 
       {/* Component Counts */}
-      <div className={`flex gap-3 ${isCompact ? 'text-xs flex-wrap' : 'text-sm'}`}>
+      <div className={`flex gap-3 ${isCompact ? 'text-sm sm:text-xs flex-wrap' : 'text-base sm:text-sm'}`}>
         {plugin.agent_count > 0 && (
           <div className="flex items-center gap-1">
             <span className={TYPE_COLORS.agent}>{plugin.agent_count}</span>

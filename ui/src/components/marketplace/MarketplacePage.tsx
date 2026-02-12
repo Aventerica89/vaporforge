@@ -238,7 +238,7 @@ export function MarketplacePage() {
           </div>
 
           {/* Grid */}
-          <div className="flex-1 overflow-y-auto px-5 pb-5">
+          <div className="flex-1 overflow-y-auto px-5 pb-5" style={{ overscrollBehavior: 'contain' }}>
             <MarketplaceGrid
               plugins={filtered}
               installedRepoUrls={installedRepoUrls}
