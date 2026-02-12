@@ -125,23 +125,23 @@ export function IssueCard({
       }`}
     >
       {/* Collapsed header */}
-      <div className="flex items-center gap-2 px-3 py-2.5">
+      <div className="flex items-center gap-3 px-4 py-3 sm:gap-2 sm:px-3 sm:py-2.5">
         {/* Drag handle */}
-        <span className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground">
-          <GripVertical className="h-3.5 w-3.5" />
-        </span>
+        <button className="min-h-[44px] min-w-[44px] flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing sm:min-h-0 sm:min-w-0">
+          <GripVertical className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+        </button>
 
         {/* Resolve checkbox */}
         <button
           onClick={() => toggleResolved(issue.id)}
-          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+          className={`flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded border transition-colors sm:h-4 sm:w-4 sm:min-h-0 sm:min-w-0 ${
             issue.resolved
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-muted-foreground/40 hover:border-primary'
           }`}
           title={issue.resolved ? 'Mark unresolved' : 'Mark resolved'}
         >
-          {issue.resolved && <Check className="h-3 w-3" strokeWidth={3} />}
+          {issue.resolved && <Check className="h-5 w-5 sm:h-3 sm:w-3" strokeWidth={3} />}
         </button>
 
         {/* Type badge - editable */}
@@ -154,7 +154,7 @@ export function IssueCard({
             }}
             onBlur={() => setEditingType(false)}
             autoFocus
-            className="shrink-0 rounded border border-primary bg-card px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+            className="shrink-0 min-h-[44px] rounded border border-primary bg-card px-3 py-2.5 text-base font-bold uppercase tracking-wider text-primary sm:min-h-0 sm:px-1.5 sm:py-0.5 sm:text-[10px]"
           >
             <option value="bug">BUG</option>
             <option value="error">ERROR</option>
@@ -164,7 +164,7 @@ export function IssueCard({
         ) : (
           <button
             onClick={() => setEditingType(true)}
-            className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-opacity hover:opacity-70 ${TYPE_COLORS[issue.type]}`}
+            className={`shrink-0 min-h-[44px] rounded border px-3 py-2.5 text-xs font-bold uppercase tracking-wider transition-opacity hover:opacity-70 sm:min-h-0 sm:px-1.5 sm:py-0.5 sm:text-[10px] ${TYPE_COLORS[issue.type]}`}
             title="Click to edit type"
           >
             {issue.type}
@@ -181,7 +181,7 @@ export function IssueCard({
             }}
             onBlur={() => setEditingSize(false)}
             autoFocus
-            className="shrink-0 rounded bg-card px-1.5 py-0.5 text-[10px] font-bold border border-primary text-primary"
+            className="shrink-0 min-h-[44px] min-w-[44px] rounded bg-card px-3 py-2.5 text-base font-bold border border-primary text-primary sm:min-h-0 sm:min-w-0 sm:px-1.5 sm:py-0.5 sm:text-[10px]"
           >
             <option value="S">S</option>
             <option value="M">M</option>
@@ -190,7 +190,7 @@ export function IssueCard({
         ) : (
           <button
             onClick={() => setEditingSize(true)}
-            className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold transition-opacity hover:opacity-70 ${SIZE_COLORS[issue.size]}`}
+            className={`shrink-0 min-h-[44px] min-w-[44px] rounded px-3 py-2.5 text-sm font-bold transition-opacity hover:opacity-70 sm:min-h-0 sm:min-w-0 sm:px-1.5 sm:py-0.5 sm:text-[10px] ${SIZE_COLORS[issue.size]}`}
             title="Click to edit size"
           >
             {issue.size}
@@ -200,7 +200,7 @@ export function IssueCard({
         {/* Title — click to expand */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className={`flex-1 truncate text-left text-sm ${
+          className={`flex-1 truncate text-left text-base sm:text-sm ${
             issue.resolved
               ? 'line-through text-muted-foreground'
               : 'text-foreground'
@@ -220,10 +220,10 @@ export function IssueCard({
         {/* Expand toggle */}
         <button
           onClick={() => setExpanded(!expanded)}
-          className="shrink-0 text-muted-foreground hover:text-foreground"
+          className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground sm:min-h-0 sm:min-w-0"
         >
           <ChevronDown
-            className={`h-3.5 w-3.5 transition-transform ${
+            className={`h-5 w-5 transition-transform sm:h-3.5 sm:w-3.5 ${
               expanded ? 'rotate-180' : ''
             }`}
           />
@@ -254,26 +254,26 @@ export function IssueCard({
               toast.error('Failed to copy issue to clipboard');
             }
           }}
-          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary md:opacity-0 md:group-hover:opacity-100"
+          className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary sm:min-h-0 sm:min-w-0 sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
           title="Copy issue with VaporFiles URLs"
         >
-          <ClipboardCopy className="h-3 w-3" />
+          <ClipboardCopy className="h-4 w-4 sm:h-3 sm:w-3" />
         </button>
 
         {/* Delete */}
         <button
           onClick={() => removeIssue(issue.id)}
-          className="shrink-0 rounded p-0.5 text-muted-foreground/40 opacity-100 transition-opacity hover:text-red-500 md:opacity-0 md:group-hover:opacity-100"
+          className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-red-500 sm:min-h-0 sm:min-w-0 sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
           title="Delete issue"
         >
-          <Trash2 className="h-3 w-3" />
+          <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
         </button>
       </div>
 
       {/* Expanded content */}
       {expanded && (
         <div
-          className="space-y-3 border-t border-border/50 px-3 py-3"
+          className="space-y-3 border-t border-border/50 px-4 py-3 sm:px-3"
           onPaste={handlePaste}
         >
           {/* Description */}
@@ -284,7 +284,7 @@ export function IssueCard({
             }
             placeholder="Describe the issue..."
             rows={6}
-            className="w-full resize-y rounded border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full resize-y rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-sm"
           />
 
           {/* Screenshot drop zone */}
@@ -345,16 +345,16 @@ export function IssueCard({
                         toast.error('Failed to copy image');
                       }
                     }}
-                    className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
+                    className="absolute -left-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-white opacity-100 transition-opacity sm:h-4 sm:w-4 sm:-left-1 sm:-top-1 sm:opacity-0 sm:group-hover/thumb:opacity-100"
                     title="Copy image"
                   >
-                    <ClipboardCopy className="h-2.5 w-2.5" />
+                    <ClipboardCopy className="h-4 w-4 sm:h-2.5 sm:w-2.5" />
                   </button>
                   <button
                     onClick={() => removeScreenshot(issue.id, ss.id)}
-                    className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white opacity-0 transition-opacity group-hover/thumb:opacity-100"
+                    className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white opacity-100 transition-opacity sm:h-4 sm:w-4 sm:-right-1 sm:-top-1 sm:opacity-0 sm:group-hover/thumb:opacity-100"
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-4 w-4 sm:h-2.5 sm:w-2.5" />
                   </button>
                 </div>
               ))}
@@ -397,16 +397,16 @@ export function IssueCard({
                       toast.error('Failed to copy image');
                     }
                   }}
-                  className="absolute -left-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600"
+                  className="absolute -left-2 -top-2 flex h-12 w-12 items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600 sm:h-8 sm:w-8"
                   title="Copy image"
                 >
-                  <ClipboardCopy className="h-4 w-4" />
+                  <ClipboardCopy className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>
                 <button
                   onClick={() => setPreviewImage(null)}
-                  className="absolute -right-2 -top-2 flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+                  className="absolute -right-2 -top-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 sm:h-8 sm:w-8"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-5 w-5 sm:h-4 sm:w-4" />
                 </button>
                 <img
                   src={previewImage}
@@ -428,7 +428,7 @@ export function IssueCard({
               onChange={(e) => setClaudeNote(issue.id, e.target.value)}
               placeholder="AI-suggested fix or context..."
               rows={2}
-              className="w-full resize-none rounded border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-xs"
             />
           </div>
 
