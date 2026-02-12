@@ -6,10 +6,12 @@ import { MarketplaceCard } from './MarketplaceCard';
 interface MarketplaceGridProps {
   plugins: CatalogPlugin[];
   installedRepoUrls: Set<string>;
+  favoriteRepoUrls: Set<string>;
   installing: Set<string>;
   cardSize: CardSize;
   onInstall: (plugin: CatalogPlugin) => void;
   onUninstall: (repoUrl: string) => void;
+  onToggleFavorite: (repoUrl: string) => void;
 }
 
 const GRID_CLASSES: Record<CardSize, string> = {
@@ -21,10 +23,12 @@ const GRID_CLASSES: Record<CardSize, string> = {
 export function MarketplaceGrid({
   plugins,
   installedRepoUrls,
+  favoriteRepoUrls,
   installing,
   cardSize,
   onInstall,
   onUninstall,
+  onToggleFavorite,
 }: MarketplaceGridProps) {
   if (plugins.length === 0) {
     return (
@@ -48,9 +52,11 @@ export function MarketplaceGrid({
           plugin={plugin}
           size={cardSize}
           isInstalled={installedRepoUrls.has(plugin.repository_url)}
+          isFavorite={favoriteRepoUrls.has(plugin.repository_url)}
           isInstalling={installing.has(plugin.id)}
           onInstall={() => onInstall(plugin)}
           onUninstall={() => onUninstall(plugin.repository_url)}
+          onToggleFavorite={() => onToggleFavorite(plugin.repository_url)}
         />
       ))}
     </div>

@@ -1,13 +1,15 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 
 interface MarketplaceCardProps {
   plugin: CatalogPlugin;
   size: 'compact' | 'normal' | 'large';
   isInstalled: boolean;
+  isFavorite: boolean;
   isInstalling: boolean;
   onInstall: () => void;
   onUninstall: () => void;
+  onToggleFavorite: () => void;
 }
 
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
@@ -32,9 +34,11 @@ export function MarketplaceCard({
   plugin,
   size,
   isInstalled,
+  isFavorite,
   isInstalling,
   onInstall,
   onUninstall,
+  onToggleFavorite,
 }: MarketplaceCardProps) {
   const isCompact = size === 'compact';
   const isLarge = size === 'large';
@@ -46,7 +50,7 @@ export function MarketplaceCard({
     <div
       className={`group relative flex flex-col rounded-lg border border-white/[0.06] bg-[hsl(215,22%,11%)] transition-all duration-300 hover:border-cyan-500/30 hover:shadow-[0_0_20px_-4px_hsl(185,95%,55%,0.15)] ${padding}`}
     >
-      {/* Source Badge + Status Dot + Install/Toggle */}
+      {/* Source Badge + Status Dot + Favorite + Install/Toggle */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {isInstalled && (
@@ -62,6 +66,25 @@ export function MarketplaceCard({
               {source.label}
             </span>
           )}
+          {/* Favorite star */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite();
+            }}
+            className={`transition-colors ${
+              isFavorite
+                ? 'text-yellow-400 hover:text-yellow-500'
+                : 'text-muted-foreground/30 hover:text-yellow-400'
+            }`}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Star
+              className="h-3.5 w-3.5"
+              fill={isFavorite ? 'currentColor' : 'none'}
+            />
+          </button>
         </div>
 
         {/* Install / Toggle Control */}

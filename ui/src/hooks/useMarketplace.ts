@@ -44,7 +44,7 @@ function syncToActiveSession(): void {
 }
 
 export type CardSize = 'compact' | 'normal' | 'large';
-export type StatusTab = 'all' | 'installed';
+export type StatusTab = 'all' | 'installed' | 'favorites';
 
 interface MarketplaceState {
   isOpen: boolean;
@@ -56,6 +56,7 @@ interface MarketplaceState {
   selectedTypes: string[];
   selectedCompatibility: 'all' | 'cloud-ready' | 'relay-required';
   installedRepoUrls: Set<string>;
+  favoriteRepoUrls: Set<string>;
   installing: Set<string>;
   installError: string | null;
 
@@ -73,6 +74,7 @@ interface MarketplaceState {
   installPlugin: (catalogPlugin: CatalogPlugin) => Promise<void>;
   uninstallPlugin: (repoUrl: string) => Promise<void>;
   syncInstalledPlugins: () => Promise<void>;
+  toggleFavorite: (repoUrl: string) => void;
 }
 
 export const useMarketplace = create<MarketplaceState>((set, get) => ({
@@ -85,6 +87,9 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   selectedTypes: [],
   selectedCompatibility: 'all',
   installedRepoUrls: new Set(),
+  favoriteRepoUrls: new Set(
+    JSON.parse(localStorage.getItem('vf-favorites') || '[]')
+  ),
   installing: new Set(),
   installError: null,
 
@@ -239,5 +244,19 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
     } catch {
       // Sync failed
     }
+  },
+
+  toggleFavorite: (repoUrl) => {
+    set((state) => {
+      const favorites = new Set(state.favoriteRepoUrls);
+      if (favorites.has(repoUrl)) {
+        favorites.delete(repoUrl);
+      } else {
+        favorites.add(repoUrl);
+      }
+      // Persist to localStorage
+      localStorage.setItem('vf-favorites', JSON.stringify([...favorites]));
+      return { favoriteRepoUrls: favorites };
+    });
   },
 }));

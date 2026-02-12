@@ -35,16 +35,18 @@ export function MarketplacePage() {
     setSelectedCompatibility,
     clearFilters,
     installedRepoUrls,
+    favoriteRepoUrls,
     installing,
     installError,
     clearInstallError,
     installPlugin,
     uninstallPlugin,
+    toggleFavorite,
   } = useMarketplace();
 
   const debouncedQuery = useDebounce(searchQuery, 300);
 
-  // Derive installed count — match on full repository_url (unique per plugin)
+  // Derive installed and favorites count
   const installedCount = useMemo(() => {
     let count = 0;
     for (const p of catalog) {
@@ -53,6 +55,14 @@ export function MarketplacePage() {
     return count;
   }, [installedRepoUrls]);
 
+  const favoritesCount = useMemo(() => {
+    let count = 0;
+    for (const p of catalog) {
+      if (favoriteRepoUrls.has(p.repository_url)) count++;
+    }
+    return count;
+  }, [favoriteRepoUrls]);
+
   // Filter the catalog
   const filtered: CatalogPlugin[] = useMemo(() => {
     let result = catalog;
@@ -60,6 +70,8 @@ export function MarketplacePage() {
     // Status tab filter
     if (statusTab === 'installed') {
       result = result.filter((p) => installedRepoUrls.has(p.repository_url));
+    } else if (statusTab === 'favorites') {
+      result = result.filter((p) => favoriteRepoUrls.has(p.repository_url));
     }
 
     // Source filter
@@ -115,6 +127,7 @@ export function MarketplacePage() {
     selectedCompatibility,
     debouncedQuery,
     installedRepoUrls,
+    favoriteRepoUrls,
   ]);
 
   // Escape to close
@@ -132,6 +145,7 @@ export function MarketplacePage() {
   const STATUS_TABS: Array<{ key: StatusTab; label: string; count: number }> = [
     { key: 'all', label: 'All', count: catalogStats.total },
     { key: 'installed', label: 'Installed', count: installedCount },
+    { key: 'favorites', label: 'Favorites', count: favoritesCount },
   ];
 
   return (
@@ -242,10 +256,12 @@ export function MarketplacePage() {
             <MarketplaceGrid
               plugins={filtered}
               installedRepoUrls={installedRepoUrls}
+              favoriteRepoUrls={favoriteRepoUrls}
               installing={installing}
               cardSize={cardSize}
               onInstall={installPlugin}
               onUninstall={uninstallPlugin}
+              onToggleFavorite={toggleFavorite}
             />
           </div>
         </div>
