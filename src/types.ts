@@ -260,3 +260,14 @@ export type ConfigFile = z.infer<typeof ConfigFileSchema>;
 /** Valid categories for user config files */
 export const CONFIG_CATEGORIES = ['rules', 'commands', 'agents'] as const;
 export type ConfigCategory = typeof CONFIG_CATEGORIES[number];
+
+// AI Provider config (KV-persisted)
+export const AIProviderConfigSchema = z.object({
+  gemini: z.object({
+    enabled: z.boolean(),
+    defaultModel: z.enum(['flash', 'pro']).default('flash'),
+    addedAt: z.string(),
+  }).optional(),
+});
+
+export type AIProviderConfig = z.infer<typeof AIProviderConfigSchema>;

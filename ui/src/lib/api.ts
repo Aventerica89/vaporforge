@@ -1,4 +1,4 @@
-import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory } from './types';
+import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory, AIProviderConfig } from './types';
 import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
@@ -549,6 +549,23 @@ export const vaporFilesApi = {
 
   delete: (id: string) =>
     request<{ id: string }>(`/vaporfiles/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// AI Providers API
+export const aiProvidersApi = {
+  get: () =>
+    request<AIProviderConfig>('/ai-providers'),
+
+  enableGemini: (config: { defaultModel: 'flash' | 'pro' }) =>
+    request<AIProviderConfig>('/ai-providers/gemini', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+
+  disableGemini: () =>
+    request<AIProviderConfig>('/ai-providers/gemini', {
       method: 'DELETE',
     }),
 };

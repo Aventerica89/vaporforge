@@ -10,6 +10,7 @@ export type SettingsTab =
   | 'mcp'
   | 'plugins'
   | 'secrets'
+  | 'ai-providers'
   | 'command-center'
   | 'files'
   | 'account'

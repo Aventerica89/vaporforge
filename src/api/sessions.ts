@@ -6,6 +6,7 @@ import { collectMcpConfig, hasRelayServers } from './mcp';
 import { collectPluginConfigs } from './plugins';
 import { collectUserConfigs } from './config';
 import { getVfRules } from './user';
+import { collectGeminiMcpConfig } from './ai-providers';
 
 type Variables = {
   user: User;
@@ -94,12 +95,17 @@ sessionRoutes.post('/create', async (c) => {
       userConfigs,
       vfRules,
       startRelayProxy: needsRelay,
+      injectGeminiAgent: !!geminiMcp,
     });
+
+    // Collect Gemini MCP config if enabled and API key exists
+    const geminiMcp = await collectGeminiMcpConfig(c.env.SESSIONS_KV, user.id);
 
     // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
     const allMcpServers = {
       ...(mcpServers || {}),
       ...(pluginConfigs?.mcpServers || {}),
+      ...(geminiMcp || {}),
     };
     if (Object.keys(allMcpServers).length > 0) {
       await c.env.SESSIONS_KV.put(

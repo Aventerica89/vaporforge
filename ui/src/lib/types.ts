@@ -166,6 +166,15 @@ export interface ConfigFile {
 
 export type ConfigCategory = 'rules' | 'commands' | 'agents';
 
+// AI Provider config
+export interface AIProviderConfig {
+  gemini?: {
+    enabled: boolean;
+    defaultModel: 'flash' | 'pro';
+    addedAt: string;
+  };
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }

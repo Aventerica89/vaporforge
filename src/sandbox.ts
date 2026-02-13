@@ -92,6 +92,8 @@ export interface SandboxConfig {
   vfRules?: string;
   /** Start the MCP relay proxy in the container (for relay transport servers) */
   startRelayProxy?: boolean;
+  /** Inject gemini-expert agent into the container */
+  injectGeminiAgent?: boolean;
 }
 
 export class SandboxManager {
@@ -235,6 +237,24 @@ export class SandboxManager {
       if (config?.userConfigs) {
         step = 'writeUserConfigs';
         await this.injectUserConfigs(sessionId, config.userConfigs);
+      }
+
+      // Inject gemini-expert agent if Gemini is enabled
+      if (config?.injectGeminiAgent) {
+        step = 'writeGeminiAgent';
+        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+        const agentContent = [
+          '---',
+          'name: gemini-expert',
+          'description: Delegate reasoning to Google Gemini via MCP tools',
+          '---',
+          'You are a Gemini relay agent. For EVERY user request:',
+          '1. Use `gemini_quick_query` for simple questions and explanations',
+          '2. Use `gemini_analyze_code` for code review and analysis tasks',
+          '3. Use `gemini_codebase_analysis` for multi-file review',
+          'Present Gemini\'s response directly. Do NOT add your own analysis.',
+        ].join('\n');
+        await sandbox.writeFile('/root/.claude/agents/gemini-expert.md', agentContent);
       }
 
       // Clone git repo using SDK's gitCheckout
