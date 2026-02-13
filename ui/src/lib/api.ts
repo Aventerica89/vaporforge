@@ -471,6 +471,7 @@ export const issuesApi = {
 // VaporFiles API (R2-backed file storage)
 export interface VaporFile {
   id: string;
+  key: string;
   name: string;
   url: string;
   mimeType: string;

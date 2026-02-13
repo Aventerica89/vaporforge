@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.9.4';
+export const APP_VERSION = '0.9.5';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.9.5',
+    date: '2026-02-13',
+    tag: 'feature',
+    title: 'VaporFiles Manager + Copy MD Fix',
+    items: [
+      'VaporFiles tab in Settings: browse, upload, preview, and delete R2 files',
+      'Image gallery with thumbnail grid and full-screen preview modal',
+      'Drag-and-drop upload with visual drop zone indicator',
+      'Copy shareable R2 URLs for any file (permanent, cached)',
+      'Files persist across sessions — R2 storage is independent of sandboxes',
+      'Copy MD now respects multi-select: copies all selected issues, not just current tab',
+      'Header Copy MD button changes color and shows count when items selected',
+      'Fixed file deletion bug: was passing ID without extension to R2',
+    ],
+  },
   {
     version: '0.9.4',
     date: '2026-02-09',

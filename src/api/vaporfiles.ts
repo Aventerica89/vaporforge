@@ -128,12 +128,17 @@ vaporFilesRoutes.get('/list', async (c) => {
 
   try {
     const files = await fileService.listUserFiles(user.id);
+    const baseUrl = `https://${new URL(c.req.url).host}`;
+    const filesWithUrls = files.map((f) => ({
+      ...f,
+      url: `${baseUrl}/files/${f.key}`,
+    }));
 
-    return c.json<ApiResponse<typeof files>>({
+    return c.json<ApiResponse<typeof filesWithUrls>>({
       success: true,
-      data: files,
+      data: filesWithUrls,
       meta: {
-        total: files.length,
+        total: filesWithUrls.length,
       },
     });
   } catch (error) {
@@ -157,7 +162,7 @@ vaporFilesRoutes.delete('/:id', async (c) => {
   try {
     // Verify ownership by listing user files
     const userFiles = await fileService.listUserFiles(user.id);
-    const file = userFiles.find(f => fileId.startsWith(f.id));
+    const file = userFiles.find(f => f.id === fileId);
 
     if (!file) {
       return c.json<ApiResponse<never>>({
@@ -166,7 +171,8 @@ vaporFilesRoutes.delete('/:id', async (c) => {
       }, 404);
     }
 
-    await fileService.deleteFile(fileId);
+    // Delete by R2 key (includes extension)
+    await fileService.deleteFile(file.key);
 
     return c.json<ApiResponse<{ id: string }>>({
       success: true,

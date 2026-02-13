@@ -14,6 +14,7 @@ import {
   BookOpen,
   Info,
   Shield,
+  HardDrive,
 } from 'lucide-react';
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
@@ -35,6 +36,7 @@ import { AccountTab } from '@/components/settings/AccountTab';
 import { GuideTab } from '@/components/settings/GuideTab';
 import { AboutTab } from '@/components/settings/AboutTab';
 import { CommandCenterTab } from '@/components/settings/CommandCenterTab';
+import { VaporFilesTab } from '@/components/settings/VaporFilesTab';
 
 /* ─── Tab definitions ─── */
 
@@ -68,6 +70,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-4 w-4" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
       { id: 'command-center', label: 'Command Center', icon: <Shield className="h-4 w-4" /> },
+      { id: 'files', label: 'Files', icon: <HardDrive className="h-4 w-4" /> },
     ],
   },
   {
@@ -98,6 +101,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   plugins: PluginsTab,
   secrets: SecretsTab,
   'command-center': CommandCenterTab,
+  files: VaporFilesTab,
   account: AccountTab,
   guide: GuideTab,
   about: AboutTab,

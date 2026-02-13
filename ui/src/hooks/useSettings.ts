@@ -11,6 +11,7 @@ export type SettingsTab =
   | 'plugins'
   | 'secrets'
   | 'command-center'
+  | 'files'
   | 'account'
   | 'guide'
   | 'about';
