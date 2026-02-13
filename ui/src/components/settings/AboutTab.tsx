@@ -48,6 +48,8 @@ export function AboutTab() {
           <div className="text-foreground">Claude OAuth (setup-token)</div>
           <div className="text-muted-foreground">Secrets</div>
           <div className="text-foreground">1Password Service Account</div>
+          <div className="text-muted-foreground">AI Providers</div>
+          <div className="text-foreground">Claude (primary) + Gemini (MCP)</div>
           <div className="text-muted-foreground">Storage</div>
           <div className="text-foreground">Cloudflare KV + R2</div>
         </div>

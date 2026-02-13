@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.9.5';
+export const APP_VERSION = '0.9.6';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.9.6',
+    date: '2026-02-12',
+    tag: 'feature',
+    title: 'Gemini AI Integration',
+    items: [
+      'Google Gemini available as an AI provider — Claude can delegate tasks to Gemini',
+      'Three Gemini tools: quick_query (Flash), analyze_code (Pro), codebase_analysis (Pro+files)',
+      'AI Providers settings tab: add API key, toggle provider, choose default model',
+      'Gemini expert agent: use /agent:gemini-expert for full Gemini delegation mode',
+      'Auto-retry with exponential backoff on rate limits (429) — handles free tier gracefully',
+      'Zero-dependency MCP server runs inside the sandbox container',
+      'Free tier: 1,000 requests/day with any personal Gmail account',
+    ],
+  },
   {
     version: '0.9.5',
     date: '2026-02-13',

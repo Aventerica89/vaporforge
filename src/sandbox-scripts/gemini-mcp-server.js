@@ -84,9 +84,16 @@ const TOOLS = [
   },
 ];
 
-// ── Gemini API call ──
+// ── Gemini API call with retry ──
 
-function callGemini(model, prompt) {
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 2000;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function callGeminiOnce(model, prompt) {
   return new Promise((resolve, reject) => {
     const apiPath = `/v1beta/models/${model}:generateContent?key=${API_KEY}`;
     const payload = JSON.stringify({
@@ -109,12 +116,27 @@ function callGemini(model, prompt) {
         timeout: 120000,
       },
       (res) => {
+        const statusCode = res.statusCode || 0;
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => {
           const raw = Buffer.concat(chunks).toString();
           try {
             const data = JSON.parse(raw);
+            if (statusCode === 429 || data.error?.status === 'RESOURCE_EXHAUSTED') {
+              const retryAfter = res.headers['retry-after'];
+              const err = new Error(data.error?.message || 'Rate limit exceeded');
+              err.retryable = true;
+              err.retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 0;
+              reject(err);
+              return;
+            }
+            if (statusCode === 503 || statusCode === 500) {
+              const err = new Error(data.error?.message || `Server error ${statusCode}`);
+              err.retryable = true;
+              reject(err);
+              return;
+            }
             if (data.error) {
               reject(new Error(data.error.message || 'Gemini API error'));
               return;
@@ -137,6 +159,20 @@ function callGemini(model, prompt) {
     req.write(payload);
     req.end();
   });
+}
+
+async function callGemini(model, prompt) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await callGeminiOnce(model, prompt);
+    } catch (err) {
+      const isRetryable = err.retryable === true;
+      if (!isRetryable || attempt === MAX_RETRIES) throw err;
+      const delay = err.retryAfterMs || BASE_DELAY_MS * Math.pow(2, attempt);
+      process.stderr.write(`[gemini-mcp] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...\n`);
+      await sleep(delay);
+    }
+  }
 }
 
 // ── File reading (for codebase_analysis) ──

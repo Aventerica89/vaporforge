@@ -1,6 +1,6 @@
 import {
   Terminal, FileCode, ScrollText, Bot, Server,
-  Puzzle, Key, Settings, Zap,
+  Puzzle, Key, Settings, Zap, Sparkles,
 } from 'lucide-react';
 
 function Section({
@@ -126,6 +126,35 @@ export function GuideTab() {
           Environment variables injected into every session container. Use for API keys, tokens,
           and credentials your code needs. Secrets are encrypted in KV and never exposed to the frontend.
         </p>
+      </Section>
+
+      <Section icon={<Sparkles className="h-4 w-4 text-primary" />} title="AI Providers (Gemini)">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Connect additional AI models alongside Claude. Currently supports <strong className="text-foreground">Google Gemini</strong> with
+          a free tier (1,000 requests/day). Claude remains your primary agent and can delegate specific tasks to Gemini.
+        </p>
+        <div className="space-y-1.5 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground text-xs">Available Gemini tools:</p>
+          <ul className="space-y-1">
+            <Tip>
+              <code className="text-primary">gemini_quick_query</code> — Fast Q&A using Gemini Flash.
+              Ask Claude: <em>&quot;use Gemini to explain how React hooks work&quot;</em>
+            </Tip>
+            <Tip>
+              <code className="text-primary">gemini_analyze_code</code> — Deep code review using Gemini Pro.
+              Ask Claude: <em>&quot;have Gemini review this file for security issues&quot;</em>
+            </Tip>
+            <Tip>
+              <code className="text-primary">gemini_codebase_analysis</code> — Multi-file analysis using Gemini Pro.
+              Ask Claude: <em>&quot;ask Gemini to analyze the architecture of src/&quot;</em>
+            </Tip>
+          </ul>
+        </div>
+        <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground leading-relaxed space-y-1.5">
+          <p><strong className="text-foreground">Setup:</strong> Settings &gt; AI Providers &gt; add your Gemini API key &gt; toggle ON</p>
+          <p><strong className="text-foreground">Agent mode:</strong> Type <code className="text-primary">/agent:gemini-expert</code> in chat to route all queries through Gemini</p>
+          <p><strong className="text-foreground">Free key:</strong> Get one at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">aistudio.google.com/apikey</a></p>
+        </div>
       </Section>
 
       <Section icon={<Zap className="h-4 w-4 text-primary" />} title="Tips">
