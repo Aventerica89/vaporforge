@@ -1,168 +1,182 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, Trash2 } from 'lucide-react';
+import { useRef, useEffect, useCallback } from 'react';
+import { Trash2, Loader2, ArrowDown } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { usePullToRefresh } from '@/hooks/usePullToRefresh';
+import { chatApi } from '@/lib/api';
+import { useKeyboard } from '@/hooks/useKeyboard';
+import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
+import { MessageActions } from '@/components/chat/MessageActions';
+import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
+import { TypingCursor } from '@/components/chat/TypingCursor';
+import { PromptInput } from '@/components/chat/PromptInput';
+import { EmptyState } from '@/components/chat/EmptyState';
+import {
+  Message,
+  MessageBubble,
+  MessageBody,
+  MessageFooter,
+  MessageAttachments,
+} from '@/components/chat/message';
 
-export function ChatPanel() {
+interface ChatPanelProps {
+  /** Hide the header bar — used on mobile where MobileLayout provides chrome */
+  compact?: boolean;
+  /** Primary workspace mode — hides internal header (chat IS the main area) */
+  primary?: boolean;
+}
+
+export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) {
   const {
     messages,
     sendMessage,
     isStreaming,
     streamingContent,
+    streamingParts,
     clearMessages,
     currentFile,
   } = useSandboxStore();
-  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { isVisible: keyboardOpen } = useKeyboard();
 
-  // Auto-scroll to bottom
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingContent]);
 
-  // Auto-resize textarea
+  // Auto-scroll when keyboard opens
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${Math.min(inputRef.current.scrollHeight, 150)}px`;
+    if (keyboardOpen) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     }
-  }, [input]);
+  }, [keyboardOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isStreaming) return;
+  // Pull-to-refresh: reload chat history from server (mobile only)
+  const currentSessionId = useSandboxStore((s) => s.currentSession?.id);
 
-    const message = input.trim();
-    setInput('');
-    await sendMessage(message);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
+  const handleRefresh = useCallback(async () => {
+    if (!currentSessionId) return;
+    const result = await chatApi.history(currentSessionId);
+    if (result.success && result.data) {
+      useSandboxStore.setState({ messages: result.data });
     }
-  };
+  }, [currentSessionId]);
+
+  const { pullDistance, isRefreshing, handlers: pullHandlers } =
+    usePullToRefresh({
+      onRefresh: handleRefresh,
+      disabled: !compact,
+    });
 
   return (
-    <div className="flex h-full flex-col border-l border-border bg-card">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-medium uppercase text-muted-foreground">
-            Chat
-          </span>
-          {currentFile && (
-            <span className="text-xs text-muted-foreground">
-              — {currentFile.name}
+    <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border/60'}`}>
+      {/* Header — hidden in compact (mobile) or primary (center workspace) mode */}
+      {!compact && !primary && (
+        <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Chat
             </span>
+            {currentFile && (
+              <span className="text-xs text-primary/60">
+                — {currentFile.name}
+              </span>
+            )}
+          </div>
+          {messages.length > 0 && (
+            <button
+              onClick={clearMessages}
+              className="rounded p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+              title="Clear chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
-        {messages.length > 0 && (
+      )}
+
+      {/* Compact mode: inline clear button */}
+      {compact && messages.length > 0 && (
+        <div className="flex justify-end px-3 pt-2">
           <button
             onClick={clearMessages}
-            className="rounded p-1.5 hover:bg-accent"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
             title="Clear chat"
           >
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
+            <Trash2 className="h-3 w-3" />
+            Clear
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.length === 0 && !isStreaming ? (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <Bot className="mb-3 h-12 w-12 text-muted-foreground/30" />
-            <p className="text-sm text-muted-foreground">
-              Ask Claude anything about your code
-            </p>
-            <div className="mt-4 space-y-2">
-              <SuggestionButton
-                onClick={() => setInput('Explain this code')}
-                text="Explain this code"
+      <div
+        className="flex-1 overflow-y-auto px-4 py-3"
+        {...(compact ? pullHandlers : {})}
+      >
+        {/* Pull-to-refresh indicator (mobile only) */}
+        {compact && (pullDistance > 0 || isRefreshing) && (
+          <div
+            className="flex items-center justify-center transition-all"
+            style={{
+              height: isRefreshing ? 40 : Math.min(pullDistance, 80),
+              opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
+            }}
+          >
+            {isRefreshing ? (
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            ) : (
+              <ArrowDown
+                className="h-5 w-5 text-muted-foreground transition-transform"
+                style={{
+                  transform: pullDistance >= 80 ? 'rotate(180deg)' : 'none',
+                }}
               />
-              <SuggestionButton
-                onClick={() => setInput('Help me fix this bug')}
-                text="Help me fix this bug"
-              />
-              <SuggestionButton
-                onClick={() => setInput('Write tests for this file')}
-                text="Write tests for this file"
-              />
-            </div>
+            )}
           </div>
+        )}
+        {messages.length === 0 && !isStreaming ? (
+          <EmptyState onSuggestion={(text) => sendMessage(text)} />
         ) : (
-          <div className="space-y-4">
+          <div className="mx-auto max-w-3xl space-y-1">
             {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`chat-message flex gap-3 ${
-                  message.role === 'user' ? 'flex-row-reverse' : ''
-                }`}
-              >
-                <div
-                  className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  {message.role === 'user' ? (
-                    <User className="h-4 w-4" />
-                  ) : (
-                    <Bot className="h-4 w-4" />
-                  )}
-                </div>
-                <div
-                  className={`flex-1 rounded-lg px-4 py-3 ${
-                    message.role === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  }`}
-                >
-                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                    {message.content}
-                  </div>
-                  {message.toolCalls && message.toolCalls.length > 0 && (
-                    <div className="mt-2 space-y-1 border-t border-border/50 pt-2">
-                      {message.toolCalls.map((tool) => (
-                        <div
-                          key={tool.id}
-                          className="rounded bg-background/50 px-2 py-1 text-xs"
-                        >
-                          <span className="font-medium">{tool.name}</span>
-                          {tool.output && (
-                            <pre className="mt-1 overflow-x-auto text-muted-foreground">
-                              {tool.output.slice(0, 200)}
-                              {tool.output.length > 200 && '...'}
-                            </pre>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              <Message key={message.id} role={message.role}>
+                {message.role === 'user' ? (
+                  <MessageBubble>
+                    <MessageAttachments message={message} />
+                  </MessageBubble>
+                ) : (
+                  <MessageBody>
+                    <MessageContent message={message} />
+                    <MessageFooter>
+                      <MessageActions content={message.content} />
+                    </MessageFooter>
+                  </MessageBody>
+                )}
+              </Message>
             ))}
 
             {/* Streaming message */}
             {isStreaming && (
-              <div className="chat-message flex gap-3">
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-muted">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex-1 rounded-lg bg-muted px-4 py-3">
-                  <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                    {streamingContent || (
-                      <span className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Thinking...
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <Message role="assistant" isStreaming>
+                <MessageBody>
+                  {streamingContent || streamingParts.length > 0 ? (
+                    <>
+                      <StreamingContent
+                        parts={streamingParts}
+                        fallbackContent={streamingContent}
+                      />
+                      <TypingCursor />
+                    </>
+                  ) : (
+                    <StreamingIndicator
+                      parts={streamingParts}
+                      hasContent={false}
+                    />
+                  )}
+                </MessageBody>
+              </Message>
             )}
 
             <div ref={messagesEndRef} />
@@ -171,52 +185,13 @@ export function ChatPanel() {
       </div>
 
       {/* Input */}
-      <div className="border-t border-border p-4">
-        <form onSubmit={handleSubmit} className="relative">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Claude..."
-            rows={1}
-            disabled={isStreaming}
-            className="w-full resize-none rounded-lg border border-border bg-background px-4 py-3 pr-12 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-50"
-            style={{ color: 'hsl(var(--foreground))' }}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isStreaming}
-            className="absolute bottom-3 right-3 rounded-md bg-primary p-1.5 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isStreaming ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </button>
-        </form>
-        <p className="mt-2 text-center text-xs text-muted-foreground">
-          Press Enter to send, Shift+Enter for new line
-        </p>
-      </div>
+      <PromptInput
+        onSubmit={sendMessage}
+        isStreaming={isStreaming}
+        currentFileName={currentFile?.name}
+        compact={compact}
+        keyboardOpen={keyboardOpen}
+      />
     </div>
-  );
-}
-
-function SuggestionButton({
-  text,
-  onClick,
-}: {
-  text: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="block w-full rounded-md border border-border px-3 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
-    >
-      {text}
-    </button>
   );
 }
