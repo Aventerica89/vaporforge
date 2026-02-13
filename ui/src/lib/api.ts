@@ -78,7 +78,7 @@ export function getPreviousUserId(): string | undefined {
 /** Persist vf-user-id to both localStorage and a cookie (belt-and-suspenders). */
 export function persistUserId(userId: string): void {
   localStorage.setItem('vf-user-id', userId);
-  document.cookie = `vf-user-id=${userId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Strict`;
+  document.cookie = `vf-user-id=${userId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Strict; Secure`;
 }
 
 // Auth API
@@ -117,15 +117,6 @@ export const authApi = {
   logout: () => {
     localStorage.removeItem('session_token');
     // Keep vf-user-id so re-login preserves data
-  },
-
-  recover: async (oldUserId: string): Promise<{ recovered: number; oldUserId: string; newUserId: string }> => {
-    const res = await request<{ recovered: number; oldUserId: string; newUserId: string }>(
-      '/auth/recover',
-      { method: 'POST', body: JSON.stringify({ oldUserId }) }
-    );
-    if (!res.success || !res.data) throw new Error(res.error || 'Recovery failed');
-    return res.data;
   },
 
   recoverByToken: async (oldToken: string): Promise<{ recovered: number; oldUserId: string; newUserId: string }> => {

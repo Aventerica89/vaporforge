@@ -39,7 +39,10 @@ export const useAuthStore = create<AuthState>((set) => ({
         let userId = 'user';
         let email = 'user@claude-cloud.local';
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
+          // JWT uses base64url encoding — convert to standard base64 before decoding
+          const b64url = token.split('.')[1];
+          const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+          const payload = JSON.parse(atob(b64));
           if (payload.sub) userId = payload.sub;
           if (payload.email) email = payload.email;
         } catch { /* use defaults */ }

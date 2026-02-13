@@ -190,7 +190,7 @@ export function IssueTracker() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
         const parsedData = JSON.parse(content);
@@ -207,9 +207,22 @@ export function IssueTracker() {
         // Data is validated and safe to import
         const { issues, suggestions, filter } = validation.data!;
 
-        // Import the validated data
+        // Upload screenshots to VaporFiles so base64 data doesn't exceed
+        // localStorage quota, then clear the dataUrl to keep persistence small.
+        toast.success(`Importing ${issues.length} issue${issues.length === 1 ? '' : 's'}...`);
+        const uploaded = await Promise.all(issues.map(uploadIssueScreenshots));
+        const lightweight = uploaded.map((issue) => ({
+          ...issue,
+          screenshots: issue.screenshots.map((s) => ({
+            ...s,
+            // Keep dataUrl only if upload failed (no fileUrl)
+            dataUrl: s.fileUrl ? '' : s.dataUrl,
+          })),
+        }));
+
+        // Import the data
         useIssueTracker.setState({
-          issues,
+          issues: lightweight,
           suggestions,
           filter,
         });

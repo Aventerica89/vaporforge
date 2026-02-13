@@ -1,6 +1,7 @@
 import type { User, AuthTokenPayloadType } from './types';
 
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+export const KV_USER_TTL = 30 * 24 * 60 * 60; // 30 days (seconds)
 
 // Simple JWT-like token creation using Web Crypto API
 async function createToken(
@@ -76,8 +77,7 @@ export class AuthService {
   // previousUserId: hint from the client (stored in localStorage) to reuse
   // the same userId when the OAuth token rotates, preserving all KV data.
   async getOrCreateUser(claudeToken: string, previousUserId?: string): Promise<User | null> {
-    const tokenHash = await this.hashToken(claudeToken);
-    const userId = `user_${tokenHash.slice(0, 16)}`;
+    const userId = await this.getUserIdFromToken(claudeToken);
 
     // 1. Check if this exact token already has a user
     const existingUser = await this.kv.get<User>(`user:${userId}`, 'json');
@@ -85,7 +85,7 @@ export class AuthService {
       if (existingUser.claudeToken !== claudeToken) {
         existingUser.claudeToken = claudeToken;
         await this.kv.put(`user:${userId}`, JSON.stringify(existingUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
       }
       return existingUser;
@@ -100,11 +100,11 @@ export class AuthService {
         previousUser.claudeToken = claudeToken;
         // Re-persist under the SAME key so all `{previousUserId}` KV data stays valid
         await this.kv.put(`user:${previousUserId}`, JSON.stringify(previousUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         // Also store a forward pointer so the new token hash resolves too
         await this.kv.put(`user-alias:${userId}`, previousUserId, {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         return previousUser;
       }
@@ -119,11 +119,11 @@ export class AuthService {
       if (aliasedUser) {
         aliasedUser.claudeToken = claudeToken;
         await this.kv.put(`user:${aliasedUserId}`, JSON.stringify(aliasedUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         // Refresh the alias TTL
         await this.kv.put(`user-alias:${userId}`, aliasedUserId, {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         return aliasedUser;
       }
@@ -138,7 +138,7 @@ export class AuthService {
     };
 
     await this.kv.put(`user:${userId}`, JSON.stringify(user), {
-      expirationTtl: 30 * 24 * 60 * 60,
+      expirationTtl: KV_USER_TTL,
     });
 
     return user;
@@ -231,7 +231,7 @@ export class AuthService {
       if (user) {
         user.claudeToken = data.access_token;
         await this.kv.put(`user:${userId}`, JSON.stringify(user), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
 
         // Update refresh token if provided
@@ -255,6 +255,11 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  async getUserIdFromToken(claudeToken: string): Promise<string> {
+    const tokenHash = await this.hashToken(claudeToken);
+    return `user_${tokenHash.slice(0, 16)}`;
   }
 
   async hashToken(token: string): Promise<string> {
