@@ -35,10 +35,19 @@ export const useAuthStore = create<AuthState>((set) => ({
       });
 
       if (response.ok) {
+        // Decode the JWT payload to recover the real user id + email
+        let userId = 'user';
+        let email = 'user@claude-cloud.local';
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.sub) userId = payload.sub;
+          if (payload.email) email = payload.email;
+        } catch { /* use defaults */ }
+
         set({
           isAuthenticated: true,
           isLoading: false,
-          user: { id: 'user', email: 'user@claude-cloud.local' },
+          user: { id: userId, email },
         });
       } else {
         localStorage.removeItem('session_token');
