@@ -14,6 +14,7 @@ const SdkStreamSchema = z.object({
   sessionId: z.string(),
   prompt: z.string().min(1).max(100000),
   cwd: z.string().optional(),
+  mode: z.enum(['agent', 'plan']).default('agent'),
 });
 
 // Shell-escape a string for safe command-line usage
@@ -51,7 +52,7 @@ sdkRoutes.post('/stream', async (c) => {
     }, 400);
   }
 
-  const { sessionId, prompt, cwd: requestCwd } = parsed.data;
+  const { sessionId, prompt, cwd: requestCwd, mode } = parsed.data;
 
   // Verify session ownership + ensure sandbox is awake and healthy
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
@@ -129,6 +130,7 @@ sdkRoutes.post('/stream', async (c) => {
           ...collectProjectSecrets(c.env),
           ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
           ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
+          VF_SESSION_MODE: mode,
         },
         timeout: 300000,
       }

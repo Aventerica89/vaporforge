@@ -274,7 +274,8 @@ export const sdkApi = {
     sessionId: string,
     prompt: string,
     cwd?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    mode?: 'agent' | 'plan'
   ): AsyncGenerator<{
     type: string;
     content?: string;
@@ -292,7 +293,7 @@ export const sdkApi = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ sessionId, prompt, cwd }),
+      body: JSON.stringify({ sessionId, prompt, cwd, mode: mode || 'agent' }),
       signal,
     });
 

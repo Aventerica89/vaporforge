@@ -30,6 +30,16 @@ const path = require('path');
 // These are VF internal transport vars the SDK doesn't need directly.
 const STRIP_FROM_SDK_ENV = new Set([
   'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
+  'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
+]);
+
+// Tools blocked in plan mode (read-only research mode).
+// Plan mode allows reading, searching, and web browsing but blocks mutations.
+const PLAN_MODE_BLOCKED_TOOLS = new Set([
+  'Bash',
+  'Write',
+  'Edit',
+  'NotebookEdit',
 ]);
 
 // Minimal YAML frontmatter parser (no external deps needed in container)
@@ -104,6 +114,9 @@ function cleanErrorMessage(err) {
 
 function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
+  const mode = process.env.VF_SESSION_MODE || 'agent';
+  const isPlan = mode === 'plan';
+  if (isPlan) console.error('[claude-agent] Running in PLAN mode (read-only)');
   const agents = loadAgentsFromDisk();
 
   // Filter out keys the SDK's CLI child process shouldn't see
@@ -133,8 +146,17 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     agents,
     ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
-    permissionMode: 'bypassPermissions',
-    allowDangerouslySkipPermissions: true,
+    permissionMode: isPlan ? 'plan' : 'bypassPermissions',
+    allowDangerouslySkipPermissions: !isPlan,
+    ...(isPlan ? {
+      canUseTool: async (toolName) => {
+        if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
+          console.error(`[claude-agent] Plan mode: blocked ${toolName}`);
+          return false;
+        }
+        return true;
+      },
+    } : {}),
     continue: true,
     systemPrompt: {
       type: 'preset',
