@@ -73,7 +73,7 @@
 
   // Environment variables (set via wrangler secret)
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "production"
   },
 
   // Static assets for UI
