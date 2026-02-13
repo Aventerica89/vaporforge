@@ -180,6 +180,35 @@ export interface AIProviderConfig {
   };
 }
 
+// Code Analysis (structured AI output)
+export interface CodeAnalysis {
+  summary: string;
+  complexity: {
+    score: number;
+    label: 'low' | 'medium' | 'high' | 'very-high';
+    reasoning: string;
+  };
+  issues: Array<{
+    line?: number;
+    severity: 'error' | 'warning' | 'info';
+    message: string;
+  }>;
+  suggestions: Array<{
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+  }>;
+}
+
+// Commit Message (structured AI output)
+export interface CommitMessage {
+  type: string;
+  scope?: string;
+  subject: string;
+  body?: string;
+  breaking: boolean;
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }

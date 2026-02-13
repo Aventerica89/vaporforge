@@ -16,6 +16,10 @@ import { MarketplacePage } from './marketplace';
 import { IssueTracker } from './IssueTracker';
 import { QuickChatPanel } from './QuickChatPanel';
 import { CodeTransformPanel } from './CodeTransformPanel';
+import { CodeAnalysisPanel } from './CodeAnalysisPanel';
+import { CommitMessageCard } from './CommitMessageCard';
+import { TestResultsOverlay } from './TestResultsOverlay';
+import { StackTraceOverlay } from './StackTraceOverlay';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
@@ -305,6 +309,10 @@ export function Layout() {
 
       <QuickChatPanel />
       <CodeTransformPanel />
+      <CodeAnalysisPanel />
+      <CommitMessageCard />
+      <TestResultsOverlay />
+      <StackTraceOverlay />
       <IssueTracker />
       <DebugPanel />
     </div>

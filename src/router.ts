@@ -21,6 +21,8 @@ import { vaporFilesRoutes } from './api/vaporfiles';
 import { aiProvidersRoutes } from './api/ai-providers';
 import { quickchatRoutes } from './api/quickchat';
 import { transformRoutes } from './api/transform';
+import { analyzeRoutes } from './api/analyze';
+import { commitMsgRoutes } from './api/commit-msg';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { SetupTokenRequestSchema } from './types';
@@ -200,6 +202,8 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/ai-providers', aiProvidersRoutes);
   protectedRoutes.route('/quickchat', quickchatRoutes);
   protectedRoutes.route('/transform', transformRoutes);
+  protectedRoutes.route('/analyze', analyzeRoutes);
+  protectedRoutes.route('/commit-msg', commitMsgRoutes);
 
   app.route('/api', protectedRoutes);
 

@@ -5,6 +5,7 @@ import { X, Circle } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useCodeTransform } from '@/hooks/useCodeTransform';
+import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
 
 function getLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() || '';
@@ -80,6 +81,22 @@ export function Editor() {
     useCodeTransform.getState().openTransform(selectedText, lang, file.path);
   }, [openFiles, activeFileIndex]);
 
+  const handleOpenAnalysis = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = editor.getSelection();
+    const model = editor.getModel();
+    if (!model) return;
+    // Use selection if available, otherwise analyze the entire file
+    const code = selection && !selection.isEmpty()
+      ? model.getValueInRange(selection)
+      : model.getValue();
+    if (!code.trim()) return;
+    const file = openFiles[activeFileIndex];
+    const lang = getLanguage(file.path);
+    useCodeAnalysis.getState().openAnalysis(code, lang, file.path);
+  }, [openFiles, activeFileIndex]);
+
   const handleEditorMount = useCallback(
     (editor: MonacoEditorType.IStandaloneCodeEditor) => {
       editorRef.current = editor;
@@ -94,8 +111,18 @@ export function Editor() {
         precondition: 'editorHasSelection',
         run: () => handleOpenTransform(),
       });
+
+      // Add "Analyze with AI" context menu action
+      editor.addAction({
+        id: 'vf-analyze-with-ai',
+        label: 'Analyze with AI',
+        keybindings: [],
+        contextMenuGroupId: '9_cutcopypaste',
+        contextMenuOrder: 11,
+        run: () => handleOpenAnalysis(),
+      });
     },
-    [handleOpenTransform]
+    [handleOpenTransform, handleOpenAnalysis]
   );
 
   const handleKeyDown = useCallback(
@@ -108,8 +135,12 @@ export function Editor() {
         e.preventDefault();
         handleOpenTransform();
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'a') {
+        e.preventDefault();
+        handleOpenAnalysis();
+      }
     },
-    [saveFile, handleOpenTransform]
+    [saveFile, handleOpenTransform, handleOpenAnalysis]
   );
 
   if (openFiles.length === 0) {

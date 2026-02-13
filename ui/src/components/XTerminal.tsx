@@ -8,6 +8,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { sessionsApi, sdkApi } from '@/lib/api';
+import { parseTestOutput } from '@/lib/parsers/test-results-parser';
+import { parseStackTrace } from '@/lib/parsers/stack-trace-parser';
+import { useTestResults } from '@/components/TestResultsOverlay';
+import { useStackTrace } from '@/components/StackTraceOverlay';
 
 // Vaporwave-inspired terminal theme
 const TERMINAL_THEME = {
@@ -160,13 +164,33 @@ export function XTerminal({ compact }: XTerminalProps) {
         }
       } else {
         // Shell commands + Claude utilities -> exec-stream for real-time output
+        let outputBuffer = '';
+        let stderrBuffer = '';
         for await (const chunk of sessionsApi.execStream(session.id, trimmed)) {
           if (chunk.type === 'stdout' && chunk.content) {
+            outputBuffer += chunk.content;
             term.write(chunk.content.replace(/\n/g, '\r\n'));
           } else if (chunk.type === 'stderr' && chunk.content) {
+            stderrBuffer += chunk.content;
             term.write(`\x1b[31m${chunk.content.replace(/\n/g, '\r\n')}\x1b[0m`);
           } else if (chunk.type === 'error' && chunk.content) {
+            stderrBuffer += chunk.content;
             term.write(`\r\n\x1b[31mError: ${chunk.content}\x1b[0m\r\n`);
+          }
+        }
+
+        // Auto-detect test results
+        const allOutput = outputBuffer + '\n' + stderrBuffer;
+        const testResults = parseTestOutput(allOutput);
+        if (testResults) {
+          useTestResults.getState().showResults(testResults);
+        }
+
+        // Auto-detect stack traces in stderr
+        if (stderrBuffer) {
+          const stackTrace = parseStackTrace(stderrBuffer);
+          if (stackTrace) {
+            useStackTrace.getState().showTrace(stackTrace);
           }
         }
       }
