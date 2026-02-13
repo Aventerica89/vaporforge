@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check } from 'lucide-react';
 import { useAuthStore } from '@/hooks/useAuth';
 import { authApi } from '@/lib/api';
@@ -30,12 +30,27 @@ export function AccountTab() {
     }
   };
 
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
+
   const copyUserId = async () => {
     if (!currentUserId) return;
     await navigator.clipboard.writeText(currentUserId);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleOldUserIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setOldUserId(e.target.value);
+    setRecoverError('');
+    setRecoverResult(null);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -106,7 +121,7 @@ export function AccountTab() {
           <input
             type="text"
             value={oldUserId}
-            onChange={(e) => { setOldUserId(e.target.value); setRecoverError(''); setRecoverResult(null); }}
+            onChange={handleOldUserIdChange}
             placeholder="user_abc123..."
             className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
           />
