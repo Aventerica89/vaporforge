@@ -1,5 +1,9 @@
 import type { Context } from 'hono';
-import type { Env } from '../types';
+import type { User } from '../types';
+
+type Variables = {
+  user: User;
+};
 
 export interface Issue {
   id: string;
@@ -20,7 +24,7 @@ export interface IssueTrackerData {
 }
 
 // Get issues for current user
-export async function getIssues(c: Context<{ Bindings: Env }>) {
+export async function getIssues(c: Context<{ Bindings: Env; Variables: Variables }>) {
   const user = c.get('user');
   if (!user) {
     return c.json({ error: 'Unauthorized' }, 401);
@@ -34,7 +38,7 @@ export async function getIssues(c: Context<{ Bindings: Env }>) {
 }
 
 // Save issues for current user
-export async function saveIssues(c: Context<{ Bindings: Env }>) {
+export async function saveIssues(c: Context<{ Bindings: Env; Variables: Variables }>) {
   const user = c.get('user');
   if (!user) {
     return c.json({ error: 'Unauthorized' }, 401);
@@ -50,7 +54,7 @@ export async function saveIssues(c: Context<{ Bindings: Env }>) {
 }
 
 // Delete all issues for current user
-export async function deleteIssues(c: Context<{ Bindings: Env }>) {
+export async function deleteIssues(c: Context<{ Bindings: Env; Variables: Variables }>) {
   const user = c.get('user');
   if (!user) {
     return c.json({ error: 'Unauthorized' }, 401);

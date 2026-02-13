@@ -117,18 +117,6 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* iOS PWA: Prevent input zoom and style inconsistencies */
-  input, textarea, select, button {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-  }
-
-  #root {
-    height: 100%;
-    width: 100%;
-  }
-
   code, pre, .terminal-text {
     font-family: var(--font-mono);
     font-variant-ligatures: none;

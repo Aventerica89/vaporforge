@@ -90,7 +90,7 @@ export function MobileLayout() {
         <SessionBootScreen />
       ) : currentSession ? (
         <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
-          <ChatPanel compact />
+          <ChatPanel />
         </div>
       ) : (
         <WelcomeScreen />
