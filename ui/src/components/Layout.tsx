@@ -25,6 +25,7 @@ import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 
 export function Layout() {
   const { loadSessions, selectSession, currentSession, openFiles, isCreatingSession } =
@@ -141,6 +142,13 @@ export function Layout() {
         } else {
           mp.openMarketplace();
         }
+        return;
+      }
+
+      // Cmd+Shift+G — generate AI commit message
+      if (e.shiftKey && (e.key === 'g' || e.key === 'G')) {
+        e.preventDefault();
+        triggerCommitMessage();
         return;
       }
 

@@ -4,6 +4,7 @@ import {
   X,
   Home,
   GitBranch,
+  GitCommitHorizontal,
   Moon,
   Sun,
   Settings,
@@ -19,6 +20,7 @@ import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { McpRelayStatus } from '@/components/McpRelayStatus';
 
 export function SessionTabBar() {
@@ -209,7 +211,7 @@ export function SessionTabBar() {
 
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-1 px-2">
-        {/* Git branch */}
+        {/* Git branch + AI commit button */}
         {currentSession && gitStatus && (
           <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground px-1.5">
             <GitBranch className="h-3 w-3" />
@@ -220,6 +222,18 @@ export function SessionTabBar() {
                 {gitStatus.ahead > 0 && gitStatus.behind > 0 && '/'}
                 {gitStatus.behind > 0 && `-${gitStatus.behind}`}
               </span>
+            )}
+            {(gitStatus.staged.length > 0 ||
+              gitStatus.modified.length > 0 ||
+              gitStatus.untracked.length > 0) && (
+              <button
+                onClick={triggerCommitMessage}
+                className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+                title="Generate AI commit message (Cmd+Shift+G)"
+              >
+                <GitCommitHorizontal className="h-3 w-3" />
+                <span className="hidden lg:inline">AI Commit</span>
+              </button>
             )}
           </div>
         )}

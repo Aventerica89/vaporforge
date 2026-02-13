@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { useSandboxStore } from '@/hooks/useSandbox';
+import { gitApi } from '@/lib/api';
 import type { CommitMessage, ApiResponse } from '@/lib/types';
 
 type ProviderName = 'claude' | 'gemini';
@@ -125,3 +127,28 @@ export const useCommitMessage = create<CommitMessageState>((set, get) => ({
     return headline;
   },
 }));
+
+/** Fetch staged (or working) diff and trigger commit message generation. */
+export async function triggerCommitMessage(): Promise<void> {
+  const { currentSession, gitStatus } = useSandboxStore.getState();
+  if (!currentSession || !gitStatus) return;
+
+  const hasChanges =
+    gitStatus.staged.length > 0 ||
+    gitStatus.modified.length > 0 ||
+    gitStatus.untracked.length > 0;
+  if (!hasChanges) return;
+
+  const staged = gitStatus.staged.length > 0;
+  try {
+    const result = await gitApi.diff(currentSession.id, undefined, staged);
+    const diff = result.data?.diff || '';
+    if (!diff.trim()) return;
+    const files = staged
+      ? gitStatus.staged
+      : [...gitStatus.modified, ...gitStatus.untracked];
+    useCommitMessage.getState().generateCommitMessage(diff, files);
+  } catch {
+    // No git repo or diff error — silently ignore
+  }
+}
