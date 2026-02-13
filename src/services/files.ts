@@ -2,6 +2,7 @@ import { nanoid } from 'nanoid';
 
 export interface FileMetadata {
   id: string;
+  key: string;
   name: string;
   mimeType: string;
   size: number;
@@ -108,6 +109,7 @@ export class FileService {
         const id = object.key.split('.')[0];
         files.push({
           id,
+          key: object.key,
           name: object.customMetadata.originalName || object.key,
           mimeType: object.httpMetadata?.contentType || 'application/octet-stream',
           size: object.size,

@@ -136,18 +136,24 @@ export function IssueTracker() {
 
   const handleExportMarkdown = async () => {
     try {
-      // Upload screenshots for all filtered issues
+      // If items are selected, export those; otherwise export current filter view
+      const toExport = selectedIds.size > 0
+        ? issues.filter((i) => selectedIds.has(i.id))
+        : filtered;
+
       const issuesWithUrls = await Promise.all(
-        filtered.map((issue) => uploadIssueScreenshots(issue))
+        toExport.map((issue) => uploadIssueScreenshots(issue))
       );
 
-      // Build markdown with VaporFiles URLs
       const md = buildMarkdown(issuesWithUrls, suggestions);
       await navigator.clipboard.writeText(md);
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      toast.success('Markdown copied to clipboard');
+      const label = selectedIds.size > 0
+        ? `${toExport.length} selected issues`
+        : 'filtered issues';
+      toast.success(`Copied ${label} to clipboard`);
     } catch (err) {
       console.error('Failed to export markdown:', err);
       toast.error('Failed to copy markdown to clipboard');
@@ -254,14 +260,20 @@ export function IssueTracker() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Copy MD */}
+            {/* Copy MD — respects selection when active */}
             <button
               onClick={handleExportMarkdown}
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
-              title="Copy as Markdown"
+              className={`flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5 ${
+                selectedIds.size > 0
+                  ? 'text-primary hover:bg-primary/10'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              title={selectedIds.size > 0 ? `Copy ${selectedIds.size} selected as Markdown` : 'Copy all as Markdown'}
             >
               <ClipboardCopy className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">{copied ? 'Copied!' : 'Copy MD'}</span>
+              <span className="hidden sm:inline">
+                {copied ? 'Copied!' : selectedIds.size > 0 ? `Copy ${selectedIds.size}` : 'Copy MD'}
+              </span>
               <span className="sm:hidden">{copied ? '✓' : 'MD'}</span>
             </button>
 
