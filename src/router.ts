@@ -222,6 +222,91 @@ export function createRouter(env: Env) {
     });
   });
 
+  // Recover by old Claude token: hash the old token to derive the old userId,
+  // then migrate KV data to the current user.
+  app.post('/api/auth/recover-by-token', async (c) => {
+    const authService = c.get('authService');
+    const user = await extractAuth(c.req.raw, authService);
+    if (!user) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json();
+    const oldToken = typeof body.oldToken === 'string' ? body.oldToken.trim() : '';
+
+    const validPrefixes = ['sk-ant-oat01-', 'sk-ant-api01-'];
+    if (!validPrefixes.some((p) => oldToken.startsWith(p))) {
+      return c.json({ success: false, error: 'Invalid token format. Must start with sk-ant-oat01- or sk-ant-api01-' }, 400);
+    }
+
+    const tokenHash = await authService.hashToken(oldToken);
+    const oldUserId = `user_${tokenHash.slice(0, 16)}`;
+
+    if (oldUserId === user.id) {
+      return c.json({ success: false, error: 'That token resolves to your current account. Your data should already be visible — try refreshing.' }, 400);
+    }
+
+    // Verify the old user record exists
+    const oldUser = await env.AUTH_KV.get(`user:${oldUserId}`);
+    if (!oldUser) {
+      return c.json({ success: false, error: 'No account found for that token. The data may have expired (KV TTL is 30 days).' }, 404);
+    }
+
+    // KV keys to migrate (AUTH_KV)
+    const authKvKeys = [
+      `issues:${oldUserId}`,
+      `favorites:${oldUserId}`,
+      `github-username:${oldUserId}`,
+    ];
+    // KV keys to migrate (SESSIONS_KV)
+    const sessionsKvKeys = [
+      `user-secrets:${oldUserId}`,
+      `user-ai-providers:${oldUserId}`,
+      `user-plugins:${oldUserId}`,
+      `user-mcp:${oldUserId}`,
+      `user-config:${oldUserId}:rules`,
+      `user-config:${oldUserId}:commands`,
+      `user-config:${oldUserId}:agents`,
+      `quickchat-list:${oldUserId}`,
+    ];
+
+    let recovered = 0;
+
+    for (const oldKey of authKvKeys) {
+      const value = await env.AUTH_KV.get(oldKey);
+      if (value) {
+        const newKey = oldKey.replace(oldUserId, user.id);
+        const existing = await env.AUTH_KV.get(newKey);
+        if (!existing) {
+          await env.AUTH_KV.put(newKey, value);
+          recovered++;
+        }
+      }
+    }
+
+    for (const oldKey of sessionsKvKeys) {
+      const value = await env.SESSIONS_KV.get(oldKey);
+      if (value) {
+        const newKey = oldKey.replace(oldUserId, user.id);
+        const existing = await env.SESSIONS_KV.get(newKey);
+        if (!existing) {
+          await env.SESSIONS_KV.put(newKey, value);
+          recovered++;
+        }
+      }
+    }
+
+    // Write alias so future logins with the old token resolve here
+    await env.AUTH_KV.put(`user-alias:${oldUserId}`, user.id, {
+      expirationTtl: 30 * 24 * 60 * 60,
+    });
+
+    return c.json({
+      success: true,
+      data: { recovered, oldUserId, newUserId: user.id },
+    });
+  });
+
   // MCP relay route (uses relay token auth, not user JWT)
   app.route('/api/mcp-relay', mcpRelayRoutes);
 
