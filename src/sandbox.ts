@@ -26,7 +26,7 @@ const PROJECT_SECRET_KEYS = [
 export function collectProjectSecrets(env: Env): Record<string, string> {
   const secrets: Record<string, string> = {};
   for (const key of PROJECT_SECRET_KEYS) {
-    const val = (env as Record<string, unknown>)[key];
+    const val = (env as unknown as Record<string, unknown>)[key];
     if (typeof val === 'string' && val.length > 0) {
       secrets[key] = val;
     }

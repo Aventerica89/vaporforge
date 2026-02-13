@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
 import { getIssues, saveIssues, deleteIssues } from './issues';
-import type { Env } from '../types';
+import type { User } from '../types';
 
-export const issuesRoutes = new Hono<{ Bindings: Env }>();
+type Variables = {
+  user: User;
+};
+
+export const issuesRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // GET /api/issues - Get all issues for current user
 issuesRoutes.get('/', getIssues);
