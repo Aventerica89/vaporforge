@@ -127,6 +127,15 @@ export const authApi = {
     if (!res.success || !res.data) throw new Error(res.error || 'Recovery failed');
     return res.data;
   },
+
+  recoverByToken: async (oldToken: string): Promise<{ recovered: number; oldUserId: string; newUserId: string }> => {
+    const res = await request<{ recovered: number; oldUserId: string; newUserId: string }>(
+      '/auth/recover-by-token',
+      { method: 'POST', body: JSON.stringify({ oldToken }) }
+    );
+    if (!res.success || !res.data) throw new Error(res.error || 'Recovery failed');
+    return res.data;
+  },
 };
 
 // Sessions API

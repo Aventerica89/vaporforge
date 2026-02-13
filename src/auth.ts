@@ -257,7 +257,7 @@ export class AuthService {
     }
   }
 
-  private async hashToken(token: string): Promise<string> {
+  async hashToken(token: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(token);
     const hash = await crypto.subtle.digest('SHA-256', data);

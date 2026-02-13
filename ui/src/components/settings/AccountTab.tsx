@@ -7,22 +7,26 @@ export function AccountTab() {
   const { user, logout } = useAuthStore();
   const currentUserId = localStorage.getItem('vf-user-id') || user?.id || '';
 
-  const [oldUserId, setOldUserId] = useState('');
+  const [recoverInput, setRecoverInput] = useState('');
   const [recovering, setRecovering] = useState(false);
   const [recoverResult, setRecoverResult] = useState<{ recovered: number } | null>(null);
   const [recoverError, setRecoverError] = useState('');
   const [copied, setCopied] = useState(false);
 
   const handleRecover = async () => {
-    const trimmed = oldUserId.trim();
+    const trimmed = recoverInput.trim();
     if (!trimmed) return;
     setRecovering(true);
     setRecoverResult(null);
     setRecoverError('');
     try {
-      const result = await authApi.recover(trimmed);
+      // Detect whether the input is a token or a user ID
+      const isToken = trimmed.startsWith('sk-ant-');
+      const result = isToken
+        ? await authApi.recoverByToken(trimmed)
+        : await authApi.recover(trimmed);
       setRecoverResult(result);
-      setOldUserId('');
+      setRecoverInput('');
     } catch (err) {
       setRecoverError(err instanceof Error ? err.message : 'Recovery failed');
     } finally {
@@ -46,8 +50,8 @@ export function AccountTab() {
     copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleOldUserIdChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setOldUserId(e.target.value);
+  const handleRecoverInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setRecoverInput(e.target.value);
     setRecoverError('');
     setRecoverResult(null);
   }, []);
@@ -114,20 +118,20 @@ export function AccountTab() {
           Data Recovery
         </h4>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          If you lost data (issues, secrets, plugins, etc.) after re-authenticating
-          with a new token, enter your previous user ID to recover it.
+          If you lost data (issues, secrets, plugins, etc.) after re-authenticating,
+          paste your <strong>previous Claude token</strong> (sk-ant-...) or <strong>old user ID</strong> to recover it.
         </p>
         <div className="flex gap-2">
           <input
             type="text"
-            value={oldUserId}
-            onChange={handleOldUserIdChange}
-            placeholder="user_abc123..."
+            value={recoverInput}
+            onChange={handleRecoverInputChange}
+            placeholder="sk-ant-oat01-... or user_abc123..."
             className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
             onClick={handleRecover}
-            disabled={recovering || !oldUserId.trim()}
+            disabled={recovering || !recoverInput.trim()}
             className="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/30 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <RotateCcw className={`h-3.5 w-3.5 ${recovering ? 'animate-spin' : ''}`} />
