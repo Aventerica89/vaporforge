@@ -247,6 +247,10 @@ export function createRouter(env: Env) {
       });
     }
 
+    // Delete the old user record — data has been migrated and the alias
+    // will redirect any future logins with the old token to the new user.
+    await env.AUTH_KV.delete(`user:${oldUserId}`);
+
     return c.json({
       success: true,
       data: { recovered, oldUserId, newUserId: user.id },
