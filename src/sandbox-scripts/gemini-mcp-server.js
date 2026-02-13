@@ -5,9 +5,9 @@
 // Reads GEMINI_API_KEY from env. Calls Gemini REST API via Node https.
 //
 // Tools:
-//   gemini_quick_query    — Gemini 2.0 Flash for fast Q&A
-//   gemini_analyze_code   — Gemini 2.0 Pro for code review/analysis
-//   gemini_codebase_analysis — Gemini 2.0 Pro with file reading
+//   gemini_quick_query    — Gemini 2.5 Flash for fast Q&A
+//   gemini_analyze_code   — Gemini 2.5 Pro for code review/analysis
+//   gemini_codebase_analysis — Gemini 2.5 Pro with file reading
 
 const https = require('https');
 const fs = require('fs');
@@ -16,8 +16,8 @@ const path = require('path');
 const API_KEY = process.env.GEMINI_API_KEY || '';
 const API_HOST = 'generativelanguage.googleapis.com';
 const MODELS = {
-  flash: 'gemini-2.0-flash',
-  pro: 'gemini-2.5-pro-preview-06-05',
+  flash: 'gemini-2.5-flash',
+  pro: 'gemini-2.5-pro',
 };
 
 // Allowed directories for file reading (security boundary)
@@ -28,7 +28,7 @@ const ALLOWED_ROOTS = ['/workspace', '/root'];
 const TOOLS = [
   {
     name: 'gemini_quick_query',
-    description: 'Ask Google Gemini a quick question. Uses Gemini 2.0 Flash for fast responses. Good for explanations, brainstorming, quick code snippets, and general Q&A.',
+    description: 'Ask Google Gemini a quick question. Uses Gemini 2.5 Flash for fast responses. Good for explanations, brainstorming, quick code snippets, and general Q&A.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -42,7 +42,7 @@ const TOOLS = [
   },
   {
     name: 'gemini_analyze_code',
-    description: 'Send code to Google Gemini for deep analysis. Uses Gemini 2.0 Pro for thorough review. Good for security audits, performance review, architecture analysis, and refactoring suggestions.',
+    description: 'Send code to Google Gemini for deep analysis. Uses Gemini 2.5 Pro for thorough review. Good for security audits, performance review, architecture analysis, and refactoring suggestions.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -65,7 +65,7 @@ const TOOLS = [
   },
   {
     name: 'gemini_codebase_analysis',
-    description: 'Analyze multiple files from the workspace using Google Gemini. Reads files from disk and sends them to Gemini 2.0 Pro for cross-file analysis. Good for architecture review, dependency analysis, and finding patterns across files.',
+    description: 'Analyze multiple files from the workspace using Google Gemini. Reads files from disk and sends them to Gemini 2.5 Pro for cross-file analysis. Good for architecture review, dependency analysis, and finding patterns across files.',
     inputSchema: {
       type: 'object',
       properties: {
