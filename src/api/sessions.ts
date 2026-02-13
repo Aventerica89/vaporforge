@@ -85,6 +85,9 @@ sessionRoutes.post('/create', async (c) => {
     const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
     const vfRules = await getVfRules(c.env.SESSIONS_KV, user.id);
 
+    // Collect Gemini MCP config if enabled and API key exists
+    const geminiMcp = await collectGeminiMcpConfig(c.env.SESSIONS_KV, user.id);
+
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
@@ -97,9 +100,6 @@ sessionRoutes.post('/create', async (c) => {
       startRelayProxy: needsRelay,
       injectGeminiAgent: !!geminiMcp,
     });
-
-    // Collect Gemini MCP config if enabled and API key exists
-    const geminiMcp = await collectGeminiMcpConfig(c.env.SESSIONS_KV, user.id);
 
     // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
     const allMcpServers = {
