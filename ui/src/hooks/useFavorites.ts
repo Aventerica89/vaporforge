@@ -123,7 +123,7 @@ export const useFavoritesStore = create<FavoritesState>()(
       },
     }),
     {
-      name: 'vf-favorites',
+      name: 'vf-favorites-store',
       partialize: (state) => ({
         favorites: state.favorites,
         migrated: state.migrated,
