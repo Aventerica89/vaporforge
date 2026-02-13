@@ -40,6 +40,10 @@ const EnableGeminiSchema = z.object({
   defaultModel: z.enum(['flash', 'pro']).default('flash'),
 });
 
+const EnableClaudeSchema = z.object({
+  defaultModel: z.enum(['sonnet', 'haiku', 'opus']).default('sonnet'),
+});
+
 // GET / — get all provider configs
 aiProvidersRoutes.get('/', async (c) => {
   const user = c.get('user');
@@ -95,6 +99,73 @@ aiProvidersRoutes.delete('/gemini', async (c) => {
     data: rest,
   });
 });
+
+// PUT /claude — enable Claude AI SDK
+aiProvidersRoutes.put('/claude', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  const parsed = EnableClaudeSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: parsed.error.issues[0]?.message || 'Invalid input',
+    }, 400);
+  }
+
+  const config = await readConfig(c.env.SESSIONS_KV, user.id);
+  const updated: AIProviderConfig = {
+    ...config,
+    claude: {
+      enabled: true,
+      defaultModel: parsed.data.defaultModel,
+      addedAt: config.claude?.addedAt || new Date().toISOString(),
+    },
+  };
+
+  await writeConfig(c.env.SESSIONS_KV, user.id, updated);
+
+  return c.json<ApiResponse<AIProviderConfig>>({
+    success: true,
+    data: updated,
+  });
+});
+
+// DELETE /claude — disable Claude AI SDK
+aiProvidersRoutes.delete('/claude', async (c) => {
+  const user = c.get('user');
+  const config = await readConfig(c.env.SESSIONS_KV, user.id);
+  const { claude: _, ...rest } = config;
+
+  await writeConfig(c.env.SESSIONS_KV, user.id, rest);
+
+  return c.json<ApiResponse<AIProviderConfig>>({
+    success: true,
+    data: rest,
+  });
+});
+
+/**
+ * Collect Claude AI SDK config for Quick Chat / Code Transform availability.
+ * Returns true if Claude AI SDK provider is enabled AND API key exists.
+ */
+export async function isClaudeAiSdkAvailable(
+  kv: KVNamespace,
+  userId: string
+): Promise<boolean> {
+  const config = await readConfig(kv, userId);
+  if (!config.claude?.enabled) return false;
+
+  const secretsRaw = await kv.get(`user-secrets:${userId}`);
+  if (!secretsRaw) return false;
+
+  try {
+    const secrets = JSON.parse(secretsRaw);
+    return !!secrets.ANTHROPIC_API_KEY;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Collect Gemini MCP config for sandbox injection.

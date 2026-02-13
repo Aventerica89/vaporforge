@@ -268,6 +268,11 @@ export const AIProviderConfigSchema = z.object({
     defaultModel: z.enum(['flash', 'pro']).default('flash'),
     addedAt: z.string(),
   }).optional(),
+  claude: z.object({
+    enabled: z.boolean(),
+    defaultModel: z.enum(['sonnet', 'haiku', 'opus']).default('sonnet'),
+    addedAt: z.string(),
+  }).optional(),
 });
 
 export type AIProviderConfig = z.infer<typeof AIProviderConfigSchema>;

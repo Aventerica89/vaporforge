@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, ChevronDown, ChevronRight, Flame } from 'lucide-react';
+import { X, Loader2, ChevronDown, ChevronRight, Flame, Wand2 } from 'lucide-react';
 import { useReforge, type ReforgeChunk } from '@/hooks/useReforge';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useCodeTransform } from '@/hooks/useCodeTransform';
 
 interface ReforgeModalProps {
   onInsert: (text: string) => void;
@@ -165,14 +166,29 @@ export function ReforgeModal({ onInsert }: ReforgeModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 pt-2 border-t border-border">
+        <div className="flex-shrink-0 pt-2 border-t border-border flex items-center gap-2">
           <button
             onClick={handleInsert}
             disabled={selectedCount === 0}
-            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-40"
+            className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
           >
             <Flame className="h-4 w-4" />
             Insert {selectedCount > 0 ? `${selectedCount} chunk${selectedCount > 1 ? 's' : ''}` : ''}
+          </button>
+          <button
+            onClick={() => {
+              const name = sessionName || selectedSessionId || 'Unknown';
+              const text = buildContextText(name);
+              if (text) {
+                useCodeTransform.getState().openTransform(text, 'markdown');
+                close();
+              }
+            }}
+            disabled={selectedCount === 0}
+            className="flex items-center justify-center gap-2 rounded-lg border border-primary/30 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-40 transition-colors"
+          >
+            <Wand2 className="h-4 w-4" />
+            Transform
           </button>
         </div>
       </div>

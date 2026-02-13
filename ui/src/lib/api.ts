@@ -568,6 +568,17 @@ export const aiProvidersApi = {
     request<AIProviderConfig>('/ai-providers/gemini', {
       method: 'DELETE',
     }),
+
+  enableClaude: (config: { defaultModel: 'sonnet' | 'haiku' | 'opus' }) =>
+    request<AIProviderConfig>('/ai-providers/claude', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+
+  disableClaude: () =>
+    request<AIProviderConfig>('/ai-providers/claude', {
+      method: 'DELETE',
+    }),
 };
 
 // Config API (standalone rules, commands, agents)

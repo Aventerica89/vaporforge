@@ -19,6 +19,8 @@ import { favoritesRoutes } from './api/favorites-routes';
 import { githubRoutes } from './api/github-routes';
 import { vaporFilesRoutes } from './api/vaporfiles';
 import { aiProvidersRoutes } from './api/ai-providers';
+import { quickchatRoutes } from './api/quickchat';
+import { transformRoutes } from './api/transform';
 import { FileService } from './services/files';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
@@ -192,6 +194,8 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/github', githubRoutes);
   protectedRoutes.route('/vaporfiles', vaporFilesRoutes);
   protectedRoutes.route('/ai-providers', aiProvidersRoutes);
+  protectedRoutes.route('/quickchat', quickchatRoutes);
+  protectedRoutes.route('/transform', transformRoutes);
 
   app.route('/api', protectedRoutes);
 

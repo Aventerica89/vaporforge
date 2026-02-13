@@ -1,8 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import MonacoEditor from '@monaco-editor/react';
+import type { editor as MonacoEditorType } from 'monaco-editor';
 import { X, Circle } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
+import { useCodeTransform } from '@/hooks/useCodeTransform';
 
 function getLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() || '';
@@ -46,6 +48,8 @@ export function Editor() {
     setActiveFile,
   } = useSandboxStore();
 
+  const editorRef = useRef<MonacoEditorType.IStandaloneCodeEditor | null>(null);
+
   const { fontSize: editorFontSize, containerProps: pinchProps } = usePinchZoom({
     min: 10,
     max: 24,
@@ -62,14 +66,50 @@ export function Editor() {
     [updateFileContent]
   );
 
+  const handleOpenTransform = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const selection = editor.getSelection();
+    if (!selection || selection.isEmpty()) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const selectedText = model.getValueInRange(selection);
+    if (!selectedText.trim()) return;
+    const file = openFiles[activeFileIndex];
+    const lang = getLanguage(file.path);
+    useCodeTransform.getState().openTransform(selectedText, lang, file.path);
+  }, [openFiles, activeFileIndex]);
+
+  const handleEditorMount = useCallback(
+    (editor: MonacoEditorType.IStandaloneCodeEditor) => {
+      editorRef.current = editor;
+
+      // Add "Transform with AI" context menu action
+      editor.addAction({
+        id: 'vf-transform-with-ai',
+        label: 'Transform with AI',
+        keybindings: [],
+        contextMenuGroupId: '9_cutcopypaste',
+        contextMenuOrder: 10,
+        precondition: 'editorHasSelection',
+        run: () => handleOpenTransform(),
+      });
+    },
+    [handleOpenTransform]
+  );
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
         saveFile();
       }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 't') {
+        e.preventDefault();
+        handleOpenTransform();
+      }
     },
-    [saveFile]
+    [saveFile, handleOpenTransform]
   );
 
   if (openFiles.length === 0) {
@@ -138,6 +178,7 @@ export function Editor() {
           language={getLanguage(activeFile.path)}
           value={fileContent}
           onChange={handleEditorChange}
+          onMount={handleEditorMount}
           theme="vs-dark"
           options={{
             minimap: { enabled: false },

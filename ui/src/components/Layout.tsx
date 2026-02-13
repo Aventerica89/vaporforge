@@ -14,6 +14,8 @@ import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
 import { IssueTracker } from './IssueTracker';
+import { QuickChatPanel } from './QuickChatPanel';
+import { CodeTransformPanel } from './CodeTransformPanel';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
@@ -301,6 +303,8 @@ export function Layout() {
         <WelcomeScreen />
       )}
 
+      <QuickChatPanel />
+      <CodeTransformPanel />
       <IssueTracker />
       <DebugPanel />
     </div>

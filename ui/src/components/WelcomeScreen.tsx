@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X, Undo2, Star, RefreshCw } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Undo2, Star, RefreshCw, MessageSquare } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore } from '@/hooks/useFavorites';
 import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
+import { useQuickChat } from '@/hooks/useQuickChat';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 
@@ -167,7 +168,7 @@ export function WelcomeScreen() {
         </div>
 
         {/* Action Cards */}
-        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 animate-fade-up stagger-2">
+        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up stagger-2">
           <button
             onClick={handleNewSession}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-primary hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group"
@@ -222,6 +223,23 @@ export function WelcomeScreen() {
               </h3>
               <p className="text-xs md:text-sm text-muted-foreground">
                 Import from Git
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => useQuickChat.getState().openQuickChat()}
+            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-blue-500 hover:shadow-[0_0_20px_hsl(210_100%_50%/0.3)] group"
+          >
+            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-blue-500/10 transition-all duration-300 group-hover:bg-blue-500/20 group-hover:scale-110">
+              <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-blue-500 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_hsl(210_100%_50%/0.8)]" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-display text-base md:text-lg font-bold uppercase tracking-wide">
+                Quick Chat
+              </h3>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                AI chat — no sandbox needed
               </p>
             </div>
           </button>

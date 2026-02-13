@@ -173,6 +173,11 @@ export interface AIProviderConfig {
     defaultModel: 'flash' | 'pro';
     addedAt: string;
   };
+  claude?: {
+    enabled: boolean;
+    defaultModel: 'sonnet' | 'haiku' | 'opus';
+    addedAt: string;
+  };
 }
 
 // WebSocket message types
