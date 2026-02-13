@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Plus, ClipboardCopy, ChevronDown, Search, Download, Upload } from 'lucide-react';
-import { useIssueTracker, buildMarkdown, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
+import { X, Plus, ClipboardCopy, ChevronDown, Search, Download, Upload, CheckSquare, Square, XCircle } from 'lucide-react';
+import { useIssueTracker, buildMarkdown, formatIssue, uploadIssueScreenshots } from '@/hooks/useIssueTracker';
 import { IssueCard } from '@/components/IssueCard';
 import { toast } from '@/hooks/useToast';
 import { validateImportData } from '@/lib/validation';
@@ -40,6 +40,9 @@ export function IssueTracker() {
   const [copied, setCopied] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Drag state for reorder
   const dragIndex = useRef<number | null>(null);
@@ -86,6 +89,31 @@ export function IssueTracker() {
     },
     [reorderIssues]
   );
+
+  const handleToggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCopySelected = useCallback(() => {
+    const selected = issues.filter((i) => selectedIds.has(i.id));
+    if (selected.length === 0) return;
+    const md = selected.map((i) => formatIssue(i)).join('\n');
+    navigator.clipboard.writeText(md).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [issues, selectedIds]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
 
   if (!isOpen) return null;
 
@@ -313,6 +341,64 @@ export function IssueTracker() {
           </div>
         </div>
 
+        {/* Multi-select action bar */}
+        {filtered.length > 0 && (
+          <div className="flex shrink-0 items-center gap-2 border-b border-border px-5 py-1.5 bg-muted/20">
+            {/* Select all toggle */}
+            <button
+              onClick={() => {
+                const filteredIds = new Set(filtered.map((i) => i.id));
+                const allSelected = filtered.every((i) => selectedIds.has(i.id));
+                if (allSelected) {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    filteredIds.forEach((id) => next.delete(id));
+                    return next;
+                  });
+                } else {
+                  setSelectedIds((prev) => new Set([...prev, ...filteredIds]));
+                }
+              }}
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              title={filtered.every((i) => selectedIds.has(i.id)) ? 'Deselect all' : 'Select all'}
+            >
+              {filtered.every((i) => selectedIds.has(i.id)) ? (
+                <CheckSquare className="h-3.5 w-3.5 text-primary" />
+              ) : (
+                <Square className="h-3.5 w-3.5" />
+              )}
+              <span className="font-display uppercase tracking-wider">
+                {filtered.every((i) => selectedIds.has(i.id)) ? 'Deselect all' : 'Select all'}
+              </span>
+            </button>
+
+            {/* Actions — only show when items selected */}
+            {selectedIds.size > 0 && (
+              <>
+                <span className="text-[10px] text-muted-foreground/60">|</span>
+                <span className="text-[10px] font-mono text-primary">
+                  {selectedIds.size} selected
+                </span>
+                <button
+                  onClick={handleCopySelected}
+                  className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <ClipboardCopy className="h-3 w-3" />
+                  {copied ? 'Copied!' : 'Copy MD'}
+                </button>
+                <button
+                  onClick={handleClearSelection}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  title="Clear selection"
+                >
+                  <XCircle className="h-3 w-3" />
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Add form (inline) */}
         {showForm && (
           <div className="shrink-0 space-y-3 border-b border-border bg-muted/30 px-4 py-4 sm:px-5">
@@ -392,6 +478,8 @@ export function IssueTracker() {
                   key={issue.id}
                   issue={issue}
                   index={idx}
+                  selected={selectedIds.has(issue.id)}
+                  onToggleSelect={handleToggleSelect}
                   onDragStart={handleDragStart}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}

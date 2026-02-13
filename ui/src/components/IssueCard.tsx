@@ -31,6 +31,8 @@ const SIZE_COLORS: Record<Issue['size'], string> = {
 interface IssueCardProps {
   issue: Issue;
   index: number;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
   onDragStart: (index: number) => void;
   onDragOver: (e: React.DragEvent, index: number) => void;
   onDrop: (index: number) => void;
@@ -39,6 +41,8 @@ interface IssueCardProps {
 export function IssueCard({
   issue,
   index,
+  selected,
+  onToggleSelect,
   onDragStart,
   onDragOver,
   onDrop,
@@ -126,6 +130,24 @@ export function IssueCard({
     >
       {/* Collapsed header */}
       <div className="flex items-center gap-3 px-4 py-3 sm:gap-2 sm:px-3 sm:py-2.5">
+        {/* Selection checkbox */}
+        {onToggleSelect && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect(issue.id);
+            }}
+            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border transition-colors ${
+              selected
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-muted-foreground/30 hover:border-primary/60'
+            }`}
+            title="Select for batch action"
+          >
+            {selected && <Check className="h-3 w-3" strokeWidth={3} />}
+          </button>
+        )}
+
         {/* Drag handle */}
         <button className="min-h-[44px] min-w-[44px] flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing sm:min-h-0 sm:min-w-0">
           <GripVertical className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
