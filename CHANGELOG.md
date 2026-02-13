@@ -1,180 +1,47 @@
 # Changelog
 
-All notable changes to VaporForge are documented here.
-Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+## [Unreleased](https://github.com/Aventerica89/vaporforge/tree/HEAD)
 
-## [0.9.6] - 2026-02-12
+[Full Changelog](https://github.com/Aventerica89/vaporforge/compare/62b07dc8df5f47612c8c6e28c13bd44d0c81a7f5...HEAD)
 
-### Added
-- Google Gemini AI integration: Claude can delegate tasks to Gemini via MCP tools
-- Three Gemini tools: `gemini_quick_query` (Flash), `gemini_analyze_code` (Pro), `gemini_codebase_analysis` (Pro+files)
-- AI Providers settings tab with API key management, model selection, and enable/disable toggle
-- Gemini expert agent (`/agent:gemini-expert`) for full Gemini delegation mode
-- Auto-retry with exponential backoff on Gemini rate limits (429)
-- Guide tab updated with AI Providers usage documentation
+**Merged pull requests:**
 
-### Fixed
-- Session creation crash when Gemini config referenced before initialization (temporal dead zone)
+- feat: VaporFiles manager tab + Copy MD multi-select fix [\#37](https://github.com/Aventerica89/vaporforge/pull/37) ([Aventerica89](https://github.com/Aventerica89))
+- feat: hybrid SDK terminal + strategic merge from main [\#36](https://github.com/Aventerica89/vaporforge/pull/36) ([Aventerica89](https://github.com/Aventerica89))
+- feat: streaming dedup with composite tool IDs [\#35](https://github.com/Aventerica89/vaporforge/pull/35) ([Aventerica89](https://github.com/Aventerica89))
+- feat: plan mode with canUseTool enforcement [\#34](https://github.com/Aventerica89/vaporforge/pull/34) ([Aventerica89](https://github.com/Aventerica89))
+- Address PR review feedback from Gemini Code Assist [\#33](https://github.com/Aventerica89/vaporforge/pull/33) ([Aventerica89](https://github.com/Aventerica89))
+- Fix React StrictMode production errors [\#31](https://github.com/Aventerica89/vaporforge/pull/31) ([Aventerica89](https://github.com/Aventerica89))
+- iOS PWA Optimization - Apple HIG Compliance [\#30](https://github.com/Aventerica89/vaporforge/pull/30) ([Aventerica89](https://github.com/Aventerica89))
+- Optimize Debug Panel for iOS following Apple HIG [\#29](https://github.com/Aventerica89/vaporforge/pull/29) ([Aventerica89](https://github.com/Aventerica89))
+- feat: add comprehensive validation and toast notifications to issue tracker [\#28](https://github.com/Aventerica89/vaporforge/pull/28) ([Aventerica89](https://github.com/Aventerica89))
+- fix: ensure both text and image copy in issue tracker [\#27](https://github.com/Aventerica89/vaporforge/pull/27) ([Aventerica89](https://github.com/Aventerica89))
+- feat: add export/import functionality to bug tracker [\#26](https://github.com/Aventerica89/vaporforge/pull/26) ([Aventerica89](https://github.com/Aventerica89))
+- feat: enhance bug tracker copy to include screenshots [\#25](https://github.com/Aventerica89/vaporforge/pull/25) ([Aventerica89](https://github.com/Aventerica89))
+- feat: add home button and bug tracker to mobile navigation [\#24](https://github.com/Aventerica89/vaporforge/pull/24) ([Aventerica89](https://github.com/Aventerica89))
+- feat: @agent prefix + Tier 2 security [\#23](https://github.com/Aventerica89/vaporforge/pull/23) ([Aventerica89](https://github.com/Aventerica89))
+- feat: explicit agent injection + preset system prompt [\#22](https://github.com/Aventerica89/vaporforge/pull/22) ([Aventerica89](https://github.com/Aventerica89))
+- Issue Tracker UI: Editable Badges + Image Preview [\#21](https://github.com/Aventerica89/vaporforge/pull/21) ([Aventerica89](https://github.com/Aventerica89))
+- iOS mobile optimizations for Plugin Marketplace [\#20](https://github.com/Aventerica89/vaporforge/pull/20) ([Aventerica89](https://github.com/Aventerica89))
+- feat: live plugin sync + marketplace cyberpunk restyle [\#18](https://github.com/Aventerica89/vaporforge/pull/18) ([Aventerica89](https://github.com/Aventerica89))
+- Fix Settings page header safe area and touch targets on iOS [\#17](https://github.com/Aventerica89/vaporforge/pull/17) ([Aventerica89](https://github.com/Aventerica89))
+- Fix AuthGuard \(login screen\) safe area and touch targets for iOS [\#16](https://github.com/Aventerica89/vaporforge/pull/16) ([Aventerica89](https://github.com/Aventerica89))
+- Fix safe area handling for all modals and panels on iOS [\#15](https://github.com/Aventerica89/vaporforge/pull/15) ([Aventerica89](https://github.com/Aventerica89))
+- Fix iOS mobile layout cutoff and keyboard bounce issues [\#14](https://github.com/Aventerica89/vaporforge/pull/14) ([Aventerica89](https://github.com/Aventerica89))
+- fix\(ios\): comprehensive iOS mobile improvements with TDD [\#13](https://github.com/Aventerica89/vaporforge/pull/13) ([Aventerica89](https://github.com/Aventerica89))
+- Claude/fix desktop add button w7ws l [\#12](https://github.com/Aventerica89/vaporforge/pull/12) ([Aventerica89](https://github.com/Aventerica89))
+- fix: MCP servers now persist — write directly to ~/.claude.json inste… [\#11](https://github.com/Aventerica89/vaporforge/pull/11) ([Aventerica89](https://github.com/Aventerica89))
+- fix: add text-foreground color to settings add buttons [\#10](https://github.com/Aventerica89/vaporforge/pull/10) ([Aventerica89](https://github.com/Aventerica89))
+- feat: plugins & agents settings tab with visual agent-command connections [\#9](https://github.com/Aventerica89/vaporforge/pull/9) ([Aventerica89](https://github.com/Aventerica89))
+- fix: favicon now matches landing page logo — cyan \< + purple \> [\#8](https://github.com/Aventerica89/vaporforge/pull/8) ([Aventerica89](https://github.com/Aventerica89))
+- Claude/vaporforge debug branch l l ij7 [\#7](https://github.com/Aventerica89/vaporforge/pull/7) ([Aventerica89](https://github.com/Aventerica89))
+- fix: handle stale session resume crash with retry + clean error messages [\#6](https://github.com/Aventerica89/vaporforge/pull/6) ([Aventerica89](https://github.com/Aventerica89))
+- feat: v0.4.0 — UI upgrade with AI Elements-inspired chat [\#5](https://github.com/Aventerica89/vaporforge/pull/5) ([Aventerica89](https://github.com/Aventerica89))
+- feat: xterm.js terminal with streaming output [\#4](https://github.com/Aventerica89/vaporforge/pull/4) ([Aventerica89](https://github.com/Aventerica89))
+- fix: UI consistency and slash command routing [\#3](https://github.com/Aventerica89/vaporforge/pull/3) ([Aventerica89](https://github.com/Aventerica89))
+- feat: hybrid SDK terminal + session management UI [\#2](https://github.com/Aventerica89/vaporforge/pull/2) ([Aventerica89](https://github.com/Aventerica89))
+- Debug/sandbox diagnostics [\#1](https://github.com/Aventerica89/vaporforge/pull/1) ([Aventerica89](https://github.com/Aventerica89))
 
-## [0.9.5] - 2026-02-13
 
-### Added
-- VaporFiles tab in Settings: browse, upload, preview, and delete R2 files
-- Image gallery with thumbnail grid and full-screen preview modal
-- Drag-and-drop upload with visual drop zone indicator
-- Copy shareable R2 URLs for any file
 
-### Fixed
-- Copy MD now respects multi-select: copies all selected issues
-- File deletion bug: was passing ID without extension to R2
-
-## [0.9.4] - 2026-02-09
-
-### Added
-- Command Center settings tab: edit internal container rules for Claude SDK
-- VF rules prepended to CLAUDE.md in every sandbox
-- Plugin refresh endpoint with state-preserving merge
-- Config injection order documented in UI
-
-## [0.9.3] - 2026-02-09
-
-### Added
-- Slash command autocomplete in chat
-- Rich built-in command templates for /review, /test, /docs, /refactor
-- Plugin discover supports monorepo subpaths and root-level convention dirs
-
-### Fixed
-- Catalog toggle bug: plugins no longer share URLs
-- Marketplace install creates fallback commands from catalog metadata
-
-## [0.9.2] - 2026-02-09
-
-### Added
-- Warp-style layout: chat centered (55%), editor+terminal in right sidebar (30%)
-- SessionTabBar with horizontal tabs, double-click rename, hover close
-- Focus mode (Cmd+3): collapse both sidebars for full-screen chat
-- Right panel auto-expands when file opened from tree
-
-## [0.9.1] - 2026-02-09
-
-### Added
-- 3-tier pricing: Free/$0, Pro/$20, Premium/$80
-- Competitive comparison table (VF vs Cursor vs Codespaces vs Replit)
-- Landing page visual overhaul with gradient text and keyword pills
-
-## [0.9.0] - 2026-02-09
-
-### Added
-- Frontend MCP Relay: connect local MCP servers to cloud SDK via WebSocket relay
-- Relay proxy in container, relay status indicator in header
-- MCP settings tab for adding/removing relay servers
-
-## [0.8.0] - 2026-02-09
-
-### Added
-- MCP server persistence (writes directly to ~/.claude.json in sandbox)
-- Plugins and Agents settings tab with visual connections
-- iPad safe area fix, GitHub repo browser, favorites list
-
-## [0.7.1] - 2026-02-08
-
-### Fixed
-- Chat persistence: SDK stream now writes messages to KV
-- Chat history survives page refresh and session reconnect
-
-## [0.7.0] - 2026-02-08
-
-### Added
-- Secrets management CRUD UI (Settings > Secrets)
-- Secrets stored per-user in KV, injected as env vars into sessions
-- API never returns full values, only last-4-char hint
-- Max 50 secrets per user, 10KB per value
-
-## [0.6.0] - 2026-02-08
-
-### Added
-- Marketing landing page with hero, features, and how-it-works
-- Pricing page with Pro tier at $20/month
-- SPA moved to /app subdirectory
-- Monorepo build: Astro landing + Vite SPA merged into single dist/
-
-## [0.5.0] - 2026-02-08
-
-### Added
-- Touch-friendly copy buttons, iPad layout, dark/light theme toggle
-- Haptic feedback, pull-to-refresh, pinch-to-zoom in editor/terminal
-- Commands and MCP settings tabs, PWA raster icons
-
-## [0.4.6] - 2026-02-07
-
-### Added
-- Debug panel with floating Dev button
-- Image pasting (Cmd+V) into chat with auto-upload to sandbox
-
-## [0.4.5] - 2026-02-07
-
-### Added
-- Session persistence (survives page refresh)
-- Expand all / collapse all in file explorer
-
-## [0.4.4] - 2026-02-07
-
-### Added
-- File upload (drag-and-drop) and download/export (individual + .tar.gz)
-
-## [0.4.3] - 2026-02-07
-
-### Added
-- Session naming, auto-reconnect, time-ago timestamps
-
-## [0.4.2] - 2026-02-07
-
-### Fixed
-- Clone repo double-clone bug
-- File explorer breadcrumb navigation
-
-## [0.4.1] - 2026-02-07
-
-### Added
-- Artifact blocks with copy, download, run actions
-- Chain of thought reasoning timeline
-
-## [0.4.0] - 2026-02-07
-
-### Added
-- AI Elements-inspired chat UI redesign
-- Enhanced tool call blocks, code blocks with line numbers
-- Collapsible reasoning blocks, upgraded prompt input
-
-## [0.3.0] - 2026-02-07
-
-### Added
-- SDK crash fix (IS_SANDBOX, env spread, continue flag)
-- Clone Repo modal, collapsible panels with Cmd+1/2/3 shortcuts
-
-## [0.2.0] - 2026-02-07
-
-### Added
-- Claude can now create files, run commands, and edit code in the sandbox
-- Rich chat UI with markdown rendering, syntax highlighting, and structured tool display
-- Streaming SDK responses with structured tool-start/tool-result events
-
-## [0.1.2] - 2026-02-06
-
-### Added
-- Stream Claude CLI responses in the terminal via SSE
-- Session continuity with SDK resume parameter
-
-## [0.1.1] - 2026-02-05
-
-### Fixed
-- Setup-token auth flow (replaced broken OAuth)
-- Mobile-optimized layout with PWA support
-
-## [0.1.0] - 2026-02-04
-
-### Added
-- Web-based Claude Code IDE on Cloudflare Sandboxes
-- File explorer, Monaco editor, xterm.js terminal
-- R2 bucket for file persistence
-- Cloudflare Containers integration
+\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)*
