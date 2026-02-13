@@ -1,6 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import type { LanguageModelV1 } from 'ai';
+import type { LanguageModel } from 'ai';
 
 /** Supported provider names */
 export type ProviderName = 'claude' | 'gemini';
@@ -13,8 +13,8 @@ const MODEL_MAP: Record<ProviderName, Record<string, string>> = {
     opus: 'claude-opus-4-6',
   },
   gemini: {
-    flash: 'gemini-2.5-flash-preview-04-17',
-    pro: 'gemini-2.5-pro-preview-05-06',
+    flash: 'gemini-2.5-flash',
+    pro: 'gemini-2.5-pro',
   },
 };
 
@@ -50,7 +50,7 @@ export function createModel(
   provider: ProviderName,
   credentials: ProviderCredentials,
   modelAlias?: string
-): LanguageModelV1 {
+): LanguageModel {
   const modelId = resolveModelId(provider, modelAlias);
 
   if (provider === 'claude') {

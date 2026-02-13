@@ -85,13 +85,24 @@ export async function* streamQuickChat(params: {
   }
 }
 
-/** List quick chat conversations */
-export async function listQuickChats(): Promise<QuickChatMeta[]> {
+export type ProviderName = 'claude' | 'gemini';
+
+export interface QuickChatListResponse {
+  chats: QuickChatMeta[];
+  availableProviders: ProviderName[];
+}
+
+/** List quick chat conversations + available providers */
+export async function listQuickChats(): Promise<QuickChatListResponse> {
   const response = await fetch(`${API_BASE}/quickchat/list`, {
     headers: getAuthHeaders(),
   });
-  const data = (await response.json()) as ApiResponse<QuickChatMeta[]>;
-  return data.data || [];
+  const data = (await response.json()) as ApiResponse<QuickChatListResponse>;
+  // Backwards-compatible: handle old response shape (array) and new (object)
+  if (data.data && Array.isArray(data.data)) {
+    return { chats: data.data as unknown as QuickChatMeta[], availableProviders: [] };
+  }
+  return data.data || { chats: [], availableProviders: [] };
 }
 
 /** Get messages for a specific chat */

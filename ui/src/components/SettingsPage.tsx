@@ -16,6 +16,7 @@ import {
   Shield,
   HardDrive,
   Sparkles,
+  Hammer,
 } from 'lucide-react';
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
@@ -39,6 +40,7 @@ import { AboutTab } from '@/components/settings/AboutTab';
 import { CommandCenterTab } from '@/components/settings/CommandCenterTab';
 import { VaporFilesTab } from '@/components/settings/VaporFilesTab';
 import { AIProvidersTab } from '@/components/settings/AIProvidersTab';
+import { DevToolsTab } from '@/components/settings/DevToolsTab';
 
 /* ─── Tab definitions ─── */
 
@@ -83,6 +85,12 @@ const TAB_GROUPS: TabGroup[] = [
     ],
   },
   {
+    label: 'Developer',
+    tabs: [
+      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-4 w-4" /> },
+    ],
+  },
+  {
     label: 'Help',
     tabs: [
       { id: 'guide', label: 'Guide', icon: <BookOpen className="h-4 w-4" /> },
@@ -107,6 +115,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   'command-center': CommandCenterTab,
   files: VaporFilesTab,
   account: AccountTab,
+  'dev-tools': DevToolsTab,
   guide: GuideTab,
   about: AboutTab,
 };
@@ -187,27 +196,39 @@ export function SettingsPage() {
         {/* Desktop sidebar */}
         {!isMobile && (
           <nav className="flex w-[220px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-4">
-            {TAB_GROUPS.map((group) => (
+            {TAB_GROUPS.map((group) => {
+              const isDev = group.label === 'Developer';
+              return (
               <div key={group.label} className="mb-2">
-                <span className="mb-1 block px-3 font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                <span className={`mb-1 block px-3 font-display text-[10px] font-bold uppercase tracking-widest ${isDev ? 'text-amber-500/60' : 'text-muted-foreground/50'}`}>
                   {group.label}
                 </span>
-                {group.tabs.map((tab) => (
+                {group.tabs.map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  const devActive = isDev && isActive;
+                  const devInactive = isDev && !isActive;
+                  return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all text-left ${
-                      activeTab === tab.id
-                        ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3)]'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-primary/5 border-l-2 border-transparent -ml-px'
+                      devActive
+                        ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500 -ml-px shadow-[0_0_10px_-3px_rgba(245,158,11,0.3)]'
+                        : devInactive
+                          ? 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/5 border-l-2 border-transparent -ml-px'
+                          : isActive
+                            ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3)]'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-primary/5 border-l-2 border-transparent -ml-px'
                     }`}
                   >
                     {tab.icon}
                     {tab.label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
-            ))}
+              );
+            })}
           </nav>
         )}
 
@@ -216,7 +237,11 @@ export function SettingsPage() {
           <div className="max-w-2xl">
             {/* Section title (desktop only — mobile shows in tab bar) */}
             {!isMobile && (
-              <h2 className="mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-foreground to-muted-foreground">
+              <h2 className={`mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${
+                activeTab === 'dev-tools'
+                  ? 'from-amber-400 to-orange-500'
+                  : 'from-foreground to-muted-foreground'
+              }`}>
                 {activeLabel}
               </h2>
             )}

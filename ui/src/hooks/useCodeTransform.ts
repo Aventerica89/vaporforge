@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { streamTransform } from '@/lib/transform-api';
+import { useQuickChat } from '@/hooks/useQuickChat';
 
 type ProviderName = 'claude' | 'gemini';
 
@@ -41,6 +42,12 @@ export const useCodeTransform = create<CodeTransformState>((set, get) => ({
   model: undefined,
 
   openTransform: (code, language, filePath) => {
+    const { availableProviders } = useQuickChat.getState();
+    const current = get().provider;
+    const provider =
+      availableProviders.length > 0 && !availableProviders.includes(current)
+        ? availableProviders[0]
+        : current;
     set({
       isOpen: true,
       selectedCode: code,
@@ -50,6 +57,7 @@ export const useCodeTransform = create<CodeTransformState>((set, get) => ({
       transformedCode: '',
       error: null,
       isStreaming: false,
+      provider,
     });
   },
 
@@ -75,6 +83,13 @@ export const useCodeTransform = create<CodeTransformState>((set, get) => ({
       get();
 
     if (!instruction.trim() || !selectedCode) return;
+
+    const { availableProviders } = useQuickChat.getState();
+    if (availableProviders.length > 0 && !availableProviders.includes(provider)) {
+      const name = provider === 'claude' ? 'Claude' : 'Gemini';
+      set({ error: `No API key configured for ${name}. Add one in Settings > AI Providers.` });
+      return;
+    }
 
     set({ isStreaming: true, transformedCode: '', error: null });
     abortController = new AbortController();

@@ -15,7 +15,8 @@ export type SettingsTab =
   | 'files'
   | 'account'
   | 'guide'
-  | 'about';
+  | 'about'
+  | 'dev-tools';
 
 interface SettingsState {
   isOpen: boolean;

@@ -22,6 +22,7 @@ import { aiProvidersRoutes } from './api/ai-providers';
 import { quickchatRoutes } from './api/quickchat';
 import { transformRoutes } from './api/transform';
 import { FileService } from './services/files';
+import { DEV_BUILD } from './dev-version';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -65,16 +66,17 @@ export function createRouter(env: Env) {
       },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization'],
-      exposeHeaders: ['X-VF-Version'],
+      exposeHeaders: ['X-VF-Version', 'X-VF-Dev-Build'],
       credentials: true,
     })
   );
 
   // Version header — allows clients to detect deploys
-  const VF_VERSION = '0.9.5';
+  const VF_VERSION = '0.10.0';
   app.use('*', async (c, next) => {
     await next();
     c.header('X-VF-Version', VF_VERSION);
+    c.header('X-VF-Dev-Build', String(DEV_BUILD));
   });
 
   // Initialize services
@@ -103,6 +105,8 @@ export function createRouter(env: Env) {
       data: {
         status: 'healthy',
         timestamp: new Date().toISOString(),
+        version: VF_VERSION,
+        devBuild: DEV_BUILD,
       },
     });
   });

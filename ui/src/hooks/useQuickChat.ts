@@ -6,9 +6,8 @@ import {
   deleteQuickChat,
   type QuickChatMeta,
   type QuickChatMessage,
+  type ProviderName,
 } from '@/lib/quickchat-api';
-
-type ProviderName = 'claude' | 'gemini';
 
 interface QuickChatState {
   isOpen: boolean;
@@ -22,6 +21,7 @@ interface QuickChatState {
   // Provider selection
   selectedProvider: ProviderName;
   selectedModel: string | undefined;
+  availableProviders: ProviderName[];
 
   // Actions
   openQuickChat: () => void;
@@ -34,6 +34,7 @@ interface QuickChatState {
   deleteChat: (chatId: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   stopStream: () => void;
+  regenerate: () => Promise<void>;
 }
 
 let abortController: AbortController | null = null;
@@ -48,6 +49,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
   error: null,
   selectedProvider: 'claude',
   selectedModel: undefined,
+  availableProviders: [],
 
   openQuickChat: () => {
     set({ isOpen: true });
@@ -71,8 +73,23 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
 
   loadChats: async () => {
     try {
-      const chats = await listQuickChats();
-      set({ chats });
+      const result = await listQuickChats();
+      const { selectedProvider } = get();
+
+      // Auto-select an available provider if current one isn't available
+      let provider = selectedProvider;
+      if (
+        result.availableProviders.length > 0 &&
+        !result.availableProviders.includes(selectedProvider)
+      ) {
+        provider = result.availableProviders[0];
+      }
+
+      set({
+        chats: result.chats,
+        availableProviders: result.availableProviders,
+        selectedProvider: provider,
+      });
     } catch {
       // Silent fail
     }
@@ -114,12 +131,26 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
   },
 
   sendMessage: async (content) => {
-    const { selectedProvider, selectedModel, activeChatId, messages } =
-      get();
+    const {
+      selectedProvider,
+      selectedModel,
+      activeChatId,
+      messages,
+      availableProviders,
+    } = get();
+
+    // Guard: check provider is available
+    if (!availableProviders.includes(selectedProvider)) {
+      set({
+        error: `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : 'Gemini'}. Add one in Settings > AI Providers.`,
+      });
+      return;
+    }
 
     // Generate a chat ID if this is a new conversation
     const chatId =
-      activeChatId || `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      activeChatId ||
+      `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     if (!activeChatId) {
       set({ activeChatId: chatId });
@@ -159,14 +190,17 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
         message: content,
         provider: selectedProvider,
         model: selectedModel,
-        history: history.slice(0, -1), // Don't include the current message in history
+        history: history.slice(0, -1),
         signal: abortController.signal,
       })) {
         if (event.type === 'text' && event.content) {
           fullText += event.content;
           set({ streamingContent: fullText });
         } else if (event.type === 'error') {
-          set({ error: event.content || 'Stream error', isStreaming: false });
+          set({
+            error: event.content || 'Stream error',
+            isStreaming: false,
+          });
           return;
         } else if (event.type === 'done') {
           fullText = event.fullText || fullText;
@@ -226,5 +260,24 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
     } else {
       set({ isStreaming: false, streamingContent: '' });
     }
+  },
+
+  regenerate: async () => {
+    const { messages, isStreaming } = get();
+    if (isStreaming || messages.length < 2) return;
+
+    // Find the last user message content
+    const lastUserMsg = [...messages]
+      .reverse()
+      .find((m) => m.role === 'user');
+    if (!lastUserMsg) return;
+
+    // Remove the trailing user+assistant pair so sendMessage can re-add
+    const lastUserIdx = messages.lastIndexOf(lastUserMsg);
+    const trimmed = messages.slice(0, lastUserIdx);
+    set({ messages: trimmed });
+
+    // Re-send — sendMessage will add user msg + stream new response
+    await get().sendMessage(lastUserMsg.content);
   },
 }));

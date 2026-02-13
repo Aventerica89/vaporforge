@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   X,
   Send,
-  Loader2,
   MessageSquare,
   Trash2,
   Plus,
@@ -10,11 +9,25 @@ import {
   ChevronLeft,
   Sparkles,
   Crown,
+  Copy,
+  Check,
+  BookOpen,
+  Bug,
+  TestTube2,
+  Zap,
+  Clock,
+  RefreshCw,
 } from 'lucide-react';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { ChatMarkdown } from './chat/ChatMarkdown';
+import type { ProviderName } from '@/lib/quickchat-api';
 
-type ProviderName = 'claude' | 'gemini';
+const SUGGESTIONS = [
+  { label: 'Explain this codebase', icon: BookOpen },
+  { label: 'Find potential bugs', icon: Bug },
+  { label: 'Write unit tests', icon: TestTube2 },
+  { label: 'Optimize performance', icon: Zap },
+] as const;
 
 export function QuickChatPanel() {
   const {
@@ -27,16 +40,22 @@ export function QuickChatPanel() {
     streamingContent,
     error,
     selectedProvider,
+    availableProviders,
     setProvider,
     selectChat,
     newChat,
     deleteChat,
     sendMessage,
     stopStream,
+    regenerate,
   } = useQuickChat();
+
+  const hasAnyProvider = availableProviders.length > 0;
 
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,6 +70,16 @@ export function QuickChatPanel() {
       setTimeout(() => inputRef.current?.focus(), 200);
     }
   }, [isOpen, showHistory]);
+
+  // Thinking duration timer
+  useEffect(() => {
+    if (isStreaming && !streamingContent) {
+      setThinkingSeconds(0);
+      const interval = setInterval(() => setThinkingSeconds((s) => s + 1), 1000);
+      return () => clearInterval(interval);
+    }
+    setThinkingSeconds(0);
+  }, [isStreaming, streamingContent]);
 
   // Cmd+Shift+Q shortcut
   useEffect(() => {
@@ -68,6 +97,8 @@ export function QuickChatPanel() {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
     setInput('');
+    // Reset textarea height after clearing
+    if (inputRef.current) inputRef.current.style.height = 'auto';
     await sendMessage(trimmed);
   }, [input, isStreaming, sendMessage]);
 
@@ -80,6 +111,34 @@ export function QuickChatPanel() {
     },
     [handleSend]
   );
+
+  const handleSuggestionClick = useCallback(
+    (text: string) => {
+      sendMessage(text);
+    },
+    [sendMessage]
+  );
+
+  const handleCopy = useCallback((text: string, msgId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(msgId);
+    setTimeout(() => setCopiedId(null), 2000);
+  }, []);
+
+  // Auto-resize textarea
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      setInput(e.target.value);
+      const el = e.target;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    },
+    []
+  );
+
+  const lastAssistantId = [...messages]
+    .reverse()
+    .find((m) => m.role === 'assistant')?.id;
 
   if (!isOpen) return null;
 
@@ -190,6 +249,7 @@ export function QuickChatPanel() {
               <ProviderToggle
                 provider="claude"
                 selected={selectedProvider === 'claude'}
+                available={availableProviders.includes('claude')}
                 onClick={() => setProvider('claude')}
                 icon={<Crown className="h-3.5 w-3.5" />}
                 label="Claude"
@@ -197,6 +257,7 @@ export function QuickChatPanel() {
               <ProviderToggle
                 provider="gemini"
                 selected={selectedProvider === 'gemini'}
+                available={availableProviders.includes('gemini')}
                 onClick={() => setProvider('gemini')}
                 icon={<Sparkles className="h-3.5 w-3.5" />}
                 label="Gemini"
@@ -206,17 +267,41 @@ export function QuickChatPanel() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
               {messages.length === 0 && !isStreaming && (
-                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <MessageSquare className="h-10 w-10 opacity-20 mb-3" />
                   <p className="text-sm font-medium">Quick Chat</p>
-                  <p className="text-xs mt-1">
+                  <p className="text-xs mt-1 mb-6">
                     Instant AI responses — no sandbox required
                   </p>
+                  {hasAnyProvider ? (
+                    <div className="flex flex-wrap justify-center gap-2 px-4">
+                      {SUGGESTIONS.map((s) => (
+                        <button
+                          key={s.label}
+                          onClick={() => handleSuggestionClick(s.label)}
+                          className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all"
+                        >
+                          <s.icon className="h-3 w-3" />
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center px-6">
+                      <p className="text-xs text-yellow-400 mb-2">
+                        No AI providers configured
+                      </p>
+                      <p className="text-[10px] leading-relaxed">
+                        Add an API key in Settings &gt; AI Providers to enable
+                        Quick Chat with Claude or Gemini.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {messages.map((msg) => (
-                <div key={msg.id} className="space-y-1">
+                <div key={msg.id} className="group/msg space-y-1">
                   <div className="flex items-center gap-2">
                     <span
                       className={`text-[10px] font-bold uppercase tracking-wider ${
@@ -232,13 +317,37 @@ export function QuickChatPanel() {
                     )}
                   </div>
                   <div
-                    className={`rounded-lg px-3 py-2 text-sm ${
+                    className={`relative rounded-lg px-3 py-2 text-sm ${
                       msg.role === 'user'
                         ? 'bg-primary/10 text-foreground'
                         : 'bg-muted text-foreground'
                     }`}
                   >
                     <ChatMarkdown content={msg.content} />
+                    {msg.role === 'assistant' && (
+                      <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleCopy(msg.content, msg.id)}
+                          className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+                          title="Copy"
+                        >
+                          {copiedId === msg.id ? (
+                            <Check className="h-3 w-3 text-green-400" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </button>
+                        {msg.id === lastAssistantId && !isStreaming && (
+                            <button
+                              onClick={regenerate}
+                              className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
+                              title="Regenerate"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                            </button>
+                          )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -252,16 +361,32 @@ export function QuickChatPanel() {
                     </span>
                     <ProviderBadge provider={selectedProvider} />
                   </div>
-                  <div className="rounded-lg bg-muted px-3 py-2 text-sm">
-                    {streamingContent ? (
-                      <ChatMarkdown content={streamingContent} />
-                    ) : (
+
+                  {/* Thinking state (before first text arrives) */}
+                  {!streamingContent && (
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        <span className="text-xs">Thinking...</span>
+                        <div className="relative h-3 w-3">
+                          <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
+                          <div className="relative h-3 w-3 rounded-full bg-primary/60" />
+                        </div>
+                        <span className="text-xs font-medium">Thinking</span>
+                        {thinkingSeconds > 0 && (
+                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                            <Clock className="h-2.5 w-2.5" />
+                            {thinkingSeconds}s
+                          </span>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Streaming text */}
+                  {streamingContent && (
+                    <div className="rounded-lg bg-muted px-3 py-2 text-sm">
+                      <ChatMarkdown content={streamingContent} />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -280,11 +405,12 @@ export function QuickChatPanel() {
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask anything..."
+                  placeholder={hasAnyProvider ? 'Ask anything...' : 'Configure a provider in Settings first'}
+                  disabled={!hasAnyProvider}
                   rows={1}
-                  className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                  className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
                     minHeight: '40px',
                     maxHeight: '120px',
@@ -301,7 +427,7 @@ export function QuickChatPanel() {
                 ) : (
                   <button
                     onClick={handleSend}
-                    disabled={!input.trim()}
+                    disabled={!input.trim() || !hasAnyProvider}
                     className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground disabled:opacity-30 hover:bg-primary/90 transition-colors"
                     title="Send (Enter)"
                   >
@@ -324,12 +450,14 @@ export function QuickChatPanel() {
 
 function ProviderToggle({
   selected,
+  available,
   onClick,
   icon,
   label,
 }: {
   provider: ProviderName;
   selected: boolean;
+  available: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
@@ -337,14 +465,21 @@ function ProviderToggle({
   return (
     <button
       onClick={onClick}
+      disabled={!available}
+      title={available ? label : `${label} — no API key configured`}
       className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-        selected
-          ? 'bg-primary/10 text-primary border border-primary/30'
-          : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+        !available
+          ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
+          : selected
+            ? 'bg-primary/10 text-primary border border-primary/30'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
       }`}
     >
       {icon}
       {label}
+      {!available && (
+        <span className="text-[9px] opacity-60">n/a</span>
+      )}
     </button>
   );
 }

@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useCodeTransform } from '@/hooks/useCodeTransform';
+import { useQuickChat } from '@/hooks/useQuickChat';
 
 const MonacoDiffEditor = lazy(() =>
   import('@monaco-editor/react').then((mod) => ({
@@ -37,6 +38,8 @@ export function CodeTransformPanel() {
     rejectTransform,
     stopStream,
   } = useCodeTransform();
+
+  const availableProviders = useQuickChat((s) => s.availableProviders);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Focus input when panel opens
@@ -122,6 +125,7 @@ export function CodeTransformPanel() {
             <ProviderToggle
               provider="claude"
               selected={provider === 'claude'}
+              available={availableProviders.length === 0 || availableProviders.includes('claude')}
               onClick={() => setProvider('claude')}
               icon={<Crown className="h-3.5 w-3.5" />}
               label="Claude"
@@ -129,6 +133,7 @@ export function CodeTransformPanel() {
             <ProviderToggle
               provider="gemini"
               selected={provider === 'gemini'}
+              available={availableProviders.length === 0 || availableProviders.includes('gemini')}
               onClick={() => setProvider('gemini')}
               icon={<Sparkles className="h-3.5 w-3.5" />}
               label="Gemini"
@@ -253,12 +258,14 @@ export function CodeTransformPanel() {
 
 function ProviderToggle({
   selected,
+  available,
   onClick,
   icon,
   label,
 }: {
   provider: ProviderName;
   selected: boolean;
+  available: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
@@ -266,14 +273,19 @@ function ProviderToggle({
   return (
     <button
       onClick={onClick}
+      disabled={!available}
+      title={available ? label : `${label} — no API key configured`}
       className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-        selected
-          ? 'bg-primary/10 text-primary border border-primary/30'
-          : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+        !available
+          ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
+          : selected
+            ? 'bg-primary/10 text-primary border border-primary/30'
+            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
       }`}
     >
       {icon}
       {label}
+      {!available && <span className="text-[9px] opacity-60">n/a</span>}
     </button>
   );
 }

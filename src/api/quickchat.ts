@@ -5,6 +5,7 @@ import type { User, ApiResponse } from '../types';
 import {
   createModel,
   getProviderCredentials,
+  getAvailableProviders,
   type ProviderName,
 } from '../services/ai-provider-factory';
 
@@ -282,6 +283,7 @@ quickchatRoutes.post('/stream', async (c) => {
     } catch (err) {
       const errMsg =
         err instanceof Error ? err.message : 'Stream error';
+      console.error('[quickchat/stream] Error:', errMsg);
       await write({ type: 'error', content: errMsg });
     } finally {
       await writer.close();
@@ -301,14 +303,22 @@ quickchatRoutes.post('/stream', async (c) => {
   });
 });
 
-// GET /list — list quick chat conversations
+// GET /list — list quick chat conversations + available providers
 quickchatRoutes.get('/list', async (c) => {
   const user = c.get('user');
-  const chatList = await readChatList(c.env.SESSIONS_KV, user.id);
+  const [chatList, availableProviders] = await Promise.all([
+    readChatList(c.env.SESSIONS_KV, user.id),
+    getAvailableProviders(c.env.SESSIONS_KV, user.id),
+  ]);
 
-  return c.json<ApiResponse<QuickChatMeta[]>>({
+  return c.json<
+    ApiResponse<{
+      chats: QuickChatMeta[];
+      availableProviders: ProviderName[];
+    }>
+  >({
     success: true,
-    data: chatList,
+    data: { chats: chatList, availableProviders },
   });
 });
 
