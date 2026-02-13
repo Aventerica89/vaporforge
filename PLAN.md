@@ -1,83 +1,195 @@
-# Plan: Fix user data loss on re-authentication (user-alias bug)
+# Plan: Dev Playground & Universal Issue Tracker
 
-## Root Cause
+## Problem Statement
 
-When you log in, the backend hashes your token to derive a `userId` (e.g. `user_abc123`). All your data (sessions, secrets, issues, favorites, plugins, etc.) is stored under KV keys prefixed with that `userId`.
+Three related needs:
+1. **Dev Playground** — A dedicated workspace for building/tweaking UI component panels interactively, with access to a shadcn component catalog to build from
+2. **Universal Issue Tracker** — The current issue tracker (`issues:${userId}` in KV) is scoped to a single tab. Need it to sync across all open tabs/sessions so editing on one updates everywhere
+3. **Bug/Debug/Console Logger** — Consolidate the existing DebugPanel into the dev tools experience
 
-The frontend sends a `previousUserId` hint (from `localStorage`) so that if your token changes, the backend can reconnect you to your old data. **But when localStorage is cleared — which happens on a hard refresh via DevTools — the hint is lost.** Without it, the backend has no way to find your existing user record if the token hash changed.
+## Architecture Decision: NOT a monorepo restructure
 
-The system *does* write a `user-alias:${newHash}` forward pointer when tokens rotate (`src/auth.ts:106`), but **it never reads it back**. So the alias exists in KV but is completely unused.
+The project is already a functional monorepo (`src/` backend, `ui/` frontend, `landing/`). Adding npm workspaces would be over-engineering. We build on existing patterns:
 
-**Result:** After a hard refresh + re-login, the backend creates a brand-new user record. All your data is orphaned under the old userId — hence "half the time my data doesn't show up."
+- **Full-screen overlay** for the playground UI (same pattern as SettingsPage/IssueTracker — z-50 fixed overlay)
+- **KV + Zustand + polling** for universal sync (same pattern as issue tracker, add sync layer)
+- **Static component catalog** at build time (same pattern as `generate-plugin-catalog.mjs`)
 
-## Fix (2 changes)
+---
 
-### 1. Backend: Resolve `user-alias` during login (`src/auth.ts`)
+## Phase 1: Universal Issue Tracker Sync
 
-In `getOrCreateUser()`, after the initial KV lookup misses (step 1), and before the `previousUserId` check (step 2), add a step that looks up `user-alias:${userId}`. If an alias exists, it means this token hash was previously mapped to an older userId — use that older userId to load the user record.
+**Goal**: Single source of truth — edit issues in any tab/session, changes appear everywhere.
 
-This makes the system self-healing: even without the `previousUserId` localStorage hint, the backend can reconnect a rotated token to its original user.
+### How it works today
+- `useIssueTracker.ts` stores issues in Zustand + localStorage (`vf-issue-tracker`)
+- Debounced sync to `PUT /api/issues` → KV key `issues:${userId}`
+- Per-user scoping via `userId` derived from Claude token hash
 
-### 2. Frontend: Persist `vf-user-id` in a cookie alongside localStorage (`ui/src/lib/api.ts`)
+### What changes
 
-Hard refresh clears localStorage but not cookies. By also writing `vf-user-id` to a `SameSite=Strict; Secure` cookie, we create a fallback that survives cache clears. On login, read from localStorage first, fall back to the cookie.
+**Backend (`src/api/issues.ts` + `src/api/issues-routes.ts`)**:
+- Add `GET /api/issues/sync` endpoint returning `{ issues, lastModified }` with ETag support
+- Add `updatedAt` timestamp to the issue store data, returned on every write
+- Add `PATCH /api/issues/:id` for single-issue updates (avoids full-list overwrites)
 
-## TDD Approach
+**Frontend (`ui/src/hooks/useIssueTracker.ts`)**:
+- Add visibility-based polling sync (every 30s when tab is visible, pause when hidden)
+- Compare `lastModified` — server wins for conflicts (last-write-wins with timestamp)
+- localStorage becomes offline cache only, KV backend is source of truth
 
-### Test file: `src/auth.test.ts` (new)
+**Why this already "works across sites"**: All VaporForge sessions share the same KV namespace and the same `userId`. Issues are already universal — the missing piece is just real-time sync (polling) so changes in one tab reflect in another without reload.
 
-Write the following **failing** tests first, then implement the fix:
-
-1. **"resolves user-alias when token hash has a forward pointer"**
-   - Setup: put `user:user_OLD` in KV with user data, put `user-alias:user_NEW` → `user_OLD`
-   - Call `getOrCreateUser(tokenThatHashesToNEW)` with NO previousUserId
-   - Assert: returns the user from `user:user_OLD`, does NOT create a new user
-
-2. **"falls through to create new user when no alias and no hint exist"**
-   - Setup: KV is empty
-   - Call `getOrCreateUser(someToken)` with no previousUserId
-   - Assert: creates and returns a new user
-
-3. **"prefers direct user match over alias"**
-   - Setup: put `user:user_X` in KV, also put `user-alias:user_X` → `user_Y`
-   - Call `getOrCreateUser(tokenThatHashesToX)`
-   - Assert: returns `user:user_X` directly (alias is not consulted)
-
-4. **"previousUserId hint still works and takes priority over alias"**
-   - Setup: put `user:user_HINT` in KV, put `user-alias:user_NEW` → `user_OTHER`
-   - Call `getOrCreateUser(tokenThatHashesToNEW, "user_HINT")`
-   - Assert: returns user from `user:user_HINT`, creates alias `user-alias:user_NEW` → `user_HINT`
-
-5. **"creates forward alias when falling back to alias-resolved user"**
-   - Ensures that after resolving via alias, the system updates the alias chain so future rotations also work
-
-### Test file: `ui/src/__tests__/api-auth.test.ts` (new)
-
-6. **"reads previousUserId from cookie when localStorage is empty"**
-   - Mock localStorage.getItem('vf-user-id') → null
-   - Mock document.cookie to contain `vf-user-id=user_abc`
-   - Call `authApi.setupWithToken(token)`
-   - Assert: request body includes `previousUserId: "user_abc"`
-
-7. **"sets vf-user-id cookie on successful login"**
-   - Call `authApi.setupWithToken(token)` with a mocked success response
-   - Assert: `document.cookie` was set with `vf-user-id=<userId>`
-
-## Files to Change
-
+### Files to modify
 | File | Change |
 |------|--------|
-| `src/auth.test.ts` | **NEW** — Tests 1-5 (backend alias resolution) |
-| `src/auth.ts` | Add `user-alias` lookup in `getOrCreateUser()` between steps 1 and 2 |
-| `ui/src/__tests__/api-auth.test.ts` | **NEW** — Tests 6-7 (cookie fallback) |
-| `ui/src/lib/api.ts` | Read `vf-user-id` from cookie as fallback; write cookie on login |
-| `vitest.config.ts` | **NEW** — Vitest config for backend tests (the project has vitest in devDeps but no config file) |
+| `src/api/issues.ts` | Add `getWithEtag()`, `patchIssue()` methods |
+| `src/api/issues-routes.ts` | Add `GET /sync`, `PATCH /:id` routes |
+| `ui/src/hooks/useIssueTracker.ts` | Add polling sync, visibility-based refresh |
+| `src/types.ts` | Add `updatedAt` to `IssueTrackerData` schema |
 
-## Implementation Order (TDD)
+---
 
-1. Create `vitest.config.ts` with minimal config
-2. Write failing tests 1-5 in `src/auth.test.ts`
-3. Implement alias resolution in `src/auth.ts` → tests pass
-4. Write failing tests 6-7 in `ui/src/__tests__/api-auth.test.ts`
-5. Implement cookie fallback in `ui/src/lib/api.ts` → tests pass
-6. Run full test suite, commit, push
+## Phase 2: Dev Playground
+
+**Goal**: Dedicated page for visually building/tweaking UI components. Browse shadcn components, drop them in, adjust live.
+
+### UI Structure
+
+Accessible from:
+- Settings → Developer → "Open Playground" button
+- Mobile drawer footer (alongside Home, Bug Tracker)
+- Keyboard shortcut (Cmd+Shift+D)
+
+Opens as a **full-screen overlay** with its own tab system:
+
+```
+┌─────────────────────────────────────────────┐
+│  DEV PLAYGROUND                        [X]  │
+│  ┌──────┬───────────┬────────┬─────────┐    │
+│  │Canvas│ Components│ Console│ Issues  │    │
+│  └──────┴───────────┴────────┴─────────┘    │
+│                                             │
+│  [Tab content area]                         │
+│                                             │
+└─────────────────────────────────────────────┘
+```
+
+**Tab 1: Canvas** — Live preview panel
+- Renders user-created component panels in a sandboxed div
+- Hot-reloads on code changes
+- Resizable viewport presets (mobile/tablet/desktop)
+- Props editor sidebar (JSON or form-based)
+
+**Tab 2: Components** — shadcn/ui catalog browser
+- Static catalog of shadcn components (Button, Card, Dialog, Input, Select, Table, etc.)
+- Each entry: preview snippet, copy-paste code, Tailwind class variants
+- Click to insert into active canvas panel
+- Search + filter by category (Form, Layout, Data Display, Feedback, Navigation)
+- **Not installed as a dependency** — catalog is reference/copy-paste only
+
+**Tab 3: Console** — Upgraded debug/console logger
+- Merges existing `DebugPanel` functionality into this tab
+- Categorized logs: API, Stream, Sandbox, Error, Info (reuses `useDebugLog.ts`)
+- Filter by level, search by text, export as JSON
+- Persists last 500 entries in localStorage
+
+**Tab 4: Issues** — Embedded issue tracker
+- Renders the existing `IssueTracker` component inline (not as a separate modal)
+- Same Zustand store, same sync — just a different mount point
+- Benefits from Phase 1 universal sync
+
+### Data Model
+
+```typescript
+interface PlaygroundPanel {
+  id: string;
+  name: string;
+  code: string;           // TSX/JSX source
+  props: Record<string, unknown>;
+  tailwindClasses: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PlaygroundState {
+  panels: PlaygroundPanel[];
+  activePanel: string | null;
+  viewport: 'mobile' | 'tablet' | 'desktop';
+  isOpen: boolean;
+}
+```
+
+**Storage**: `playground:${userId}` in AUTH_KV. Syncs universally via same polling pattern from Phase 1.
+
+### shadcn Component Catalog
+
+Generated at build time (same approach as `scripts/generate-plugin-catalog.mjs`):
+- Script reads shadcn component registry and outputs a static TypeScript catalog
+- Each entry: name, category, code snippet, dependencies, Tailwind classes
+- Browseable in the Components tab — "Use" copies code into active panel
+- No runtime shadcn dependency
+
+### Files to create/modify
+| File | Purpose |
+|------|---------|
+| `ui/src/components/DevPlayground.tsx` | **NEW** — Main overlay (tabs, layout) |
+| `ui/src/components/playground/CanvasTab.tsx` | **NEW** — Live preview + props editor |
+| `ui/src/components/playground/ComponentsTab.tsx` | **NEW** — shadcn catalog browser |
+| `ui/src/components/playground/ConsoleTab.tsx` | **NEW** — Debug/console (absorbs DebugPanel) |
+| `ui/src/hooks/usePlayground.ts` | **NEW** — Zustand store |
+| `ui/src/lib/generated/component-catalog.ts` | **NEW** — Static shadcn catalog |
+| `scripts/generate-component-catalog.mjs` | **NEW** — Build script for catalog |
+| `src/api/playground.ts` | **NEW** — KV persistence service |
+| `src/api/playground-routes.ts` | **NEW** — API routes (GET/PUT) |
+| `ui/src/components/MobileDrawer.tsx` | Add "Dev Playground" button |
+| `ui/src/components/Layout.tsx` | Mount `<DevPlayground />` |
+| `ui/src/components/settings/DevToolsTab.tsx` | Add "Open Playground" button |
+
+---
+
+## Phase 3: Console Logger Integration
+
+**Goal**: Unify the debug experience.
+
+### Changes
+- Extract log display from `DebugPanel.tsx` into reusable `<ConsoleLogViewer />` component
+- Use `ConsoleLogViewer` in both: playground Console tab AND floating mini-panel
+- Add log levels: `debug`, `info`, `warn`, `error` (currently category-based only)
+- Persist last 500 entries in localStorage (currently in-memory only)
+- Floating mini-panel (existing DebugPanel) stays as a quick-access shortcut
+
+### Files to modify
+| File | Change |
+|------|--------|
+| `ui/src/components/DebugPanel.tsx` | Extract `<ConsoleLogViewer />`, keep floating mini-panel |
+| `ui/src/components/playground/ConsoleTab.tsx` | Use `<ConsoleLogViewer />` full-size |
+| `ui/src/hooks/useDebugLog.ts` | Add log levels, localStorage persistence, 500-entry cap |
+
+---
+
+## Implementation Order
+
+1. **Phase 1** (Universal Issue Sync) — ~3 commits
+   - Backend: sync endpoint + patch endpoint + updatedAt tracking
+   - Frontend: polling sync in useIssueTracker
+   - Test the sync across multiple tabs
+
+2. **Phase 2** (Dev Playground) — ~6 commits
+   - Zustand store + API routes for playground persistence
+   - Main overlay shell with tab system
+   - Component catalog build script + browser UI
+   - Canvas tab with live preview
+   - Wire up entry points (Settings, MobileDrawer, keyboard shortcut)
+   - Embed issue tracker as tab
+
+3. **Phase 3** (Console Logger) — ~2 commits
+   - Extract ConsoleLogViewer from DebugPanel
+   - Integrate into playground Console tab + add log levels/persistence
+
+## What this does NOT do
+- Does NOT restructure the monorepo (npm workspaces, etc.)
+- Does NOT install shadcn/ui as a runtime dependency (catalog is static reference only)
+- Does NOT require Cloudflare Workers config changes (uses existing KV namespaces)
+- Does NOT add WebSocket sync (polling is sufficient; WS can come later if needed)
+- Does NOT inject code into other projects — VaporForge itself is the shared layer, data syncs via KV
