@@ -129,7 +129,8 @@ export function MobileDrawer({
   };
 
   const handleGoHome = () => {
-    window.location.href = '/app/';
+    useSandboxStore.getState().deselectSession();
+    onClose();
   };
 
   return (
