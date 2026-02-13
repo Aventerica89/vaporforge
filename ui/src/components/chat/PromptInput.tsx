@@ -76,10 +76,13 @@ export function PromptInput({
   }, [settingsOpen, refreshCommands]);
 
   // Detect prefix: "/" for commands, "@" for agents
+  // Match at start of input OR after whitespace
   const menuState = useMemo(() => {
-    const slashMatch = input.match(/^\/(\S*)$/);
+    // Match /command at start or after space/newline
+    const slashMatch = input.match(/(?:^|\s)\/(\S*)$/);
     if (slashMatch) return { kind: 'command' as const, query: slashMatch[1] };
-    const atMatch = input.match(/^@(\S*)$/);
+    // Match @agent at start or after space/newline
+    const atMatch = input.match(/(?:^|\s)@(\S*)$/);
     if (atMatch) return { kind: 'agent' as const, query: atMatch[1] };
     return null;
   }, [input]);
@@ -227,12 +230,23 @@ export function PromptInput({
   const handleSlashSelect = useCallback(
     (cmd: (typeof commands)[number]) => {
       const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
-      onSubmit(`[${prefix}:/${cmd.name}]\n${cmd.content}`);
+
+      // Extract any text before the slash command
+      const prefixChar = cmd.kind === 'agent' ? '@' : '/';
+      const pattern = new RegExp(`(?:^|\\s)[${prefixChar}]\\S*$`);
+      const textBefore = input.replace(pattern, '').trim();
+
+      // Combine previous text with command content
+      const fullMessage = textBefore
+        ? `${textBefore}\n\n[${prefix}:/${cmd.name}]\n${cmd.content}`
+        : `[${prefix}:/${cmd.name}]\n${cmd.content}`;
+
+      onSubmit(fullMessage);
       setInput('');
       setMenuIndex(0);
       haptics.light();
     },
-    [onSubmit]
+    [onSubmit, input]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -253,7 +267,13 @@ export function PromptInput({
         e.preventDefault();
         const selected = filteredCommands[menuIndex];
         if (selected) {
-          setInput(`/${selected.name} `);
+          // Replace the partial command with the full command name
+          const prefix = menuState?.kind === 'agent' ? '@' : '/';
+          const replacement = `${prefix}${selected.name} `;
+          const pattern = new RegExp(`(?:^|\\s)[${prefix}]\\S*$`);
+          setInput(input.replace(pattern, (match) =>
+            match.startsWith(prefix) ? replacement : match[0] + replacement
+          ));
           setMenuIndex(0);
         }
         return;
