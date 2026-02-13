@@ -88,7 +88,14 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   selectedCompatibility: 'all',
   installedRepoUrls: new Set(),
   favoriteRepoUrls: new Set(
-    JSON.parse(localStorage.getItem('vf-favorites') || '[]')
+    (() => {
+      try {
+        const raw = JSON.parse(localStorage.getItem('vf-favorites') || '[]');
+        return Array.isArray(raw) ? raw : [];
+      } catch {
+        return [];
+      }
+    })()
   ),
   installing: new Set(),
   installError: null,
