@@ -111,7 +111,7 @@ export function CodeBlock({ code, language, filename, hideHeader = false }: Code
 
         {/* Highlighted code */}
         <div className="min-w-0 flex-1 p-3 [&_pre]:!bg-transparent [&_code]:!bg-transparent">
-          <ShikiHighlighter language={language} theme={shikiTheme}>
+          <ShikiHighlighter language={language} theme={shikiTheme} defaultColor={false} cssVariablePrefix="--shiki-" langAlias={{}} engine={undefined as any}>
             {code}
           </ShikiHighlighter>
         </div>

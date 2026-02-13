@@ -123,7 +123,15 @@ export function createRouter(env: Env) {
       return c.json({ success: false, error: 'Invalid token format' }, 400);
     }
 
-    const result = await authService.authenticateWithSetupToken(parsed.data.token);
+    // Accept optional previousUserId hint to preserve data across token rotations
+    const previousUserId = typeof body.previousUserId === 'string'
+      ? body.previousUserId
+      : undefined;
+
+    const result = await authService.authenticateWithSetupToken(
+      parsed.data.token,
+      previousUserId
+    );
     if (!result) {
       return c.json({
         success: false,
@@ -140,6 +148,77 @@ export function createRouter(env: Env) {
           email: result.user.email,
         },
       },
+    });
+  });
+
+  // Data recovery: migrate orphaned data from an old userId to the current user.
+  // Requires auth (so we know the current user) and the old userId.
+  app.post('/api/auth/recover', async (c) => {
+    const authService = c.get('authService');
+    const user = await extractAuth(c.req.raw, authService);
+    if (!user) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401);
+    }
+
+    const body = await c.req.json();
+    const oldUserId = typeof body.oldUserId === 'string' ? body.oldUserId.trim() : '';
+    if (!oldUserId || !oldUserId.startsWith('user_')) {
+      return c.json({ success: false, error: 'Invalid oldUserId' }, 400);
+    }
+    if (oldUserId === user.id) {
+      return c.json({ success: false, error: 'oldUserId matches current user' }, 400);
+    }
+
+    // KV keys to migrate (AUTH_KV)
+    const authKvKeys = [
+      `issues:${oldUserId}`,
+      `favorites:${oldUserId}`,
+      `github-username:${oldUserId}`,
+    ];
+    // KV keys to migrate (SESSIONS_KV)
+    const sessionsKvKeys = [
+      `user-secrets:${oldUserId}`,
+      `user-ai-providers:${oldUserId}`,
+      `user-plugins:${oldUserId}`,
+      `user-mcp:${oldUserId}`,
+      `user-config:${oldUserId}:rules`,
+      `user-config:${oldUserId}:commands`,
+      `user-config:${oldUserId}:agents`,
+      `quickchat-list:${oldUserId}`,
+    ];
+
+    let recovered = 0;
+
+    // Migrate AUTH_KV keys
+    for (const oldKey of authKvKeys) {
+      const value = await env.AUTH_KV.get(oldKey);
+      if (value) {
+        const newKey = oldKey.replace(oldUserId, user.id);
+        // Only migrate if destination doesn't already have data
+        const existing = await env.AUTH_KV.get(newKey);
+        if (!existing) {
+          await env.AUTH_KV.put(newKey, value);
+          recovered++;
+        }
+      }
+    }
+
+    // Migrate SESSIONS_KV keys
+    for (const oldKey of sessionsKvKeys) {
+      const value = await env.SESSIONS_KV.get(oldKey);
+      if (value) {
+        const newKey = oldKey.replace(oldUserId, user.id);
+        const existing = await env.SESSIONS_KV.get(newKey);
+        if (!existing) {
+          await env.SESSIONS_KV.put(newKey, value);
+          recovered++;
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      data: { recovered, oldUserId, newUserId: user.id },
     });
   });
 

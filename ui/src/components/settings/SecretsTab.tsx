@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Key, Loader2, X, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, Key, Loader2, X, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { secretsApi } from '@/lib/api';
 
 interface SecretEntry {
@@ -105,6 +105,41 @@ export function SecretsTab() {
         Available in terminal and to Claude via{' '}
         <code className="text-primary">$SECRET_NAME</code>.
       </p>
+
+      {/* Important info banner about session refresh */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+        <div className="flex items-start gap-2">
+          <RefreshCw className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-amber-200">
+              Changes require a new session
+            </p>
+            <p className="text-xs text-amber-300/80 leading-relaxed">
+              Secrets are only injected when creating a session. After adding or updating secrets, create a new session for them to take effect.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 1Password integration info */}
+      {secrets.some(s => s.name === 'OP_SERVICE_ACCOUNT_TOKEN') && (
+        <div className="rounded-lg border border-primary/30 bg-primary/10 p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <Key className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-foreground">
+                1Password integration active
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Claude can access secrets using:{' '}
+                <code className="text-xs text-primary bg-background/50 px-1 py-0.5 rounded">
+                  op read "op://Vault/Item/field"
+                </code>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAdd && (
         <div className="space-y-2 rounded-lg border border-border p-3">

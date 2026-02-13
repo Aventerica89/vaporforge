@@ -73,22 +73,44 @@ export class AuthService {
   ) {}
 
   // Create or get user from Claude OAuth access token (sk-ant-oat01-...)
-  async getOrCreateUser(claudeToken: string): Promise<User | null> {
+  // previousUserId: hint from the client (stored in localStorage) to reuse
+  // the same userId when the OAuth token rotates, preserving all KV data.
+  async getOrCreateUser(claudeToken: string, previousUserId?: string): Promise<User | null> {
     const tokenHash = await this.hashToken(claudeToken);
     const userId = `user_${tokenHash.slice(0, 16)}`;
 
+    // 1. Check if this exact token already has a user
     const existingUser = await this.kv.get<User>(`user:${userId}`, 'json');
     if (existingUser) {
-      // Update token if different
       if (existingUser.claudeToken !== claudeToken) {
         existingUser.claudeToken = claudeToken;
         await this.kv.put(`user:${userId}`, JSON.stringify(existingUser), {
-          expirationTtl: 30 * 24 * 60 * 60, // 30 days
+          expirationTtl: 30 * 24 * 60 * 60,
         });
       }
       return existingUser;
     }
 
+    // 2. Token is new — check if client sent a previousUserId hint.
+    //    If that old user exists, update it with the new token so all
+    //    KV data (issues, secrets, plugins, etc.) stays reachable.
+    if (previousUserId && previousUserId !== userId) {
+      const previousUser = await this.kv.get<User>(`user:${previousUserId}`, 'json');
+      if (previousUser) {
+        previousUser.claudeToken = claudeToken;
+        // Re-persist under the SAME key so all `{previousUserId}` KV data stays valid
+        await this.kv.put(`user:${previousUserId}`, JSON.stringify(previousUser), {
+          expirationTtl: 30 * 24 * 60 * 60,
+        });
+        // Also store a forward pointer so the new token hash resolves too
+        await this.kv.put(`user-alias:${userId}`, previousUserId, {
+          expirationTtl: 30 * 24 * 60 * 60,
+        });
+        return previousUser;
+      }
+    }
+
+    // 3. Truly new user — create fresh record
     const user: User = {
       id: userId,
       email: `${userId}@claude-cloud.local`,
@@ -97,7 +119,7 @@ export class AuthService {
     };
 
     await this.kv.put(`user:${userId}`, JSON.stringify(user), {
-      expirationTtl: 30 * 24 * 60 * 60, // 30 days
+      expirationTtl: 30 * 24 * 60 * 60,
     });
 
     return user;
@@ -134,7 +156,8 @@ export class AuthService {
   // Instead we validate the format and store it for use by Claude Code
   // running inside the sandbox.
   async authenticateWithSetupToken(
-    token: string
+    token: string,
+    previousUserId?: string
   ): Promise<{ user: User; sessionToken: string } | null> {
     // Validate token format - must be a recognized Anthropic token prefix
     const validPrefixes = ['sk-ant-oat01-', 'sk-ant-api01-'];
@@ -144,8 +167,8 @@ export class AuthService {
       return null;
     }
 
-    // Create user from the token
-    const user = await this.getOrCreateUser(token);
+    // Create user from the token, passing previousUserId to preserve data
+    const user = await this.getOrCreateUser(token, previousUserId);
     if (!user) return null;
 
     const sessionToken = await this.createSessionToken(user);

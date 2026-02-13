@@ -70,10 +70,14 @@ async function request<T>(
 // Auth API
 export const authApi = {
   setupWithToken: async (token: string): Promise<{ sessionToken: string; user: User }> => {
+    // Send previousUserId hint so the backend can reuse the same userId
+    // when the OAuth token rotates, preserving all stored data.
+    const previousUserId = localStorage.getItem('vf-user-id') || undefined;
+
     const response = await fetch(`${API_BASE}/auth/setup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, previousUserId }),
     });
 
     const data = await response.json() as ApiResponse<{
@@ -88,11 +92,17 @@ export const authApi = {
       throw new Error(msg);
     }
 
+    // Persist userId so future logins with rotated tokens keep the same identity
+    if (data.data.user?.id) {
+      localStorage.setItem('vf-user-id', data.data.user.id);
+    }
+
     return data.data;
   },
 
   logout: () => {
     localStorage.removeItem('session_token');
+    // Keep vf-user-id so re-login preserves data
   },
 };
 

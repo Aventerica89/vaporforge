@@ -121,11 +121,28 @@ export function GuideTab() {
         </p>
       </Section>
 
-      <Section icon={<Key className="h-4 w-4 text-primary" />} title="Secrets">
+      <Section icon={<Key className="h-4 w-4 text-primary" />} title="Secrets & 1Password">
         <p className="text-sm text-muted-foreground leading-relaxed">
           Environment variables injected into every session container. Use for API keys, tokens,
           and credentials your code needs. Secrets are encrypted in KV and never exposed to the frontend.
         </p>
+        <div className="space-y-1.5 text-sm text-muted-foreground mt-3">
+          <p className="font-medium text-foreground text-xs">1Password Integration:</p>
+          <p className="text-xs leading-relaxed">
+            Add <code className="text-primary">OP_SERVICE_ACCOUNT_TOKEN</code> to your secrets (Settings &gt; Secrets)
+            to enable 1Password CLI access. Claude can then read secrets directly from your 1Password vaults.
+          </p>
+          <div className="rounded-lg border border-border bg-muted/50 p-3 text-xs text-muted-foreground font-mono leading-relaxed space-y-1.5">
+            <p className="text-foreground">Usage in chat:</p>
+            <p className="text-primary">Ask Claude: "read my API key from 1Password"</p>
+            <p className="text-foreground">Direct terminal usage:</p>
+            <p className="text-primary">op read "op://Vault/Item/field"</p>
+          </div>
+          <p className="text-xs text-amber-400 leading-relaxed mt-2">
+            ⚠️ After adding <code>OP_SERVICE_ACCOUNT_TOKEN</code>, create a new session for it to take effect.
+            Existing sessions don't receive secret updates.
+          </p>
+        </div>
       </Section>
 
       <Section icon={<Sparkles className="h-4 w-4 text-primary" />} title="AI Providers (Gemini)">
@@ -160,7 +177,7 @@ export function GuideTab() {
       <Section icon={<Zap className="h-4 w-4 text-primary" />} title="Tips">
         <ul className="space-y-1.5 text-sm text-muted-foreground">
           <Tip>Sessions persist across browser reloads and auto-resume on reconnect</Tip>
-          <Tip>Config changes only apply to new sessions -- restart to pick up changes</Tip>
+          <Tip>Config changes (CLAUDE.md, rules, commands, agents, MCP, secrets) only apply to new sessions -- create a new session to pick up changes</Tip>
           <Tip>Standalone files override plugin files with the same filename</Tip>
           <Tip>Disabled items are saved but not injected into containers</Tip>
           <Tip>Drag and drop files to upload, or paste images directly in chat</Tip>
