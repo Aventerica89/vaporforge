@@ -107,7 +107,7 @@ export function SessionTabBar() {
   );
 
   return (
-    <div className="flex h-10 items-center border-b border-border bg-card safe-area-header">
+    <div className="flex min-h-10 items-center border-b border-border bg-card safe-area-header">
       {/* Left: New session + tabs */}
       <div className="flex min-w-0 flex-1 items-center overflow-x-auto scrollbar-none">
         {/* Home button */}
