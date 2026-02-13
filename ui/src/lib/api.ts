@@ -67,12 +67,26 @@ async function request<T>(
   return data;
 }
 
+/** Read vf-user-id from localStorage, falling back to cookie (survives hard refresh). */
+export function getPreviousUserId(): string | undefined {
+  const fromStorage = localStorage.getItem('vf-user-id');
+  if (fromStorage) return fromStorage;
+  const match = document.cookie.match(/(?:^|;\s*)vf-user-id=([^;]+)/);
+  return match?.[1] || undefined;
+}
+
+/** Persist vf-user-id to both localStorage and a cookie (belt-and-suspenders). */
+export function persistUserId(userId: string): void {
+  localStorage.setItem('vf-user-id', userId);
+  document.cookie = `vf-user-id=${userId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Strict`;
+}
+
 // Auth API
 export const authApi = {
   setupWithToken: async (token: string): Promise<{ sessionToken: string; user: User }> => {
     // Send previousUserId hint so the backend can reuse the same userId
     // when the OAuth token rotates, preserving all stored data.
-    const previousUserId = localStorage.getItem('vf-user-id') || undefined;
+    const previousUserId = getPreviousUserId();
 
     const response = await fetch(`${API_BASE}/auth/setup`, {
       method: 'POST',
@@ -94,7 +108,7 @@ export const authApi = {
 
     // Persist userId so future logins with rotated tokens keep the same identity
     if (data.data.user?.id) {
-      localStorage.setItem('vf-user-id', data.data.user.id);
+      persistUserId(data.data.user.id);
     }
 
     return data.data;
