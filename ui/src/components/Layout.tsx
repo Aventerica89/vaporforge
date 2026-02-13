@@ -28,7 +28,7 @@ import { useMarketplace } from '@/hooks/useMarketplace';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 
 export function Layout() {
-  const { loadSessions, selectSession, currentSession, openFiles, isCreatingSession } =
+  const { loadSessions, currentSession, openFiles, isCreatingSession } =
     useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
@@ -96,27 +96,11 @@ export function Layout() {
     }
   }, [openFiles.length]);
 
-  // Load sessions, then auto-restore last active session
+  // Load sessions on mount — always start on home (WelcomeScreen)
   useEffect(() => {
-    const init = async () => {
-      await loadSessions();
-      const savedId = localStorage.getItem('vf_active_session');
-      if (savedId && !useSandboxStore.getState().currentSession) {
-        // Only restore if the session is still alive (not pending-delete or gone)
-        const alive = useSandboxStore
-          .getState()
-          .sessions.find(
-            (s) => s.id === savedId && s.status !== 'pending-delete'
-          );
-        if (alive) {
-          selectSession(savedId);
-        } else {
-          localStorage.removeItem('vf_active_session');
-        }
-      }
-    };
-    init();
-  }, [loadSessions, selectSession]);
+    localStorage.removeItem('vf_active_session');
+    loadSessions();
+  }, [loadSessions]);
 
   // Tablet: collapse file tree by default for more screen real estate
   useEffect(() => {
