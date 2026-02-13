@@ -236,6 +236,7 @@ sdkRoutes.post('/stream', async (c) => {
                   case 'tool-start':
                     await writeEvent({
                       type: 'tool-start',
+                      id: msg.id,
                       name: msg.name,
                       input: msg.input,
                     });
@@ -244,6 +245,7 @@ sdkRoutes.post('/stream', async (c) => {
                   case 'tool-result':
                     await writeEvent({
                       type: 'tool-result',
+                      id: msg.id,
                       name: msg.name,
                       output: msg.output,
                     });

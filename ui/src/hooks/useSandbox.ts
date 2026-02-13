@@ -494,7 +494,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       const parts: MessagePart[] = [];
       let currentTextPart: MessagePart | null = null;
       let currentReasoningPart: MessagePart | null = null;
-      // lastToolStart removed — artifact detection uses post-stream scan
+      // Dedup: track emitted tool IDs to prevent duplicate renders
+      const emittedToolIds = new Set<string>();
 
       for await (const chunk of sdkApi.stream(
         session.id, message, undefined, controller.signal, get().sdkMode
@@ -546,8 +547,15 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           resetTimeout();
           currentTextPart = null;
           currentReasoningPart = null;
+          const toolId = chunk.id || `tool-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+
+          // Dedup: skip if already rendered (streaming vs final message)
+          if (emittedToolIds.has(toolId)) continue;
+          emittedToolIds.add(toolId);
+
           const toolPart: MessagePart = {
             type: 'tool-start',
+            toolId,
             name: chunk.name,
             input: (chunk as Record<string, unknown>).input as Record<string, unknown>,
             startedAt: Date.now(),
@@ -558,17 +566,24 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           resetTimeout();
           currentTextPart = null;
           currentReasoningPart = null;
+          const resultToolId = chunk.id || '';
 
-          // Find matching tool-start to compute duration
+          // Match by toolId (precise) with fallback to name (legacy)
           const matchingStart = [...parts]
             .reverse()
-            .find((p) => p.type === 'tool-start' && p.name === chunk.name);
+            .find((p) =>
+              p.type === 'tool-start' &&
+              (resultToolId && p.toolId === resultToolId
+                ? true
+                : !resultToolId && p.name === chunk.name)
+            );
           const duration = matchingStart?.startedAt
             ? Date.now() - matchingStart.startedAt
             : undefined;
 
           const resultPart: MessagePart = {
             type: 'tool-result',
+            toolId: resultToolId || matchingStart?.toolId,
             name: chunk.name,
             output: (chunk as Record<string, unknown>).output as string,
             duration,

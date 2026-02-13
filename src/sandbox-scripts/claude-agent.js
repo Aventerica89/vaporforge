@@ -182,11 +182,30 @@ async function runStream(prompt, sessionId, cwd, useResume) {
   let newSessionId = sessionId || '';
   let responseText = '';
 
+  // Dedup: track emitted tool IDs to skip duplicates
+  // (tools can arrive via streaming AND in the final assistant message)
+  const emittedToolIds = new Set();
+
+  // Track parent tool context for composite IDs (nested agent tools)
+  let currentParentToolUseId = null;
+
+  // Map original toolId -> composite toolId (for tool-result matching)
+  const toolIdMapping = new Map();
+
+  // Helper: create composite ID for nested tools ("parentId:childId")
+  const makeCompositeId = (originalId, parentId) =>
+    parentId ? `${parentId}:${originalId}` : originalId;
+
   for await (const msg of stream) {
     // Session ID from system init event (snake_case per SDK)
     if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
       newSessionId = msg.session_id;
       console.log(JSON.stringify({ type: 'session-init', sessionId: newSessionId }));
+    }
+
+    // Track parent_tool_use_id for nested agent tools
+    if (msg.parent_tool_use_id !== undefined) {
+      currentParentToolUseId = msg.parent_tool_use_id;
     }
 
     // Streaming text deltas (requires includePartialMessages: true)
@@ -202,8 +221,19 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     if (msg.type === 'assistant' && msg.message && msg.message.content) {
       for (const block of msg.message.content) {
         if (block.type === 'tool_use') {
+          const originalId = block.id || `tool-${Date.now()}`;
+          const compositeId = makeCompositeId(originalId, currentParentToolUseId);
+
+          // Skip if already emitted (dedup streaming vs final message)
+          if (emittedToolIds.has(compositeId)) continue;
+          emittedToolIds.add(compositeId);
+
+          // Store mapping so tool-result can find the composite ID
+          toolIdMapping.set(originalId, compositeId);
+
           console.log(JSON.stringify({
             type: 'tool-start',
+            id: compositeId,
             name: block.name || 'unknown',
             input: block.input || {},
           }));
@@ -219,8 +249,13 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     // Tool result events
     if (msg.type === 'tool_result' || (msg.type === 'stream_event' && msg.event && msg.event.type === 'tool_result')) {
       const toolEvent = msg.type === 'tool_result' ? msg : msg.event;
+      // Resolve composite ID from mapping, fallback to original
+      const originalId = toolEvent.tool_use_id || toolEvent.id || '';
+      const compositeId = toolIdMapping.get(originalId) || originalId;
+
       console.log(JSON.stringify({
         type: 'tool-result',
+        id: compositeId,
         name: toolEvent.name || toolEvent.tool_name || 'unknown',
         output: typeof toolEvent.output === 'string'
           ? toolEvent.output.slice(0, 500)
