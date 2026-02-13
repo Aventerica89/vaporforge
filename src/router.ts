@@ -15,6 +15,8 @@ import { mcpRelayRoutes } from './api/mcp-relay';
 import { pluginsRoutes } from './api/plugins';
 import { configRoutes } from './api/config';
 import { issuesRoutes } from './api/issues-routes';
+import { favoritesRoutes } from './api/favorites-routes';
+import { githubRoutes } from './api/github-routes';
 import { vaporFilesRoutes } from './api/vaporfiles';
 import { FileService } from './services/files';
 import { SetupTokenRequestSchema } from './types';
@@ -185,6 +187,8 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/plugins', pluginsRoutes);
   protectedRoutes.route('/config', configRoutes);
   protectedRoutes.route('/issues', issuesRoutes);
+  protectedRoutes.route('/favorites', favoritesRoutes);
+  protectedRoutes.route('/github', githubRoutes);
   protectedRoutes.route('/vaporfiles', vaporFilesRoutes);
 
   app.route('/api', protectedRoutes);

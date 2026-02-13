@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X, Undo2, Star } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Undo2, Star, RefreshCw } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore } from '@/hooks/useFavorites';
+import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 
@@ -55,7 +56,18 @@ export function WelcomeScreen() {
   const [showAll, setShowAll] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const { favorites, removeFavorite } = useFavoritesStore();
+  const {
+    repos: ghRepos,
+    username: ghUsername,
+    lastSynced,
+    isSyncing: ghSyncing,
+    syncRepos,
+    setUsername: setGhUsername,
+    loadRepos: loadGhRepos,
+  } = useGithubRepos();
   const [cloningFavUrl, setCloningFavUrl] = useState<string | null>(null);
+  const [cloningGhUrl, setCloningGhUrl] = useState<string | null>(null);
+  const [ghUsernameInput, setGhUsernameInput] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -109,6 +121,27 @@ export function WelcomeScreen() {
     } finally {
       setCloningFavUrl(null);
     }
+  };
+
+  const handleCloneGhRepo = async (repo: GitHubRepo) => {
+    setCloningGhUrl(repo.html_url);
+    try {
+      const session = await createSession(undefined, repo.html_url);
+      if (session) {
+        await selectSession(session.id);
+      }
+    } catch {
+      // Error handled by createSession
+    } finally {
+      setCloningGhUrl(null);
+    }
+  };
+
+  const handleSetGhUsername = async () => {
+    const trimmed = ghUsernameInput.trim();
+    if (!trimmed) return;
+    await setGhUsername(trimmed);
+    await loadGhRepos();
   };
 
   const activeSessions = sessions.filter((s) => s.status !== 'pending-delete');
@@ -193,6 +226,121 @@ export function WelcomeScreen() {
             </div>
           </button>
         </div>
+
+        {/* My Repos (GitHub) */}
+        {ghUsername ? (
+          <div className="space-y-3 animate-fade-up stagger-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
+                My Repos
+                <span className="ml-2 text-primary/60">{ghRepos.length}</span>
+              </h3>
+              <div className="flex items-center gap-2">
+                {lastSynced && (
+                  <span className="text-[10px] text-muted-foreground/50 font-mono">
+                    {timeAgo(lastSynced)}
+                  </span>
+                )}
+                <button
+                  onClick={() => syncRepos()}
+                  disabled={ghSyncing}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-mono uppercase tracking-wide text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all disabled:opacity-50"
+                  title="Sync repos from GitHub"
+                >
+                  <RefreshCw className={`h-3 w-3 ${ghSyncing ? 'animate-spin' : ''}`} />
+                  Sync
+                </button>
+              </div>
+            </div>
+            {ghRepos.length > 0 ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {ghRepos.slice(0, 6).map((repo) => (
+                  <div
+                    key={repo.full_name}
+                    className="glass-card group flex items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
+                  >
+                    <button
+                      onClick={() => handleCloneGhRepo(repo)}
+                      disabled={cloningGhUrl !== null}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <p className="font-mono text-sm font-semibold truncate">
+                        {repo.name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {repo.language && (
+                          <span className="text-[10px] text-muted-foreground/60">
+                            {repo.language}
+                          </span>
+                        )}
+                        {repo.description && (
+                          <span className="text-[10px] text-muted-foreground/40 truncate">
+                            {repo.description}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                      {cloningGhUrl === repo.html_url ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/40 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+                          clone
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : ghSyncing ? (
+              <div className="flex justify-center py-4">
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground/50 text-center py-3">
+                No repos found. Click Sync to fetch.
+              </p>
+            )}
+            {ghRepos.length > 6 && (
+              <button
+                onClick={() => setShowCloneModal(true)}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                View all repos ({ghRepos.length})
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3 animate-fade-up stagger-2">
+            <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
+              My Repos
+            </h3>
+            <div className="glass-card p-4 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Enter your GitHub username to sync your repositories
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={ghUsernameInput}
+                  onChange={(e) => setGhUsernameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleSetGhUsername();
+                  }}
+                  placeholder="GitHub username"
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                />
+                <button
+                  onClick={handleSetGhUsername}
+                  disabled={!ghUsernameInput.trim()}
+                  className="btn-primary px-4 text-sm disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Favorites Quick Clone */}
         {favorites.length > 0 && (

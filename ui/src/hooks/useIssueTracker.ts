@@ -260,13 +260,18 @@ export const useIssueTracker = create<IssueTrackerState>()(
 
       // Load issues from backend
       loadFromBackend: async () => {
+        const VALID_TYPES = ['bug', 'error', 'feature', 'suggestion'];
         try {
           set({ syncing: true });
           const response = await issuesApi.list();
 
           if (response.success && response.data) {
+            const sanitized = (response.data.issues || []).map((i: Issue) => ({
+              ...i,
+              type: VALID_TYPES.includes(i.type) ? i.type : 'bug',
+            }));
             set({
-              issues: response.data.issues || [],
+              issues: sanitized,
               suggestions: response.data.suggestions || '',
               filter: (response.data.filter as IssueFilter) || 'all',
               migrated: true,
@@ -329,9 +334,14 @@ if (typeof window !== 'undefined') {
         parsed.state?.issues?.length > 0 || parsed.state?.suggestions?.trim();
 
       if (hasData) {
+        const VALID_TYPES = ['bug', 'error', 'feature', 'suggestion'];
+        const sanitizedIssues = (parsed.state.issues || []).map((i: Issue) => ({
+          ...i,
+          type: VALID_TYPES.includes(i.type) ? i.type : 'bug',
+        }));
         console.log('[Issue Tracker] Migrating localStorage data to backend...');
         useIssueTracker.setState({
-          issues: parsed.state.issues || [],
+          issues: sanitizedIssues,
           suggestions: parsed.state.suggestions || '',
           filter: parsed.state.filter || 'all',
         });

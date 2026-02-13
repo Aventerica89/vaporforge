@@ -468,6 +468,39 @@ export const issuesApi = {
     }),
 };
 
+// Favorites API
+export const favoritesApi = {
+  list: () =>
+    request<{ favorites: Array<{ url: string; name: string; owner: string; description?: string }> }>('/favorites'),
+
+  save: (favorites: Array<{ url: string; name: string; owner: string; description?: string }>) =>
+    request<{ success: boolean }>('/favorites', {
+      method: 'PUT',
+      body: JSON.stringify({ favorites }),
+    }),
+};
+
+// GitHub API
+export const githubApi = {
+  repos: (username: string) =>
+    request<{ repos: any[]; cached: boolean }>(`/github/repos?username=${encodeURIComponent(username)}`),
+
+  sync: (username: string) =>
+    request<{ repos: any[]; cached: boolean }>('/github/repos/sync', {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    }),
+
+  getUsername: () =>
+    request<{ username: string }>('/github/username'),
+
+  saveUsername: (username: string) =>
+    request<{ success: boolean }>('/github/username', {
+      method: 'PUT',
+      body: JSON.stringify({ username }),
+    }),
+};
+
 // VaporFiles API (R2-backed file storage)
 export interface VaporFile {
   id: string;

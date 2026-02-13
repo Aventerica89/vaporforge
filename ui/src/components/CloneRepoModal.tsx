@@ -1,18 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Star, Search, X } from 'lucide-react';
+import { Star, Search, X, RefreshCw } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore, type FavoriteRepo } from '@/hooks/useFavorites';
-
-interface GitHubRepo {
-  name: string;
-  full_name: string;
-  html_url: string;
-  description: string | null;
-  stargazers_count: number;
-  language: string | null;
-  updated_at: string;
-  fork: boolean;
-}
+import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
 
 type Tab = 'url' | 'favorites' | 'github';
 
@@ -25,6 +15,14 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
   const { favorites, recents, toggleFavorite, addRecent, isFavorite } =
     useFavoritesStore();
   const { createSession, selectSession } = useSandboxStore();
+  const {
+    repos: ghRepos,
+    username: ghUsername,
+    isSyncing: ghSyncing,
+    syncRepos,
+    loadRepos,
+    setUsername: setGhUsername,
+  } = useGithubRepos();
 
   const [activeTab, setActiveTab] = useState<Tab>('url');
 
@@ -35,26 +33,29 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
   const [error, setError] = useState('');
 
   // GitHub tab state
-  const [ghUsername, setGhUsername] = useState('');
-  const [ghRepos, setGhRepos] = useState<GitHubRepo[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [ghError, setGhError] = useState('');
+  const [ghUsernameInput, setGhUsernameInput] = useState(ghUsername);
 
-  // Load saved GitHub username
+  // Sync username input with store
   useEffect(() => {
-    const saved = localStorage.getItem('vf_gh_username');
-    if (saved) setGhUsername(saved);
-  }, []);
+    setGhUsernameInput(ghUsername);
+  }, [ghUsername]);
 
   // Set default tab when opening
   useEffect(() => {
     if (isOpen) {
       setActiveTab(favorites.length > 0 ? 'favorites' : 'url');
       setError('');
-      setGhError('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // Load repos when switching to GitHub tab if username exists and repos empty
+  useEffect(() => {
+    if (activeTab === 'github' && ghUsername && ghRepos.length === 0 && !ghSyncing) {
+      loadRepos();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const isValidUrl = (url: string) => {
     try {
@@ -133,43 +134,15 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
     onClose();
   };
 
-  const searchGitHub = async () => {
-    const username = ghUsername.trim();
-    if (!username) {
-      setGhError('Enter a GitHub username or organization');
-      return;
+  const handleSearchGitHub = async () => {
+    const username = ghUsernameInput.trim();
+    if (!username) return;
+
+    // Save the username if it changed
+    if (username !== ghUsername) {
+      await setGhUsername(username);
     }
-
-    setIsSearching(true);
-    setGhError('');
-    setGhRepos([]);
-    localStorage.setItem('vf_gh_username', username);
-
-    try {
-      const res = await fetch(
-        `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=updated&per_page=50`
-      );
-
-      if (res.status === 404) {
-        setGhError(`User "${username}" not found`);
-        return;
-      }
-      if (res.status === 403) {
-        setGhError('GitHub API rate limit reached. Try again later.');
-        return;
-      }
-      if (!res.ok) {
-        setGhError('Failed to fetch repositories');
-        return;
-      }
-
-      const repos: GitHubRepo[] = await res.json();
-      setGhRepos(repos);
-    } catch {
-      setGhError('Network error — could not reach GitHub');
-    } finally {
-      setIsSearching(false);
-    }
+    await syncRepos();
   };
 
   const toFavoriteRepo = (ghRepo: GitHubRepo): FavoriteRepo => ({
@@ -261,14 +234,14 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
 
           {activeTab === 'github' && (
             <GitHubTab
-              username={ghUsername}
-              setUsername={setGhUsername}
+              username={ghUsernameInput}
+              setUsername={setGhUsernameInput}
               repos={ghRepos}
-              isSearching={isSearching}
-              error={ghError}
+              isSearching={ghSyncing}
+              error=""
               isCloning={isCloning}
               cloneError={error}
-              onSearch={searchGitHub}
+              onSearch={handleSearchGitHub}
               onClone={(repo) => handleClone(repo.html_url)}
               onToggleFavorite={(repo) => toggleFavorite(toFavoriteRepo(repo))}
               isFavorite={(url) => isFavorite(url)}
@@ -280,7 +253,7 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
   );
 }
 
-/* ── URL Tab ──────────────────────────────────────────── */
+/* -- URL Tab -------------------------------------------------- */
 
 function UrlTab({
   repoUrl,
@@ -396,7 +369,7 @@ function UrlTab({
   );
 }
 
-/* ── Favorites Tab ────────────────────────────────────── */
+/* -- Favorites Tab -------------------------------------------- */
 
 function FavoritesTab({
   favorites,
@@ -466,7 +439,7 @@ function FavoritesTab({
   );
 }
 
-/* ── GitHub Tab ───────────────────────────────────────── */
+/* -- GitHub Tab ----------------------------------------------- */
 
 function GitHubTab({
   username,
@@ -514,7 +487,7 @@ function GitHubTab({
           className="btn-primary flex items-center gap-1.5 px-4 disabled:opacity-50"
         >
           {isSearching ? (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            <RefreshCw className="h-4 w-4 animate-spin" />
           ) : (
             <Search className="h-4 w-4" />
           )}
