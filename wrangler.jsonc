@@ -11,7 +11,7 @@
     {
       "class_name": "Sandbox",
       "image": "./Dockerfile",
-      "instance_type": "basic",
+      "instance_type": "standard-2",
       "max_instances": 10
     }
   ],
@@ -78,16 +78,25 @@
 
   // Static assets for UI
   "assets": {
-    "directory": "./ui/dist"
+    "directory": "./dist"
   },
 
-  // Custom domain
+  // Custom domains
   "routes": [
+    {
+      "pattern": "vaporforge.dev/*",
+      "zone_name": "vaporforge.dev"
+    },
     {
       "pattern": "vaporforge.jbcloud.app/*",
       "zone_name": "jbcloud.app"
     }
   ],
+
+  // Cron trigger: purge pending-delete sessions after 5 days (daily at 4am UTC)
+  "triggers": {
+    "crons": ["0 4 * * *"]
+  },
 
   // Dev settings
   "dev": {

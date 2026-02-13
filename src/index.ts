@@ -31,15 +31,50 @@ export default {
     return router.fetch(request, env, ctx);
   },
 
-  // Scheduled handler for cleanup
+  // Scheduled handler: purge pending-delete sessions after 5 days
   async scheduled(
     event: ScheduledEvent,
     env: Env,
     ctx: ExecutionContext
   ): Promise<void> {
-    // Cleanup idle sessions
-    // This would iterate through sessions and sleep/terminate inactive ones
-    // Implementation depends on your session tracking strategy
-    console.log('Scheduled cleanup triggered at:', new Date().toISOString());
+    console.log('[cleanup] Scheduled cleanup triggered at:', new Date().toISOString());
+
+    const FIVE_DAYS_MS = 5 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    let purged = 0;
+
+    // Iterate all sessions
+    const list = await env.SESSIONS_KV.list({ prefix: 'session:' });
+
+    for (const key of list.keys) {
+      const session = await env.SESSIONS_KV.get<{
+        id: string;
+        status: string;
+        metadata?: Record<string, unknown>;
+      }>(key.name, 'json');
+      if (!session || session.status !== 'pending-delete') continue;
+
+      const scheduledAt = session.metadata?.deleteScheduledAt as string | undefined;
+      if (!scheduledAt) continue;
+
+      const elapsed = now - new Date(scheduledAt).getTime();
+      if (elapsed < FIVE_DAYS_MS) continue;
+
+      // Time's up — purge session and its messages
+      const sessionId = session.id;
+
+      // Delete all messages for this session
+      const msgList = await env.SESSIONS_KV.list({ prefix: `message:${sessionId}:` });
+      for (const msgKey of msgList.keys) {
+        await env.SESSIONS_KV.delete(msgKey.name);
+      }
+
+      // Delete the session itself
+      await env.SESSIONS_KV.delete(key.name);
+      purged++;
+      console.log(`[cleanup] Purged session ${sessionId.slice(0, 8)} (pending-delete for ${Math.floor(elapsed / 86400000)}d)`);
+    }
+
+    console.log(`[cleanup] Done. Purged ${purged} sessions.`);
   },
 };

@@ -8,6 +8,15 @@ import { fileRoutes } from './api/files';
 import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
 import { sdkRoutes } from './api/sdk';
+import { userRoutes } from './api/user';
+import { secretsRoutes } from './api/secrets';
+import { mcpRoutes } from './api/mcp';
+import { mcpRelayRoutes } from './api/mcp-relay';
+import { pluginsRoutes } from './api/plugins';
+import { configRoutes } from './api/config';
+import { issuesRoutes } from './api/issues-routes';
+import { vaporFilesRoutes } from './api/vaporfiles';
+import { FileService } from './services/files';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -33,6 +42,7 @@ export function createRouter(env: Env) {
         if (!origin) return '*';
 
         const allowedOrigins = [
+          'https://vaporforge.dev',
           'https://vaporforge.jbcloud.app',
         ];
 
@@ -50,9 +60,17 @@ export function createRouter(env: Env) {
       },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization'],
+      exposeHeaders: ['X-VF-Version'],
       credentials: true,
     })
   );
+
+  // Version header — allows clients to detect deploys
+  const VF_VERSION = '0.9.5';
+  app.use('*', async (c, next) => {
+    await next();
+    c.header('X-VF-Version', VF_VERSION);
+  });
 
   // Initialize services
   app.use('*', async (c, next) => {
@@ -114,6 +132,32 @@ export function createRouter(env: Env) {
     });
   });
 
+  // MCP relay route (uses relay token auth, not user JWT)
+  app.route('/api/mcp-relay', mcpRelayRoutes);
+
+  // Public file download endpoint (no auth required)
+  app.get('/files/:key', async (c) => {
+    const key = c.req.param('key');
+    const fileService = new FileService(
+      env.FILES_BUCKET,
+      `https://${new URL(c.req.url).host}`
+    );
+
+    const file = await fileService.getFile(key);
+    if (!file) {
+      return c.notFound();
+    }
+
+    // Set caching headers (1 year since files are immutable)
+    return new Response(file.body, {
+      headers: {
+        'Content-Type': file.httpMetadata?.contentType || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'Content-Disposition': `inline; filename="${file.customMetadata?.originalName || key}"`,
+      },
+    });
+  });
+
   // Protected routes - require authentication
   const protectedRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -135,6 +179,13 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/sessions', sessionRoutes);
   protectedRoutes.route('/git', gitRoutes);
   protectedRoutes.route('/sdk', sdkRoutes);
+  protectedRoutes.route('/user', userRoutes);
+  protectedRoutes.route('/secrets', secretsRoutes);
+  protectedRoutes.route('/mcp', mcpRoutes);
+  protectedRoutes.route('/plugins', pluginsRoutes);
+  protectedRoutes.route('/config', configRoutes);
+  protectedRoutes.route('/issues', issuesRoutes);
+  protectedRoutes.route('/vaporfiles', vaporFilesRoutes);
 
   app.route('/api', protectedRoutes);
 

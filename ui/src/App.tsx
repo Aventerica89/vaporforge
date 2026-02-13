@@ -1,6 +1,9 @@
 import { useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { AuthGuard } from './components/AuthGuard';
+import { McpRelayProvider } from './components/McpRelayProvider';
+import { UpdateToast } from './components/UpdateToast';
+import { ToastContainer } from './components/ToastContainer';
 import { useAuthStore } from './hooks/useAuth';
 
 export default function App() {
@@ -8,9 +11,6 @@ export default function App() {
 
   useEffect(() => {
     checkAuth();
-
-    // Set dark mode on html element
-    document.documentElement.classList.add('dark');
   }, [checkAuth]);
 
   if (isLoading) {
@@ -30,8 +30,14 @@ export default function App() {
   }
 
   return (
-    <AuthGuard>
-      <Layout />
-    </AuthGuard>
+    <>
+      <AuthGuard>
+        <McpRelayProvider>
+          <Layout />
+        </McpRelayProvider>
+      </AuthGuard>
+      <UpdateToast />
+      <ToastContainer />
+    </>
   );
 }

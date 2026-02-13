@@ -4,7 +4,7 @@
 
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
-**Live URL**: https://vaporforge.jbcloud.app
+**Live URL**: https://vaporforge.dev
 
 ## MANDATORY RULE
 

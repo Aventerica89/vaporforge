@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { X, Circle } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { usePinchZoom } from '@/hooks/usePinchZoom';
 
 function getLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() || '';
@@ -44,6 +45,13 @@ export function Editor() {
     closeFile,
     setActiveFile,
   } = useSandboxStore();
+
+  const { fontSize: editorFontSize, containerProps: pinchProps } = usePinchZoom({
+    min: 10,
+    max: 24,
+    initial: 13,
+    storageKey: 'vf-editor-fontsize',
+  });
 
   const handleEditorChange = useCallback(
     (value: string | undefined) => {
@@ -124,7 +132,7 @@ export function Editor() {
       </div>
 
       {/* Editor */}
-      <div className="flex-1">
+      <div className="flex-1" {...pinchProps}>
         <MonacoEditor
           height="100%"
           language={getLanguage(activeFile.path)}
@@ -133,7 +141,7 @@ export function Editor() {
           theme="vs-dark"
           options={{
             minimap: { enabled: false },
-            fontSize: 13,
+            fontSize: editorFontSize,
             fontFamily: "'JetBrains Mono', Menlo, monospace",
             lineNumbers: 'on',
             scrollBeyondLastLine: false,

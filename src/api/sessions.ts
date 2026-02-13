@@ -1,6 +1,11 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
+import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { collectMcpConfig, hasRelayServers } from './mcp';
+import { collectPluginConfigs } from './plugins';
+import { collectUserConfigs } from './config';
+import { getVfRules } from './user';
 
 type Variables = {
   user: User;
@@ -51,19 +56,70 @@ sessionRoutes.post('/create', async (c) => {
       }, 403);
     }
 
-    const authEnv: Record<string, string> = {
+    const sandboxEnv: Record<string, string> = {
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
+      ...collectProjectSecrets(c.env),
+      ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
     };
+
+    // Generate relay token if user has relay MCP servers
+    const needsRelay = await hasRelayServers(c.env.SESSIONS_KV, user.id);
+    const relayToken = needsRelay ? crypto.randomUUID() : undefined;
+
+    if (needsRelay && relayToken) {
+      const origin = new URL(c.req.url).origin;
+      const relayUrl = `${origin}/api/mcp-relay/${sessionId}`;
+      sandboxEnv.RELAY_TOKEN = relayToken;
+      sandboxEnv.RELAY_URL = relayUrl;
+    }
+
+    // Fetch user's global CLAUDE.md for injection into sandbox
+    const claudeMd = await c.env.SESSIONS_KV.get(
+      `user-config:${user.id}:claude-md`
+    );
+
+    // Collect MCP servers + plugin configs + user configs + VF rules for sandbox injection
+    const mcpServers = await collectMcpConfig(c.env.SESSIONS_KV, user.id);
+    const pluginConfigs = await collectPluginConfigs(c.env.SESSIONS_KV, user.id);
+    const userConfigs = await collectUserConfigs(c.env.SESSIONS_KV, user.id);
+    const vfRules = await getVfRules(c.env.SESSIONS_KV, user.id);
 
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
-      env: authEnv, // Inject auth token persistently
+      env: sandboxEnv,
+      claudeMd: claudeMd || undefined,
+      mcpServers,
+      pluginConfigs,
+      userConfigs,
+      vfRules,
+      startRelayProxy: needsRelay,
     });
 
-    // Store session metadata
-    if (parsed.data.name) {
-      session.metadata = { name: parsed.data.name };
+    // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
+    const allMcpServers = {
+      ...(mcpServers || {}),
+      ...(pluginConfigs?.mcpServers || {}),
+    };
+    if (Object.keys(allMcpServers).length > 0) {
+      await c.env.SESSIONS_KV.put(
+        `session-mcp:${sessionId}`,
+        JSON.stringify(allMcpServers),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      );
+    }
+
+    // Persist session name and relay token to KV metadata
+    const extraMeta: Record<string, unknown> = {};
+    if (parsed.data.name) extraMeta.name = parsed.data.name;
+    if (relayToken) extraMeta.relayToken = relayToken;
+
+    if (Object.keys(extraMeta).length > 0) {
+      session.metadata = { ...(session.metadata ?? {}), ...extraMeta };
+      await c.env.SESSIONS_KV.put(
+        `session:${sessionId}`,
+        JSON.stringify(session)
+      );
     }
 
     return c.json<ApiResponse<Session>>({
@@ -178,7 +234,7 @@ sessionRoutes.post('/:sessionId/sleep', async (c) => {
   });
 });
 
-// Terminate session
+// Soft-delete session (5-day pending-delete with countdown)
 sessionRoutes.delete('/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
@@ -197,14 +253,114 @@ sessionRoutes.delete('/:sessionId', async (c) => {
     }, 404);
   }
 
+  // Mark as pending-delete instead of immediate removal
   await sandboxManager.terminateSandbox(sessionId);
 
-  // Delete from KV
+  const pendingSession: Session = {
+    ...session,
+    status: 'pending-delete',
+    metadata: {
+      ...(session.metadata ?? {}),
+      previousStatus: session.status,
+      deleteScheduledAt: new Date().toISOString(),
+    },
+  };
+
+  // Keep in KV with 7-day TTL (cleanup cron handles actual purge at 5 days)
+  await c.env.SESSIONS_KV.put(
+    `session:${sessionId}`,
+    JSON.stringify(pendingSession),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  return c.json<ApiResponse<Session>>({
+    success: true,
+    data: pendingSession,
+  });
+});
+
+// Restore a pending-delete session (undo delete)
+sessionRoutes.post('/:sessionId/restore', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'pending-delete') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session is not pending deletion',
+    }, 400);
+  }
+
+  // Restore to sleeping (container was terminated, so it needs to wake)
+  const meta = (session.metadata ?? {}) as Record<string, unknown>;
+  const { deleteScheduledAt: _, previousStatus: __, ...cleanMeta } = meta;
+
+  const restoredSession: Session = {
+    ...session,
+    status: 'sleeping',
+    metadata: Object.keys(cleanMeta).length > 0 ? cleanMeta : undefined,
+  };
+
+  await c.env.SESSIONS_KV.put(
+    `session:${sessionId}`,
+    JSON.stringify(restoredSession),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  return c.json<ApiResponse<Session>>({
+    success: true,
+    data: restoredSession,
+  });
+});
+
+// Permanently delete a pending-delete session (purge now)
+sessionRoutes.post('/:sessionId/purge', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'pending-delete') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session must be pending-delete to purge',
+    }, 400);
+  }
+
+  // Delete all messages for this session
+  const msgList = await c.env.SESSIONS_KV.list({ prefix: `message:${sessionId}:` });
+  for (const msgKey of msgList.keys) {
+    await c.env.SESSIONS_KV.delete(msgKey.name);
+  }
+
+  // Delete the session record
   await c.env.SESSIONS_KV.delete(`session:${sessionId}`);
 
-  return c.json<ApiResponse<{ status: string }>>({
+  return c.json<ApiResponse<{ purged: boolean }>>({
     success: true,
-    data: { status: 'terminated' },
+    data: { purged: true },
   });
 });
 
@@ -243,9 +399,12 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH so `claude` CLI works in terminal
+  // Inject Claude token + NODE_PATH + project secrets + user secrets
   const execEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
+    ...collectProjectSecrets(c.env),
+    ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {
@@ -258,7 +417,7 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     {
       cwd: body.cwd,
       env: execEnv,
-      timeout: body.timeout || 300000, // 5 min default for claude commands
+      timeout: body.timeout || 300000,
     }
   );
 
@@ -303,13 +462,16 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
     }, 400);
   }
 
-  // Inject Claude token + NODE_PATH
-  const execEnv: Record<string, string> = {
+  // Inject Claude token + NODE_PATH + project secrets + user secrets
+  const streamEnv: Record<string, string> = {
     NODE_PATH: '/usr/local/lib/node_modules',
+    CLAUDE_CONFIG_DIR: '/root/.claude',
+    ...collectProjectSecrets(c.env),
+    ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;
   if (claudeToken) {
-    execEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
+    streamEnv.CLAUDE_CODE_OAUTH_TOKEN = claudeToken;
   }
 
   try {
@@ -319,7 +481,7 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
       body.command,
       {
         cwd: body.cwd || session.projectPath || '/workspace',
-        env: execEnv,
+        env: streamEnv,
         timeout: body.timeout || 300000,
       }
     );
@@ -599,6 +761,24 @@ sessionRoutes.post('/debug/sandbox', async (c) => {
     await runStep('exec: echo $HOME', async () => {
       const r = await sandboxManager.execInSandbox(debugId, 'echo $HOME', { timeout: 5000 });
       return r.stdout.trim();
+    });
+
+    // Step 10: Can we execStream? (this is the failing code path)
+    await runStep('execStream: echo streaming', async () => {
+      const stream = await sandboxManager.execStreamInSandbox(
+        debugId,
+        'echo streaming-test-ok',
+        { timeout: 15000 }
+      );
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      let output = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        output += decoder.decode(value, { stream: true });
+      }
+      return output.slice(0, 300);
     });
 
   }

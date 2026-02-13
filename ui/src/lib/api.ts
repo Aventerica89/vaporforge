@@ -1,6 +1,38 @@
-import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User } from './types';
+import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory } from './types';
+import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
+
+function debugLog(
+  category: 'api' | 'stream' | 'sandbox' | 'error' | 'info',
+  level: 'error' | 'warn' | 'info',
+  summary: string,
+  detail?: string
+) {
+  useDebugLog.getState().addEntry({ category, level, summary, detail });
+}
+
+// Version tracking — detect deploys so the client can prompt a refresh
+let _knownVersion: string | null = null;
+let _updateAvailable = false;
+
+function checkVersionHeader(response: Response) {
+  const serverVersion = response.headers.get('X-VF-Version');
+  if (!serverVersion) return;
+
+  if (_knownVersion === null) {
+    _knownVersion = serverVersion;
+  } else if (serverVersion !== _knownVersion && !_updateAvailable) {
+    _updateAvailable = true;
+    window.dispatchEvent(new CustomEvent('vf:update-available', {
+      detail: { from: _knownVersion, to: serverVersion },
+    }));
+  }
+}
+
+export function isUpdateAvailable(): boolean {
+  return _updateAvailable;
+}
 
 async function request<T>(
   endpoint: string,
@@ -17,10 +49,19 @@ async function request<T>(
     },
   });
 
+  checkVersionHeader(response);
+
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
+    const errMsg = data.error || 'Request failed';
+    debugLog(
+      'api',
+      'error',
+      `${options.method || 'GET'} ${endpoint} — ${response.status}`,
+      JSON.stringify(data, null, 2)
+    );
+    throw new Error(errMsg);
   }
 
   return data;
@@ -78,8 +119,18 @@ export const sessionsApi = {
     }),
 
   terminate: (sessionId: string) =>
-    request<{ status: string }>(`/sessions/${sessionId}`, {
+    request<Session>(`/sessions/${sessionId}`, {
       method: 'DELETE',
+    }),
+
+  restore: (sessionId: string) =>
+    request<Session>(`/sessions/${sessionId}/restore`, {
+      method: 'POST',
+    }),
+
+  purge: (sessionId: string) =>
+    request<{ purged: boolean }>(`/sessions/${sessionId}/purge`, {
+      method: 'POST',
     }),
 
   exec: (sessionId: string, command: string, cwd?: string) =>
@@ -90,6 +141,12 @@ export const sessionsApi = {
         body: JSON.stringify({ command, cwd }),
       }
     ),
+
+  update: (sessionId: string, data: { name?: string }) =>
+    request<Session>(`/sessions/${sessionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 
   clone: (sessionId: string, repo: string, branch?: string) =>
     request<{ repo: string; path: string }>(`/sessions/${sessionId}/clone`, {
@@ -216,9 +273,12 @@ export const sdkApi = {
   stream: async function* (
     sessionId: string,
     prompt: string,
-    cwd?: string
+    cwd?: string,
+    signal?: AbortSignal,
+    mode?: 'agent' | 'plan'
   ): AsyncGenerator<{
     type: string;
+    id?: string;
     content?: string;
     sessionId?: string;
     fullText?: string;
@@ -234,7 +294,8 @@ export const sdkApi = {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ sessionId, prompt, cwd }),
+      body: JSON.stringify({ sessionId, prompt, cwd, mode: mode || 'agent' }),
+      signal,
     });
 
     if (!response.ok) {
@@ -269,6 +330,216 @@ export const sdkApi = {
       }
     }
   },
+};
+
+// User Config API
+export const userApi = {
+  getClaudeMd: () =>
+    request<{ content: string }>('/user/claude-md'),
+
+  saveClaudeMd: (content: string) =>
+    request<{ saved: boolean }>('/user/claude-md', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
+};
+
+// VF Internal Rules API
+export const vfRulesApi = {
+  get: () =>
+    request<{ content: string; isDefault: boolean }>('/user/vf-rules'),
+
+  save: (content: string) =>
+    request<{ saved: boolean }>('/user/vf-rules', {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    }),
+
+  reset: () =>
+    request<{ content: string }>('/user/vf-rules', {
+      method: 'DELETE',
+    }),
+};
+
+// Secrets API
+export const secretsApi = {
+  list: () =>
+    request<Array<{ name: string; hint: string }>>('/secrets'),
+
+  add: (name: string, value: string) =>
+    request<{ name: string; hint: string }>('/secrets', {
+      method: 'POST',
+      body: JSON.stringify({ name, value }),
+    }),
+
+  remove: (name: string) =>
+    request<{ deleted: boolean }>(`/secrets/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+};
+
+// MCP API
+export const mcpApi = {
+  list: () =>
+    request<McpServerConfig[]>('/mcp'),
+
+  add: (server: Omit<McpServerConfig, 'addedAt' | 'enabled'>) =>
+    request<McpServerConfig>('/mcp', {
+      method: 'POST',
+      body: JSON.stringify(server),
+    }),
+
+  remove: (name: string) =>
+    request<{ deleted: boolean }>(`/mcp/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    }),
+
+  toggle: (name: string) =>
+    request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}/toggle`, {
+      method: 'PUT',
+    }),
+
+  /** Batch health-check all enabled HTTP servers */
+  ping: () =>
+    request<Record<string, { status: string; httpStatus?: number }>>('/mcp/ping', {
+      method: 'POST',
+    }),
+
+  /** Single server health-check */
+  pingOne: (name: string) =>
+    request<{ status: string; httpStatus?: number }>(`/mcp/${encodeURIComponent(name)}/ping`, {
+      method: 'POST',
+    }),
+};
+
+// Plugins API
+export const pluginsApi = {
+  list: () =>
+    request<Plugin[]>('/plugins'),
+
+  add: (plugin: Omit<Plugin, 'id' | 'addedAt' | 'updatedAt'>) =>
+    request<Plugin>('/plugins', {
+      method: 'POST',
+      body: JSON.stringify(plugin),
+    }),
+
+  remove: (id: string) =>
+    request<{ deleted: boolean }>(`/plugins/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  toggle: (id: string, data: { enabled: boolean; itemType?: string; itemName?: string }) =>
+    request<Plugin>(`/plugins/${encodeURIComponent(id)}/toggle`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  discover: (repoUrl: string) =>
+    request<Plugin>('/plugins/discover', {
+      method: 'POST',
+      body: JSON.stringify({ repoUrl }),
+    }),
+
+  refresh: () =>
+    request<{ refreshed: number; plugins: Plugin[] }>('/plugins/refresh', {
+      method: 'POST',
+    }),
+
+  sync: (sessionId: string) =>
+    request<{ synced: boolean }>(`/plugins/sync/${sessionId}`, {
+      method: 'POST',
+    }),
+};
+
+// Issues API (bug tracker)
+export const issuesApi = {
+  list: () =>
+    request<{ issues: any[]; suggestions: string; filter: string }>('/issues'),
+
+  save: (data: { issues: any[]; suggestions: string; filter: string }) =>
+    request<{ saved: boolean }>('/issues', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: () =>
+    request<{ deleted: boolean }>('/issues', {
+      method: 'DELETE',
+    }),
+};
+
+// VaporFiles API (R2-backed file storage)
+export interface VaporFile {
+  id: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+}
+
+export const vaporFilesApi = {
+  uploadBase64: (dataUrl: string, name?: string) =>
+    request<{ id: string; url: string; metadata: any }>('/vaporfiles/upload-base64', {
+      method: 'POST',
+      body: JSON.stringify({ dataUrl, name }),
+    }),
+
+  uploadFile: async (file: File, name?: string): Promise<ApiResponse<VaporFile>> => {
+    const token = localStorage.getItem('session_token');
+    const formData = new FormData();
+    formData.append('file', file);
+    if (name) formData.append('name', name);
+
+    const response = await fetch(`${API_BASE}/vaporfiles/upload`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    checkVersionHeader(response);
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errMsg = data.error || 'Upload failed';
+      debugLog('api', 'error', `POST /vaporfiles/upload — ${response.status}`, JSON.stringify(data, null, 2));
+      throw new Error(errMsg);
+    }
+
+    return data;
+  },
+
+  list: () => request<VaporFile[]>('/vaporfiles/list'),
+
+  delete: (id: string) =>
+    request<{ id: string }>(`/vaporfiles/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
+// Config API (standalone rules, commands, agents)
+export const configApi = {
+  list: (category: ConfigCategory) =>
+    request<ConfigFile[]>(`/config/${category}`),
+
+  add: (category: ConfigCategory, data: { filename: string; content: string; enabled?: boolean }) =>
+    request<ConfigFile>(`/config/${category}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (category: ConfigCategory, filename: string, data: { content?: string; enabled?: boolean }) =>
+    request<ConfigFile>(`/config/${category}/${encodeURIComponent(filename)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  remove: (category: ConfigCategory, filename: string) =>
+    request<{ deleted: boolean }>(`/config/${category}/${encodeURIComponent(filename)}`, {
+      method: 'DELETE',
+    }),
 };
 
 // Files API
@@ -313,6 +584,24 @@ export const filesApi = {
   diff: (sessionId: string, path: string) =>
     request<{ path: string; diff: string }>(
       `/files/diff/${sessionId}?path=${encodeURIComponent(path)}`
+    ),
+
+  downloadArchive: (sessionId: string, path?: string) =>
+    request<{ archive: string; filename: string }>(
+      `/files/download-archive/${sessionId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ path }),
+      }
+    ),
+
+  uploadBase64: (sessionId: string, filename: string, base64Data: string) =>
+    request<{ path: string }>(
+      `/files/upload-base64/${sessionId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ filename, data: base64Data }),
+      }
     ),
 };
 

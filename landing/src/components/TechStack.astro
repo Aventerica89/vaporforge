@@ -1,0 +1,138 @@
+---
+const technologies = [
+  {
+    label: 'INFRASTRUCTURE',
+    title: 'Cloudflare Edge Network',
+    description: 'Your sandbox runs on Cloudflare Workers + Containers, deployed across 300+ cities worldwide. Sub-50ms latency from almost anywhere. No cold start VMs — containers boot in seconds and stay warm between sessions.',
+    color: 'accent',
+    details: [
+      'Workers for auth, routing, and orchestration',
+      'Containers for persistent Linux sandboxes',
+      'KV + R2 for session and file storage',
+      'Global anycast network — always close to you',
+    ],
+  },
+  {
+    label: 'TERMINAL',
+    title: 'A Real Linux Shell',
+    description: 'Not a browser-based emulator. Not a sandboxed REPL. A genuine Linux container with bash, apt-get, npm, pip, cargo, git, docker — every tool you actually use. Install packages. Run servers. Clone repos. It works exactly like your local terminal.',
+    color: 'purple',
+    details: [
+      'Full root access with real filesystem',
+      'Stream output in real-time via xterm.js',
+      'Run background processes and dev servers',
+      'Upload, download, and manage files',
+    ],
+  },
+  {
+    label: 'SECURITY',
+    title: 'Encrypted Secrets Pipeline',
+    description: 'Environment variables and API keys are stored encrypted in Cloudflare KV and injected into your sandbox at runtime. Your keys never touch disk.',
+    color: 'scan',
+    details: [
+      'Per-project encrypted secret storage',
+      'Secrets stored encrypted at rest in CF KV',
+      'Per-session isolation — no cross-user leaks',
+      'Rotate keys without redeploying',
+    ],
+  },
+  {
+    label: 'AI ENGINE',
+    title: 'Claude Code SDK',
+    description: 'VaporForge wraps the official Claude Code SDK — the same engine that powers Claude Code CLI. Streaming AI responses, tool use, file editing, and multi-turn reasoning. Bring your own Claude Pro or Max subscription — zero API markup.',
+    color: 'purple-dark',
+    details: [
+      'Streaming SSE for real-time AI responses',
+      'Tool use: file write, edit, terminal exec',
+      'Session persistence with conversation resume',
+      'MCP relay: connect local tools to cloud SDK',
+    ],
+  },
+];
+
+const colorMap: Record<string, { border: string; text: string; glow: string; bg: string }> = {
+  accent: {
+    border: 'border-vapor-accent/30',
+    text: 'text-vapor-accent',
+    glow: 'shadow-vapor-accent/20',
+    bg: 'from-vapor-accent/8 to-transparent',
+  },
+  purple: {
+    border: 'border-vapor-purple/30',
+    text: 'text-vapor-purple',
+    glow: 'shadow-vapor-purple/20',
+    bg: 'from-vapor-purple/8 to-transparent',
+  },
+  scan: {
+    border: 'border-vapor-scan/30',
+    text: 'text-vapor-scan',
+    glow: 'shadow-vapor-scan/20',
+    bg: 'from-vapor-scan/8 to-transparent',
+  },
+  'purple-dark': {
+    border: 'border-vapor-purple-dark/40',
+    text: 'text-vapor-purple',
+    glow: 'shadow-vapor-purple-dark/20',
+    bg: 'from-vapor-purple-dark/8 to-transparent',
+  },
+};
+---
+
+<section id="technology" class="relative px-4 py-24 sm:px-6 sm:py-32 cyber-lines">
+  <!-- Background glow -->
+  <div class="absolute right-0 top-1/3 h-[500px] w-[400px] rounded-full bg-vapor-purple/4 blur-[180px] pointer-events-none" />
+  <div class="absolute left-0 bottom-1/4 h-[400px] w-[300px] rounded-full bg-vapor-accent/4 blur-[140px] pointer-events-none" />
+
+  <div class="relative z-10 mx-auto max-w-6xl">
+    <div class="text-center mb-20">
+      <span class="font-display text-xs tracking-[0.3em] uppercase text-vapor-accent">Under the hood</span>
+      <h2 class="mt-4 font-display text-3xl font-bold tracking-wide sm:text-4xl cyber-glow">
+        Enterprise infrastructure, indie pricing
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-vapor-muted leading-relaxed">
+        The same Cloudflare stack that serves 20% of the internet.
+        The same Claude engine from Anthropic. Encrypted secrets management.
+        All for $20/month.
+      </p>
+    </div>
+
+    <div class="space-y-8 lg:space-y-6">
+      {technologies.map(({ label, title, description, color, details }, i) => {
+        const c = colorMap[color];
+        const isEven = i % 2 === 0;
+        return (
+          <div class={`group rounded-2xl border ${c.border} bg-gradient-to-br ${c.bg} p-px transition-all hover:shadow-lg hover:${c.glow}`}>
+            <div class="rounded-2xl bg-vapor-bg/90 p-8 sm:p-10 lg:p-12">
+              <div class={`flex flex-col gap-8 ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} lg:items-start lg:gap-16`}>
+                <!-- Text content -->
+                <div class="flex-1 min-w-0">
+                  <span class={`font-display text-[10px] tracking-[0.4em] uppercase ${c.text}`}>{label}</span>
+                  <h3 class="mt-3 font-display text-2xl font-bold tracking-wide text-white sm:text-3xl">
+                    {title}
+                  </h3>
+                  <p class="mt-4 text-vapor-muted leading-relaxed">
+                    {description}
+                  </p>
+                </div>
+
+                <!-- Details list -->
+                <div class="shrink-0 lg:w-[340px]">
+                  <div class={`rounded-xl border ${c.border} bg-vapor-card/50 p-5`}>
+                    <ul class="space-y-3.5">
+                      {details.map((detail) => (
+                        <li class="flex items-start gap-3 text-sm">
+                          <span class={`mt-1.5 block h-2 w-2 shrink-0 rounded-full ${c.text} bg-current`} />
+                          <span class="text-white/80">{detail}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</section>

@@ -21,6 +21,18 @@ declare global {
     // Secrets (set via wrangler secret put)
     JWT_SECRET: string;
 
+    // 1Password service account — gives sandbox access to App Dev vault
+    OP_SERVICE_ACCOUNT_TOKEN?: string;
+
+    // Legacy project secrets (kept as fallback, prefer 1Password SDK)
+    TURSO_DATABASE_URL?: string;
+    TURSO_AUTH_TOKEN?: string;
+    GITHUB_TOKEN?: string;
+    ENCRYPTION_SECRET?: string;
+    AUTH_SECRET?: string;
+    SUPABASE_URL?: string;
+    SUPABASE_SERVICE_ROLE_KEY?: string;
+
     // Environment variables
     ENVIRONMENT: string;
   }

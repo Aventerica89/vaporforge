@@ -1,37 +1,14 @@
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- VaporForge Icon - Industrial Elegance -->
-  <rect width="512" height="512" rx="128" fill="#0f1419"/>
-
-  <!-- Circuit board pattern background -->
-  <g opacity="0.1">
-    <path d="M100 100 H200 V200 H300 V300 H400" stroke="#1dd3e6" stroke-width="2"/>
-    <path d="M100 200 H150 V250 H200" stroke="#1dd3e6" stroke-width="2"/>
-    <circle cx="200" cy="200" r="4" fill="#1dd3e6"/>
-    <circle cx="300" cy="300" r="4" fill="#1dd3e6"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f1419"/>
+  <!-- Circuit board pattern -->
+  <g opacity="0.15">
+    <path d="M100 100 H200 V200 H300 V300 H400" stroke="#E945F5" stroke-width="3"/>
+    <path d="M100 200 H150 V250 H200" stroke="#1dd3e6" stroke-width="3"/>
+    <circle cx="200" cy="200" r="5" fill="#E945F5"/>
+    <circle cx="300" cy="300" r="5" fill="#1dd3e6"/>
   </g>
-
-  <!-- Terminal/Code symbol -->
-  <g transform="translate(156, 180)">
-    <!-- Angle bracket < -->
-    <path d="M 80 76 L 20 126 L 80 176" stroke="#1dd3e6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-
-    <!-- Angle bracket > -->
-    <path d="M 120 76 L 180 126 L 120 176" stroke="#1dd3e6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  </g>
-
-  <!-- Glow effect -->
-  <defs>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
-
-  <g filter="url(#glow)">
-    <path d="M 236 256 L 176 306 L 236 356" stroke="#1dd3e6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <path d="M 276 256 L 336 306 L 276 356" stroke="#1dd3e6" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  </g>
+  <!-- Cyan < -->
+  <path d="M 222 230 L 162 296 L 222 362" stroke="#1dd3e6" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Purple > -->
+  <path d="M 290 230 L 350 296 L 290 362" stroke="#E945F5" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

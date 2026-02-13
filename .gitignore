@@ -6,6 +6,9 @@ node_modules/
 dist/
 .wrangler/
 ui/dist/
+landing/dist/
+landing/.astro/
+landing/node_modules/
 
 # Environment
 .env
