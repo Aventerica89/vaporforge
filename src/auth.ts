@@ -110,7 +110,26 @@ export class AuthService {
       }
     }
 
-    // 3. Truly new user — create fresh record
+    // 3. Check if a previous token rotation left a forward alias for this hash.
+    //    This makes login self-healing even when the client hint is missing
+    //    (e.g. after a hard refresh that clears localStorage).
+    const aliasedUserId = await this.kv.get(`user-alias:${userId}`);
+    if (aliasedUserId) {
+      const aliasedUser = await this.kv.get<User>(`user:${aliasedUserId}`, 'json');
+      if (aliasedUser) {
+        aliasedUser.claudeToken = claudeToken;
+        await this.kv.put(`user:${aliasedUserId}`, JSON.stringify(aliasedUser), {
+          expirationTtl: 30 * 24 * 60 * 60,
+        });
+        // Refresh the alias TTL
+        await this.kv.put(`user-alias:${userId}`, aliasedUserId, {
+          expirationTtl: 30 * 24 * 60 * 60,
+        });
+        return aliasedUser;
+      }
+    }
+
+    // 4. Truly new user — create fresh record
     const user: User = {
       id: userId,
       email: `${userId}@claude-cloud.local`,
