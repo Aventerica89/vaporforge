@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2, Flame } from 'lucide-react';
+import { ArrowUp, Square, Paperclip, Image as ImageIcon, Loader2, Flame, Eye, Zap } from 'lucide-react';
 import { filesApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { haptics } from '@/lib/haptics';
@@ -58,6 +58,8 @@ export function PromptInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
+  const sdkMode = useSandboxStore((s) => s.sdkMode);
+  const setMode = useSandboxStore((s) => s.setMode);
 
   // Command (/) and agent (@) autocomplete
   const { commands, refresh: refreshCommands } = useCommandRegistry();
@@ -312,6 +314,23 @@ export function PromptInput({
           <Flame className="h-3 w-3" />
           Reforge
         </button>
+        <button
+          type="button"
+          onClick={() => setMode(sdkMode === 'agent' ? 'plan' : 'agent')}
+          className={`flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium transition-colors ${
+            sdkMode === 'plan'
+              ? 'bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25'
+              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground'
+          }`}
+          title={sdkMode === 'plan'
+            ? 'Plan mode: read-only research (no file writes)'
+            : 'Agent mode: full access (can edit files)'}
+        >
+          {sdkMode === 'plan'
+            ? <><Eye className="h-3 w-3" /> Plan</>
+            : <><Zap className="h-3 w-3" /> Agent</>
+          }
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="relative">
@@ -355,7 +374,9 @@ export function PromptInput({
             placeholder={
               images.length > 0
                 ? 'Add a message about the image(s)...'
-                : 'Message Claude...'
+                : sdkMode === 'plan'
+                  ? 'Research mode — Claude can read but not edit...'
+                  : 'Message Claude...'
             }
             rows={1}
             disabled={isStreaming}

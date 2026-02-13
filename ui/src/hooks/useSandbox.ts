@@ -38,6 +38,7 @@ interface SandboxState {
   isStreaming: boolean;
   streamingContent: string;
   streamingParts: MessagePart[];
+  sdkMode: 'agent' | 'plan';
 
   // Git state
   gitStatus: GitStatus | null;
@@ -67,6 +68,7 @@ interface SandboxState {
 
   sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
   clearMessages: () => void;
+  setMode: (mode: 'agent' | 'plan') => void;
 
   loadGitStatus: () => Promise<void>;
   stageFiles: (files: string[]) => Promise<void>;
@@ -109,6 +111,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   isStreaming: false,
   streamingContent: '',
   streamingParts: [],
+  sdkMode: 'agent' as const,
 
   gitStatus: null,
 
@@ -494,7 +497,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // lastToolStart removed — artifact detection uses post-stream scan
 
       for await (const chunk of sdkApi.stream(
-        session.id, message, undefined, controller.signal
+        session.id, message, undefined, controller.signal, get().sdkMode
       )) {
         // Skip connection and heartbeat events — just reset the timeout
         if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
@@ -681,6 +684,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   clearMessages: () => set({ messages: [] }),
+
+  setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
 
   loadGitStatus: async () => {
     const session = get().currentSession;
