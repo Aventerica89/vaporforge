@@ -1,6 +1,7 @@
 import type { User, AuthTokenPayloadType } from './types';
 
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+export const KV_USER_TTL = 30 * 24 * 60 * 60; // 30 days (seconds)
 
 // Simple JWT-like token creation using Web Crypto API
 async function createToken(
@@ -84,7 +85,7 @@ export class AuthService {
       if (existingUser.claudeToken !== claudeToken) {
         existingUser.claudeToken = claudeToken;
         await this.kv.put(`user:${userId}`, JSON.stringify(existingUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
       }
       return existingUser;
@@ -99,11 +100,11 @@ export class AuthService {
         previousUser.claudeToken = claudeToken;
         // Re-persist under the SAME key so all `{previousUserId}` KV data stays valid
         await this.kv.put(`user:${previousUserId}`, JSON.stringify(previousUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         // Also store a forward pointer so the new token hash resolves too
         await this.kv.put(`user-alias:${userId}`, previousUserId, {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         return previousUser;
       }
@@ -118,11 +119,11 @@ export class AuthService {
       if (aliasedUser) {
         aliasedUser.claudeToken = claudeToken;
         await this.kv.put(`user:${aliasedUserId}`, JSON.stringify(aliasedUser), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         // Refresh the alias TTL
         await this.kv.put(`user-alias:${userId}`, aliasedUserId, {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
         return aliasedUser;
       }
@@ -137,7 +138,7 @@ export class AuthService {
     };
 
     await this.kv.put(`user:${userId}`, JSON.stringify(user), {
-      expirationTtl: 30 * 24 * 60 * 60,
+      expirationTtl: KV_USER_TTL,
     });
 
     return user;
@@ -230,7 +231,7 @@ export class AuthService {
       if (user) {
         user.claudeToken = data.access_token;
         await this.kv.put(`user:${userId}`, JSON.stringify(user), {
-          expirationTtl: 30 * 24 * 60 * 60,
+          expirationTtl: KV_USER_TTL,
         });
 
         // Update refresh token if provided

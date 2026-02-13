@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { AuthService, extractAuth } from './auth';
+import { AuthService, extractAuth, KV_USER_TTL } from './auth';
 import { SandboxManager } from './sandbox';
 import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';
@@ -123,10 +123,13 @@ export function createRouter(env: Env) {
       return c.json({ success: false, error: 'Invalid token format' }, 400);
     }
 
-    // Accept optional previousUserId hint to preserve data across token rotations
-    const previousUserId = typeof body.previousUserId === 'string'
-      ? body.previousUserId
-      : undefined;
+    // Only trust previousUserId if the caller has a valid session JWT proving
+    // they are that user. This prevents an attacker from claiming any userId.
+    let previousUserId: string | undefined;
+    const existingUser = await extractAuth(c.req.raw, authService);
+    if (existingUser) {
+      previousUserId = existingUser.id;
+    }
 
     const result = await authService.authenticateWithSetupToken(
       parsed.data.token,
@@ -203,32 +206,6 @@ export function createRouter(env: Env) {
     return recovered;
   }
 
-  // Data recovery: migrate orphaned data from an old userId to the current user.
-  // Requires auth (so we know the current user) and the old userId.
-  app.post('/api/auth/recover', async (c) => {
-    const authService = c.get('authService');
-    const user = await extractAuth(c.req.raw, authService);
-    if (!user) {
-      return c.json({ success: false, error: 'Unauthorized' }, 401);
-    }
-
-    const body = await c.req.json();
-    const oldUserId = typeof body.oldUserId === 'string' ? body.oldUserId.trim() : '';
-    if (!oldUserId || !oldUserId.startsWith('user_')) {
-      return c.json({ success: false, error: 'Invalid oldUserId' }, 400);
-    }
-    if (oldUserId === user.id) {
-      return c.json({ success: false, error: 'oldUserId matches current user' }, 400);
-    }
-
-    const recovered = await migrateUserData(env.AUTH_KV, env.SESSIONS_KV, oldUserId, user.id);
-
-    return c.json({
-      success: true,
-      data: { recovered, oldUserId, newUserId: user.id },
-    });
-  });
-
   // Recover by old Claude token: hash the old token to derive the old userId,
   // then migrate KV data to the current user.
   app.post('/api/auth/recover-by-token', async (c) => {
@@ -266,7 +243,7 @@ export function createRouter(env: Env) {
     const existingAlias = await env.AUTH_KV.get(`user-alias:${oldUserId}`);
     if (!existingAlias || existingAlias === user.id) {
       await env.AUTH_KV.put(`user-alias:${oldUserId}`, user.id, {
-        expirationTtl: 30 * 24 * 60 * 60,
+        expirationTtl: KV_USER_TTL,
       });
     }
 

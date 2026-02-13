@@ -20,11 +20,12 @@ export function AccountTab() {
     setRecoverResult(null);
     setRecoverError('');
     try {
-      // Detect whether the input is a token or a user ID
-      const isToken = trimmed.startsWith('sk-ant-');
-      const result = isToken
-        ? await authApi.recoverByToken(trimmed)
-        : await authApi.recover(trimmed);
+      if (!trimmed.startsWith('sk-ant-')) {
+        setRecoverError('Please enter a Claude token (starts with sk-ant-)');
+        setRecovering(false);
+        return;
+      }
+      const result = await authApi.recoverByToken(trimmed);
       setRecoverResult(result);
       setRecoverInput('');
     } catch (err) {
@@ -119,14 +120,14 @@ export function AccountTab() {
         </h4>
         <p className="text-xs text-muted-foreground leading-relaxed">
           If you lost data (issues, secrets, plugins, etc.) after re-authenticating,
-          paste your <strong>previous Claude token</strong> (sk-ant-...) or <strong>old user ID</strong> to recover it.
+          paste your <strong>previous Claude token</strong> (sk-ant-...) to recover it.
         </p>
         <div className="flex gap-2">
           <input
             type="text"
             value={recoverInput}
             onChange={handleRecoverInputChange}
-            placeholder="sk-ant-oat01-... or user_abc123..."
+            placeholder="sk-ant-oat01-..."
             className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button

@@ -119,15 +119,6 @@ export const authApi = {
     // Keep vf-user-id so re-login preserves data
   },
 
-  recover: async (oldUserId: string): Promise<{ recovered: number; oldUserId: string; newUserId: string }> => {
-    const res = await request<{ recovered: number; oldUserId: string; newUserId: string }>(
-      '/auth/recover',
-      { method: 'POST', body: JSON.stringify({ oldUserId }) }
-    );
-    if (!res.success || !res.data) throw new Error(res.error || 'Recovery failed');
-    return res.data;
-  },
-
   recoverByToken: async (oldToken: string): Promise<{ recovered: number; oldUserId: string; newUserId: string }> => {
     const res = await request<{ recovered: number; oldUserId: string; newUserId: string }>(
       '/auth/recover-by-token',
