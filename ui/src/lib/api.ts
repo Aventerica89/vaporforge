@@ -278,6 +278,7 @@ export const sdkApi = {
     mode?: 'agent' | 'plan'
   ): AsyncGenerator<{
     type: string;
+    id?: string;
     content?: string;
     sessionId?: string;
     fullText?: string;

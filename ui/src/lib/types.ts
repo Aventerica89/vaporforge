@@ -25,6 +25,8 @@ export interface MessagePart {
   type: 'text' | 'tool-start' | 'tool-result' | 'error' | 'reasoning' | 'artifact' | 'chain-of-thought';
   content?: string;
   name?: string;
+  /** Unique tool call ID — composite "parentId:childId" for nested agent tools */
+  toolId?: string;
   input?: Record<string, unknown>;
   output?: string;
   /** Tool execution duration in ms (populated on tool-result) */
