@@ -14,6 +14,7 @@ import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
 import { IssueTracker } from './IssueTracker';
+import { DevPlayground } from './DevPlayground';
 import { QuickChatPanel } from './QuickChatPanel';
 import { CodeTransformPanel } from './CodeTransformPanel';
 import { CodeAnalysisPanel } from './CodeAnalysisPanel';
@@ -25,6 +26,7 @@ import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { usePlayground } from '@/hooks/usePlayground';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 
 export function Layout() {
@@ -129,6 +131,18 @@ export function Layout() {
         return;
       }
 
+      // Cmd+Shift+D — toggle dev playground
+      if (e.shiftKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        const pg = usePlayground.getState();
+        if (pg.isOpen) {
+          pg.closePlayground();
+        } else {
+          pg.openPlayground();
+        }
+        return;
+      }
+
       // Cmd+Shift+G — generate AI commit message
       if (e.shiftKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault();
@@ -165,6 +179,7 @@ export function Layout() {
       <>
         <MarketplacePage />
         <IssueTracker />
+        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -176,6 +191,7 @@ export function Layout() {
       <>
         <SettingsPage />
         <IssueTracker />
+        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -187,6 +203,7 @@ export function Layout() {
       <div className="bg-background overflow-hidden">
         <MobileLayout />
         <IssueTracker />
+        <DevPlayground />
         <DebugPanel />
       </div>
     );
@@ -306,6 +323,7 @@ export function Layout() {
       <TestResultsOverlay />
       <StackTraceOverlay />
       <IssueTracker />
+      <DevPlayground />
       <DebugPanel />
     </div>
   );

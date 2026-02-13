@@ -10,12 +10,14 @@ import {
   Puzzle,
   Home,
   Bug,
+  Hammer,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
+import { usePlayground } from '@/hooks/usePlayground';
 import { haptics } from '@/lib/haptics';
 
 interface MobileDrawerProps {
@@ -125,6 +127,11 @@ export function MobileDrawer({
 
   const handleOpenBugTracker = () => {
     openTracker();
+    onClose();
+  };
+
+  const handleOpenPlayground = () => {
+    usePlayground.getState().openPlayground();
     onClose();
   };
 
@@ -289,6 +296,13 @@ export function MobileDrawer({
           >
             <Bug className="h-4 w-4 text-orange-500" />
             Bug Tracker
+          </button>
+          <button
+            onClick={handleOpenPlayground}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent transition-colors"
+          >
+            <Hammer className="h-4 w-4 text-amber-500" />
+            Dev Playground
           </button>
           <button
             onClick={handleOpenMarketplace}

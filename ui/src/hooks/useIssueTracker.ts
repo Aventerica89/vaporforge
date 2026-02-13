@@ -29,6 +29,7 @@ interface IssueTrackerState {
   filter: IssueFilter;
   syncing: boolean;
   migrated: boolean;
+  lastSyncedAt: string | null; // server updatedAt for ETag polling
 
   openTracker: () => void;
   closeTracker: () => void;
@@ -51,6 +52,7 @@ interface IssueTrackerState {
   // Backend sync methods
   loadFromBackend: () => Promise<void>;
   syncToBackend: () => Promise<void>;
+  pollSync: () => Promise<void>;
 }
 
 export function buildMarkdown(issues: Issue[], suggestions: string, useFileUrls = true): string {
@@ -149,6 +151,10 @@ function debouncedSync(fn: () => Promise<void>, delay = 1000) {
   }, delay);
 }
 
+// Polling interval handle
+let pollInterval: ReturnType<typeof setInterval> | null = null;
+const POLL_INTERVAL_MS = 30_000; // 30 seconds
+
 export const useIssueTracker = create<IssueTrackerState>()(
   persist(
     (set, get) => ({
@@ -158,6 +164,7 @@ export const useIssueTracker = create<IssueTrackerState>()(
       filter: 'all',
       syncing: false,
       migrated: false,
+      lastSyncedAt: null,
 
       openTracker: () => set({ isOpen: true }),
       closeTracker: () => set({ isOpen: false }),
@@ -274,6 +281,7 @@ export const useIssueTracker = create<IssueTrackerState>()(
               issues: sanitized,
               suggestions: response.data.suggestions || '',
               filter: (response.data.filter as IssueFilter) || 'all',
+              lastSyncedAt: response.data.updatedAt || null,
               migrated: true,
             });
           }
@@ -291,15 +299,47 @@ export const useIssueTracker = create<IssueTrackerState>()(
 
         try {
           set({ syncing: true });
-          await issuesApi.save({
+          const result = await issuesApi.save({
             issues,
             suggestions,
             filter,
           });
+          // Update lastSyncedAt from server response
+          if (result.data?.updatedAt) {
+            set({ lastSyncedAt: result.data.updatedAt });
+          }
         } catch (error) {
           console.error('Failed to sync issues to backend:', error);
         } finally {
           set({ syncing: false });
+        }
+      },
+
+      // Poll for changes from other tabs/sessions (ETag-based)
+      pollSync: async () => {
+        const { syncing, lastSyncedAt } = get();
+        if (syncing) return;
+
+        try {
+          const etag = lastSyncedAt ? `"${lastSyncedAt}"` : undefined;
+          const result = await issuesApi.sync(etag);
+
+          if (result.notModified || !result.data) return; // No changes
+
+          const VALID_TYPES = ['bug', 'error', 'feature', 'suggestion'];
+          const sanitized = (result.data.issues || []).map((i: Issue) => ({
+            ...i,
+            type: VALID_TYPES.includes(i.type) ? i.type : 'bug',
+          }));
+
+          set({
+            issues: sanitized,
+            suggestions: result.data.suggestions || '',
+            filter: (result.data.filter as IssueFilter) || 'all',
+            lastSyncedAt: result.data.updatedAt || null,
+          });
+        } catch {
+          // Silent fail — network may be down
         }
       },
     }),
@@ -310,6 +350,7 @@ export const useIssueTracker = create<IssueTrackerState>()(
         suggestions: state.suggestions,
         filter: state.filter,
         migrated: state.migrated,
+        lastSyncedAt: state.lastSyncedAt,
       }),
     }
   )
@@ -354,4 +395,33 @@ if (typeof window !== 'undefined') {
       console.error('[Issue Tracker] Migration failed:', error);
     }
   });
+
+  // Start visibility-based polling for cross-tab/session sync
+  function startPolling() {
+    if (pollInterval) return;
+    pollInterval = setInterval(() => {
+      useIssueTracker.getState().pollSync();
+    }, POLL_INTERVAL_MS);
+  }
+
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+  }
+
+  // Start/stop polling based on tab visibility
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      // Immediate sync when tab becomes visible again
+      useIssueTracker.getState().pollSync();
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  });
+
+  // Start polling on initial load
+  startPolling();
 }

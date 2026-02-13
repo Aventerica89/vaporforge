@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { DEV_BUILD } from '@/lib/dev-version';
 import { APP_VERSION } from '@/lib/version';
+import { usePlayground } from '@/hooks/usePlayground';
+import { useSettingsStore } from '@/hooks/useSettings';
 
 interface ServerInfo {
   version: string;
@@ -173,6 +175,30 @@ export function DevToolsTab() {
             mono
           />
         </div>
+      </div>
+
+      {/* Dev Playground launcher */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-amber-400 mb-1">Dev Playground</h3>
+            <p className="text-xs text-muted-foreground">
+              Build UI components, browse the component catalog, view console logs, and track issues — all in one place.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              usePlayground.getState().openPlayground();
+              useSettingsStore.getState().closeSettings();
+            }}
+            className="shrink-0 rounded-md bg-amber-500/10 border border-amber-500/20 px-4 py-2 text-sm font-medium text-amber-400 hover:bg-amber-500/20 hover:border-amber-500/30 transition-colors"
+          >
+            Open
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] text-muted-foreground/60">
+          Shortcut: Cmd+Shift+D
+        </p>
       </div>
 
       {/* Quick actions */}

@@ -487,12 +487,34 @@ export const pluginsApi = {
 // Issues API (bug tracker)
 export const issuesApi = {
   list: () =>
-    request<{ issues: any[]; suggestions: string; filter: string }>('/issues'),
+    request<{ issues: any[]; suggestions: string; filter: string; updatedAt?: string }>('/issues'),
 
   save: (data: { issues: any[]; suggestions: string; filter: string }) =>
-    request<{ saved: boolean }>('/issues', {
+    request<{ updatedAt: string }>('/issues', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  sync: async (etag?: string): Promise<{ data: { issues: any[]; suggestions: string; filter: string; updatedAt: string | null } | null; notModified: boolean }> => {
+    const token = localStorage.getItem('session_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(etag ? { 'If-None-Match': etag } : {}),
+    };
+    const response = await fetch(`${API_BASE}/issues/sync`, { headers });
+    checkVersionHeader(response);
+    if (response.status === 304) {
+      return { data: null, notModified: true };
+    }
+    const json = await response.json();
+    return { data: json.data, notModified: false };
+  },
+
+  patch: (id: string, updates: Record<string, unknown>) =>
+    request<{ issue: any; updatedAt: string }>(`/issues/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
     }),
 
   delete: () =>
