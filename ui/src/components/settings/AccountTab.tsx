@@ -1,8 +1,41 @@
-import { User, LogOut, Shield, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check } from 'lucide-react';
 import { useAuthStore } from '@/hooks/useAuth';
+import { authApi } from '@/lib/api';
 
 export function AccountTab() {
   const { user, logout } = useAuthStore();
+  const currentUserId = localStorage.getItem('vf-user-id') || user?.id || '';
+
+  const [oldUserId, setOldUserId] = useState('');
+  const [recovering, setRecovering] = useState(false);
+  const [recoverResult, setRecoverResult] = useState<{ recovered: number } | null>(null);
+  const [recoverError, setRecoverError] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleRecover = async () => {
+    const trimmed = oldUserId.trim();
+    if (!trimmed) return;
+    setRecovering(true);
+    setRecoverResult(null);
+    setRecoverError('');
+    try {
+      const result = await authApi.recover(trimmed);
+      setRecoverResult(result);
+      setOldUserId('');
+    } catch (err) {
+      setRecoverError(err instanceof Error ? err.message : 'Recovery failed');
+    } finally {
+      setRecovering(false);
+    }
+  };
+
+  const copyUserId = async () => {
+    if (!currentUserId) return;
+    await navigator.clipboard.writeText(currentUserId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -32,6 +65,21 @@ export function AccountTab() {
           </div>
         </div>
 
+        {currentUserId && (
+          <div className="flex items-center gap-2 pt-2 border-t border-border">
+            <span className="text-[10px] text-muted-foreground/60 font-mono truncate flex-1">
+              ID: {currentUserId}
+            </span>
+            <button
+              onClick={copyUserId}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              title="Copy user ID"
+            >
+              {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+            </button>
+          </div>
+        )}
+
         <div className="space-y-2 pt-2 border-t border-border">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Shield className="h-3.5 w-3.5 text-success" />
@@ -42,6 +90,44 @@ export function AccountTab() {
             <span>Token refreshed automatically</span>
           </div>
         </div>
+      </div>
+
+      {/* Data Recovery */}
+      <div className="space-y-3">
+        <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <RotateCcw className="h-4 w-4 text-primary" />
+          Data Recovery
+        </h4>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          If you lost data (issues, secrets, plugins, etc.) after re-authenticating
+          with a new token, enter your previous user ID to recover it.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={oldUserId}
+            onChange={(e) => { setOldUserId(e.target.value); setRecoverError(''); setRecoverResult(null); }}
+            placeholder="user_abc123..."
+            className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button
+            onClick={handleRecover}
+            disabled={recovering || !oldUserId.trim()}
+            className="flex items-center gap-2 rounded-md bg-primary/10 border border-primary/30 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <RotateCcw className={`h-3.5 w-3.5 ${recovering ? 'animate-spin' : ''}`} />
+            {recovering ? 'Recovering...' : 'Recover'}
+          </button>
+        </div>
+        {recoverResult && (
+          <p className="text-xs text-success">
+            Recovered {recoverResult.recovered} data {recoverResult.recovered === 1 ? 'item' : 'items'}.
+            {recoverResult.recovered > 0 ? ' Refresh the page to see your data.' : ' No orphaned data found for that ID.'}
+          </p>
+        )}
+        {recoverError && (
+          <p className="text-xs text-red-400">{recoverError}</p>
+        )}
       </div>
 
       {/* Auth method explainer */}
