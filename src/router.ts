@@ -151,6 +151,58 @@ export function createRouter(env: Env) {
     });
   });
 
+  /** Build the list of KV keys that hold user data for migration. */
+  function userAuthKvKeys(userId: string): string[] {
+    return [
+      `issues:${userId}`,
+      `favorites:${userId}`,
+      `github-username:${userId}`,
+    ];
+  }
+
+  function userSessionsKvKeys(userId: string): string[] {
+    return [
+      `user-secrets:${userId}`,
+      `user-ai-providers:${userId}`,
+      `user-plugins:${userId}`,
+      `user-mcp:${userId}`,
+      `user-config:${userId}:rules`,
+      `user-config:${userId}:commands`,
+      `user-config:${userId}:agents`,
+      `quickchat-list:${userId}`,
+    ];
+  }
+
+  /** Migrate KV data from oldUserId to newUserId. Returns count of migrated keys. */
+  async function migrateUserData(
+    authKv: KVNamespace, sessionsKv: KVNamespace,
+    oldUserId: string, newUserId: string
+  ): Promise<number> {
+    let recovered = 0;
+
+    const oldAuthKeys = userAuthKvKeys(oldUserId);
+    const newAuthKeys = userAuthKvKeys(newUserId);
+    for (let i = 0; i < oldAuthKeys.length; i++) {
+      const value = await authKv.get(oldAuthKeys[i]);
+      if (value && !(await authKv.get(newAuthKeys[i]))) {
+        await authKv.put(newAuthKeys[i], value);
+        recovered++;
+      }
+    }
+
+    const oldSessionKeys = userSessionsKvKeys(oldUserId);
+    const newSessionKeys = userSessionsKvKeys(newUserId);
+    for (let i = 0; i < oldSessionKeys.length; i++) {
+      const value = await sessionsKv.get(oldSessionKeys[i]);
+      if (value && !(await sessionsKv.get(newSessionKeys[i]))) {
+        await sessionsKv.put(newSessionKeys[i], value);
+        recovered++;
+      }
+    }
+
+    return recovered;
+  }
+
   // Data recovery: migrate orphaned data from an old userId to the current user.
   // Requires auth (so we know the current user) and the old userId.
   app.post('/api/auth/recover', async (c) => {
@@ -169,52 +221,7 @@ export function createRouter(env: Env) {
       return c.json({ success: false, error: 'oldUserId matches current user' }, 400);
     }
 
-    // KV keys to migrate (AUTH_KV)
-    const authKvKeys = [
-      `issues:${oldUserId}`,
-      `favorites:${oldUserId}`,
-      `github-username:${oldUserId}`,
-    ];
-    // KV keys to migrate (SESSIONS_KV)
-    const sessionsKvKeys = [
-      `user-secrets:${oldUserId}`,
-      `user-ai-providers:${oldUserId}`,
-      `user-plugins:${oldUserId}`,
-      `user-mcp:${oldUserId}`,
-      `user-config:${oldUserId}:rules`,
-      `user-config:${oldUserId}:commands`,
-      `user-config:${oldUserId}:agents`,
-      `quickchat-list:${oldUserId}`,
-    ];
-
-    let recovered = 0;
-
-    // Migrate AUTH_KV keys
-    for (const oldKey of authKvKeys) {
-      const value = await env.AUTH_KV.get(oldKey);
-      if (value) {
-        const newKey = oldKey.replace(oldUserId, user.id);
-        // Only migrate if destination doesn't already have data
-        const existing = await env.AUTH_KV.get(newKey);
-        if (!existing) {
-          await env.AUTH_KV.put(newKey, value);
-          recovered++;
-        }
-      }
-    }
-
-    // Migrate SESSIONS_KV keys
-    for (const oldKey of sessionsKvKeys) {
-      const value = await env.SESSIONS_KV.get(oldKey);
-      if (value) {
-        const newKey = oldKey.replace(oldUserId, user.id);
-        const existing = await env.SESSIONS_KV.get(newKey);
-        if (!existing) {
-          await env.SESSIONS_KV.put(newKey, value);
-          recovered++;
-        }
-      }
-    }
+    const recovered = await migrateUserData(env.AUTH_KV, env.SESSIONS_KV, oldUserId, user.id);
 
     return c.json({
       success: true,
@@ -239,8 +246,7 @@ export function createRouter(env: Env) {
       return c.json({ success: false, error: 'Invalid token format. Must start with sk-ant-oat01- or sk-ant-api01-' }, 400);
     }
 
-    const tokenHash = await authService.hashToken(oldToken);
-    const oldUserId = `user_${tokenHash.slice(0, 16)}`;
+    const oldUserId = await authService.getUserIdFromToken(oldToken);
 
     if (oldUserId === user.id) {
       return c.json({ success: false, error: 'That token resolves to your current account. Your data should already be visible — try refreshing.' }, 400);
@@ -252,54 +258,17 @@ export function createRouter(env: Env) {
       return c.json({ success: false, error: 'No account found for that token. The data may have expired (KV TTL is 30 days).' }, 404);
     }
 
-    // KV keys to migrate (AUTH_KV)
-    const authKvKeys = [
-      `issues:${oldUserId}`,
-      `favorites:${oldUserId}`,
-      `github-username:${oldUserId}`,
-    ];
-    // KV keys to migrate (SESSIONS_KV)
-    const sessionsKvKeys = [
-      `user-secrets:${oldUserId}`,
-      `user-ai-providers:${oldUserId}`,
-      `user-plugins:${oldUserId}`,
-      `user-mcp:${oldUserId}`,
-      `user-config:${oldUserId}:rules`,
-      `user-config:${oldUserId}:commands`,
-      `user-config:${oldUserId}:agents`,
-      `quickchat-list:${oldUserId}`,
-    ];
+    const recovered = await migrateUserData(env.AUTH_KV, env.SESSIONS_KV, oldUserId, user.id);
 
-    let recovered = 0;
-
-    for (const oldKey of authKvKeys) {
-      const value = await env.AUTH_KV.get(oldKey);
-      if (value) {
-        const newKey = oldKey.replace(oldUserId, user.id);
-        const existing = await env.AUTH_KV.get(newKey);
-        if (!existing) {
-          await env.AUTH_KV.put(newKey, value);
-          recovered++;
-        }
-      }
+    // Write alias so future logins with the old token resolve here.
+    // Only write if no alias exists yet or it already points to this user,
+    // to prevent a second caller from hijacking the alias.
+    const existingAlias = await env.AUTH_KV.get(`user-alias:${oldUserId}`);
+    if (!existingAlias || existingAlias === user.id) {
+      await env.AUTH_KV.put(`user-alias:${oldUserId}`, user.id, {
+        expirationTtl: 30 * 24 * 60 * 60,
+      });
     }
-
-    for (const oldKey of sessionsKvKeys) {
-      const value = await env.SESSIONS_KV.get(oldKey);
-      if (value) {
-        const newKey = oldKey.replace(oldUserId, user.id);
-        const existing = await env.SESSIONS_KV.get(newKey);
-        if (!existing) {
-          await env.SESSIONS_KV.put(newKey, value);
-          recovered++;
-        }
-      }
-    }
-
-    // Write alias so future logins with the old token resolve here
-    await env.AUTH_KV.put(`user-alias:${oldUserId}`, user.id, {
-      expirationTtl: 30 * 24 * 60 * 60,
-    });
 
     return c.json({
       success: true,

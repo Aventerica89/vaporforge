@@ -78,7 +78,7 @@ export function getPreviousUserId(): string | undefined {
 /** Persist vf-user-id to both localStorage and a cookie (belt-and-suspenders). */
 export function persistUserId(userId: string): void {
   localStorage.setItem('vf-user-id', userId);
-  document.cookie = `vf-user-id=${userId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Strict`;
+  document.cookie = `vf-user-id=${userId}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Strict; Secure`;
 }
 
 // Auth API

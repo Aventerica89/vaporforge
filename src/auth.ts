@@ -76,8 +76,7 @@ export class AuthService {
   // previousUserId: hint from the client (stored in localStorage) to reuse
   // the same userId when the OAuth token rotates, preserving all KV data.
   async getOrCreateUser(claudeToken: string, previousUserId?: string): Promise<User | null> {
-    const tokenHash = await this.hashToken(claudeToken);
-    const userId = `user_${tokenHash.slice(0, 16)}`;
+    const userId = await this.getUserIdFromToken(claudeToken);
 
     // 1. Check if this exact token already has a user
     const existingUser = await this.kv.get<User>(`user:${userId}`, 'json');
@@ -255,6 +254,11 @@ export class AuthService {
     } catch {
       return null;
     }
+  }
+
+  async getUserIdFromToken(claudeToken: string): Promise<string> {
+    const tokenHash = await this.hashToken(claudeToken);
+    return `user_${tokenHash.slice(0, 16)}`;
   }
 
   async hashToken(token: string): Promise<string> {
