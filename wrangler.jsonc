@@ -111,6 +111,7 @@
       "vars": {
         "ENVIRONMENT": "preview"
       },
+      "workers_dev": true,
       "routes": [],
       "kv_namespaces": [
         {
