@@ -56,7 +56,7 @@ commitMsgRoutes.post('/generate', async (c) => {
 
   const { diff, stagedFiles, provider, model: modelAlias } = parsed.data;
 
-  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id);
+  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id, user.claudeToken);
 
   let aiModel;
   try {

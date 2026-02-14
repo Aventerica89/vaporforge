@@ -71,7 +71,8 @@ transformRoutes.post('/stream', async (c) => {
   // Get credentials
   const creds = await getProviderCredentials(
     c.env.SESSIONS_KV,
-    user.id
+    user.id,
+    user.claudeToken
   );
 
   let aiModel;

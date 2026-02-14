@@ -150,7 +150,8 @@ quickchatRoutes.post('/stream', async (c) => {
   // Get credentials
   const creds = await getProviderCredentials(
     c.env.SESSIONS_KV,
-    user.id
+    user.id,
+    user.claudeToken
   );
 
   let aiModel;
@@ -314,7 +315,7 @@ quickchatRoutes.get('/list', async (c) => {
   const user = c.get('user');
   const [chatList, availableProviders] = await Promise.all([
     readChatList(c.env.SESSIONS_KV, user.id),
-    getAvailableProviders(c.env.SESSIONS_KV, user.id),
+    getAvailableProviders(c.env.SESSIONS_KV, user.id, user.claudeToken),
   ]);
 
   return c.json<

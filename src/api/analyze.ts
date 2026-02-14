@@ -68,7 +68,7 @@ analyzeRoutes.post('/structured', async (c) => {
   const { code, language, filePath, provider, model: modelAlias } =
     parsed.data;
 
-  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id);
+  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id, user.claudeToken);
 
   let aiModel;
   try {

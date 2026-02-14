@@ -82,35 +82,35 @@ export function createModel(
 /**
  * Read provider credentials from KV.
  * Secrets are stored at `user-secrets:{userId}` as a JSON object.
+ * Falls back to the user's OAuth token for Claude if no separate API key.
  */
 export async function getProviderCredentials(
   kv: KVNamespace,
-  userId: string
+  userId: string,
+  claudeToken?: string
 ): Promise<ProviderCredentials> {
   const raw = await kv.get(`user-secrets:${userId}`);
-  if (!raw) return {};
+  const secrets: Record<string, string> = raw
+    ? (() => { try { return JSON.parse(raw); } catch { return {}; } })()
+    : {};
 
-  try {
-    const secrets = JSON.parse(raw) as Record<string, string>;
-    return {
-      claude: secrets.ANTHROPIC_API_KEY
-        ? { apiKey: secrets.ANTHROPIC_API_KEY }
-        : undefined,
-      gemini: secrets.GEMINI_API_KEY
-        ? { apiKey: secrets.GEMINI_API_KEY }
-        : undefined,
-    };
-  } catch {
-    return {};
-  }
+  const claudeKey = secrets.ANTHROPIC_API_KEY || claudeToken;
+
+  return {
+    claude: claudeKey ? { apiKey: claudeKey } : undefined,
+    gemini: secrets.GEMINI_API_KEY
+      ? { apiKey: secrets.GEMINI_API_KEY }
+      : undefined,
+  };
 }
 
 /** Check which providers a user has credentials for */
 export async function getAvailableProviders(
   kv: KVNamespace,
-  userId: string
+  userId: string,
+  claudeToken?: string
 ): Promise<ProviderName[]> {
-  const creds = await getProviderCredentials(kv, userId);
+  const creds = await getProviderCredentials(kv, userId, claudeToken);
   const available: ProviderName[] = [];
   if (creds.claude) available.push('claude');
   if (creds.gemini) available.push('gemini');
