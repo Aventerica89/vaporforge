@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   preview:
     runs-on: ubuntu-latest
@@ -35,7 +39,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: versions upload
+          command: deploy --name vaporforge-preview-pr-${{ github.event.pull_request.number }} --no-bundle=false
+          environment: preview
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
@@ -52,10 +57,12 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           edit-mode: replace
           body: |
-            **Preview deployment** for commit ${{ github.event.pull_request.head.sha }}
+            **Preview deployment** for commit `${{ github.sha }}`
+
+            🔗 **https://vaporforge-preview-pr-${{ github.event.pull_request.number }}.${{ secrets.CF_WORKERS_SUBDOMAIN || 'workers.dev' }}**
 
             ```
             ${{ steps.deploy.outputs.command-output }}
             ```
 
-            > To promote this version to production, merge the PR or run `wrangler versions deploy` manually.
+            > This preview will be cleaned up when the PR is closed.

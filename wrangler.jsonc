@@ -102,5 +102,15 @@
   "dev": {
     "port": 8787,
     "local_protocol": "http"
+  },
+
+  // Preview environment for PR deployments — shares KV/R2, drops custom domains
+  "env": {
+    "preview": {
+      "vars": {
+        "ENVIRONMENT": "preview"
+      },
+      "routes": []
+    }
   }
 }
