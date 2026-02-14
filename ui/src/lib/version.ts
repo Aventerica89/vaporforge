@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.10.0';
+export const APP_VERSION = '0.11.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.11.0',
+    date: '2026-02-13',
+    tag: 'feature',
+    title: 'Structured Intelligence + Dev Changelog',
+    items: [
+      'Code Analysis panel: streamObject() with progressive complexity meter, severity-badged issues (Cmd+Shift+A)',
+      'Smart Commit Message: generateObject() card with editable type/scope/subject/body and preview (Cmd+Shift+G)',
+      'Test Results Parser: auto-detects Jest/Vitest/pytest/Mocha output with pass/fail/skip progress bar',
+      'Stack Trace Parser: clickable frames, dimmed node_modules, opens file in editor',
+      'Dev Changelog: full-page overlay with date-grouped commits, expandable details, search, and filter (Cmd+Shift+L)',
+      'Build-time version script: git hash, date, and commit log generated at build time for edge runtime',
+      'Version badge in SessionTabBar shows app version and build hash',
+    ],
+  },
   {
     version: '0.10.0',
     date: '2026-02-12',
