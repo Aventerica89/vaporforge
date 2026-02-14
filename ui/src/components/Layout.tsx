@@ -14,6 +14,7 @@ import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
 import { MarketplacePage } from './marketplace';
 import { IssueTracker } from './IssueTracker';
+import { DevChangelog } from './DevChangelog';
 import { DevPlayground } from './DevPlayground';
 import { QuickChatPanel } from './QuickChatPanel';
 import { CodeTransformPanel } from './CodeTransformPanel';
@@ -27,6 +28,7 @@ import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { usePlayground } from '@/hooks/usePlayground';
+import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 
 export function Layout() {
@@ -143,6 +145,18 @@ export function Layout() {
         return;
       }
 
+      // Cmd+Shift+L — toggle dev changelog
+      if (e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        const dc = useDevChangelog.getState();
+        if (dc.isOpen) {
+          dc.closeChangelog();
+        } else {
+          dc.openChangelog();
+        }
+        return;
+      }
+
       // Cmd+Shift+G — generate AI commit message
       if (e.shiftKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault();
@@ -179,6 +193,7 @@ export function Layout() {
       <>
         <MarketplacePage />
         <IssueTracker />
+        <DevChangelog />
         <DevPlayground />
         <DebugPanel />
       </>
@@ -191,6 +206,7 @@ export function Layout() {
       <>
         <SettingsPage />
         <IssueTracker />
+        <DevChangelog />
         <DevPlayground />
         <DebugPanel />
       </>
@@ -203,6 +219,7 @@ export function Layout() {
       <>
         <MobileLayout />
         <IssueTracker />
+        <DevChangelog />
         <DevPlayground />
         <DebugPanel />
       </>

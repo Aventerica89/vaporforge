@@ -1,170 +1,80 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
-  RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
   Copy,
   Check,
   Hammer,
-  Globe,
   Monitor,
-  Clock,
+  GitCommitHorizontal,
 } from 'lucide-react';
-import { DEV_BUILD } from '@/lib/dev-version';
 import { APP_VERSION } from '@/lib/version';
-import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
-import { DevChangelog } from '@/components/DevChangelog';
+import { BUILD_HASH, BUILD_DATE, COMMIT_LOG } from '@/lib/generated/build-info';
+import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useSettingsStore } from '@/hooks/useSettings';
 
-interface ServerInfo {
-  version: string;
-  devBuild: number;
-  timestamp: string;
-  buildHash?: string;
-  buildDate?: string;
-  buildTimestamp?: string;
-}
-
 export function DevToolsTab() {
-  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [showDevChangelog, setShowDevChangelog] = useState(false);
-
-  const fetchServerInfo = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/health');
-      const data = await res.json() as {
-        success: boolean;
-        data: ServerInfo;
-      };
-      if (data.success) {
-        setServerInfo(data.data);
-        setLastChecked(new Date().toLocaleTimeString());
-      }
-    } catch {
-      // Silent fail — server might be down
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchServerInfo();
-  }, [fetchServerInfo]);
-
-  const isStale =
-    serverInfo != null && serverInfo.devBuild !== DEV_BUILD;
-  const isSynced =
-    serverInfo != null && serverInfo.devBuild === DEV_BUILD;
 
   const handleCopyBuildInfo = useCallback(() => {
     const info = [
-      `App: ${APP_VERSION}`,
-      `Client Hash: ${BUILD_HASH}`,
-      `Client Build: ${DEV_BUILD}`,
+      `App: v${APP_VERSION}`,
+      `Hash: ${BUILD_HASH}`,
       `Build Date: ${BUILD_DATE}`,
-      `Server Hash: ${serverInfo?.buildHash ?? '?'}`,
-      `Server Build: ${serverInfo?.devBuild ?? '?'}`,
-      `Server Version: ${serverInfo?.version ?? '?'}`,
-      `Status: ${isSynced ? 'Synced' : 'Stale — refresh needed'}`,
+      `Commits: ${COMMIT_LOG.length}`,
+      `Host: ${window.location.hostname}`,
     ].join('\n');
     navigator.clipboard.writeText(info);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [serverInfo, isSynced]);
+  }, []);
 
   return (
     <div className="space-y-6">
-      {/* Build status card */}
+      {/* Build info card */}
       <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Hammer className="h-4 w-4 text-amber-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400">
-              Build Status
+              Build Info
             </h3>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCopyBuildInfo}
-              className="rounded p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
-              title="Copy build info"
-            >
-              {copied ? (
-                <Check className="h-3.5 w-3.5 text-green-400" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-            </button>
-            <button
-              onClick={fetchServerInfo}
-              disabled={loading}
-              className="rounded p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 transition-colors disabled:opacity-50"
-              title="Refresh"
-            >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* Status indicator */}
-        {isSynced && (
-          <div className="flex items-center gap-2 rounded-md bg-green-500/10 border border-green-500/20 px-3 py-2 mb-4">
-            <CheckCircle2 className="h-4 w-4 text-green-400" />
-            <span className="text-xs font-medium text-green-400">
-              Client and server are in sync
-            </span>
-          </div>
-        )}
-
-        {isStale && (
-          <div className="flex items-center gap-2 rounded-md bg-amber-500/10 border border-amber-500/20 px-3 py-2 mb-4">
-            <AlertTriangle className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-medium text-amber-400">
-              New build deployed — hard refresh to update
-              (Cmd+Shift+R)
-            </span>
-          </div>
-        )}
-
-        {/* Build numbers grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <BuildCard
-            icon={<Monitor className="h-3.5 w-3.5" />}
-            label="Client"
-            value={`#${BUILD_HASH}`}
-            sublabel={`v${APP_VERSION} / build ${DEV_BUILD}`}
-          />
-          <BuildCard
-            icon={<Globe className="h-3.5 w-3.5" />}
-            label="Server"
-            value={
-              serverInfo?.buildHash ? `#${serverInfo.buildHash}` : String(serverInfo?.devBuild ?? '...')
-            }
-            sublabel={
-              serverInfo ? `v${serverInfo.version} / build ${serverInfo.devBuild}` : 'loading'
-            }
-            highlight={isStale}
-          />
-        </div>
-
-        <div className="flex items-center justify-between mt-3">
-          {lastChecked && (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-              <Clock className="h-2.5 w-2.5" />
-              Last checked: {lastChecked}
-            </div>
-          )}
           <button
-            onClick={() => setShowDevChangelog(true)}
-            className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-colors"
+            onClick={handleCopyBuildInfo}
+            className="rounded p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 transition-colors"
+            title="Copy build info"
           >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-green-400" />
+            ) : (
+              <Copy className="h-3.5 w-3.5" />
+            )}
+          </button>
+        </div>
+
+        {/* Build card */}
+        <div className="rounded-md border border-border bg-card px-3 py-2.5">
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
+            <Monitor className="h-3.5 w-3.5" />
+            Build
+          </div>
+          <div className="font-mono text-lg font-bold text-foreground">
+            #{BUILD_HASH}
+          </div>
+          <div className="text-[10px] text-muted-foreground/60">
+            v{APP_VERSION} | {BUILD_DATE} | {COMMIT_LOG.length} commits
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <button
+            onClick={() => {
+              useDevChangelog.getState().openChangelog();
+              useSettingsStore.getState().closeSettings();
+            }}
+            className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-colors"
+          >
+            <GitCommitHorizontal className="h-3.5 w-3.5" />
             Dev Changelog
           </button>
         </div>
@@ -200,7 +110,7 @@ export function DevToolsTab() {
           <div>
             <h3 className="text-sm font-bold text-amber-400 mb-1">Dev Playground</h3>
             <p className="text-xs text-muted-foreground">
-              Build UI components, browse the component catalog, view console logs, and track issues — all in one place.
+              Build UI components, browse the component catalog, view console logs, and track issues.
             </p>
           </div>
           <button
@@ -247,49 +157,6 @@ export function DevToolsTab() {
             />
           )}
         </div>
-      </div>
-
-      {showDevChangelog && (
-        <DevChangelog onClose={() => setShowDevChangelog(false)} />
-      )}
-    </div>
-  );
-}
-
-function BuildCard({
-  icon,
-  label,
-  value,
-  sublabel,
-  highlight,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sublabel: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-md border px-3 py-2.5 ${
-        highlight
-          ? 'border-amber-500/30 bg-amber-500/5'
-          : 'border-border bg-card'
-      }`}
-    >
-      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1">
-        {icon}
-        {label}
-      </div>
-      <div
-        className={`font-mono text-lg font-bold ${
-          highlight ? 'text-amber-400' : 'text-foreground'
-        }`}
-      >
-        {value}
-      </div>
-      <div className="text-[10px] text-muted-foreground/60">
-        {sublabel}
       </div>
     </div>
   );

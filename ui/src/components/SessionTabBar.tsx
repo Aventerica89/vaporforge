@@ -20,6 +20,7 @@ import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { McpRelayStatus } from '@/components/McpRelayStatus';
 import { APP_VERSION } from '@/lib/version';
@@ -288,6 +289,15 @@ export function SessionTabBar() {
           title="Quick Chat (Cmd+Shift+Q)"
         >
           <MessageSquare className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Dev Changelog */}
+        <button
+          onClick={() => useDevChangelog.getState().openChangelog()}
+          className="rounded-md p-1.5 hover:bg-accent"
+          title="Dev Changelog"
+        >
+          <GitCommitHorizontal className="h-3.5 w-3.5" />
         </button>
 
         {/* Issue Tracker */}
