@@ -132,22 +132,16 @@
         "bindings": [
           {
             "name": "SESSIONS",
-            "class_name": "SessionDurableObject"
+            "class_name": "SessionDurableObject",
+            "script_name": "vaporforge"
           },
           {
             "name": "SANDBOX_CONTAINER",
-            "class_name": "Sandbox"
+            "class_name": "Sandbox",
+            "script_name": "vaporforge"
           }
         ]
-      },
-      "containers": [
-        {
-          "class_name": "Sandbox",
-          "image": "./Dockerfile",
-          "instance_type": "standard-2",
-          "max_instances": 10
-        }
-      ]
+      }
     }
   }
 }
