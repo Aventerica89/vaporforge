@@ -6,6 +6,8 @@ import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
+import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
+import { APP_VERSION } from '@/lib/version';
 
 /** Format a date string as relative time (e.g. "2h ago", "3d ago") */
 function timeAgo(dateStr: string): string {
@@ -528,7 +530,10 @@ export function WelcomeScreen() {
                               {session.status}
                             </span>
                           </div>
-                          <span className="text-[11px] text-muted-foreground font-mono">
+                          <span
+                            className="text-[11px] text-muted-foreground font-mono"
+                            title={new Date(session.lastActiveAt).toLocaleString()}
+                          >
                             {timeAgo(session.lastActiveAt)}
                           </span>
                           {/* Rename button */}
@@ -662,6 +667,13 @@ export function WelcomeScreen() {
         )}
 
         {/* Version + Changelog */}
+        <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground/50 font-mono animate-fade-up stagger-3">
+          <span>v{APP_VERSION}</span>
+          <span className="text-muted-foreground/30">|</span>
+          <span>#{BUILD_HASH}</span>
+          <span className="text-muted-foreground/30">|</span>
+          <span>{BUILD_DATE}</span>
+        </div>
         <Changelog />
 
         {/* Footer Info */}

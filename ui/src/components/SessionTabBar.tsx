@@ -22,6 +22,8 @@ import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { McpRelayStatus } from '@/components/McpRelayStatus';
+import { APP_VERSION } from '@/lib/version';
+import { BUILD_HASH } from '@/lib/generated/build-info';
 
 export function SessionTabBar() {
   const {
@@ -211,6 +213,10 @@ export function SessionTabBar() {
 
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-1 px-2">
+        {/* Version badge */}
+        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-mono text-amber-400/80">
+          v{APP_VERSION} <span className="text-amber-400/50">#{BUILD_HASH}</span>
+        </span>
         {/* Git branch + AI commit button */}
         {currentSession && gitStatus && (
           <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground px-1.5">

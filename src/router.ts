@@ -25,6 +25,7 @@ import { analyzeRoutes } from './api/analyze';
 import { commitMsgRoutes } from './api/commit-msg';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
+import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
 
@@ -109,6 +110,9 @@ export function createRouter(env: Env) {
         timestamp: new Date().toISOString(),
         version: VF_VERSION,
         devBuild: DEV_BUILD,
+        buildHash: BUILD_HASH,
+        buildDate: BUILD_DATE,
+        buildTimestamp: BUILD_TIMESTAMP,
       },
     });
   });

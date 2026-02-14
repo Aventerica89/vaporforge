@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { DEV_BUILD } from '@/lib/dev-version';
 import { APP_VERSION } from '@/lib/version';
+import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
+import { DevChangelog } from '@/components/DevChangelog';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useSettingsStore } from '@/hooks/useSettings';
 
@@ -19,6 +21,9 @@ interface ServerInfo {
   version: string;
   devBuild: number;
   timestamp: string;
+  buildHash?: string;
+  buildDate?: string;
+  buildTimestamp?: string;
 }
 
 export function DevToolsTab() {
@@ -26,6 +31,7 @@ export function DevToolsTab() {
   const [loading, setLoading] = useState(false);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showDevChangelog, setShowDevChangelog] = useState(false);
 
   const fetchServerInfo = useCallback(async () => {
     setLoading(true);
@@ -58,7 +64,10 @@ export function DevToolsTab() {
   const handleCopyBuildInfo = useCallback(() => {
     const info = [
       `App: ${APP_VERSION}`,
+      `Client Hash: ${BUILD_HASH}`,
       `Client Build: ${DEV_BUILD}`,
+      `Build Date: ${BUILD_DATE}`,
+      `Server Hash: ${serverInfo?.buildHash ?? '?'}`,
       `Server Build: ${serverInfo?.devBuild ?? '?'}`,
       `Server Version: ${serverInfo?.version ?? '?'}`,
       `Status: ${isSynced ? 'Synced' : 'Stale — refresh needed'}`,
@@ -128,29 +137,37 @@ export function DevToolsTab() {
         <div className="grid grid-cols-2 gap-3">
           <BuildCard
             icon={<Monitor className="h-3.5 w-3.5" />}
-            label="Client Build"
-            value={String(DEV_BUILD)}
-            sublabel={`v${APP_VERSION}`}
+            label="Client"
+            value={`#${BUILD_HASH}`}
+            sublabel={`v${APP_VERSION} / build ${DEV_BUILD}`}
           />
           <BuildCard
             icon={<Globe className="h-3.5 w-3.5" />}
-            label="Server Build"
+            label="Server"
             value={
-              serverInfo ? String(serverInfo.devBuild) : '...'
+              serverInfo?.buildHash ? `#${serverInfo.buildHash}` : String(serverInfo?.devBuild ?? '...')
             }
             sublabel={
-              serverInfo ? `v${serverInfo.version}` : 'loading'
+              serverInfo ? `v${serverInfo.version} / build ${serverInfo.devBuild}` : 'loading'
             }
             highlight={isStale}
           />
         </div>
 
-        {lastChecked && (
-          <div className="flex items-center gap-1.5 mt-3 text-[10px] text-muted-foreground/60">
-            <Clock className="h-2.5 w-2.5" />
-            Last checked: {lastChecked}
-          </div>
-        )}
+        <div className="flex items-center justify-between mt-3">
+          {lastChecked && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+              <Clock className="h-2.5 w-2.5" />
+              Last checked: {lastChecked}
+            </div>
+          )}
+          <button
+            onClick={() => setShowDevChangelog(true)}
+            className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1.5 text-xs font-medium text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/30 transition-colors"
+          >
+            Dev Changelog
+          </button>
+        </div>
       </div>
 
       {/* Environment info */}
@@ -231,6 +248,10 @@ export function DevToolsTab() {
           )}
         </div>
       </div>
+
+      {showDevChangelog && (
+        <DevChangelog onClose={() => setShowDevChangelog(false)} />
+      )}
     </div>
   );
 }
