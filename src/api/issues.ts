@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { Context } from 'hono';
 import type { User } from '../types';
 
@@ -5,17 +6,44 @@ type Variables = {
   user: User;
 };
 
-export interface Issue {
-  id: string;
-  title: string;
-  description: string;
-  type: 'bug' | 'error' | 'feature' | 'suggestion';
-  size: 'S' | 'M' | 'L';
-  screenshots: Array<{ id: string; dataUrl: string }>;
-  claudeNote?: string;
-  resolved: boolean;
-  createdAt: string;
-}
+// --- Zod schemas for input validation ---
+
+const ScreenshotSchema = z.object({
+  id: z.string().max(100),
+  dataUrl: z.string().max(500_000), // ~375KB base64 image max
+});
+
+const IssueSchema = z.object({
+  id: z.string().max(100),
+  title: z.string().max(500),
+  description: z.string().max(5000),
+  type: z.enum(['bug', 'error', 'feature', 'suggestion']),
+  size: z.enum(['S', 'M', 'L']),
+  screenshots: z.array(ScreenshotSchema).max(10).default([]),
+  claudeNote: z.string().max(2000).optional(),
+  resolved: z.boolean(),
+  createdAt: z.string().max(50),
+});
+
+const SaveIssuesSchema = z.object({
+  issues: z.array(IssueSchema).max(200),
+  suggestions: z.string().max(10000),
+  filter: z.string().max(50),
+});
+
+const PatchIssueSchema = z.object({
+  title: z.string().max(500).optional(),
+  description: z.string().max(5000).optional(),
+  type: z.enum(['bug', 'error', 'feature', 'suggestion']).optional(),
+  size: z.enum(['S', 'M', 'L']).optional(),
+  screenshots: z.array(ScreenshotSchema).max(10).optional(),
+  claudeNote: z.string().max(2000).optional(),
+  resolved: z.boolean().optional(),
+}).strict();
+
+// --- Inferred types ---
+
+export type Issue = z.infer<typeof IssueSchema>;
 
 export interface IssueTrackerData {
   issues: Issue[];
@@ -46,11 +74,18 @@ export async function saveIssues(c: Context<{ Bindings: Env; Variables: Variable
   }
   const userId = user.id;
 
-  const data = await c.req.json<IssueTrackerData>();
-  const key = `issues:${userId}`;
+  const body = await c.req.json();
+  const parsed = SaveIssuesSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid data', details: parsed.error.issues }, 400);
+  }
 
-  // Stamp updatedAt so other tabs can detect changes
-  data.updatedAt = new Date().toISOString();
+  const key = `issues:${userId}`;
+  const data: IssueTrackerData = {
+    ...parsed.data,
+    updatedAt: new Date().toISOString(),
+  };
+
   await c.env.AUTH_KV.put(key, JSON.stringify(data));
 
   return c.json({ success: true, data: { updatedAt: data.updatedAt } });
@@ -111,13 +146,23 @@ export async function patchIssue(c: Context<{ Bindings: Env; Variables: Variable
     return c.json({ error: 'Issue not found' }, 404);
   }
 
-  const updates = await c.req.json<Partial<Issue>>();
-  data.issues[idx] = { ...data.issues[idx], ...updates, id: issueId };
-  data.updatedAt = new Date().toISOString();
+  const body = await c.req.json();
+  const parsed = PatchIssueSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid patch data', details: parsed.error.issues }, 400);
+  }
 
-  await c.env.AUTH_KV.put(key, JSON.stringify(data));
+  const updatedIssue: Issue = { ...data.issues[idx], ...parsed.data, id: issueId };
+  const updatedIssues = data.issues.map((issue, i) => (i === idx ? updatedIssue : issue));
+  const updatedData: IssueTrackerData = {
+    ...data,
+    issues: updatedIssues,
+    updatedAt: new Date().toISOString(),
+  };
 
-  return c.json({ success: true, data: { issue: data.issues[idx], updatedAt: data.updatedAt } });
+  await c.env.AUTH_KV.put(key, JSON.stringify(updatedData));
+
+  return c.json({ success: true, data: { issue: updatedIssue, updatedAt: updatedData.updatedAt } });
 }
 
 // Delete all issues for current user

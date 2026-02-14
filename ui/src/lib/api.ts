@@ -485,17 +485,37 @@ export const pluginsApi = {
 };
 
 // Issues API (bug tracker)
+// Issue type matches useIssueTracker.ts — kept lightweight to avoid circular imports
+interface IssueApiShape {
+  id: string;
+  title: string;
+  description: string;
+  type: 'bug' | 'error' | 'feature' | 'suggestion';
+  size: 'S' | 'M' | 'L';
+  screenshots: Array<{ id: string; dataUrl: string; fileUrl?: string }>;
+  claudeNote?: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+interface IssueTrackerDataShape {
+  issues: IssueApiShape[];
+  suggestions: string;
+  filter: string;
+  updatedAt?: string | null;
+}
+
 export const issuesApi = {
   list: () =>
-    request<{ issues: any[]; suggestions: string; filter: string; updatedAt?: string }>('/issues'),
+    request<IssueTrackerDataShape>('/issues'),
 
-  save: (data: { issues: any[]; suggestions: string; filter: string }) =>
+  save: (data: { issues: IssueApiShape[]; suggestions: string; filter: string }) =>
     request<{ updatedAt: string }>('/issues', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  sync: async (etag?: string): Promise<{ data: { issues: any[]; suggestions: string; filter: string; updatedAt: string | null } | null; notModified: boolean }> => {
+  sync: async (etag?: string): Promise<{ data: IssueTrackerDataShape | null; notModified: boolean }> => {
     const token = localStorage.getItem('session_token');
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -511,8 +531,8 @@ export const issuesApi = {
     return { data: json.data, notModified: false };
   },
 
-  patch: (id: string, updates: Record<string, unknown>) =>
-    request<{ issue: any; updatedAt: string }>(`/issues/${encodeURIComponent(id)}`, {
+  patch: (id: string, updates: Partial<Omit<IssueApiShape, 'id' | 'createdAt'>>) =>
+    request<{ issue: IssueApiShape; updatedAt: string }>(`/issues/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(updates),
     }),
