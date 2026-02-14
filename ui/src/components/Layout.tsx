@@ -192,6 +192,7 @@ export function Layout() {
     return (
       <>
         <MarketplacePage />
+        <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
@@ -205,6 +206,7 @@ export function Layout() {
     return (
       <>
         <SettingsPage />
+        <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
@@ -218,6 +220,7 @@ export function Layout() {
     return (
       <>
         <MobileLayout />
+        <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
@@ -340,6 +343,7 @@ export function Layout() {
       <TestResultsOverlay />
       <StackTraceOverlay />
       <IssueTracker />
+      <DevChangelog />
       <DevPlayground />
       <DebugPanel />
     </div>
