@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "postToolUse": {
+      "Edit": "npm run typecheck 2>&1 | head -20 || true",
+      "Write": "npm run typecheck 2>&1 | head -20 || true"
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run typecheck:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run build:*)",
+      "Bash(wrangler deploy:preview)"
+    ],
+    "deny": [
+      "Bash(wrangler deploy)",
+      "Bash(git push:main)"
+    ]
+  }
+}
