@@ -10,6 +10,9 @@ concurrency:
 
 jobs:
   preview:
+    # DISABLED: Preview shares production DOs/KV/R2 (no isolation).
+    # Re-enable after implementing separate preview bindings in wrangler.jsonc.
+    if: false
     runs-on: ubuntu-latest
     name: Deploy Preview
     permissions:
