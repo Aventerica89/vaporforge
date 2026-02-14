@@ -37,6 +37,7 @@ export class FileService {
 
     const metadata: FileMetadata = {
       id,
+      key,
       name: originalName || `file${extension}`,
       mimeType,
       size: file.byteLength,
@@ -98,26 +99,37 @@ export class FileService {
   }
 
   /**
-   * List files for a user
+   * List files for a user.
+   * Must pass include to get metadata (compat_date >= 2022-08-04).
+   * Paginates through all objects since R2 list() caps at 1000.
    */
   async listUserFiles(userId: string): Promise<FileMetadata[]> {
-    const listed = await this.bucket.list();
     const files: FileMetadata[] = [];
+    let cursor: string | undefined;
 
-    for (const object of listed.objects) {
-      if (object.customMetadata?.userId === userId) {
-        const id = object.key.split('.')[0];
-        files.push({
-          id,
-          key: object.key,
-          name: object.customMetadata.originalName || object.key,
-          mimeType: object.httpMetadata?.contentType || 'application/octet-stream',
-          size: object.size,
-          userId,
-          uploadedAt: object.customMetadata.uploadedAt || object.uploaded.toISOString(),
-        });
+    do {
+      const listed = await this.bucket.list({
+        include: ['customMetadata', 'httpMetadata'],
+        cursor,
+      });
+
+      for (const object of listed.objects) {
+        if (object.customMetadata?.userId === userId) {
+          const id = object.key.split('.')[0];
+          files.push({
+            id,
+            key: object.key,
+            name: object.customMetadata.originalName || object.key,
+            mimeType: object.httpMetadata?.contentType || 'application/octet-stream',
+            size: object.size,
+            userId,
+            uploadedAt: object.customMetadata.uploadedAt || object.uploaded.toISOString(),
+          });
+        }
       }
-    }
+
+      cursor = listed.truncated ? listed.cursor : undefined;
+    } while (cursor);
 
     return files.sort((a, b) =>
       new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()

@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.11.3';
+export const APP_VERSION = '0.11.4';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.11.4',
+    date: '2026-02-14',
+    tag: 'fix',
+    title: 'VaporFiles Listing Fix — R2 Metadata Include',
+    items: [
+      'Fixed VaporFiles always showing empty: R2 list() needs explicit include for customMetadata with compat_date >= 2022-08-04',
+      'Added R2 list pagination: handles >1000 objects in bucket via cursor-based iteration',
+      'Fixed missing key field in upload metadata response',
+    ],
+  },
   {
     version: '0.11.3',
     date: '2026-02-14',
