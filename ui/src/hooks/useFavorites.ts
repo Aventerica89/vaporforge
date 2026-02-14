@@ -147,10 +147,10 @@ if (typeof window !== 'undefined') {
     try {
       const parsed: FavoriteRepo[] = JSON.parse(localData);
       if (parsed.length > 0) {
-        console.log('[Favorites] Migrating localStorage data to backend...');
+        // Migrate localStorage data to backend
         useFavoritesStore.setState({ favorites: parsed });
         useFavoritesStore.getState().syncToBackend().then(() => {
-          console.log('[Favorites] Migration complete!');
+          // Migration complete
           useFavoritesStore.setState({ migrated: true });
         });
       }

@@ -219,14 +219,16 @@ export function DevToolsTab() {
               window.location.reload();
             }}
           />
-          <DevButton
-            label="Copy Token"
-            onClick={() => {
-              const token =
-                localStorage.getItem('session_token') || '';
-              navigator.clipboard.writeText(token);
-            }}
-          />
+          {process.env.NODE_ENV === 'development' && (
+            <DevButton
+              label="Copy Token (DEV)"
+              onClick={() => {
+                const token =
+                  localStorage.getItem('session_token') || '';
+                navigator.clipboard.writeText(token);
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

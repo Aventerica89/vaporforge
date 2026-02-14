@@ -449,7 +449,7 @@ function GeminiProviderCard({
               Google Gemini
             </h4>
             <p className="text-[10px] text-muted-foreground">
-              Free tier: 1,000 req/day with personal Gmail
+              Flash: free, no billing needed. Pro: requires billing-linked GCP project.
             </p>
           </div>
         </div>

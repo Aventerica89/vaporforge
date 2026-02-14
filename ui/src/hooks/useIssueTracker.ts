@@ -380,14 +380,14 @@ if (typeof window !== 'undefined') {
           ...i,
           type: VALID_TYPES.includes(i.type) ? i.type : 'bug',
         }));
-        console.log('[Issue Tracker] Migrating localStorage data to backend...');
+        // Migrate localStorage data to backend
         useIssueTracker.setState({
           issues: sanitizedIssues,
           suggestions: parsed.state.suggestions || '',
           filter: parsed.state.filter || 'all',
         });
         useIssueTracker.getState().syncToBackend().then(() => {
-          console.log('[Issue Tracker] Migration complete!');
+          // Migration complete
           useIssueTracker.setState({ migrated: true });
         });
       }
@@ -424,4 +424,12 @@ if (typeof window !== 'undefined') {
 
   // Start polling on initial load
   startPolling();
+
+  // Clean up on HMR to prevent duplicate intervals
+  const meta = import.meta as unknown as { hot?: { dispose: (cb: () => void) => void } };
+  if (meta.hot) {
+    meta.hot.dispose(() => {
+      stopPolling();
+    });
+  }
 }

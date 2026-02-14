@@ -200,12 +200,12 @@ export function Layout() {
   // Mobile gets its own layout with drawer navigation
   if (isMobile) {
     return (
-      <div className="bg-background overflow-hidden">
+      <>
         <MobileLayout />
         <IssueTracker />
         <DevPlayground />
         <DebugPanel />
-      </div>
+      </>
     );
   }
 

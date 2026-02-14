@@ -274,11 +274,12 @@ export function createRouter(env: Env) {
     }
 
     // Set caching headers (1 year since files are immutable)
+    const safeName = (file.customMetadata?.originalName || key).replace(/["\r\n\\]/g, '_');
     return new Response(file.body, {
       headers: {
         'Content-Type': file.httpMetadata?.contentType || 'application/octet-stream',
         'Cache-Control': 'public, max-age=31536000, immutable',
-        'Content-Disposition': `inline; filename="${file.customMetadata?.originalName || key}"`,
+        'Content-Disposition': `inline; filename="${safeName}"`,
       },
     });
   });
