@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.11.0';
+export const APP_VERSION = '0.11.1';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.11.1',
+    date: '2026-02-14',
+    tag: 'fix',
+    title: 'Quick Chat Streaming Fix + Issue Tracker Full-Page',
+    items: [
+      'Fixed Quick Chat streaming: AI SDK v6 changed reasoning events from "reasoning" to "reasoning-delta"',
+      'Fixed Gemini returning "undefined": added null guards on stream delta values',
+      'Added maxTokens to Quick Chat (4096) and Code Transform (8192) to prevent provider errors',
+      'Issue Tracker now opens as full-page overlay instead of small centered modal',
+      'Improved error handling in streaming endpoints with graceful writer close',
+    ],
+  },
   {
     version: '0.11.0',
     date: '2026-02-13',
