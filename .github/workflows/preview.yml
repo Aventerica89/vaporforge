@@ -39,8 +39,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: deploy --name vaporforge-preview-pr-${{ github.event.pull_request.number }} --no-bundle=false
-          environment: preview
+          command: deploy --env preview
 
       - name: Find existing comment
         uses: peter-evans/find-comment@v3
@@ -59,7 +58,7 @@ jobs:
           body: |
             **Preview deployment** for commit `${{ github.sha }}`
 
-            🔗 **https://vaporforge-preview-pr-${{ github.event.pull_request.number }}.${{ secrets.CF_WORKERS_SUBDOMAIN || 'workers.dev' }}**
+            🔗 **https://vaporforge-preview.${{ secrets.CF_WORKERS_SUBDOMAIN || 'workers.dev' }}**
 
             ```
             ${{ steps.deploy.outputs.command-output }}
