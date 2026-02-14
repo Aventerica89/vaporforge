@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.11.1';
+export const APP_VERSION = '0.11.2';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.11.2',
+    date: '2026-02-14',
+    tag: 'fix',
+    title: 'Quick Chat Fix + DevChangelog Overlap Fix',
+    items: [
+      'Fixed Quick Chat with Claude Sonnet: maxTokens (4096) conflicted with thinking budgetTokens — increased to 16384',
+      'Fixed DevChangelog overlay opening simultaneously with Marketplace — now mutually exclusive',
+      'Dev Changelog button now toggles (click again to close) instead of only opening',
+      'Added keyboard shortcut hint to Dev Changelog button tooltip (Cmd+Shift+L)',
+    ],
+  },
   {
     version: '0.11.1',
     date: '2026-02-14',

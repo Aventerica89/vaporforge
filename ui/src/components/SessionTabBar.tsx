@@ -293,9 +293,16 @@ export function SessionTabBar() {
 
         {/* Dev Changelog */}
         <button
-          onClick={() => useDevChangelog.getState().openChangelog()}
+          onClick={() => {
+            const dc = useDevChangelog.getState();
+            if (dc.isOpen) {
+              dc.closeChangelog();
+            } else {
+              dc.openChangelog();
+            }
+          }}
           className="rounded-md p-1.5 hover:bg-accent"
-          title="Dev Changelog"
+          title="Dev Changelog (Cmd+Shift+L)"
         >
           <GitCommitHorizontal className="h-3.5 w-3.5" />
         </button>

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { pluginsApi } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useDevChangelog } from '@/hooks/useDevChangelog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 
@@ -101,6 +102,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   installError: null,
 
   openMarketplace: () => {
+    useDevChangelog.getState().closeChangelog();
     set({ isOpen: true });
     get().syncInstalledPlugins();
   },

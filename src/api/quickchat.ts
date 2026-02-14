@@ -203,7 +203,7 @@ quickchatRoutes.post('/stream', async (c) => {
       const result = streamText({
         model: aiModel,
         messages,
-        maxTokens: 4096,
+        maxTokens: 16384,
       });
 
       let fullText = '';
