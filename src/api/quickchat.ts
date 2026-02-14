@@ -203,6 +203,7 @@ quickchatRoutes.post('/stream', async (c) => {
       const result = streamText({
         model: aiModel,
         messages,
+        maxTokens: 4096,
       });
 
       let fullText = '';
@@ -210,11 +211,17 @@ quickchatRoutes.post('/stream', async (c) => {
 
       for await (const part of result.fullStream) {
         if (part.type === 'text-delta') {
-          fullText += part.textDelta;
-          await write({ type: 'text', content: part.textDelta });
-        } else if (part.type === 'reasoning') {
-          reasoningText += part.textDelta;
-          await write({ type: 'reasoning', content: part.textDelta });
+          const delta = part.textDelta;
+          if (delta != null) {
+            fullText += delta;
+            await write({ type: 'text', content: delta });
+          }
+        } else if (part.type === 'reasoning-delta') {
+          const delta = (part as { delta?: string }).delta;
+          if (delta) {
+            reasoningText += delta;
+            await write({ type: 'reasoning', content: delta });
+          }
         }
       }
 
@@ -290,8 +297,12 @@ quickchatRoutes.post('/stream', async (c) => {
     } catch (err) {
       const errMsg =
         err instanceof Error ? err.message : 'Stream error';
-      console.error('[quickchat/stream] Error:', errMsg);
-      await write({ type: 'error', content: errMsg });
+      console.error('[quickchat/stream] Error:', errMsg, err);
+      try {
+        await write({ type: 'error', content: errMsg });
+      } catch {
+        // writer may already be closed
+      }
     } finally {
       await writer.close();
     }

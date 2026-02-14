@@ -246,21 +246,10 @@ export function IssueTracker() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center px-4 py-8"
-      onClick={closeTracker}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
-      {/* Modal */}
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
       <div
-        className="glass-card relative flex w-full max-w-2xl flex-col animate-scale-in"
-        style={{
-          maxHeight: 'calc(100vh - 4rem)',
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)'
-        }}
-        onClick={(e) => e.stopPropagation()}
+        className="flex h-full w-full flex-col"
+        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 0px)' }}
       >
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4 sm:px-5">
