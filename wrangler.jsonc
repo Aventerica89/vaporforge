@@ -107,6 +107,7 @@
   // Preview environment for PR deployments — shares KV/R2/DO, drops custom domains
   "env": {
     "preview": {
+      "name": "vaporforge-preview",
       "vars": {
         "ENVIRONMENT": "preview"
       },
