@@ -26,12 +26,13 @@ export interface QuickChatMessage {
   content: string;
   provider: 'claude' | 'gemini';
   model?: string;
+  reasoning?: string;
   createdAt: string;
 }
 
 /** SSE stream event from /quickchat/stream */
 export interface QuickChatStreamEvent {
-  type: 'connected' | 'text' | 'error' | 'done';
+  type: 'connected' | 'text' | 'reasoning' | 'error' | 'done';
   content?: string;
   fullText?: string;
 }

@@ -16,6 +16,7 @@ interface QuickChatState {
   messages: QuickChatMessage[];
   isStreaming: boolean;
   streamingContent: string;
+  streamingReasoning: string;
   error: string | null;
 
   // Provider selection
@@ -46,6 +47,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
   messages: [],
   isStreaming: false,
   streamingContent: '',
+  streamingReasoning: '',
   error: null,
   selectedProvider: 'claude',
   selectedModel: undefined,
@@ -110,6 +112,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
       activeChatId: null,
       messages: [],
       streamingContent: '',
+      streamingReasoning: '',
       error: null,
     });
   },
@@ -171,6 +174,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
       messages: updatedMessages,
       isStreaming: true,
       streamingContent: '',
+      streamingReasoning: '',
       error: null,
     });
 
@@ -184,6 +188,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
 
     try {
       let fullText = '';
+      let reasoningText = '';
 
       for await (const event of streamQuickChat({
         chatId,
@@ -196,6 +201,9 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
         if (event.type === 'text' && event.content) {
           fullText += event.content;
           set({ streamingContent: fullText });
+        } else if (event.type === 'reasoning' && event.content) {
+          reasoningText += event.content;
+          set({ streamingReasoning: reasoningText });
         } else if (event.type === 'error') {
           set({
             error: event.content || 'Stream error',
@@ -207,13 +215,14 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
         }
       }
 
-      // Add assistant message
+      // Add assistant message (with reasoning if present)
       const assistantMsg: QuickChatMessage = {
         id: `${Date.now()}-a`,
         role: 'assistant',
         content: fullText,
         provider: selectedProvider,
         model: selectedModel,
+        ...(reasoningText ? { reasoning: reasoningText } : {}),
         createdAt: new Date().toISOString(),
       };
 
@@ -221,6 +230,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
         messages: [...state.messages, assistantMsg],
         isStreaming: false,
         streamingContent: '',
+        streamingReasoning: '',
       }));
 
       // Refresh chat list
@@ -241,7 +251,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
 
   stopStream: () => {
     abortController?.abort();
-    const { streamingContent, messages } = get();
+    const { streamingContent, streamingReasoning, messages } = get();
 
     // If there was partial content, add it as a message
     if (streamingContent) {
@@ -250,15 +260,17 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
         role: 'assistant',
         content: streamingContent + '\n\n*(stopped)*',
         provider: get().selectedProvider,
+        ...(streamingReasoning ? { reasoning: streamingReasoning } : {}),
         createdAt: new Date().toISOString(),
       };
       set({
         messages: [...messages, partialMsg],
         isStreaming: false,
         streamingContent: '',
+        streamingReasoning: '',
       });
     } else {
-      set({ isStreaming: false, streamingContent: '' });
+      set({ isStreaming: false, streamingContent: '', streamingReasoning: '' });
     }
   },
 

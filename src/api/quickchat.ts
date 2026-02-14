@@ -205,10 +205,16 @@ quickchatRoutes.post('/stream', async (c) => {
       });
 
       let fullText = '';
+      let reasoningText = '';
 
-      for await (const chunk of result.textStream) {
-        fullText += chunk;
-        await write({ type: 'text', content: chunk });
+      for await (const part of result.fullStream) {
+        if (part.type === 'text-delta') {
+          fullText += part.textDelta;
+          await write({ type: 'text', content: part.textDelta });
+        } else if (part.type === 'reasoning') {
+          reasoningText += part.textDelta;
+          await write({ type: 'reasoning', content: part.textDelta });
+        }
       }
 
       await write({ type: 'done', fullText });

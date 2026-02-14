@@ -57,6 +57,15 @@ export function createModel(
     const key = credentials.claude?.apiKey;
     if (!key) throw new Error('Anthropic API key not configured');
     const anthropic = createAnthropic({ apiKey: key });
+
+    // Enable extended thinking for Sonnet (other models skip gracefully)
+    const alias = modelAlias || DEFAULT_MODEL[provider];
+    if (alias === 'sonnet') {
+      return anthropic(modelId, {
+        thinking: { type: 'enabled', budgetTokens: 4096 },
+      });
+    }
+
     return anthropic(modelId);
   }
 

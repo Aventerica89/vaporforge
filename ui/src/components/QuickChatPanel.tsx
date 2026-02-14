@@ -9,17 +9,17 @@ import {
   ChevronLeft,
   Sparkles,
   Crown,
-  Copy,
-  Check,
   BookOpen,
   Bug,
   TestTube2,
   Zap,
   Clock,
-  RefreshCw,
 } from 'lucide-react';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { ChatMarkdown } from './chat/ChatMarkdown';
+import { ReasoningBlock } from './chat/ReasoningBlock';
+import { MessageActions } from './chat/MessageActions';
+import type { QuickChatMessage as QuickChatMsg } from '@/lib/quickchat-api';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -28,6 +28,12 @@ const SUGGESTIONS = [
   { label: 'Write unit tests', icon: TestTube2 },
   { label: 'Optimize performance', icon: Zap },
 ] as const;
+
+/** Model aliases available per provider */
+const MODEL_OPTIONS: Record<ProviderName, string[]> = {
+  claude: ['sonnet', 'haiku', 'opus'],
+  gemini: ['flash', 'pro'],
+};
 
 export function QuickChatPanel() {
   const {
@@ -38,8 +44,10 @@ export function QuickChatPanel() {
     messages,
     isStreaming,
     streamingContent,
+    streamingReasoning,
     error,
     selectedProvider,
+    selectedModel,
     availableProviders,
     setProvider,
     selectChat,
@@ -54,15 +62,14 @@ export function QuickChatPanel() {
 
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll on new messages
+  // Auto-scroll on new messages / reasoning
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages, streamingContent, streamingReasoning]);
 
   // Focus input when panel opens
   useEffect(() => {
@@ -71,15 +78,15 @@ export function QuickChatPanel() {
     }
   }, [isOpen, showHistory]);
 
-  // Thinking duration timer
+  // Thinking duration timer (runs until first reasoning or text arrives)
   useEffect(() => {
-    if (isStreaming && !streamingContent) {
+    if (isStreaming && !streamingContent && !streamingReasoning) {
       setThinkingSeconds(0);
       const interval = setInterval(() => setThinkingSeconds((s) => s + 1), 1000);
       return () => clearInterval(interval);
     }
     setThinkingSeconds(0);
-  }, [isStreaming, streamingContent]);
+  }, [isStreaming, streamingContent, streamingReasoning]);
 
   // Cmd+Shift+Q shortcut
   useEffect(() => {
@@ -119,12 +126,6 @@ export function QuickChatPanel() {
     [sendMessage]
   );
 
-  const handleCopy = useCallback((text: string, msgId: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(msgId);
-    setTimeout(() => setCopiedId(null), 2000);
-  }, []);
-
   // Auto-resize textarea
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -136,9 +137,8 @@ export function QuickChatPanel() {
     []
   );
 
-  const lastAssistantId = [...messages]
-    .reverse()
-    .find((m) => m.role === 'assistant')?.id;
+  const lastAssistantIdx = messages.length - 1 -
+    [...messages].reverse().findIndex((m) => m.role === 'assistant');
 
   if (!isOpen) return null;
 
@@ -244,7 +244,7 @@ export function QuickChatPanel() {
           </div>
         ) : (
           <>
-            {/* Provider toggle */}
+            {/* Provider toggle + model selector */}
             <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
               <ProviderToggle
                 provider="claude"
@@ -262,26 +262,45 @@ export function QuickChatPanel() {
                 icon={<Sparkles className="h-3.5 w-3.5" />}
                 label="Gemini"
               />
+              <div className="ml-auto">
+                <select
+                  value={selectedModel || MODEL_OPTIONS[selectedProvider][0]}
+                  onChange={(e) => setProvider(selectedProvider, e.target.value)}
+                  disabled={!hasAnyProvider}
+                  className="rounded-md border border-border/50 bg-muted px-2 py-0.5 text-[11px] text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-40 cursor-pointer"
+                >
+                  {MODEL_OPTIONS[selectedProvider].map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
               {messages.length === 0 && !isStreaming && (
                 <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <MessageSquare className="h-10 w-10 opacity-20 mb-3" />
                   <p className="text-sm font-medium">Quick Chat</p>
-                  <p className="text-xs mt-1 mb-6">
+                  <p className="text-xs mt-1 mb-4">
                     Instant AI responses — no sandbox required
                   </p>
+                  {hasAnyProvider && (
+                    <div className="mb-6">
+                      <ProviderBadge provider={selectedProvider} />
+                    </div>
+                  )}
                   {hasAnyProvider ? (
-                    <div className="flex flex-wrap justify-center gap-2 px-4">
+                    <div className="flex flex-wrap justify-center gap-2.5 px-4">
                       {SUGGESTIONS.map((s) => (
                         <button
                           key={s.label}
                           onClick={() => handleSuggestionClick(s.label)}
-                          className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 transition-all"
+                          className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         >
-                          <s.icon className="h-3 w-3" />
+                          <s.icon className="h-3.5 w-3.5" />
                           {s.label}
                         </button>
                       ))}
@@ -300,56 +319,14 @@ export function QuickChatPanel() {
                 </div>
               )}
 
-              {messages.map((msg) => (
-                <div key={msg.id} className="group/msg space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-wider ${
-                        msg.role === 'user'
-                          ? 'text-primary'
-                          : 'text-secondary'
-                      }`}
-                    >
-                      {msg.role === 'user' ? 'You' : 'AI'}
-                    </span>
-                    {msg.role === 'assistant' && (
-                      <ProviderBadge provider={msg.provider} />
-                    )}
-                  </div>
-                  <div
-                    className={`relative rounded-lg px-3 py-2 text-sm ${
-                      msg.role === 'user'
-                        ? 'bg-primary/10 text-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    <ChatMarkdown content={msg.content} />
-                    {msg.role === 'assistant' && (
-                      <div className="absolute right-1.5 top-1.5 flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleCopy(msg.content, msg.id)}
-                          className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
-                          title="Copy"
-                        >
-                          {copiedId === msg.id ? (
-                            <Check className="h-3 w-3 text-green-400" />
-                          ) : (
-                            <Copy className="h-3 w-3" />
-                          )}
-                        </button>
-                        {msg.id === lastAssistantId && !isStreaming && (
-                            <button
-                              onClick={regenerate}
-                              className="rounded p-1 text-muted-foreground hover:text-foreground hover:bg-background/80 transition-colors"
-                              title="Regenerate"
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </button>
-                          )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+              {messages.map((msg, idx) => (
+                <QuickChatMessage
+                  key={msg.id}
+                  msg={msg}
+                  isLastAssistant={idx === lastAssistantIdx}
+                  isStreaming={isStreaming}
+                  onRegenerate={regenerate}
+                />
               ))}
 
               {/* Streaming indicator */}
@@ -362,8 +339,8 @@ export function QuickChatPanel() {
                     <ProviderBadge provider={selectedProvider} />
                   </div>
 
-                  {/* Thinking state (before first text arrives) */}
-                  {!streamingContent && (
+                  {/* Waiting state (before any content arrives) */}
+                  {!streamingContent && !streamingReasoning && (
                     <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <div className="relative h-3 w-3">
@@ -381,9 +358,17 @@ export function QuickChatPanel() {
                     </div>
                   )}
 
+                  {/* Reasoning block (while reasoning is streaming) */}
+                  {streamingReasoning && (
+                    <ReasoningBlock
+                      content={streamingReasoning}
+                      isStreaming={!streamingContent}
+                    />
+                  )}
+
                   {/* Streaming text */}
                   {streamingContent && (
-                    <div className="rounded-lg bg-muted px-3 py-2 text-sm">
+                    <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
                       <ChatMarkdown content={streamingContent} />
                     </div>
                   )}
@@ -435,9 +420,14 @@ export function QuickChatPanel() {
                   </button>
                 )}
               </div>
-              <p className="mt-1.5 text-[10px] text-muted-foreground text-center">
-                Enter to send, Shift+Enter for new line
-              </p>
+              <div className="mt-1.5 flex items-center justify-between px-1">
+                <span className="text-[10px] text-muted-foreground">
+                  Enter to send, Shift+Enter for new line
+                </span>
+                <span className={`text-[10px] text-muted-foreground/60 transition-opacity ${input.length > 100 ? 'opacity-100' : 'opacity-0'}`}>
+                  {input.length}
+                </span>
+              </div>
             </div>
           </>
         )}
@@ -481,6 +471,53 @@ function ProviderToggle({
         <span className="text-[9px] opacity-60">n/a</span>
       )}
     </button>
+  );
+}
+
+function QuickChatMessage({
+  msg,
+  isLastAssistant,
+  isStreaming,
+  onRegenerate,
+}: {
+  msg: QuickChatMsg;
+  isLastAssistant: boolean;
+  isStreaming: boolean;
+  onRegenerate: () => void;
+}) {
+  if (msg.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3 py-2 text-sm text-foreground">
+          <ChatMarkdown content={msg.content} />
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant message
+  return (
+    <div className="group/message space-y-1">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-secondary">
+          AI
+        </span>
+        <ProviderBadge provider={msg.provider} />
+      </div>
+
+      {msg.reasoning && (
+        <ReasoningBlock content={msg.reasoning} />
+      )}
+
+      <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
+        <ChatMarkdown content={msg.content} />
+      </div>
+
+      <MessageActions
+        content={msg.content}
+        onRetry={isLastAssistant && !isStreaming ? onRegenerate : undefined}
+      />
+    </div>
   );
 }
 
