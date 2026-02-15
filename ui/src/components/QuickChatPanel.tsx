@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, type UIMessage } from 'ai';
+import { DefaultChatTransport, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
   X,
   Send,
@@ -16,13 +16,17 @@ import {
   TestTube2,
   Zap,
   Clock,
+  Wrench,
 } from 'lucide-react';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import { ChatMarkdown } from './chat/ChatMarkdown';
 import { ReasoningBlock } from './chat/ReasoningBlock';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
+import { ToolDisplay } from './ai-elements/Tool';
+import { Confirmation } from './ai-elements/Confirmation';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -50,13 +54,6 @@ function getMessageText(msg: UIMessage): string {
     .join('');
 }
 
-/** Extract reasoning from UIMessage parts */
-function getMessageReasoning(msg: UIMessage): string {
-  return msg.parts
-    .filter((p) => p.type === 'reasoning')
-    .map((p) => ('text' in p ? p.text : ''))
-    .join('');
-}
 
 export function QuickChatPanel() {
   const {
@@ -78,6 +75,10 @@ export function QuickChatPanel() {
 
   const hasAnyProvider = availableProviders.length > 0;
 
+  // Active sandbox session — enables tool-calling agent mode
+  const currentSession = useSandboxStore((s) => s.currentSession);
+  const activeSessionId = currentSession?.id;
+
   // Generate stable chatId for new conversations
   const chatId = useMemo(
     () => activeChatId || `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -86,8 +87,8 @@ export function QuickChatPanel() {
 
   // Ref holds latest body values — avoids stale closure when useChat
   // keeps its internal transport reference after prop changes
-  const bodyRef = useRef({ chatId, selectedProvider, selectedModel });
-  bodyRef.current = { chatId, selectedProvider, selectedModel };
+  const bodyRef = useRef({ chatId, selectedProvider, selectedModel, sessionId: activeSessionId });
+  bodyRef.current = { chatId, selectedProvider, selectedModel, sessionId: activeSessionId };
 
   // AI SDK v6 transport — handles HTTP + UIMessageStream protocol
   const transport = useMemo(
@@ -99,6 +100,7 @@ export function QuickChatPanel() {
           chatId: bodyRef.current.chatId,
           provider: bodyRef.current.selectedProvider,
           model: bodyRef.current.selectedModel,
+          sessionId: bodyRef.current.sessionId,
         }),
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,6 +115,7 @@ export function QuickChatPanel() {
     stop,
     setMessages,
     error: chatError,
+    addToolApprovalResponse,
   } = useChat({
     id: chatId,
     transport,
@@ -238,6 +241,15 @@ export function QuickChatPanel() {
     [handleSend]
   );
 
+  // Tool approval handlers
+  const handleApprove = useCallback((approvalId: string) => {
+    addToolApprovalResponse({ id: approvalId, approved: true });
+  }, [addToolApprovalResponse]);
+
+  const handleDeny = useCallback((approvalId: string) => {
+    addToolApprovalResponse({ id: approvalId, approved: false });
+  }, [addToolApprovalResponse]);
+
   // Find last assistant message index for streaming indicator
   const lastAssistantIdx = messages.length - 1 -
     [...messages].reverse().findIndex((m) => m.role === 'assistant');
@@ -269,6 +281,12 @@ export function QuickChatPanel() {
             <h2 className="font-display text-sm font-bold uppercase tracking-wider">
               {showHistory ? 'Chat History' : 'Quick Chat'}
             </h2>
+            {!showHistory && activeSessionId && (
+              <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
+                <Wrench className="h-2.5 w-2.5" />
+                Agent
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {!showHistory && (
@@ -384,7 +402,9 @@ export function QuickChatPanel() {
                   <MessageSquare className="h-10 w-10 opacity-20 mb-3" />
                   <p className="text-sm font-medium">Quick Chat</p>
                   <p className="text-xs mt-1 mb-4">
-                    Instant AI responses — no sandbox required
+                    {activeSessionId
+                      ? 'Agent mode — can read files, search code, and run commands'
+                      : 'Instant AI responses — no sandbox required'}
                   </p>
                   {hasAnyProvider && (
                     <div className="mb-6">
@@ -423,6 +443,8 @@ export function QuickChatPanel() {
                   isLastAssistant={idx === lastAssistantIdx}
                   isStreaming={isStreaming}
                   provider={selectedProvider}
+                  onApprove={handleApprove}
+                  onDeny={handleDeny}
                 />
               ))}
 
@@ -562,11 +584,15 @@ function QuickChatMessage({
   isLastAssistant,
   isStreaming,
   provider,
+  onApprove,
+  onDeny,
 }: {
   msg: UIMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
   provider: ProviderName;
+  onApprove: (id: string) => void;
+  onDeny: (id: string) => void;
 }) {
   if (msg.role === 'user') {
     return (
@@ -578,9 +604,30 @@ function QuickChatMessage({
     );
   }
 
-  const reasoningText = getMessageReasoning(msg);
   const textContent = getMessageText(msg);
+  const hasToolParts = msg.parts.some(
+    (p) => p.type === 'dynamic-tool' || p.type === 'reasoning'
+  );
 
+  // Simple path: no tool/reasoning parts — render as before
+  if (!hasToolParts) {
+    return (
+      <div className="group/message space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-secondary">
+            AI
+          </span>
+          <ProviderBadge provider={provider} />
+        </div>
+        <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
+          <ChatMarkdown content={textContent} />
+        </div>
+        {!isStreaming && <MessageActions content={textContent} />}
+      </div>
+    );
+  }
+
+  // Rich path: iterate parts for tool calls, reasoning, and text
   return (
     <div className="group/message space-y-1">
       <div className="flex items-center gap-2">
@@ -590,18 +637,59 @@ function QuickChatMessage({
         <ProviderBadge provider={provider} />
       </div>
 
-      {reasoningText && (
-        <ReasoningBlock
-          content={reasoningText}
-          isStreaming={isLastAssistant && isStreaming}
-        />
-      )}
+      {msg.parts.map((part, i) => {
+        if (part.type === 'text' && 'text' in part) {
+          const text = (part as { type: 'text'; text: string }).text;
+          if (!text.trim()) return null;
+          return (
+            <div key={i} className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
+              <ChatMarkdown content={text} />
+            </div>
+          );
+        }
 
-      <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-        <ChatMarkdown content={textContent} />
-      </div>
+        if (part.type === 'reasoning' && 'text' in part) {
+          return (
+            <ReasoningBlock
+              key={i}
+              content={(part as { type: 'reasoning'; text: string }).text}
+              isStreaming={isLastAssistant && isStreaming}
+            />
+          );
+        }
 
-      {!isStreaming && (
+        if (part.type === 'dynamic-tool') {
+          const toolPart = part as DynamicToolUIPart;
+
+          if (toolPart.state === 'approval-requested') {
+            return (
+              <Confirmation
+                key={toolPart.toolCallId}
+                toolName={toolPart.toolName}
+                input={toolPart.input}
+                approvalId={toolPart.approval.id}
+                onApprove={onApprove}
+                onDeny={onDeny}
+              />
+            );
+          }
+
+          return (
+            <ToolDisplay
+              key={toolPart.toolCallId}
+              toolName={toolPart.toolName}
+              state={toolPart.state}
+              input={toolPart.input}
+              output={'output' in toolPart ? toolPart.output : undefined}
+              errorText={'errorText' in toolPart ? toolPart.errorText : undefined}
+            />
+          );
+        }
+
+        return null;
+      })}
+
+      {!isStreaming && textContent && (
         <MessageActions content={textContent} />
       )}
     </div>

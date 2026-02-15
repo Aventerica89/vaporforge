@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText } from 'ai';
+import { streamText, tool, stepCountIs } from 'ai';
 import type { User, ApiResponse } from '../types';
+import type { SandboxManager } from '../sandbox';
 import {
   createModel,
   getProviderCredentials,
@@ -119,6 +120,7 @@ const StreamRequestSchema = z.object({
   chatId: z.string().min(1).max(100),
   provider: z.enum(['claude', 'gemini']),
   model: z.string().max(50).optional(),
+  sessionId: z.string().max(100).optional(),
   // AI SDK v6 transport fields
   id: z.string().optional(),
   trigger: z.string().optional(),
@@ -147,6 +149,77 @@ function extractTextFromMessage(msg: { content?: string; parts?: Array<{ type: s
   return msg.content || '';
 }
 
+/* ── Shell escape ──────────────────────────── */
+
+function shellEscape(s: string): string {
+  return `'${s.replace(/'/g, "'\\''")}'`;
+}
+
+/* ── Sandbox tools ─────────────────────────── */
+
+function createSandboxTools(
+  sandboxManager: SandboxManager,
+  sessionId: string
+) {
+  return {
+    readFile: tool({
+      description: 'Read a file from the workspace',
+      parameters: z.object({
+        path: z.string().describe('Absolute path to the file'),
+      }),
+      execute: async ({ path }) => {
+        const content = await sandboxManager.readFile(sessionId, path);
+        return content ?? 'File not found';
+      },
+    }),
+    listFiles: tool({
+      description: 'List files in a directory',
+      parameters: z.object({
+        path: z.string().default('/workspace').describe('Directory path'),
+      }),
+      execute: async ({ path }) => {
+        const result = await sandboxManager.execInSandbox(
+          sessionId,
+          `ls -la ${shellEscape(path)}`
+        );
+        return result.stdout || result.stderr || 'Empty directory';
+      },
+    }),
+    searchCode: tool({
+      description: 'Search for a pattern in source files',
+      parameters: z.object({
+        pattern: z.string().describe('Search pattern (regex)'),
+        path: z.string().default('/workspace').describe('Directory to search'),
+      }),
+      execute: async ({ pattern, path }) => {
+        const glob = '*.{ts,tsx,js,jsx,json,md,css,html,py,rs,go}';
+        const cmd = `grep -rn --include=${shellEscape(glob)} ${shellEscape(pattern)} ${shellEscape(path)} | head -50`;
+        const result = await sandboxManager.execInSandbox(sessionId, cmd);
+        return result.stdout || result.stderr || 'No matches found';
+      },
+    }),
+    runCommand: tool({
+      description: 'Execute a shell command in the sandbox',
+      parameters: z.object({
+        command: z.string().describe('Shell command to execute'),
+      }),
+      needsApproval: true,
+      execute: async ({ command }) => {
+        const result = await sandboxManager.execInSandbox(
+          sessionId,
+          command,
+          { timeout: 60000 }
+        );
+        return {
+          stdout: result.stdout,
+          stderr: result.stderr,
+          exitCode: result.exitCode,
+        };
+      },
+    }),
+  };
+}
+
 /* ── Routes ─────────────────────────────────── */
 
 // POST /stream — AI SDK data stream (consumed by useChat on frontend)
@@ -165,7 +238,7 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
-  const { chatId, provider, model: modelAlias, messages } = parsed.data;
+  const { chatId, provider, model: modelAlias, messages, sessionId } = parsed.data;
 
   // Extract the last user message for KV persistence
   const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
@@ -192,6 +265,14 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
+  // Build tools if the user has an active sandbox session
+  const sandboxManager: SandboxManager | null = sessionId
+    ? c.get('sandboxManager')
+    : null;
+  const tools = sandboxManager && sessionId
+    ? createSandboxTools(sandboxManager, sessionId)
+    : undefined;
+
   // Stream using AI SDK — returns UIMessageStream for useChat v6
   const result = streamText({
     model: aiModel,
@@ -200,6 +281,7 @@ quickchatRoutes.post('/stream', async (c) => {
       content: extractTextFromMessage(m),
     })),
     maxOutputTokens: 16384,
+    ...(tools ? { tools, stopWhen: stepCountIs(10) } : {}),
   });
 
   // Persist messages to KV after stream completes (background)
