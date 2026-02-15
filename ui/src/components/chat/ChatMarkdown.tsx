@@ -1,9 +1,13 @@
 import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 import { CodeBlock } from './CodeBlock';
+import { prepareStreamingMarkdown } from '@/lib/markdown-utils';
 
 interface ChatMarkdownProps {
   content: string;
+  isStreaming?: boolean;
 }
 
 const components: Components = {
@@ -112,11 +116,17 @@ const components: Components = {
   },
 };
 
-export function ChatMarkdown({ content }: ChatMarkdownProps) {
+export function ChatMarkdown({ content, isStreaming = false }: ChatMarkdownProps) {
+  const processed = isStreaming ? prepareStreamingMarkdown(content) : content;
+
   return (
     <div className="prose-chat text-sm leading-relaxed break-words">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={components}
+      >
+        {processed}
       </ReactMarkdown>
     </div>
   );

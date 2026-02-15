@@ -209,6 +209,21 @@ export interface CommitMessage {
   breaking: boolean;
 }
 
+// Task Plan types (agent workflow visualization)
+export interface TaskStep {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'complete' | 'error';
+  toolNames: string[];
+  filePaths: string[];
+  duration?: number;
+}
+
+export interface TaskPlan {
+  steps: TaskStep[];
+  totalDuration?: number;
+}
+
 // WebSocket message types
 export type WSMessage =
   | { type: 'chat'; sessionId: string; message: string }

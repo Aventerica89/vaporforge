@@ -97,24 +97,35 @@ export function CodeBlock({ code, language, filename, hideHeader = false }: Code
 
       {/* Code with line numbers */}
       <div className="flex overflow-x-auto text-xs leading-relaxed">
-        {/* Line numbers gutter */}
-        <div
-          className="flex-shrink-0 select-none border-r border-border/20 bg-muted/10 py-3 text-right font-mono text-[11px] text-muted-foreground/30"
-          aria-hidden="true"
-        >
-          {Array.from({ length: lineCount }, (_, i) => (
-            <div key={i} className="px-3 leading-relaxed">
-              {i + 1}
+        {!code.trim() ? (
+          /* Shimmer skeleton when code is empty during streaming */
+          <div className="flex-1 p-3 space-y-2">
+            <div className="skeleton h-3 w-3/4" />
+            <div className="skeleton h-3 w-1/2" />
+            <div className="skeleton h-3 w-5/6" />
+          </div>
+        ) : (
+          <>
+            {/* Line numbers gutter */}
+            <div
+              className="flex-shrink-0 select-none border-r border-border/20 bg-muted/10 py-3 text-right font-mono text-[11px] text-muted-foreground/30"
+              aria-hidden="true"
+            >
+              {Array.from({ length: lineCount }, (_, i) => (
+                <div key={i} className="px-3 leading-relaxed">
+                  {i + 1}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {/* Highlighted code */}
-        <div className="min-w-0 flex-1 p-3 [&_pre]:!bg-transparent [&_code]:!bg-transparent">
-          <ShikiHighlighter language={language} theme={shikiTheme} defaultColor={false} cssVariablePrefix="--shiki-" langAlias={{}} engine={undefined as any}>
-            {code}
-          </ShikiHighlighter>
-        </div>
+            {/* Highlighted code */}
+            <div className="min-w-0 flex-1 p-3 [&_pre]:!bg-transparent [&_code]:!bg-transparent">
+              <ShikiHighlighter language={language} theme={shikiTheme} defaultColor={false} cssVariablePrefix="--shiki-" langAlias={{}} engine={undefined as any}>
+                {code}
+              </ShikiHighlighter>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

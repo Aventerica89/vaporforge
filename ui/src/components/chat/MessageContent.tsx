@@ -1,10 +1,12 @@
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ToolCallBlock } from './ToolCallBlock';
 import { ReasoningBlock } from './ReasoningBlock';
 import { ArtifactBlock } from './ArtifactBlock';
 import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
+import { TaskPlanBlock } from './TaskPlanBlock';
+import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 
 interface MessageContentProps {
   message: Message;
@@ -19,7 +21,7 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
   switch (part.type) {
     case 'text':
       return part.content ? (
-        <ChatMarkdown key={index} content={part.content} />
+        <ChatMarkdown key={index} content={part.content} isStreaming={isStreaming} />
       ) : null;
 
     case 'reasoning':
@@ -74,9 +76,15 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
 }
 
 export const MessageContent = memo(function MessageContent({ message }: MessageContentProps) {
+  const taskPlan = useMemo(
+    () => (message.parts ? parseTaskPlan(message.parts) : null),
+    [message.parts],
+  );
+
   if (message.parts && message.parts.length > 0) {
     return (
       <>
+        {taskPlan && <TaskPlanBlock plan={taskPlan} />}
         {message.parts.map((part, i) => renderPart(part, i))}
       </>
     );
@@ -105,13 +113,18 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
 });
 
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
+  const streamingPlan = useMemo(() => parseTaskPlan(parts), [parts]);
+
   if (parts.length > 0) {
     return (
       <>
+        {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
+          // Text parts are streaming when they're the last part (still accumulating)
+          // Tool/reasoning/CoT parts use isStreaming for their own active indicators
           const isStreamingPart =
-            isLast && (part.type === 'tool-start' || part.type === 'reasoning' || part.type === 'chain-of-thought');
+            isLast && (part.type === 'text' || part.type === 'tool-start' || part.type === 'reasoning' || part.type === 'chain-of-thought');
           return renderPart(part, i, isStreamingPart);
         })}
       </>
@@ -119,7 +132,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   }
 
   if (fallbackContent) {
-    return <ChatMarkdown content={fallbackContent} />;
+    return <ChatMarkdown content={fallbackContent} isStreaming />;
   }
 
   return null;

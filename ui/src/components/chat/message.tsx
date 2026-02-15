@@ -1,4 +1,4 @@
-import { createContext, useMemo } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import {
   Attachments,
   Attachment,
@@ -6,6 +6,8 @@ import {
   AttachmentInfo,
 } from '@/components/attachments';
 import { MessageContent } from '@/components/chat/MessageContent';
+import { MessageAvatar } from '@/components/chat/MessageAvatar';
+import { MessageTimestamp } from '@/components/chat/MessageTimestamp';
 import type { Message as MessageType } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -22,8 +24,12 @@ const MessageCtx = createContext<MessageContextValue>({
   isStreaming: false,
 });
 
+export function useMessageContext() {
+  return useContext(MessageCtx);
+}
+
 // ---------------------------------------------------------------------------
-// <Message> — root container + context provider
+// <Message> — root container with avatar gutter + content area
 // ---------------------------------------------------------------------------
 
 interface MessageProps {
@@ -47,7 +53,20 @@ export function Message({
   return (
     <MessageCtx.Provider value={ctx}>
       <div className={`group/message animate-fade-up ${className}`}>
-        {children}
+        {role === 'user' ? (
+          // User messages: right-aligned, no avatar gutter
+          children
+        ) : (
+          // Assistant messages: avatar gutter + content
+          <div className="flex gap-3">
+            <div className="mt-2 flex-shrink-0">
+              <MessageAvatar role={role} isStreaming={isStreaming} />
+            </div>
+            <div className="min-w-0 flex-1">
+              {children}
+            </div>
+          </div>
+        )}
       </div>
     </MessageCtx.Provider>
   );
@@ -79,7 +98,7 @@ export function MessageBubble({ children, className = '' }: MessageBubbleProps) 
 }
 
 // ---------------------------------------------------------------------------
-// <MessageBody> — assistant content wrapper
+// <MessageBody> — assistant content wrapper with left border accent
 // ---------------------------------------------------------------------------
 
 interface MessageBodyProps {
@@ -89,24 +108,28 @@ interface MessageBodyProps {
 
 export function MessageBody({ children, className = '' }: MessageBodyProps) {
   return (
-    <div className={`py-2 ${className}`}>
+    <div className={`py-2 border-l-2 border-secondary/20 pl-3 ${className}`}>
       <div className="text-sm text-foreground">{children}</div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// <MessageFooter> — actions slot (assistant only)
+// <MessageFooter> — actions slot with timestamp
 // ---------------------------------------------------------------------------
 
 interface MessageFooterProps {
   children: React.ReactNode;
+  timestamp?: string;
   className?: string;
 }
 
-export function MessageFooter({ children, className = '' }: MessageFooterProps) {
+export function MessageFooter({ children, timestamp, className = '' }: MessageFooterProps) {
   return (
-    <div className={`mt-1 flex justify-start ${className}`}>{children}</div>
+    <div className={`mt-1 flex items-center gap-2 ${className}`}>
+      {timestamp && <MessageTimestamp timestamp={timestamp} />}
+      {children}
+    </div>
   );
 }
 

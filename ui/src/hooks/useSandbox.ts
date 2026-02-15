@@ -3,6 +3,7 @@ import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
+import { useStreamDebug } from '@/hooks/useStreamDebug';
 import type { Session, FileInfo, Message, MessagePart, GitStatus, ImageAttachment } from '@/lib/types';
 
 function debugLog(
@@ -48,6 +49,9 @@ interface SandboxState {
   terminalOutput: string[];
   isExecuting: boolean;
 
+  // Stream control
+  streamAbortController: AbortController | null;
+
   // Actions
   loadSessions: () => Promise<void>;
   createSession: (name?: string, gitRepo?: string, branch?: string) => Promise<Session | null>;
@@ -68,6 +72,7 @@ interface SandboxState {
   saveFile: () => Promise<void>;
 
   sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
+  stopStreaming: () => void;
   clearMessages: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
 
@@ -118,6 +123,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingContent: '',
   streamingParts: [],
   sdkMode: 'agent' as const,
+  streamAbortController: null,
 
   gitStatus: null,
 
@@ -497,8 +503,12 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       streamingParts: [],
     }));
 
+    // Start stream debug tracking
+    useStreamDebug.getState().startStream();
+
     // Timeout: abort if no meaningful data within 5 min (matches backend)
     const controller = new AbortController();
+    set({ streamAbortController: controller });
     let timeoutId = setTimeout(() => controller.abort(), 300000);
     const resetTimeout = () => {
       clearTimeout(timeoutId);
@@ -535,6 +545,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
         if (chunk.type === 'text' && chunk.content) {
           resetTimeout();
+          useStreamDebug.getState().recordEvent('text', chunk.content);
           content += chunk.content;
           currentReasoningPart = null;
 
@@ -555,6 +566,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         } else if (chunk.type === 'reasoning' && chunk.content) {
           // Accumulate reasoning/thinking text
           resetTimeout();
+          useStreamDebug.getState().recordEvent('reasoning', chunk.content);
           currentTextPart = null;
 
           if (!currentReasoningPart) {
@@ -572,6 +584,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-start' && chunk.name) {
           resetTimeout();
+          useStreamDebug.getState().recordEvent('tool-start', chunk.name);
           currentTextPart = null;
           currentReasoningPart = null;
           const toolId = chunk.id || `tool-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -591,6 +604,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'tool-result' && chunk.name) {
           resetTimeout();
+          useStreamDebug.getState().recordEvent('tool-result', chunk.name);
           currentTextPart = null;
           currentReasoningPart = null;
           const resultToolId = chunk.id || '';
@@ -619,6 +633,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           set({ streamingParts: [...parts] });
         } else if (chunk.type === 'error' && chunk.content) {
           resetTimeout();
+          useStreamDebug.getState().recordEvent('error', chunk.content);
           currentTextPart = null;
           currentReasoningPart = null;
           parts.push({ type: 'error', content: chunk.content });
@@ -627,6 +642,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         } else if (chunk.type === 'done') {
           // Stream completed normally
           resetTimeout();
+          useStreamDebug.getState().endStream();
         }
       }
 
@@ -686,6 +702,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         isStreaming: false,
         streamingContent: '',
         streamingParts: [],
+        streamAbortController: null,
       }));
 
       // Refresh files in case Claude made changes
@@ -693,10 +710,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       get().loadGitStatus();
     } catch (error) {
       clearTimeout(timeoutId);
+      useStreamDebug.getState().endStream();
 
       // Show error in chat instead of silently swallowing
       const errorMsg = error instanceof Error && error.name === 'AbortError'
-        ? 'Request timed out — no response from sandbox within 5 min.'
+        ? 'Stream stopped.'
         : error instanceof Error
           ? error.message
           : 'Stream failed';
@@ -708,22 +726,55 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         error instanceof Error ? error.stack : undefined
       );
 
-      const errorMessage: Message = {
-        id: crypto.randomUUID(),
-        sessionId: session.id,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date().toISOString(),
-        parts: [{ type: 'error', content: errorMsg }],
-      };
+      // If user stopped the stream, promote accumulated content as a message
+      const accumulatedContent = get().streamingContent;
+      const accumulatedParts = get().streamingParts;
+      const wasUserStop = error instanceof Error && error.name === 'AbortError';
 
-      set((state) => ({
-        messagesById: { ...state.messagesById, [errorMessage.id]: errorMessage },
-        messageIds: [...state.messageIds, errorMessage.id],
-        isStreaming: false,
-        streamingContent: '',
-        streamingParts: [],
-      }));
+      if (wasUserStop && (accumulatedContent || accumulatedParts.length > 0)) {
+        const stoppedMessage: Message = {
+          id: crypto.randomUUID(),
+          sessionId: session.id,
+          role: 'assistant',
+          content: accumulatedContent || '',
+          timestamp: new Date().toISOString(),
+          parts: accumulatedParts.length > 0
+            ? accumulatedParts
+            : [{ type: 'text', content: accumulatedContent }],
+        };
+        set((state) => ({
+          messagesById: { ...state.messagesById, [stoppedMessage.id]: stoppedMessage },
+          messageIds: [...state.messageIds, stoppedMessage.id],
+          isStreaming: false,
+          streamingContent: '',
+          streamingParts: [],
+          streamAbortController: null,
+        }));
+      } else {
+        const errorMessage: Message = {
+          id: crypto.randomUUID(),
+          sessionId: session.id,
+          role: 'assistant',
+          content: '',
+          timestamp: new Date().toISOString(),
+          parts: [{ type: 'error', content: errorMsg }],
+        };
+        set((state) => ({
+          messagesById: { ...state.messagesById, [errorMessage.id]: errorMessage },
+          messageIds: [...state.messageIds, errorMessage.id],
+          isStreaming: false,
+          streamingContent: '',
+          streamingParts: [],
+          streamAbortController: null,
+        }));
+      }
+    }
+  },
+
+  stopStreaming: () => {
+    const controller = get().streamAbortController;
+    if (controller) {
+      controller.abort();
     }
   },
 

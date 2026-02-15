@@ -37,8 +37,8 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
       ) : (
         <MessageBody>
           <MessageContent message={message} />
-          <MessageFooter>
-            <MessageActions content={message.content} />
+          <MessageFooter timestamp={message.timestamp}>
+            <MessageActions content={message.content} messageId={message.id} />
           </MessageFooter>
         </MessageBody>
       )}
@@ -55,6 +55,7 @@ function StreamingMessage() {
   const isStreaming = useSandboxStore((s) => s.isStreaming);
   const streamingContent = useSandboxStore((s) => s.streamingContent);
   const streamingParts = useSandboxStore((s) => s.streamingParts);
+  const stopStreaming = useSandboxStore((s) => s.stopStreaming);
 
   if (!isStreaming) return null;
 
@@ -75,6 +76,13 @@ function StreamingMessage() {
             hasContent={false}
           />
         )}
+        <MessageFooter>
+          <MessageActions
+            content={streamingContent}
+            isStreaming
+            onStop={stopStreaming}
+          />
+        </MessageFooter>
       </MessageBody>
     </Message>
   );

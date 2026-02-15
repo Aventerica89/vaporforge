@@ -3,8 +3,19 @@ import { Bug, X } from 'lucide-react';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { ConsoleLogViewer } from '@/components/playground/ConsoleLogViewer';
 import { WikiTab } from '@/components/WikiTab';
+import { StreamDebugger } from '@/components/devtools/StreamDebugger';
+import { TokenViewer } from '@/components/devtools/TokenViewer';
+import { LatencyMeter } from '@/components/devtools/LatencyMeter';
 
-type Tab = 'log' | 'wiki';
+type Tab = 'log' | 'wiki' | 'stream' | 'tokens' | 'latency';
+
+const TAB_LABELS: Record<Tab, string> = {
+  log: 'Log',
+  wiki: 'Wiki',
+  stream: 'Stream',
+  tokens: 'Tokens',
+  latency: 'Latency',
+};
 
 export function DebugPanel() {
   const { unreadErrors, isOpen, toggle, close } =
@@ -61,21 +72,21 @@ export function DebugPanel() {
           aria-label="Debug panel"
         >
           {/* Header with tabs */}
-          <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
-            <div className="flex items-center gap-1">
-              {(['log', 'wiki'] as const).map((t) => (
+          <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
+            <div className="flex items-center gap-0.5 overflow-x-auto">
+              {(Object.keys(TAB_LABELS) as Tab[]).map((t) => (
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                  className={`whitespace-nowrap rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wider transition-colors ${
                     tab === t
                       ? 'bg-primary/10 text-primary'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                   }`}
                 >
-                  {t === 'log' ? 'Log' : 'Wiki'}
+                  {TAB_LABELS[t]}
                   {t === 'log' && unreadErrors > 0 && (
-                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                    <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
                       {unreadErrors > 99 ? '99+' : unreadErrors}
                     </span>
                   )}
@@ -98,6 +109,9 @@ export function DebugPanel() {
           {/* Tab content */}
           {tab === 'log' && <ConsoleLogViewer compact />}
           {tab === 'wiki' && <WikiTab />}
+          {tab === 'stream' && <StreamDebugger />}
+          {tab === 'tokens' && <TokenViewer />}
+          {tab === 'latency' && <LatencyMeter />}
         </div>
       )}
     </>
