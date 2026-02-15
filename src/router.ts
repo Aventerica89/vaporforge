@@ -13,6 +13,7 @@ import { secretsRoutes } from './api/secrets';
 import { mcpRoutes } from './api/mcp';
 import { mcpRelayRoutes } from './api/mcp-relay';
 import { pluginsRoutes } from './api/plugins';
+import { pluginSourcesRoutes } from './api/plugin-sources';
 import { configRoutes } from './api/config';
 import { issuesRoutes } from './api/issues-routes';
 import { favoritesRoutes } from './api/favorites-routes';
@@ -313,6 +314,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/secrets', secretsRoutes);
   protectedRoutes.route('/mcp', mcpRoutes);
   protectedRoutes.route('/plugins', pluginsRoutes);
+  protectedRoutes.route('/plugin-sources', pluginSourcesRoutes);
   protectedRoutes.route('/config', configRoutes);
   protectedRoutes.route('/issues', issuesRoutes);
   protectedRoutes.route('/favorites', favoritesRoutes);

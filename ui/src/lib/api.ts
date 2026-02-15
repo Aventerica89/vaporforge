@@ -459,6 +459,38 @@ export const mcpApi = {
     }),
 };
 
+// Plugin Sources API (custom catalog repos)
+export interface PluginSource {
+  id: string;
+  url: string;
+  label: string;
+  addedAt: string;
+}
+
+export const pluginSourcesApi = {
+  list: () =>
+    request<PluginSource[]>('/plugin-sources'),
+
+  add: (url: string, label?: string) =>
+    request<PluginSource>('/plugin-sources', {
+      method: 'POST',
+      body: JSON.stringify({ url, label }),
+    }),
+
+  remove: (id: string) =>
+    request<{ deleted: boolean }>(`/plugin-sources/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+
+  refresh: () =>
+    request<{ plugins: any[]; refreshedAt: string }>('/plugin-sources/refresh', {
+      method: 'POST',
+    }),
+
+  catalog: () =>
+    request<{ plugins: any[]; refreshedAt: string | null }>('/plugin-sources/catalog'),
+};
+
 // Plugins API
 export const pluginsApi = {
   list: () =>

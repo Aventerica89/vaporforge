@@ -21,6 +21,10 @@ const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
     label: 'Community',
     className: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
   },
+  custom: {
+    label: 'Custom',
+    className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  },
 };
 
 const TYPE_COLORS: Record<string, string> = {
@@ -42,7 +46,8 @@ export function MarketplaceCard({
 }: MarketplaceCardProps) {
   const isCompact = size === 'compact';
   const isLarge = size === 'large';
-  const source = SOURCE_BADGE[plugin.source_id];
+  const source = SOURCE_BADGE[plugin.source_id]
+    || (plugin.source_id.startsWith('custom:') ? SOURCE_BADGE.custom : undefined);
 
   // iOS-friendly: Larger padding on mobile for better touch targets
   const padding = isCompact ? 'p-4 sm:p-3 gap-3 sm:gap-2' : isLarge ? 'p-5 gap-4' : 'p-5 sm:p-4 gap-4 sm:gap-3';

@@ -127,6 +127,10 @@ npm run test         # Vitest tests
 - No `scrollIntoView()` — causes iOS keyboard push-up
 - `window.scrollTo(0,0)` on every viewport resize as safety net
 
+### UX
+
+- **Right-side controls rule**: All close/exit buttons and action controls go on the RIGHT side of headers. Title and info go on the LEFT. Pattern: `justify-between` with title-left, actions+close-right. Reference: IssueTracker.tsx header. This reduces mouse travel since nav icons are already on the right.
+
 ### Files / Upload
 
 - `sandbox.writeFile()` crashes on large payloads (>~500KB) — use 8KB chunked exec

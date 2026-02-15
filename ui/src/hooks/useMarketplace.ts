@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { pluginsApi } from '@/lib/api';
+import { pluginsApi, pluginSourcesApi } from '@/lib/api';
+import type { PluginSource } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
@@ -52,7 +53,7 @@ interface MarketplaceState {
   searchQuery: string;
   statusTab: StatusTab;
   cardSize: CardSize;
-  selectedSource: 'all' | 'anthropic-official' | 'awesome-community';
+  selectedSource: string;
   selectedCategories: string[];
   selectedTypes: string[];
   selectedCompatibility: 'all' | 'cloud-ready' | 'relay-required';
@@ -61,12 +62,26 @@ interface MarketplaceState {
   installing: Set<string>;
   installError: string | null;
 
+  // Discover from URL
+  discoveredPlugin: Plugin | null;
+  isDiscovering: boolean;
+  discoverError: string | null;
+
+  // Refresh installed
+  isRefreshing: boolean;
+
+  // Custom sources
+  customSources: PluginSource[];
+  customCatalog: CatalogPlugin[];
+  isLoadingSources: boolean;
+  sourcesRefreshedAt: string | null;
+
   openMarketplace: () => void;
   closeMarketplace: () => void;
   setSearchQuery: (query: string) => void;
   setStatusTab: (tab: StatusTab) => void;
   setCardSize: (size: CardSize) => void;
-  setSelectedSource: (source: MarketplaceState['selectedSource']) => void;
+  setSelectedSource: (source: string) => void;
   toggleCategory: (category: string) => void;
   toggleType: (type: string) => void;
   setSelectedCompatibility: (c: MarketplaceState['selectedCompatibility']) => void;
@@ -76,6 +91,14 @@ interface MarketplaceState {
   uninstallPlugin: (repoUrl: string) => Promise<void>;
   syncInstalledPlugins: () => Promise<void>;
   toggleFavorite: (repoUrl: string) => void;
+  discoverFromUrl: (url: string) => Promise<void>;
+  clearDiscovered: () => void;
+  installDiscovered: () => Promise<void>;
+  refreshInstalled: () => Promise<{ refreshed: number }>;
+  loadCustomSources: () => Promise<void>;
+  addSource: (url: string) => Promise<void>;
+  removeSource: (id: string) => Promise<void>;
+  refreshSources: () => Promise<void>;
 }
 
 export const useMarketplace = create<MarketplaceState>((set, get) => ({
@@ -100,11 +123,20 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   ),
   installing: new Set(),
   installError: null,
+  discoveredPlugin: null,
+  isDiscovering: false,
+  discoverError: null,
+  isRefreshing: false,
+  customSources: [],
+  customCatalog: [],
+  isLoadingSources: false,
+  sourcesRefreshedAt: null,
 
   openMarketplace: () => {
     useDevChangelog.getState().closeChangelog();
     set({ isOpen: true });
     get().syncInstalledPlugins();
+    get().loadCustomSources();
   },
 
   closeMarketplace: () => set({ isOpen: false }),
@@ -267,5 +299,136 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       localStorage.setItem('vf-favorites', JSON.stringify([...favorites]));
       return { favoriteRepoUrls: favorites };
     });
+  },
+
+  discoverFromUrl: async (url) => {
+    set({ isDiscovering: true, discoverError: null, discoveredPlugin: null });
+    try {
+      const result = await pluginsApi.discover(url);
+      if (result.success && result.data) {
+        set({ discoveredPlugin: result.data, isDiscovering: false });
+      } else {
+        set({ discoverError: result.error || 'Discovery failed', isDiscovering: false });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Discovery failed';
+      set({ discoverError: msg, isDiscovering: false });
+    }
+  },
+
+  clearDiscovered: () => set({ discoveredPlugin: null, discoverError: null }),
+
+  installDiscovered: async () => {
+    const { discoveredPlugin } = get();
+    if (!discoveredPlugin) return;
+
+    const repoUrl = discoveredPlugin.repoUrl || '';
+    set({ installError: null });
+
+    try {
+      await pluginsApi.add(discoveredPlugin);
+      set((state) => ({
+        installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
+        discoveredPlugin: null,
+        discoverError: null,
+      }));
+      syncToActiveSession();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Install failed';
+      set({ installError: `Failed to install: ${msg}` });
+    }
+  },
+
+  refreshInstalled: async () => {
+    set({ isRefreshing: true });
+    try {
+      const result = await pluginsApi.refresh();
+      if (result.success && result.data) {
+        // Re-sync installed URLs after refresh
+        await get().syncInstalledPlugins();
+        syncToActiveSession();
+        set({ isRefreshing: false });
+        return { refreshed: result.data.refreshed };
+      }
+      set({ isRefreshing: false });
+      return { refreshed: 0 };
+    } catch {
+      set({ isRefreshing: false });
+      return { refreshed: 0 };
+    }
+  },
+
+  loadCustomSources: async () => {
+    try {
+      const [sourcesRes, catalogRes] = await Promise.all([
+        pluginSourcesApi.list(),
+        pluginSourcesApi.catalog(),
+      ]);
+
+      if (sourcesRes.success && sourcesRes.data) {
+        set({ customSources: sourcesRes.data });
+      }
+
+      if (catalogRes.success && catalogRes.data) {
+        set({
+          customCatalog: catalogRes.data.plugins as CatalogPlugin[],
+          sourcesRefreshedAt: catalogRes.data.refreshedAt,
+        });
+      }
+    } catch {
+      // Non-blocking
+    }
+  },
+
+  addSource: async (url) => {
+    set({ isLoadingSources: true });
+    try {
+      const result = await pluginSourcesApi.add(url);
+      if (result.success && result.data) {
+        set((state) => ({
+          customSources: [...state.customSources, result.data!],
+          isLoadingSources: false,
+        }));
+        // Auto-refresh to discover plugins from the new source
+        await get().refreshSources();
+      } else {
+        set({ isLoadingSources: false });
+      }
+    } catch (err) {
+      set({ isLoadingSources: false });
+      throw err;
+    }
+  },
+
+  removeSource: async (id) => {
+    try {
+      await pluginSourcesApi.remove(id);
+      set((state) => ({
+        customSources: state.customSources.filter((s) => s.id !== id),
+        customCatalog: state.customCatalog.filter(
+          (p) => p.source_id !== `custom:${id}`
+        ),
+      }));
+    } catch {
+      // Silent
+    }
+  },
+
+  refreshSources: async () => {
+    set({ isLoadingSources: true });
+    try {
+      const result = await pluginSourcesApi.refresh();
+      if (result.success && result.data) {
+        set({
+          customCatalog: result.data.plugins as CatalogPlugin[],
+          sourcesRefreshedAt: result.data.refreshedAt,
+          isLoadingSources: false,
+        });
+      } else {
+        set({ isLoadingSources: false });
+      }
+    } catch {
+      set({ isLoadingSources: false });
+    }
   },
 }));

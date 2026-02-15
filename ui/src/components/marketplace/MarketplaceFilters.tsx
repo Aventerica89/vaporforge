@@ -1,22 +1,26 @@
-import { catalog, catalogStats } from '@/lib/generated/plugin-catalog';
+import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import { useMemo } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
+import type { PluginSource } from '@/lib/api';
 
 interface MarketplaceFiltersProps {
-  selectedSource: 'all' | 'anthropic-official' | 'awesome-community';
+  catalog: CatalogPlugin[];
+  selectedSource: string;
   selectedCategories: string[];
   selectedTypes: string[];
   selectedCompatibility: 'all' | 'cloud-ready' | 'relay-required';
-  onSourceChange: (source: 'all' | 'anthropic-official' | 'awesome-community') => void;
+  onSourceChange: (source: string) => void;
   onCategoryToggle: (category: string) => void;
   onTypeToggle: (type: string) => void;
   onCompatibilityChange: (c: 'all' | 'cloud-ready' | 'relay-required') => void;
   onClearAll: () => void;
+  customSources?: PluginSource[];
+  onRemoveSource?: (id: string) => void;
 }
 
-const SOURCES = [
-  { id: 'anthropic-official' as const, label: 'Anthropic Official' },
-  { id: 'awesome-community' as const, label: 'Community' },
+const STATIC_SOURCES = [
+  { id: 'anthropic-official', label: 'Anthropic Official' },
+  { id: 'awesome-community', label: 'Community' },
 ];
 
 const TYPES = ['agent', 'skill', 'command', 'rule'] as const;
@@ -36,6 +40,7 @@ function FilterCheckbox({ checked }: { checked: boolean }) {
 }
 
 export function MarketplaceFilters({
+  catalog,
   selectedSource,
   selectedCategories,
   selectedTypes,
@@ -45,6 +50,8 @@ export function MarketplaceFilters({
   onTypeToggle,
   onCompatibilityChange,
   onClearAll,
+  customSources = [],
+  onRemoveSource,
 }: MarketplaceFiltersProps) {
   const categories = useMemo(() => {
     const catCounts = new Map<string, number>();
@@ -56,7 +63,7 @@ export function MarketplaceFilters({
     return [...catCounts.entries()]
       .sort((a, b) => b[1] - a[1])
       .map(([name, count]) => ({ name, count }));
-  }, []);
+  }, [catalog]);
 
   const typeCounts = useMemo(() => {
     const counts = { agent: 0, skill: 0, command: 0, rule: 0 };
@@ -67,7 +74,16 @@ export function MarketplaceFilters({
       if (p.rule_count > 0) counts.rule++;
     }
     return counts;
-  }, []);
+  }, [catalog]);
+
+  // Build dynamic source counts
+  const sourceCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of catalog) {
+      counts.set(p.source_id, (counts.get(p.source_id) || 0) + 1);
+    }
+    return counts;
+  }, [catalog]);
 
   const hasActiveFilters =
     selectedSource !== 'all' ||
@@ -94,11 +110,8 @@ export function MarketplaceFilters({
       <div className="flex flex-col gap-3">
         <div className="text-xs font-medium text-[hsl(180,5%,45%)] uppercase tracking-wider">Source</div>
         <div className="flex flex-col gap-2">
-          {SOURCES.map((source) => {
-            const count =
-              source.id === 'anthropic-official'
-                ? catalogStats.official
-                : catalogStats.community;
+          {STATIC_SOURCES.map((source) => {
+            const count = sourceCounts.get(source.id) || 0;
             const checked = selectedSource === source.id;
             return (
               <button
@@ -113,6 +126,36 @@ export function MarketplaceFilters({
                 </span>
                 <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
               </button>
+            );
+          })}
+          {customSources.map((source) => {
+            const sourceId = `custom:${source.id}`;
+            const count = sourceCounts.get(sourceId) || 0;
+            const checked = selectedSource === sourceId;
+            return (
+              <div key={source.id} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onSourceChange(checked ? 'all' : sourceId)}
+                  className="flex items-center gap-2.5 cursor-pointer group text-left flex-1 min-w-0"
+                >
+                  <FilterCheckbox checked={checked} />
+                  <span className="text-sm text-[hsl(180,5%,65%)] group-hover:text-[hsl(180,5%,90%)] transition-colors flex-1 truncate">
+                    {source.label}
+                  </span>
+                  <span className="text-xs text-[hsl(180,5%,35%)]">{count}</span>
+                </button>
+                {onRemoveSource && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveSource(source.id)}
+                    className="p-1 text-[hsl(180,5%,30%)] hover:text-red-400 transition-colors shrink-0"
+                    title="Remove source"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>

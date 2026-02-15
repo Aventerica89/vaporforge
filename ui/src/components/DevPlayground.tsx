@@ -51,17 +51,7 @@ export function DevPlayground() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Header ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card px-3 py-2.5 safe-area-header sm:px-4 sm:py-3">
-        <button
-          onClick={closePlayground}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary sm:h-8 sm:w-8"
-          aria-label="Close Playground"
-        >
-          <X className="h-5 w-5 sm:h-4 sm:w-4" />
-        </button>
-
-        <div className="h-5 w-px bg-border/60" />
-
+      <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-3 py-2.5 safe-area-header sm:px-4 sm:py-3">
         <h1
           className="font-display text-sm font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500 sm:text-base"
           style={{ fontFamily: 'var(--font-display)' }}
@@ -69,22 +59,31 @@ export function DevPlayground() {
           Dev Playground
         </h1>
 
-        {/* Desktop: tab bar in header */}
-        <div className="ml-auto hidden items-center gap-1 md:flex">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-amber-500/10 text-amber-400'
-                  : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/5'
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+        {/* Desktop: tab bar + close in header */}
+        <div className="flex items-center gap-1">
+          <div className="hidden items-center gap-1 md:flex">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-amber-500/10 text-amber-400'
+                    : 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/5'
+                }`}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={closePlayground}
+            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary sm:h-8 sm:w-8"
+            aria-label="Close Playground"
+          >
+            <X className="h-5 w-5 sm:h-4 sm:w-4" />
+          </button>
         </div>
       </div>
 

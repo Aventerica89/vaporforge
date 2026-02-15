@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import {
-  ArrowLeft,
+  X,
   Palette,
   Keyboard,
   FileCode,
@@ -148,27 +148,25 @@ export function SettingsPage() {
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-card px-4 py-3 safe-area-header">
+      <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3 safe-area-header">
+        <div className="flex items-center gap-3">
+          <h1
+            className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
+            style={{ fontFamily: 'var(--font-display)' }}
+          >
+            Settings
+          </h1>
+          <span className="font-mono text-xs text-muted-foreground/60">
+            v{APP_VERSION}
+          </span>
+        </div>
         <button
           onClick={closeSettings}
           className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-          aria-label="Back"
+          aria-label="Close settings"
         >
-          <ArrowLeft className="h-5 w-5" />
+          <X className="h-5 w-5" />
         </button>
-
-        <div className="h-5 w-px bg-border/60" />
-
-        <h1
-          className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          Settings
-        </h1>
-
-        <span className="ml-auto font-mono text-xs text-muted-foreground/60">
-          v{APP_VERSION}
-        </span>
       </div>
 
       {/* ─── Mobile: horizontal tab bar ─── */}
