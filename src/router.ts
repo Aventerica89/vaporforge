@@ -7,7 +7,7 @@ import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';
 import { sessionRoutes } from './api/sessions';
 import { gitRoutes } from './api/git';
-import { sdkRoutes } from './api/sdk';
+import { sdkRoutes, handleSdkWs } from './api/sdk';
 import { userRoutes } from './api/user';
 import { secretsRoutes } from './api/secrets';
 import { mcpRoutes } from './api/mcp';
@@ -288,6 +288,21 @@ export function createRouter(env: Env) {
         'Content-Disposition': `inline; filename="${safeName}"`,
       },
     });
+  });
+
+  // SDK WebSocket upgrade — inline auth (WS can't use Authorization header)
+  app.get('/api/sdk/ws', async (c) => {
+    const token = new URL(c.req.url).searchParams.get('token');
+    if (!token) {
+      return new Response('Missing token', { status: 401 });
+    }
+    const authService = c.get('authService');
+    const user = await authService.getUserFromToken(token);
+    if (!user) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    const sandboxManager = c.get('sandboxManager');
+    return handleSdkWs(c.env, c.req.raw, user, sandboxManager);
   });
 
   // Protected routes - require authentication

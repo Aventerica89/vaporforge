@@ -433,6 +433,52 @@ export class SandboxManager {
     throw new Error('Retry exhausted');
   }
 
+  // Start the WebSocket agent server in the container (if not already running)
+  async startWsServer(sessionId: string): Promise<void> {
+    const sid = sessionId.slice(0, 8);
+    const sandbox = this.getSandboxInstance(sessionId);
+
+    // Check if already running
+    const check = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 5000 });
+    if (check.stdout?.trim()) {
+      console.log(`[startWsServer] ${sid}: already running (pid ${check.stdout.trim()})`);
+      return;
+    }
+
+    // Start the WS server in background
+    await sandbox.exec(
+      'nohup node /opt/claude-agent/ws-agent-server.js > /tmp/ws-agent-server.log 2>&1 &',
+      { timeout: 5000 }
+    );
+
+    // Wait for it to bind
+    await new Promise((r) => setTimeout(r, 500));
+
+    // Verify it started
+    const verify = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 5000 });
+    if (verify.stdout?.trim()) {
+      console.log(`[startWsServer] ${sid}: started (pid ${verify.stdout.trim()})`);
+    } else {
+      console.error(`[startWsServer] ${sid}: failed to start — check /tmp/ws-agent-server.log`);
+      throw new Error('WebSocket agent server failed to start');
+    }
+  }
+
+  // Proxy a WebSocket connection to the container's WS server on port 8765
+  async wsConnectToSandbox(sessionId: string, request: Request): Promise<Response> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    return sandbox.wsConnect(request, 8765);
+  }
+
+  // Write query context to a temp file in the container (for the WS server to read)
+  async writeContextFile(
+    sessionId: string,
+    context: { prompt: string; sessionId: string; cwd: string; env: Record<string, string> }
+  ): Promise<void> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    await sandbox.writeFile('/tmp/vf-pending-query.json', JSON.stringify(context));
+  }
+
   // Read file from sandbox
   async readFile(sessionId: string, path: string): Promise<string | null> {
     const sandbox = this.getSandboxInstance(sessionId);

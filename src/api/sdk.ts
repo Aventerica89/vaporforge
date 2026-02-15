@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, Message, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import type { SandboxManager } from '../sandbox';
 import { assembleSandboxConfig } from '../config-assembly';
 
 type Variables = {
@@ -416,8 +417,9 @@ sdkRoutes.post('/stream', async (c) => {
     return new Response(readable, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
       },
     });
   } catch (error) {
@@ -427,3 +429,137 @@ sdkRoutes.post('/stream', async (c) => {
     }, 500);
   }
 });
+
+// POST /api/sdk/persist - Persist assistant message to KV after WS stream completes
+sdkRoutes.post('/persist', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json<{
+    sessionId: string;
+    content: string;
+    sdkSessionId?: string;
+  }>();
+
+  const { sessionId, content, sdkSessionId } = body;
+  if (!sessionId || !content) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Missing fields' }, 400);
+  }
+
+  // Persist assistant message
+  const msgId = crypto.randomUUID();
+  const assistantMessage: Message = {
+    id: msgId,
+    sessionId,
+    role: 'assistant',
+    content,
+    timestamp: new Date().toISOString(),
+  };
+  await c.env.SESSIONS_KV.put(
+    `message:${sessionId}:${msgId}`,
+    JSON.stringify(assistantMessage),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  // Update sdkSessionId if changed
+  if (sdkSessionId !== undefined) {
+    const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
+    if (rawSession) {
+      const session = JSON.parse(rawSession) as Session;
+      if ((session.sdkSessionId || '') !== sdkSessionId) {
+        const updated: Session = { ...session, sdkSessionId: sdkSessionId || undefined };
+        await c.env.SESSIONS_KV.put(`session:${sessionId}`, JSON.stringify(updated));
+      }
+    }
+  }
+
+  // Best-effort config sync
+  const sandboxManager = c.get('sandboxManager');
+  try {
+    await sandboxManager.syncConfigFromContainer(sessionId, user.id, c.env.SESSIONS_KV);
+  } catch {}
+
+  return c.json({ success: true });
+});
+
+// Standalone WS handler — called from router.ts with inline auth (no middleware)
+export async function handleSdkWs(
+  env: Env,
+  request: Request,
+  user: User,
+  sandboxManager: SandboxManager
+): Promise<Response> {
+  const url = new URL(request.url);
+  const sessionId = url.searchParams.get('sessionId') || '';
+  const prompt = url.searchParams.get('prompt') || '';
+  const cwd = url.searchParams.get('cwd') || '/workspace';
+  const mode = url.searchParams.get('mode') || 'agent';
+
+  if (!sessionId || !prompt) {
+    return new Response('Missing sessionId or prompt', { status: 400 });
+  }
+
+  if (!user.claudeToken?.startsWith('sk-ant-oat01-')) {
+    return new Response('Invalid OAuth token', { status: 401 });
+  }
+
+  // Assemble config and wake sandbox
+  const sandboxConfig = await assembleSandboxConfig(env.SESSIONS_KV, user.id);
+  const session = await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
+
+  if (!session || session.userId !== user.id) {
+    return new Response('Session not found', { status: 404 });
+  }
+  if (!session.sandboxId) {
+    return new Response('Sandbox not active', { status: 400 });
+  }
+
+  // Persist user message to KV
+  const userMsgId = crypto.randomUUID();
+  const userMessage: Message = {
+    id: userMsgId,
+    sessionId,
+    role: 'user',
+    content: prompt,
+    timestamp: new Date().toISOString(),
+  };
+  await env.SESSIONS_KV.put(
+    `message:${sessionId}:${userMsgId}`,
+    JSON.stringify(userMessage),
+    { expirationTtl: 7 * 24 * 60 * 60 }
+  );
+
+  // Strip command/agent prefix (same logic as SSE handler)
+  const cmdPrefixMatch = prompt.match(/^\[(command|agent):\/([^\]]+)\]\n/);
+  let sdkPrompt = prompt;
+  if (cmdPrefixMatch) {
+    const [fullMatch, kind, name] = cmdPrefixMatch;
+    const body = prompt.slice(fullMatch.length);
+    sdkPrompt = kind === 'agent'
+      ? `Use the "${name}" agent (available via the Task tool) to handle this request. The agent's instructions:\n\n${body}`
+      : `The user is running the /${name} command. Follow the instructions below:\n\n${body}`;
+  }
+
+  const sdkSessionId = session.sdkSessionId || '';
+  const mcpConfigRaw = await env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
+
+  // Start WS server in container
+  await sandboxManager.startWsServer(session.sandboxId);
+
+  // Write context file for the WS server to read
+  await sandboxManager.writeContextFile(session.sandboxId, {
+    prompt: sdkPrompt,
+    sessionId: sdkSessionId,
+    cwd,
+    env: {
+      CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
+      NODE_PATH: '/usr/local/lib/node_modules',
+      CLAUDE_CONFIG_DIR: '/root/.claude',
+      ...collectProjectSecrets(env),
+      ...await collectUserSecrets(env.SESSIONS_KV, user.id),
+      ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
+      VF_SESSION_MODE: mode,
+    },
+  });
+
+  // Proxy the WebSocket connection to the container
+  return sandboxManager.wsConnectToSandbox(session.sandboxId, request);
+}

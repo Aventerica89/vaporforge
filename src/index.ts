@@ -14,13 +14,18 @@ export default {
     // Handle WebSocket upgrade
     if (request.headers.get('Upgrade') === 'websocket') {
       const url = new URL(request.url);
-      const sessionId = url.searchParams.get('sessionId');
 
+      // SDK WebSocket streaming — route through Hono (auth + sandbox proxy)
+      if (url.pathname === '/api/sdk/ws') {
+        const router = createRouter(env);
+        return router.fetch(request, env, ctx);
+      }
+
+      // All other WS — route to Durable Object (MCP relay, etc.)
+      const sessionId = url.searchParams.get('sessionId');
       if (!sessionId) {
         return new Response('Missing sessionId', { status: 400 });
       }
-
-      // Route to Durable Object
       const id = env.SESSIONS.idFromName(sessionId);
       const stub = env.SESSIONS.get(id);
       return stub.fetch(request);
