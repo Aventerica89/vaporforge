@@ -506,6 +506,16 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           continue;
         }
 
+        // Config was restored after container recycle — notify user
+        if (chunk.type === 'config-restored') {
+          window.dispatchEvent(
+            new CustomEvent('vf:config-restored', {
+              detail: { restoredAt: chunk.restoredAt },
+            })
+          );
+          continue;
+        }
+
         if (chunk.type === 'text' && chunk.content) {
           resetTimeout();
           content += chunk.content;

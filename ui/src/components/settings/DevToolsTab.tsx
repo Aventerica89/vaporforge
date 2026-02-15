@@ -1,16 +1,28 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Copy,
   Check,
   Hammer,
   Monitor,
   GitCommitHorizontal,
+  RefreshCw,
+  Shield,
+  Loader2,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
 import { BUILD_HASH, BUILD_DATE, COMMIT_LOG } from '@/lib/generated/build-info';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useSandboxStore } from '@/hooks/useSandbox';
+import { sessionsApi } from '@/lib/api';
+
+interface ConfigStatus {
+  stampExists: boolean;
+  stampValue: string;
+  lastConfigCheck: string | null;
+  sessionStatus: string;
+}
 
 export function DevToolsTab() {
   const [copied, setCopied] = useState(false);
@@ -79,6 +91,9 @@ export function DevToolsTab() {
           </button>
         </div>
       </div>
+
+      {/* Config Sync Status */}
+      <ConfigSyncSection />
 
       {/* Environment info */}
       <div className="rounded-lg border border-border p-4">
@@ -160,6 +175,153 @@ export function DevToolsTab() {
       </div>
     </div>
   );
+}
+
+function ConfigSyncSection() {
+  const currentSession = useSandboxStore((s) => s.currentSession);
+  const [status, setStatus] = useState<ConfigStatus | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const fetchStatus = useCallback(async () => {
+    if (!currentSession?.id) return;
+    setLoading(true);
+    try {
+      const res = await sessionsApi.configStatus(currentSession.id);
+      if (res.success && res.data) {
+        setStatus(res.data);
+      }
+    } catch {
+      setStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentSession?.id]);
+
+  useEffect(() => {
+    fetchStatus();
+  }, [fetchStatus]);
+
+  const handleForceSync = useCallback(async () => {
+    if (!currentSession?.id) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await sessionsApi.syncConfig(currentSession.id);
+      if (res.success) {
+        setSyncResult('Config re-injected successfully');
+        fetchStatus();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Sync failed';
+      setSyncResult(msg);
+    } finally {
+      setSyncing(false);
+    }
+  }, [currentSession?.id, fetchStatus]);
+
+  if (!currentSession) {
+    return (
+      <div className="rounded-lg border border-border p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Shield className="h-4 w-4 text-muted-foreground" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Config Persistence
+          </h3>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          No active session. Config sync requires an active session.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Shield className="h-4 w-4 text-cyan-400" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+            Config Persistence
+          </h3>
+        </div>
+        <button
+          onClick={fetchStatus}
+          disabled={loading}
+          className="rounded p-1.5 text-muted-foreground hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors disabled:opacity-50"
+          title="Refresh status"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {status ? (
+        <div className="space-y-2 text-xs">
+          <InfoRow
+            label="Stamp"
+            value={status.stampExists ? 'Present' : 'Missing'}
+          />
+          <InfoRow
+            label="Session Status"
+            value={status.sessionStatus}
+          />
+          {status.lastConfigCheck && (
+            <InfoRow
+              label="Last Config Check"
+              value={new Date(status.lastConfigCheck).toLocaleString()}
+            />
+          )}
+          {status.stampExists && status.stampValue && (
+            <InfoRow
+              label="Stamp Age"
+              value={formatStampAge(status.stampValue)}
+              mono
+            />
+          )}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {loading ? 'Loading...' : 'Unable to fetch config status'}
+        </p>
+      )}
+
+      <div className="mt-3 flex items-center gap-2">
+        <button
+          onClick={handleForceSync}
+          disabled={syncing || currentSession.status !== 'active'}
+          className="flex items-center gap-2 rounded-md border border-cyan-500/20 bg-cyan-500/5 px-3 py-1.5 text-xs font-medium text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {syncing ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3.5 w-3.5" />
+          )}
+          Force Re-sync
+        </button>
+      </div>
+
+      {syncResult && (
+        <p className={`mt-2 text-[10px] ${
+          syncResult.includes('successfully')
+            ? 'text-green-400'
+            : 'text-red-400'
+        }`}>
+          {syncResult}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatStampAge(stampValue: string): string {
+  const parts = stampValue.split(':');
+  const ts = parseInt(parts[parts.length - 1], 10);
+  if (isNaN(ts)) return 'unknown';
+  const ageMs = Date.now() - ts;
+  if (ageMs < 60_000) return `${Math.round(ageMs / 1000)}s ago`;
+  if (ageMs < 3_600_000) return `${Math.round(ageMs / 60_000)}m ago`;
+  return `${Math.round(ageMs / 3_600_000)}h ago`;
 }
 
 function InfoRow({

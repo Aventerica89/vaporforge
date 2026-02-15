@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, Message, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { assembleSandboxConfig } from '../config-assembly';
 
 type Variables = {
   user: User;
@@ -54,8 +55,12 @@ sdkRoutes.post('/stream', async (c) => {
 
   const { sessionId, prompt, cwd: requestCwd, mode } = parsed.data;
 
+  // Assemble config from KV so we can re-inject on container wake
+  const sandboxConfig = await assembleSandboxConfig(c.env.SESSIONS_KV, user.id);
+
   // Verify session ownership + ensure sandbox is awake and healthy
-  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  // Pass config so ensureConfigInjected can restore files after recycle
+  const session = await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
 
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
@@ -159,6 +164,15 @@ sdkRoutes.post('/stream', async (c) => {
 
       // Send initial event so frontend knows the stream is connected
       await writeEvent({ type: 'connected' });
+
+      // Notify frontend if config was restored after container recycle
+      const meta = (session.metadata ?? {}) as Record<string, unknown>;
+      if (meta.configRestoredAt) {
+        await writeEvent({
+          type: 'config-restored',
+          restoredAt: meta.configRestoredAt,
+        });
+      }
 
       // Heartbeat keeps the SSE connection alive through Cloudflare edge
       // and network intermediaries that close idle connections (~100s)
@@ -365,6 +379,19 @@ sdkRoutes.post('/stream', async (c) => {
             JSON.stringify(assistantMessage),
             { expirationTtl: 7 * 24 * 60 * 60 }
           );
+        }
+
+        // Sync config from container back to KV (non-blocking best-effort).
+        // Catches in-container CLAUDE.md edits so they persist across recycles.
+        try {
+          await sandboxManager.syncConfigFromContainer(
+            sessionId,
+            user.id,
+            c.env.SESSIONS_KV
+          );
+        } catch (syncErr) {
+          const msg = syncErr instanceof Error ? syncErr.message : String(syncErr);
+          console.error(`[sdk/stream] config sync-back failed: ${msg}`);
         }
       } catch (error) {
         const errMsg = error instanceof Error ? error.message : 'Stream error';

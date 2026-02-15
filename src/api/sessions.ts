@@ -7,6 +7,7 @@ import { collectPluginConfigs } from './plugins';
 import { collectUserConfigs } from './config';
 import { getVfRules } from './user';
 import { collectGeminiMcpConfig } from './ai-providers';
+import { assembleSandboxConfig } from '../config-assembly';
 
 type Variables = {
   user: User;
@@ -171,13 +172,14 @@ sessionRoutes.get('/list', async (c) => {
   });
 });
 
-// Get session details
+// Get session details — re-injects config after container recycle
 sessionRoutes.get('/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
 
-  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  const sandboxConfig = await assembleSandboxConfig(c.env.SESSIONS_KV, user.id);
+  const session = await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
 
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
@@ -192,13 +194,15 @@ sessionRoutes.get('/:sessionId', async (c) => {
   });
 });
 
-// Resume session (wake if sleeping)
+// Resume session (wake if sleeping) — re-injects config after container recycle
 sessionRoutes.post('/:sessionId/resume', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
 
-  const session = await sandboxManager.getOrWakeSandbox(sessionId);
+  // Assemble config so it can be re-injected if container recycled
+  const sandboxConfig = await assembleSandboxConfig(c.env.SESSIONS_KV, user.id);
+  const session = await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
 
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
@@ -847,4 +851,101 @@ sessionRoutes.patch('/:sessionId', async (c) => {
     success: true,
     data: session,
   });
+});
+
+// Get config sync status for a session
+sessionRoutes.get('/:sessionId/config-status', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  // Check if sentinel stamp exists in container
+  let stampExists = false;
+  let stampValue = '';
+  if (session.status === 'active') {
+    const stamp = await sandboxManager.readFile(
+      sessionId,
+      '/root/.claude/.vf-config-stamp'
+    );
+    if (stamp) {
+      stampExists = true;
+      stampValue = stamp;
+    }
+  }
+
+  const meta = (session.metadata ?? {}) as Record<string, unknown>;
+
+  return c.json<ApiResponse<{
+    stampExists: boolean;
+    stampValue: string;
+    lastConfigCheck: string | null;
+    sessionStatus: string;
+  }>>({
+    success: true,
+    data: {
+      stampExists,
+      stampValue,
+      lastConfigCheck: (meta.lastConfigCheck as string) || null,
+      sessionStatus: session.status,
+    },
+  });
+});
+
+// Force re-sync config into a session's container
+sessionRoutes.post('/:sessionId/sync-config', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(
+    `session:${sessionId}`,
+    'json'
+  );
+
+  if (!session || session.userId !== user.id) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session not found',
+    }, 404);
+  }
+
+  if (session.status !== 'active') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Session must be active to sync config',
+    }, 400);
+  }
+
+  const sandboxConfig = await assembleSandboxConfig(c.env.SESSIONS_KV, user.id);
+
+  // Force injection (bypasses sentinel check)
+  try {
+    // Access private method via the class — we re-call getOrWakeSandbox
+    // which will check the sentinel. For forced sync, we delete the stamp first.
+    await sandboxManager.writeFile(sessionId, '/root/.claude/.vf-config-stamp', '');
+    await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
+
+    return c.json<ApiResponse<{ synced: boolean }>>({
+      success: true,
+      data: { synced: true },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: `Config sync failed: ${msg}`,
+    }, 500);
+  }
 });

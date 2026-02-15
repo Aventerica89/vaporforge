@@ -187,6 +187,19 @@ export const sessionsApi = {
       body: JSON.stringify({ repo, branch }),
     }),
 
+  configStatus: (sessionId: string) =>
+    request<{
+      stampExists: boolean;
+      stampValue: string;
+      lastConfigCheck: string | null;
+      sessionStatus: string;
+    }>(`/sessions/${sessionId}/config-status`),
+
+  syncConfig: (sessionId: string) =>
+    request<{ synced: boolean }>(`/sessions/${sessionId}/sync-config`, {
+      method: 'POST',
+    }),
+
   execStream: async function* (
     sessionId: string,
     command: string,
@@ -318,6 +331,7 @@ export const sdkApi = {
     name?: string;
     input?: Record<string, unknown>;
     output?: string;
+    restoredAt?: string;
   }> {
     const token = localStorage.getItem('session_token');
 

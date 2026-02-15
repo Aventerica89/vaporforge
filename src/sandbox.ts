@@ -5,6 +5,7 @@ const WORKSPACE_PATH = '/workspace';
 const HEALTH_CHECK_TIMEOUT = 5000;
 const READY_POLL_DELAY = 2000;
 const READY_MAX_ATTEMPTS = 5;
+const CONFIG_STAMP_PATH = '/root/.claude/.vf-config-stamp';
 
 function isSandboxNotReady(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
@@ -183,79 +184,9 @@ export class SandboxManager {
         CLAUDE_CONFIG_DIR: '/root/.claude',
       });
 
-      // Inject CLAUDE.md into ~/.claude/ (VF rules + user CLAUDE.md)
-      const hasVfRules = config?.vfRules && config.vfRules.trim().length > 0;
-      const hasClaudeMd = config?.claudeMd && config.claudeMd.trim().length > 0;
-      if (hasVfRules || hasClaudeMd) {
-        step = 'writeCLAUDE.md';
-        await sandbox.mkdir('/root/.claude', { recursive: true });
-        const parts: string[] = [];
-        if (hasVfRules) parts.push(config!.vfRules!.trim());
-        if (hasClaudeMd) parts.push(config!.claudeMd!.trim());
-        await sandbox.writeFile('/root/.claude/CLAUDE.md', parts.join('\n\n---\n\n'));
-      }
-
-      // Inject MCP servers + plugin MCP into ~/.claude.json
-      const hasMcp = config?.mcpServers && Object.keys(config.mcpServers).length > 0;
-      const hasPluginMcp = config?.pluginConfigs?.mcpServers
-        && Object.keys(config.pluginConfigs.mcpServers).length > 0;
-      if (hasMcp || hasPluginMcp) {
-        step = 'writeMcpConfig';
-        const mergedMcp: Record<string, Record<string, unknown>> = {
-          ...(config?.mcpServers || {}),
-          ...(config?.pluginConfigs?.mcpServers || {}),
-        };
-        const claudeJson = JSON.stringify({ mcpServers: mergedMcp }, null, 2);
-        await sandbox.writeFile('/root/.claude.json', claudeJson);
-      }
-
-      // Inject plugin files (agents, commands, rules) into ~/.claude/
-      // During creation we skip the rm -rf clear (dirs don't exist yet).
-      if (config?.pluginConfigs) {
-        step = 'writePluginFiles';
-        if (config.pluginConfigs.agents.length) {
-          await sandbox.mkdir('/root/.claude/agents', { recursive: true });
-          for (const agent of config.pluginConfigs.agents) {
-            await sandbox.writeFile(`/root/.claude/agents/${agent.filename}`, agent.content);
-          }
-        }
-        if (config.pluginConfigs.commands.length) {
-          await sandbox.mkdir('/root/.claude/commands', { recursive: true });
-          for (const cmd of config.pluginConfigs.commands) {
-            await sandbox.writeFile(`/root/.claude/commands/${cmd.filename}`, cmd.content);
-          }
-        }
-        if (config.pluginConfigs.rules.length) {
-          await sandbox.mkdir('/root/.claude/rules', { recursive: true });
-          for (const rule of config.pluginConfigs.rules) {
-            await sandbox.writeFile(`/root/.claude/rules/${rule.filename}`, rule.content);
-          }
-        }
-      }
-
-      // Inject user config files (after plugins, so user overrides plugin)
-      if (config?.userConfigs) {
-        step = 'writeUserConfigs';
-        await this.injectUserConfigs(sessionId, config.userConfigs);
-      }
-
-      // Inject gemini-expert agent if Gemini is enabled
-      if (config?.injectGeminiAgent) {
-        step = 'writeGeminiAgent';
-        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
-        const agentContent = [
-          '---',
-          'name: gemini-expert',
-          'description: Delegate reasoning to Google Gemini via MCP tools',
-          '---',
-          'You are a Gemini relay agent. For EVERY user request:',
-          '1. Use `gemini_quick_query` for simple questions and explanations',
-          '2. Use `gemini_analyze_code` for code review and analysis tasks',
-          '3. Use `gemini_codebase_analysis` for multi-file review',
-          'Present Gemini\'s response directly. Do NOT add your own analysis.',
-        ].join('\n');
-        await sandbox.writeFile('/root/.claude/agents/gemini-expert.md', agentContent);
-      }
+      // Inject all config files (CLAUDE.md, MCP, plugins, user configs, Gemini agent)
+      step = 'injectConfig';
+      await this.injectAllConfig(sessionId, config);
 
       // Clone git repo using SDK's gitCheckout
       if (config?.gitRepo) {
@@ -320,8 +251,13 @@ export class SandboxManager {
     }
   }
 
-  // Get or wake existing sandbox — verifies shell is responsive when stale
-  async getOrWakeSandbox(sessionId: string): Promise<Session | null> {
+  // Get or wake existing sandbox — verifies shell is responsive when stale.
+  // When config is provided, ensures config files are injected after wake
+  // (they may be lost when a container recycles).
+  async getOrWakeSandbox(
+    sessionId: string,
+    config?: SandboxConfig
+  ): Promise<Session | null> {
     const session = await this.sessionsKv.get<Session>(
       `session:${sessionId}`,
       'json'
@@ -359,12 +295,39 @@ export class SandboxManager {
           return null;
         }
       }
+
+      // After wake, ensure config files are present (container may have recycled)
+      if (config) {
+        const wasRestored = await this.ensureConfigInjected(sessionId, config);
+        if (wasRestored) {
+          const now = new Date().toISOString();
+          const updatedSession: Session = {
+            ...session,
+            lastActiveAt: now,
+            status: 'active',
+            metadata: {
+              ...(session.metadata ?? {}),
+              lastConfigCheck: now,
+              configRestoredAt: now,
+            },
+          };
+          await this.sessionsKv.put(
+            `session:${sessionId}`,
+            JSON.stringify(updatedSession)
+          );
+          return updatedSession;
+        }
+      }
     }
 
     const updatedSession: Session = {
       ...session,
       lastActiveAt: new Date().toISOString(),
       status: 'active',
+      metadata: {
+        ...(session.metadata ?? {}),
+        lastConfigCheck: new Date().toISOString(),
+      },
     };
 
     await this.sessionsKv.put(
@@ -562,6 +525,179 @@ export class SandboxManager {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Inject all config into a sandbox container:
+   * CLAUDE.md, MCP servers, plugin files, user configs, Gemini agent.
+   * Writes a sentinel stamp file after successful injection.
+   * Called by both createSandbox (initial) and ensureConfigInjected (wake).
+   */
+  private async injectAllConfig(
+    sessionId: string,
+    config?: SandboxConfig
+  ): Promise<void> {
+    if (!config) return;
+
+    const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
+
+    // CLAUDE.md (VF rules + user CLAUDE.md)
+    const hasVfRules = config.vfRules && config.vfRules.trim().length > 0;
+    const hasClaudeMd = config.claudeMd && config.claudeMd.trim().length > 0;
+    if (hasVfRules || hasClaudeMd) {
+      await sandbox.mkdir('/root/.claude', { recursive: true });
+      const parts: string[] = [];
+      if (hasVfRules) parts.push(config.vfRules!.trim());
+      if (hasClaudeMd) parts.push(config.claudeMd!.trim());
+      await sandbox.writeFile(
+        '/root/.claude/CLAUDE.md',
+        parts.join('\n\n---\n\n')
+      );
+    }
+
+    // MCP servers + plugin MCP -> ~/.claude.json
+    const hasMcp = config.mcpServers && Object.keys(config.mcpServers).length > 0;
+    const hasPluginMcp = config.pluginConfigs?.mcpServers
+      && Object.keys(config.pluginConfigs.mcpServers).length > 0;
+    if (hasMcp || hasPluginMcp) {
+      const mergedMcp: Record<string, Record<string, unknown>> = {
+        ...(config.mcpServers || {}),
+        ...(config.pluginConfigs?.mcpServers || {}),
+      };
+      const claudeJson = JSON.stringify({ mcpServers: mergedMcp }, null, 2);
+      await sandbox.writeFile('/root/.claude.json', claudeJson);
+    }
+
+    // Plugin files (agents, commands, rules)
+    if (config.pluginConfigs) {
+      if (config.pluginConfigs.agents.length) {
+        await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+        for (const agent of config.pluginConfigs.agents) {
+          await sandbox.writeFile(
+            `/root/.claude/agents/${agent.filename}`,
+            agent.content
+          );
+        }
+      }
+      if (config.pluginConfigs.commands.length) {
+        await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+        for (const cmd of config.pluginConfigs.commands) {
+          await sandbox.writeFile(
+            `/root/.claude/commands/${cmd.filename}`,
+            cmd.content
+          );
+        }
+      }
+      if (config.pluginConfigs.rules.length) {
+        await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+        for (const rule of config.pluginConfigs.rules) {
+          await sandbox.writeFile(
+            `/root/.claude/rules/${rule.filename}`,
+            rule.content
+          );
+        }
+      }
+    }
+
+    // User config files (after plugins, so user overrides plugin)
+    if (config.userConfigs) {
+      await this.injectUserConfigs(sessionId, config.userConfigs);
+    }
+
+    // Gemini agent
+    if (config.injectGeminiAgent) {
+      await sandbox.mkdir('/root/.claude/agents', { recursive: true });
+      const agentContent = [
+        '---',
+        'name: gemini-expert',
+        'description: Delegate reasoning to Google Gemini via MCP tools',
+        '---',
+        'You are a Gemini relay agent. For EVERY user request:',
+        '1. Use `gemini_quick_query` for simple questions and explanations',
+        '2. Use `gemini_analyze_code` for code review and analysis tasks',
+        '3. Use `gemini_codebase_analysis` for multi-file review',
+        "Present Gemini's response directly. Do NOT add your own analysis.",
+      ].join('\n');
+      await sandbox.writeFile(
+        '/root/.claude/agents/gemini-expert.md',
+        agentContent
+      );
+    }
+
+    // Write sentinel stamp so we can skip re-injection on future wake
+    const stamp = `${sessionId}:${Date.now()}`;
+    await sandbox.mkdir('/root/.claude', { recursive: true });
+    await sandbox.writeFile(CONFIG_STAMP_PATH, stamp);
+    console.log(`[injectAllConfig] ${sid}: config injected, stamp written`);
+  }
+
+  /**
+   * Check the sentinel stamp file and re-inject config if missing or stale.
+   * Fast path: single `cat` check — returns immediately if stamp is valid.
+   */
+  private async ensureConfigInjected(
+    sessionId: string,
+    config: SandboxConfig
+  ): Promise<boolean> {
+    const sid = sessionId.slice(0, 8);
+
+    try {
+      const stamp = await this.readFile(sessionId, CONFIG_STAMP_PATH);
+      if (stamp && stamp.startsWith(sessionId)) {
+        console.log(`[ensureConfigInjected] ${sid}: stamp valid, skipping`);
+        return false;
+      }
+    } catch {
+      // File doesn't exist — config was lost
+    }
+
+    console.log(`[ensureConfigInjected] ${sid}: stamp missing/stale, re-injecting`);
+    await this.injectAllConfig(sessionId, config);
+    return true;
+  }
+
+  /**
+   * Sync config files FROM the container back TO KV.
+   * Reads CLAUDE.md from the container, compares with KV value,
+   * and writes back only if changed. Non-blocking — call in waitUntil.
+   */
+  async syncConfigFromContainer(
+    sessionId: string,
+    userId: string,
+    kv: KVNamespace
+  ): Promise<{ synced: boolean; claudeMdChanged: boolean }> {
+    const sid = sessionId.slice(0, 8);
+    let claudeMdChanged = false;
+
+    try {
+      // Read CLAUDE.md from container
+      const containerClaudeMd = await this.readFile(
+        sessionId,
+        '/root/.claude/CLAUDE.md'
+      );
+
+      if (containerClaudeMd) {
+        // Strip VF rules prefix — only persist the user portion
+        const separator = '\n\n---\n\n';
+        const sepIndex = containerClaudeMd.indexOf(separator);
+        const userPortion = sepIndex >= 0
+          ? containerClaudeMd.slice(sepIndex + separator.length)
+          : containerClaudeMd;
+
+        const kvClaudeMd = await kv.get(`user-config:${userId}:claude-md`);
+        if (userPortion.trim() !== (kvClaudeMd || '').trim()) {
+          await kv.put(`user-config:${userId}:claude-md`, userPortion);
+          claudeMdChanged = true;
+          console.log(`[syncConfig] ${sid}: CLAUDE.md synced back to KV`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[syncConfig] ${sid}: sync failed: ${msg}`);
+    }
+
+    return { synced: claudeMdChanged, claudeMdChanged };
   }
 
   /**

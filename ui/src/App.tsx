@@ -5,6 +5,7 @@ import { McpRelayProvider } from './components/McpRelayProvider';
 import { UpdateToast } from './components/UpdateToast';
 import { ToastContainer } from './components/ToastContainer';
 import { useAuthStore } from './hooks/useAuth';
+import { toast } from './hooks/useToast';
 
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
@@ -12,6 +13,15 @@ export default function App() {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Listen for config restoration after container recycle
+  useEffect(() => {
+    const handler = () => {
+      toast.info('Config restored after container recycle', 4000);
+    };
+    window.addEventListener('vf:config-restored', handler);
+    return () => window.removeEventListener('vf:config-restored', handler);
+  }, []);
 
   if (isLoading) {
     return (
