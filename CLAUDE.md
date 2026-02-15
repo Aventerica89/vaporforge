@@ -4,46 +4,131 @@
 
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
-**Live URL**: https://vaporforge.dev
+- **Live**: https://vaporforge.dev (app at /app/, landing at /)
+- **Version**: 0.12.0
+- **Repo**: Aventerica89/vaporforge
 
-## MANDATORY RULE
+## MANDATORY RULES
 
-**NEVER use Anthropic API keys for authentication.**
+1. **NEVER use Anthropic API keys for authentication.** Auth uses setup-token flow (OAuth tokens `sk-ant-oat01-*`), not API keys.
+2. **OAuth tokens do NOT work for direct API calls.** QuickChat, Code Transform, and Analyze features require explicit API keys (`sk-ant-api01-*`) stored in user secrets. Only sandbox sessions use OAuth tokens (passed to Claude SDK inside the container).
+3. **NEVER run `build:ui` alone.** Always use `npm run build` (runs build:info + build:landing + build:ui + build:merge). Running only build:ui leaves stale code in `dist/`.
 
-This project uses a setup-token flow: users run `claude setup-token` locally and paste the resulting token into VaporForge. The backend validates it against Anthropic's OAuth endpoint, then issues a session JWT. Each user's Claude token is stored per-user in KV.
+## Architecture
+
+```
+Browser -> Worker (Hono, auth, orchestration) -> Sandbox Container (Claude SDK) -> Anthropic API
+                                               -> AI SDK (direct API calls for QuickChat/Transform/Analyze)
+```
+
+### Monorepo Structure
+
+| Directory | Purpose |
+|-----------|---------|
+| `src/` | Cloudflare Worker backend (Hono routes, auth, services) |
+| `ui/` | React 18 + Vite + Tailwind v3.4 frontend SPA |
+| `landing/` | Astro marketing site (merged into dist/ at build) |
+| `scripts/` | Build-time generators (build-info, plugin catalog, merge-dist) |
+| `Dockerfile` | Sandbox container image (Claude SDK + MCP servers) |
+
+### Key Bindings
+
+| Binding | Type | Purpose |
+|---------|------|---------|
+| `SESSIONS` | Durable Object | Session persistence (SQLite-backed) |
+| `SANDBOX_CONTAINER` | Container | Claude SDK runtime (standard-2: 1 vCPU, 6 GiB) |
+| `AUTH_KV` | KV | User records, plugin config, AI provider settings |
+| `SESSIONS_KV` | KV | Chat history, secrets, VF rules, issue tracker |
+| `FILES_BUCKET` | R2 | VaporFiles persistent storage |
 
 ## Auth Flow
 
-1. User opens VaporForge, sees login page
-2. User runs `claude setup-token` in their terminal
-3. Pastes the token into the login form
-4. Backend validates token via `POST https://api.anthropic.com/v1/oauth/token`
-5. On success: creates user record in KV, issues session JWT
-6. Token stored per-user in KV, session JWT in browser localStorage
-7. Subsequent requests use session JWT; Claude token refreshed server-side
-
-## Tech Stack
-
-- **Backend**: Cloudflare Workers + Sandboxes
-- **Frontend**: React + Vite + Tailwind
-- **Auth**: Setup-token flow (Claude Pro/Max subscription)
-- **Storage**: Cloudflare KV + R2
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/auth.ts` | Auth service (setup-token validation, JWT, refresh) |
-| `src/router.ts` | API routes (POST /api/auth/setup) |
-| `src/types.ts` | TypeScript types |
-| `ui/src/hooks/useAuth.ts` | Auth state management |
-| `ui/src/components/AuthGuard.tsx` | Login UI |
-| `ui/src/lib/api.ts` | API client |
+1. User runs `claude setup-token` locally, pastes token into login form
+2. Backend validates via `POST https://api.anthropic.com/v1/oauth/token`
+3. On success: creates user record in KV, issues session JWT
+4. Token stored per-user in KV, session JWT in browser localStorage
+5. Subsequent requests use JWT; Claude token refreshed server-side
 
 ## Development
 
 ```bash
-npm run dev      # Start worker
-npm run dev:ui   # Start UI (separate terminal)
-npm run deploy   # Deploy to Cloudflare
+npm run dev          # Start Worker (wrangler dev)
+npm run dev:ui       # Start UI dev server (separate terminal)
+npm run dev:landing  # Start landing page dev server
+npm run build        # Full build: info + landing + UI + merge
+npm run deploy       # Build + deploy to Cloudflare
+npm run typecheck    # TypeScript check
+npm run test         # Vitest tests
 ```
+
+## Key Files
+
+### Backend (src/)
+
+| File | Purpose |
+|------|---------|
+| `src/router.ts` | All API route registration + health endpoint |
+| `src/auth.ts` | Setup-token validation, JWT, token refresh |
+| `src/sandbox.ts` | Container lifecycle, file/agent injection, SDK exec |
+| `src/container.ts` | Sandbox DO class, WebSocket proxy |
+| `src/types.ts` | Shared TypeScript types |
+| `src/services/ai-provider-factory.ts` | Multi-provider model creation (Claude + Gemini) |
+| `src/services/ai-schemas.ts` | Zod schemas for structured AI output |
+| `src/api/quickchat.ts` | SSE streaming chat (AI SDK streamText) |
+| `src/api/transform.ts` | Code transform streaming |
+| `src/api/analyze.ts` | Structured code analysis (streamText + Output.object) |
+| `src/api/commit-msg.ts` | Smart commit message generation |
+| `src/api/sdk.ts` | Claude SDK stream endpoint (main chat) |
+| `src/api/sessions.ts` | Session CRUD, sandbox create/resume |
+| `src/api/plugins.ts` | Plugin discovery from GitHub repos |
+| `src/api/vaporfiles.ts` | R2 file management |
+| `src/api/secrets.ts` | Per-user secret management |
+
+### Frontend (ui/src/)
+
+| File | Purpose |
+|------|---------|
+| `components/Layout.tsx` | Desktop layout (3-panel: sidebar, chat, editor) |
+| `components/MobileLayout.tsx` | Mobile layout (viewportHeight-driven) |
+| `components/ChatPanel.tsx` | Main chat UI |
+| `components/QuickChatPanel.tsx` | Quick AI chat slide-out (Cmd+Shift+Q) |
+| `components/CodeTransformPanel.tsx` | Code transform with diff view (Cmd+Shift+T) |
+| `components/CodeAnalysisPanel.tsx` | Structured analysis overlay (Cmd+Shift+A) |
+| `components/SessionTabBar.tsx` | Horizontal session tabs |
+| `components/Editor.tsx` | Monaco editor |
+| `components/XTerminal.tsx` | xterm.js terminal |
+| `hooks/useAuth.ts` | Auth state (Zustand) |
+| `hooks/useQuickChat.ts` | Quick chat state + SSE streaming |
+| `hooks/useSandbox.ts` | Sandbox session state |
+| `lib/api.ts` | API client with JWT auth |
+| `lib/version.ts` | Version + production changelog |
+
+## Critical Gotchas
+
+### SDK / Container
+
+- **`IS_SANDBOX: '1'` env var REQUIRED** in container or CLI exits code 1
+- **`options.env` REPLACES, not merges** — always spread `...process.env` first
+- **`options.agents` REQUIRED for agent injection** — `settingSources` does NOT auto-discover agents from disk. Must parse .md files and pass as Record to `query()`.
+- **Dockerfile `COPY` fails on CF** — use heredoc `RUN cat > file << 'EOF'` instead
+- **Docker cache trap** — run `docker builder prune --all -f` before deploy if Dockerfile changed
+- **AI SDK v6 stream events** — `text-delta` has `.text` property (not `.textDelta`). Same for `reasoning-delta`.
+
+### Build
+
+- **Build pipeline**: `build:info` (git hash) -> `build:landing` (Astro) -> `build:ui` (Vite) -> `build:merge` (combine into dist/)
+- **Wrangler deploys from `dist/`** — never from `ui/dist/` directly
+- **`npx wrangler deploy`** preferred over `wrangler deploy` (avoids hangs)
+
+### Mobile (iOS)
+
+- Root CSS: `html, body { position: fixed; width: 100%; height: 100% }`
+- Always use `visualViewport.height` (not `dvh` or `100%`) for mobile sizing
+- No `scrollIntoView()` — causes iOS keyboard push-up
+- `window.scrollTo(0,0)` on every viewport resize as safety net
+
+### Files / Upload
+
+- `sandbox.writeFile()` crashes on large payloads (>~500KB) — use 8KB chunked exec
+- Use `base64 -d` pipe for binary decode, never `node -e` (shell escaping breaks)
+- R2 `list()` needs explicit `include: ['customMetadata']` with compat_date >= 2022-08-04
