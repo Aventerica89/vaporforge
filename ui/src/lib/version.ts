@@ -13,65 +13,6 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
-    version: '0.12.0',
-    date: '2026-02-14',
-    tag: 'fix',
-    title: 'AI SDK v6 Migration — QuickChat Fixed',
-    items: [
-      'Fixed QuickChat/Transform/Analyze empty responses: AI SDK v6 renamed stream property from textDelta to text',
-      'OAuth tokens no longer used for direct API features — requires explicit API key (sk-ant-api01-*)',
-      'Claude tab shows "n/a" when no API key configured; Gemini auto-selected as fallback',
-      'Migrated deprecated generateObject/streamObject to generateText/streamText + Output.object() (AI SDK v6)',
-      'Removed extended thinking from direct API calls (incompatible with OAuth)',
-    ],
-  },
-  {
-    version: '0.11.4',
-    date: '2026-02-14',
-    tag: 'fix',
-    title: 'VaporFiles Listing Fix — R2 Metadata Include',
-    items: [
-      'Fixed VaporFiles always showing empty: R2 list() needs explicit include for customMetadata with compat_date >= 2022-08-04',
-      'Added R2 list pagination: handles >1000 objects in bucket via cursor-based iteration',
-      'Fixed missing key field in upload metadata response',
-    ],
-  },
-  {
-    version: '0.11.3',
-    date: '2026-02-14',
-    tag: 'fix',
-    title: 'DevChangelog Missing from Desktop + QuickChat in All Views',
-    items: [
-      'Fixed DevChangelog overlay not rendering in desktop main layout — was only in marketplace/settings/mobile branches',
-      'Added QuickChatPanel to marketplace, settings, and mobile layout branches so Quick Chat works everywhere',
-    ],
-  },
-  {
-    version: '0.11.2',
-    date: '2026-02-14',
-    tag: 'fix',
-    title: 'Quick Chat Fix + DevChangelog Overlap Fix',
-    items: [
-      'Fixed Quick Chat with Claude Sonnet: maxTokens (4096) conflicted with thinking budgetTokens — increased to 16384',
-      'Fixed DevChangelog overlay opening simultaneously with Marketplace — now mutually exclusive',
-      'Dev Changelog button now toggles (click again to close) instead of only opening',
-      'Added keyboard shortcut hint to Dev Changelog button tooltip (Cmd+Shift+L)',
-    ],
-  },
-  {
-    version: '0.11.1',
-    date: '2026-02-14',
-    tag: 'fix',
-    title: 'Quick Chat Streaming Fix + Issue Tracker Full-Page',
-    items: [
-      'Fixed Quick Chat streaming: AI SDK v6 changed reasoning events from "reasoning" to "reasoning-delta"',
-      'Fixed Gemini returning "undefined": added null guards on stream delta values',
-      'Added maxTokens to Quick Chat (4096) and Code Transform (8192) to prevent provider errors',
-      'Issue Tracker now opens as full-page overlay instead of small centered modal',
-      'Improved error handling in streaming endpoints with graceful writer close',
-    ],
-  },
-  {
     version: '0.11.0',
     date: '2026-02-13',
     tag: 'feature',
