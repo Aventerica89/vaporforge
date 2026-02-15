@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.15.1';
+export const APP_VERSION = '0.16.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,26 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.16.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Chat Visual Overhaul + DevTools',
+    items: [
+      'LaTeX math rendering: inline ($E=mc^2$) and block ($$) via KaTeX',
+      'Streaming markdown hardening: unclosed code fences, bold, italic, and tables render correctly mid-stream',
+      'Message avatars: Bot/User icons with streaming pulse animation on assistant avatar',
+      'Relative timestamps on messages ("2m ago") with 30s auto-refresh',
+      'Left border accent on assistant messages for visual hierarchy',
+      'Stop streaming button: abort mid-stream and keep partial response',
+      'Thumbs up/down feedback on messages (persisted to localStorage)',
+      'Task Plan view: agent workflows with 3+ tool calls show a grouped phase timeline (Exploring, Implementing, Testing, Committing)',
+      'DevTools Stream tab: real-time event log with type filter',
+      'DevTools Tokens tab: per-message token estimates with input/output breakdown',
+      'DevTools Latency tab: TTFT, stream duration, and tokens/sec gradient meters',
+      'Code block shimmer skeleton during streaming (replaces blank block)',
+    ],
+  },
   {
     version: '0.15.1',
     date: '2026-02-15',
