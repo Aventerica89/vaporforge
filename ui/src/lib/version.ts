@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.13.0';
+export const APP_VERSION = '0.13.1';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.13.1',
+    date: '2026-02-14',
+    tag: 'feature',
+    title: 'Live Plugin Catalog + Custom Sources',
+    items: [
+      'Add Plugin from URL: paste any GitHub repo URL to discover and install plugins directly',
+      'Custom Source Repos: add your own GitHub repos as browsable plugin sources (max 10)',
+      'Dynamic source filters: sidebar shows custom sources with live plugin counts and remove buttons',
+      'Custom source badge (green) on marketplace cards for user-added plugins',
+      'Refresh Installed: re-fetch latest content from GitHub for all git-sourced plugins',
+      'Right-side controls: close/exit buttons moved to right side of all headers for consistency',
+    ],
+  },
   {
     version: '0.13.0',
     date: '2026-02-15',

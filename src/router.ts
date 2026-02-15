@@ -76,7 +76,7 @@ export function createRouter(env: Env) {
   );
 
   // Version header — allows clients to detect deploys
-  const VF_VERSION = '0.12.0';
+  const VF_VERSION = '0.13.1';
   app.use('*', async (c, next) => {
     await next();
     c.header('X-VF-Version', VF_VERSION);
