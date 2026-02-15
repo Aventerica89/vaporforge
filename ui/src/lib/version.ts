@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.14.2';
+export const APP_VERSION = '0.15.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.15.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Tool-Calling Agent for Quick Chat',
+    items: [
+      'Quick Chat now acts as a mini-agent when a sandbox session is active',
+      'AI can read files, list directories, search code, and run commands in your sandbox',
+      'Run Command requires explicit approval before execution (human-in-the-loop)',
+      'Tool invocations displayed as collapsible cards with state badges (running, done, error, denied)',
+      'Agent mode indicator in Quick Chat header when sandbox tools are available',
+      'Multi-step tool chains: AI can call up to 10 tools per message to complete complex tasks',
+    ],
+  },
   {
     version: '0.14.2',
     date: '2026-02-14',
