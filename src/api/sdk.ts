@@ -541,25 +541,35 @@ export async function handleSdkWs(
   const sdkSessionId = session.sdkSessionId || '';
   const mcpConfigRaw = await env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
 
-  // Start WS server in container
-  await sandboxManager.startWsServer(session.sandboxId);
+  try {
+    // Start WS server in container
+    console.log(`[sdk/ws] starting WS server in sandbox ${session.sandboxId?.slice(0, 8)}`);
+    await sandboxManager.startWsServer(session.sandboxId!);
+    console.log(`[sdk/ws] WS server started`);
 
-  // Write context file for the WS server to read
-  await sandboxManager.writeContextFile(session.sandboxId, {
-    prompt: sdkPrompt,
-    sessionId: sdkSessionId,
-    cwd,
-    env: {
-      CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
-      NODE_PATH: '/usr/local/lib/node_modules',
-      CLAUDE_CONFIG_DIR: '/root/.claude',
-      ...collectProjectSecrets(env),
-      ...await collectUserSecrets(env.SESSIONS_KV, user.id),
-      ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
-      VF_SESSION_MODE: mode,
-    },
-  });
+    // Write context file for the WS server to read
+    console.log(`[sdk/ws] writing context file`);
+    await sandboxManager.writeContextFile(session.sandboxId!, {
+      prompt: sdkPrompt,
+      sessionId: sdkSessionId,
+      cwd,
+      env: {
+        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+        NODE_PATH: '/usr/local/lib/node_modules',
+        CLAUDE_CONFIG_DIR: '/root/.claude',
+        ...collectProjectSecrets(env),
+        ...await collectUserSecrets(env.SESSIONS_KV, user.id),
+        ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
+        VF_SESSION_MODE: mode,
+      },
+    });
+    console.log(`[sdk/ws] context file written, proxying WS to sandbox`);
 
-  // Proxy the WebSocket connection to the container
-  return sandboxManager.wsConnectToSandbox(session.sandboxId, request);
+    // Proxy the WebSocket connection to the container
+    return sandboxManager.wsConnectToSandbox(session.sandboxId!, request);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[sdk/ws] FAILED: ${msg}`);
+    return new Response(`WebSocket setup failed: ${msg}`, { status: 500 });
+  }
 }

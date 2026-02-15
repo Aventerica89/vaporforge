@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.18.0';
+export const APP_VERSION = '0.20.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,34 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.20.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'WebSocket Streaming — Real-Time Chat',
+    items: [
+      'Main chat now streams text in real-time via WebSocket (was buffered 60s+ with SSE)',
+      'WebSocket agent server in container: spawns claude-agent.js, pipes stdout as WS frames',
+      'Worker proxies WS connection directly to sandbox port 8765 via sandbox.wsConnect()',
+      'Context file pattern: Worker writes secrets to /tmp, container reads and deletes',
+      'POST /persist endpoint: browser saves full response text after stream completes',
+      'Bypasses Cloudflare Sandbox execStream() SSE/RPC buffering — the root cause of no streaming',
+    ],
+  },
+  {
+    version: '0.19.0',
+    date: '2026-02-15',
+    tag: 'fix',
+    title: 'Fix Streaming + Visual Polish',
+    items: [
+      'Fixed main chat streaming: text now appears progressively instead of all at once after 60s',
+      'Root cause: Node.js block-buffered stdout in piped containers — replaced with unbuffered fs.writeSync',
+      'Smooth text rendering: typewriter buffer drips characters at controlled rate during streaming',
+      'Adaptive speed: catches up faster when text arrives in bursts (>200 chars behind)',
+      'Dockerfile script synced: plan mode, tool dedup, composite IDs, session retry now in container',
+      'Prompt input polish: muted background, hover state, stronger focus glow, backdrop blur',
+    ],
+  },
   {
     version: '0.18.0',
     date: '2026-02-15',
