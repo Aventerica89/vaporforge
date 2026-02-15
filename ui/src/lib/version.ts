@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.12.0';
+export const APP_VERSION = '0.13.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.13.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Config Persistence — Never Lose Data Again',
+    items: [
+      'Auto-restore CLAUDE.md, plugins, MCP servers, and user configs after container recycle',
+      'Sentinel stamp file detects missing config without expensive re-reads',
+      'Sync-back: in-container CLAUDE.md edits persist to KV after each message',
+      'Config Sync section in DevTools with stamp status and Force Re-sync button',
+      'Toast notification when config is restored after container wake',
+    ],
+  },
   {
     version: '0.11.0',
     date: '2026-02-13',
