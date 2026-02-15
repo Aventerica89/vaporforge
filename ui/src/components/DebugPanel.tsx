@@ -2,11 +2,15 @@ import { useEffect, useState } from 'react';
 import { Bug, X } from 'lucide-react';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { ConsoleLogViewer } from '@/components/playground/ConsoleLogViewer';
+import { WikiTab } from '@/components/WikiTab';
+
+type Tab = 'log' | 'wiki';
 
 export function DebugPanel() {
   const { unreadErrors, isOpen, toggle, close } =
     useDebugLog();
   const [visible, setVisible] = useState(false);
+  const [tab, setTab] = useState<Tab>('log');
 
   // Check localStorage flag on mount + listen for storage events
   useEffect(() => {
@@ -43,7 +47,7 @@ export function DebugPanel() {
         )}
       </button>
 
-      {/* Panel — now uses shared ConsoleLogViewer */}
+      {/* Panel */}
       {isOpen && (
         <div
           className="fixed z-50 flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
@@ -54,13 +58,30 @@ export function DebugPanel() {
             maxHeight: 'calc(100vh - 7rem)',
           }}
           role="dialog"
-          aria-label="Debug log panel"
+          aria-label="Debug panel"
         >
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-border px-3 py-2">
-            <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Debug Log
-            </span>
+          {/* Header with tabs */}
+          <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
+            <div className="flex items-center gap-1">
+              {(['log', 'wiki'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    tab === t
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  {t === 'log' ? 'Log' : 'Wiki'}
+                  {t === 'log' && unreadErrors > 0 && (
+                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                      {unreadErrors > 99 ? '99+' : unreadErrors}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
             <button
               onClick={close}
               className="flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
@@ -74,8 +95,9 @@ export function DebugPanel() {
             </button>
           </div>
 
-          {/* Shared log viewer — compact mode */}
-          <ConsoleLogViewer compact />
+          {/* Tab content */}
+          {tab === 'log' && <ConsoleLogViewer compact />}
+          {tab === 'wiki' && <WikiTab />}
         </div>
       )}
     </>

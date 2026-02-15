@@ -16,13 +16,14 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     version: '0.15.1',
     date: '2026-02-15',
     tag: 'feature',
-    title: 'Keyboard Shortcuts + Panel Layout Persistence',
+    title: 'Keyboard Shortcuts + Panel Persistence + Wiki',
     items: [
       'Settings now shows all 15 keyboard shortcuts across 5 groups (was 7)',
       'New AI Tools shortcut group: Quick Chat, Code Transform, Code Analysis, Commit Message',
       'Panel sizes persist across page reloads — resize once, keep your layout',
       'Cmd+Shift+0 resets panels to default (or your saved custom default)',
       'Panel Layout card in Settings: visual size preview with Save/Reset buttons',
+      'Wiki tab in Dev Panel: documents what each VaporForge surface can do',
     ],
   },
   {
