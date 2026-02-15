@@ -151,8 +151,9 @@ function extractTextFromMessage(msg: { content?: string; parts?: Array<{ type: s
 
 /* ── Shell escape ──────────────────────────── */
 
-function shellEscape(s: string): string {
-  return `'${s.replace(/'/g, "'\\''")}'`;
+function shellEscape(s: string | undefined | null): string {
+  const v = s ?? '';
+  return `'${v.replace(/'/g, "'\\''")}'`;
 }
 
 /* ── Sandbox tools ─────────────────────────── */
@@ -178,9 +179,10 @@ function createSandboxTools(
         path: z.string().default('/workspace').describe('Directory path'),
       }),
       execute: async ({ path }) => {
+        const dir = path || '/workspace';
         const result = await sandboxManager.execInSandbox(
           sessionId,
-          `ls -la ${shellEscape(path)}`
+          `ls -la ${shellEscape(dir)}`
         );
         return result.stdout || result.stderr || 'Empty directory';
       },
@@ -192,8 +194,9 @@ function createSandboxTools(
         path: z.string().default('/workspace').describe('Directory to search'),
       }),
       execute: async ({ pattern, path }) => {
+        const dir = path || '/workspace';
         const glob = '*.{ts,tsx,js,jsx,json,md,css,html,py,rs,go}';
-        const cmd = `grep -rn --include=${shellEscape(glob)} ${shellEscape(pattern)} ${shellEscape(path)} | head -50`;
+        const cmd = `grep -rn --include=${shellEscape(glob)} ${shellEscape(pattern)} ${shellEscape(dir)} | head -50`;
         const result = await sandboxManager.execInSandbox(sessionId, cmd);
         return result.stdout || result.stderr || 'No matches found';
       },
