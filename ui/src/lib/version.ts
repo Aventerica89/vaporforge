@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.16.0';
+export const APP_VERSION = '0.17.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.17.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Semantic Search — Find Code by Meaning',
+    items: [
+      'Semantic search: ask "where is auth logic?" and find files by concept, not just text',
+      'Google text-embedding-004 indexes up to 500 workspace files automatically on session create',
+      'semanticSearch tool in Quick Chat: AI proactively searches codebase for conceptual queries',
+      'Source citations: file pills with relevance scores appear after semantic search results',
+      'Click any source pill to open the file directly in the editor',
+      'Embedding status badge in Quick Chat header: shows indexing progress and file count',
+      'Re-index button to rebuild embeddings after file changes',
+      'Requires Gemini API key — gracefully hidden when not configured',
+    ],
+  },
   {
     version: '0.16.0',
     date: '2026-02-15',
