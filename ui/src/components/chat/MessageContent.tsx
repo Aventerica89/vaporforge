@@ -7,6 +7,7 @@ import { ArtifactBlock } from './ArtifactBlock';
 import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
+import { useSmoothText } from '@/hooks/useSmoothText';
 
 interface MessageContentProps {
   message: Message;
@@ -17,12 +18,20 @@ interface StreamingContentProps {
   fallbackContent: string;
 }
 
+function SmoothTextPart({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+  const smoothed = useSmoothText(content, isStreaming);
+  return <ChatMarkdown content={smoothed} isStreaming={isStreaming} />;
+}
+
 function renderPart(part: MessagePart, index: number, isStreaming = false) {
   switch (part.type) {
     case 'text':
-      return part.content ? (
-        <ChatMarkdown key={index} content={part.content} isStreaming={isStreaming} />
-      ) : null;
+      if (!part.content) return null;
+      return isStreaming ? (
+        <SmoothTextPart key={index} content={part.content} isStreaming />
+      ) : (
+        <ChatMarkdown key={index} content={part.content} />
+      );
 
     case 'reasoning':
       return (

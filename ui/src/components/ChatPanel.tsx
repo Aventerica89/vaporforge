@@ -302,7 +302,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
           <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />
         </PromptInputTools>
         <PromptInputSlashMenu />
-        <div className="relative rounded-xl border border-border/60 bg-background transition-colors focus-within:border-primary/50 focus-within:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]">
+        <div className="relative rounded-xl border border-border/40 bg-muted/30 shadow-sm transition-all duration-200 focus-within:border-primary/60 focus-within:bg-background focus-within:shadow-[0_0_16px_-4px_hsl(var(--primary)/0.3)] hover:border-border/60 hover:bg-muted/20">
           <PromptInputAttachments />
           <PromptInputTextarea
             placeholder={
