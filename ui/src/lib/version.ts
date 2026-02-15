@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.11.4';
+export const APP_VERSION = '0.12.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.12.0',
+    date: '2026-02-14',
+    tag: 'fix',
+    title: 'AI SDK v6 Migration — QuickChat Fixed',
+    items: [
+      'Fixed QuickChat/Transform/Analyze empty responses: AI SDK v6 renamed stream property from textDelta to text',
+      'OAuth tokens no longer used for direct API features — requires explicit API key (sk-ant-api01-*)',
+      'Claude tab shows "n/a" when no API key configured; Gemini auto-selected as fallback',
+      'Migrated deprecated generateObject/streamObject to generateText/streamText + Output.object() (AI SDK v6)',
+      'Removed extended thinking from direct API calls (incompatible with OAuth)',
+    ],
+  },
   {
     version: '0.11.4',
     date: '2026-02-14',

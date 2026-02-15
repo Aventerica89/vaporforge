@@ -24,7 +24,6 @@ const DEFAULT_MODEL: Record<ProviderName, string> = {
   gemini: 'flash',
 };
 
-/** Credentials required for each provider */
 export interface ProviderCredentials {
   claude?: { apiKey: string };
   gemini?: { apiKey: string };
@@ -45,6 +44,10 @@ export function resolveModelId(
 /**
  * Create an AI SDK LanguageModelV1 instance for the given provider + model.
  * Throws if credentials are missing.
+ *
+ * IMPORTANT: Only works with actual API keys (sk-ant-api01-*), NOT OAuth
+ * tokens (sk-ant-oat01-*). The Anthropic API rejects OAuth auth for direct
+ * API calls. OAuth tokens only work through the Claude SDK in containers.
  */
 export function createModel(
   provider: ProviderName,
@@ -55,17 +58,13 @@ export function createModel(
 
   if (provider === 'claude') {
     const key = credentials.claude?.apiKey;
-    if (!key) throw new Error('Anthropic API key not configured');
-    const anthropic = createAnthropic({ apiKey: key });
-
-    // Enable extended thinking for Sonnet (other models skip gracefully)
-    const alias = modelAlias || DEFAULT_MODEL[provider];
-    if (alias === 'sonnet') {
-      return anthropic(modelId, {
-        thinking: { type: 'enabled', budgetTokens: 4096 },
-      });
+    if (!key) {
+      throw new Error(
+        'Claude API key required. Add an API key (sk-ant-api01-*) in Settings > AI Providers.'
+      );
     }
 
+    const anthropic = createAnthropic({ apiKey: key });
     return anthropic(modelId);
   }
 
@@ -80,31 +79,51 @@ export function createModel(
 }
 
 /**
- * Read provider credentials from KV.
- * Secrets are stored at `user-secrets:{userId}` as a JSON object.
- * Falls back to the user's OAuth token for Claude if no separate API key.
+ * Read provider credentials from KV for direct API features
+ * (Quick Chat, Code Transform, Analyze, Commit Message).
+ *
+ * Only returns credentials that work for direct API calls:
+ * - Claude: requires sk-ant-api01-* key stored in user secrets
+ *   (OAuth tokens sk-ant-oat01-* are NOT supported by the Anthropic API)
+ * - Gemini: requires API key stored in user secrets
+ *
+ * The user's OAuth session token (claudeToken) is intentionally NOT used
+ * here — it only works through the Claude SDK in sandbox containers.
  */
 export async function getProviderCredentials(
   kv: KVNamespace,
   userId: string,
-  claudeToken?: string
+  _claudeToken?: string
 ): Promise<ProviderCredentials> {
   const raw = await kv.get(`user-secrets:${userId}`);
   const secrets: Record<string, string> = raw
     ? (() => { try { return JSON.parse(raw); } catch { return {}; } })()
     : {};
 
-  const claudeKey = secrets.ANTHROPIC_API_KEY || claudeToken;
+  // Only use explicit API keys — never OAuth tokens
+  const claudeApiKey = secrets.ANTHROPIC_API_KEY;
+  let claude: { apiKey: string } | undefined;
+
+  if (claudeApiKey) {
+    // Reject OAuth tokens stored as API keys (user mistake)
+    if (claudeApiKey.startsWith('sk-ant-oat01-')) {
+      console.warn(
+        '[ai-provider] OAuth token stored as ANTHROPIC_API_KEY — ignored for direct API calls'
+      );
+    } else {
+      claude = { apiKey: claudeApiKey };
+    }
+  }
 
   return {
-    claude: claudeKey ? { apiKey: claudeKey } : undefined,
+    claude,
     gemini: secrets.GEMINI_API_KEY
       ? { apiKey: secrets.GEMINI_API_KEY }
       : undefined,
   };
 }
 
-/** Check which providers a user has credentials for */
+/** Check which providers a user has credentials for (direct API only) */
 export async function getAvailableProviders(
   kv: KVNamespace,
   userId: string,

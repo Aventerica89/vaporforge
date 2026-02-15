@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamObject } from 'ai';
+import { streamText, Output } from 'ai';
 import type { User, ApiResponse } from '../types';
 import {
   createModel,
@@ -107,14 +107,14 @@ analyzeRoutes.post('/structured', async (c) => {
     try {
       await write({ type: 'connected' });
 
-      const result = streamObject({
+      const result = streamText({
         model: aiModel,
         system: systemPrompt,
-        prompt: userMessage,
-        schema: CodeAnalysisSchema,
+        messages: [{ role: 'user', content: userMessage }],
+        output: Output.object({ schema: CodeAnalysisSchema }),
       });
 
-      for await (const partial of result.partialObjectStream) {
+      for await (const partial of result.partialOutputStream) {
         await write({ type: 'partial', data: partial });
       }
 

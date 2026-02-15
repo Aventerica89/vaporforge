@@ -208,21 +208,38 @@ quickchatRoutes.post('/stream', async (c) => {
 
       let fullText = '';
       let reasoningText = '';
+      let eventCount = 0;
 
       for await (const part of result.fullStream) {
+        eventCount++;
         if (part.type === 'text-delta') {
-          const delta = part.textDelta;
-          if (delta != null) {
+          // AI SDK v6: property is `text`, not `textDelta`
+          const delta = (part as { text?: string }).text;
+          if (delta) {
             fullText += delta;
             await write({ type: 'text', content: delta });
           }
         } else if (part.type === 'reasoning-delta') {
-          const delta = (part as { delta?: string }).delta;
+          // AI SDK v6: property is `text`, not `textDelta`
+          const delta = (part as { text?: string }).text;
           if (delta) {
             reasoningText += delta;
             await write({ type: 'reasoning', content: delta });
           }
+        } else if (part.type === 'error') {
+          console.error('[quickchat/stream] Stream error event:', part);
+          const msg = (part as { error?: unknown }).error;
+          await write({ type: 'error', content: String(msg) });
         }
+      }
+
+      // Log diagnostic info if no text was produced
+      if (!fullText && eventCount === 0) {
+        console.error('[quickchat/stream] Zero stream events received');
+      } else if (!fullText) {
+        console.error(
+          `[quickchat/stream] ${eventCount} events but no text output`
+        );
       }
 
       await write({ type: 'done', fullText });

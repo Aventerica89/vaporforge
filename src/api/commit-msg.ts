@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { generateObject } from 'ai';
+import { generateText, Output } from 'ai';
 import type { User, ApiResponse } from '../types';
 import {
   createModel,
@@ -84,12 +84,19 @@ commitMsgRoutes.post('/generate', async (c) => {
   ].join('\n');
 
   try {
-    const result = await generateObject({
+    const result = await generateText({
       model: aiModel,
       system: SYSTEM_PROMPT,
       prompt: userMessage,
-      schema: CommitMessageSchema,
+      output: Output.object({ schema: CommitMessageSchema }),
     });
+
+    if (!result.object) {
+      return c.json<ApiResponse<never>>(
+        { success: false, error: 'Failed to parse commit message' },
+        500
+      );
+    }
 
     return c.json<ApiResponse<CommitMessage>>({
       success: true,
