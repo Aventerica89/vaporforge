@@ -1,280 +1,195 @@
-# VaporForge: Business Plan, Costs & Integration Strategy
+# Plan: Dev Playground & Universal Issue Tracker
 
-## Current Situation
+## Problem Statement
 
-- **1Password plan:** Individual ($3.99/mo via App Store)
-- **Service account created:** Token starts with `ops_eyJzaWdu...` (saved to 1Password as "Service Account Auth Token: GitHub Actions")
-- **Vaults:** Personal, Business, Work
-- **Problem:** Sandbox container cannot use `op` CLI interactively. Needs either a service account token or secrets passed via env vars.
+Three related needs:
+1. **Dev Playground** — A dedicated workspace for building/tweaking UI component panels interactively, with access to a shadcn component catalog to build from
+2. **Universal Issue Tracker** — The current issue tracker (`issues:${userId}` in KV) is scoped to a single tab. Need it to sync across all open tabs/sessions so editing on one updates everywhere
+3. **Bug/Debug/Console Logger** — Consolidate the existing DebugPanel into the dev tools experience
 
-## Recommended Approach: Worker-Secrets Route (No Upgrade Needed)
+## Architecture Decision: NOT a monorepo restructure
 
-The simplest path that works today, regardless of 1Password plan.
+The project is already a functional monorepo (`src/` backend, `ui/` frontend, `landing/`). Adding npm workspaces would be over-engineering. We build on existing patterns:
 
-### How it works
+- **Full-screen overlay** for the playground UI (same pattern as SettingsPage/IssueTracker — z-50 fixed overlay)
+- **KV + Zustand + polling** for universal sync (same pattern as issue tracker, add sync layer)
+- **Static component catalog** at build time (same pattern as `generate-plugin-catalog.mjs`)
+
+---
+
+## Phase 1: Universal Issue Tracker Sync
+
+**Goal**: Single source of truth — edit issues in any tab/session, changes appear everywhere.
+
+### How it works today
+- `useIssueTracker.ts` stores issues in Zustand + localStorage (`vf-issue-tracker`)
+- Debounced sync to `PUT /api/issues` → KV key `issues:${userId}`
+- Per-user scoping via `userId` derived from Claude token hash
+
+### What changes
+
+**Backend (`src/api/issues.ts` + `src/api/issues-routes.ts`)**:
+- Add `GET /api/issues/sync` endpoint returning `{ issues, lastModified }` with ETag support
+- Add `updatedAt` timestamp to the issue store data, returned on every write
+- Add `PATCH /api/issues/:id` for single-issue updates (avoids full-list overwrites)
+
+**Frontend (`ui/src/hooks/useIssueTracker.ts`)**:
+- Add visibility-based polling sync (every 30s when tab is visible, pause when hidden)
+- Compare `lastModified` — server wins for conflicts (last-write-wins with timestamp)
+- localStorage becomes offline cache only, KV backend is source of truth
+
+**Why this already "works across sites"**: All VaporForge sessions share the same KV namespace and the same `userId`. Issues are already universal — the missing piece is just real-time sync (polling) so changes in one tab reflect in another without reload.
+
+### Files to modify
+| File | Change |
+|------|--------|
+| `src/api/issues.ts` | Add `getWithEtag()`, `patchIssue()` methods |
+| `src/api/issues-routes.ts` | Add `GET /sync`, `PATCH /:id` routes |
+| `ui/src/hooks/useIssueTracker.ts` | Add polling sync, visibility-based refresh |
+| `src/types.ts` | Add `updatedAt` to `IssueTrackerData` schema |
+
+---
+
+## Phase 2: Dev Playground
+
+**Goal**: Dedicated page for visually building/tweaking UI components. Browse shadcn components, drop them in, adjust live.
+
+### UI Structure
+
+Accessible from:
+- Settings → Developer → "Open Playground" button
+- Mobile drawer footer (alongside Home, Bug Tracker)
+- Keyboard shortcut (Cmd+Shift+D)
+
+Opens as a **full-screen overlay** with its own tab system:
 
 ```
-1Password (JB's Mac, via op CLI or MCP tools)
-    | (one-time deploy)
-    v
-Cloudflare Worker secrets (via wrangler secret put)
-    | (at runtime, when creating sandbox session)
-    v
-Container env vars (passed in sandbox session env)
-    | (sandbox Claude reads them)
-    v
-.env.local (sandbox Claude writes file from env vars)
+┌─────────────────────────────────────────────┐
+│  DEV PLAYGROUND                        [X]  │
+│  ┌──────┬───────────┬────────┬─────────┐    │
+│  │Canvas│ Components│ Console│ Issues  │    │
+│  └──────┴───────────┴────────┴─────────┘    │
+│                                             │
+│  [Tab content area]                         │
+│                                             │
+└─────────────────────────────────────────────┘
 ```
 
-### Step 1: Store secrets as Cloudflare Worker secrets
+**Tab 1: Canvas** — Live preview panel
+- Renders user-created component panels in a sandboxed div
+- Hot-reloads on code changes
+- Resizable viewport presets (mobile/tablet/desktop)
+- Props editor sidebar (JSON or form-based)
 
-From JB's local machine, for each project that VaporForge might work on:
+**Tab 2: Components** — shadcn/ui catalog browser
+- Static catalog of shadcn components (Button, Card, Dialog, Input, Select, Table, etc.)
+- Each entry: preview snippet, copy-paste code, Tailwind class variants
+- Click to insert into active canvas panel
+- Search + filter by category (Form, Layout, Data Display, Feedback, Navigation)
+- **Not installed as a dependency** — catalog is reference/copy-paste only
 
-```bash
-npx wrangler secret put TURSO_DATABASE_URL
-npx wrangler secret put TURSO_AUTH_TOKEN
-npx wrangler secret put GITHUB_TOKEN
-```
+**Tab 3: Console** — Upgraded debug/console logger
+- Merges existing `DebugPanel` functionality into this tab
+- Categorized logs: API, Stream, Sandbox, Error, Info (reuses `useDebugLog.ts`)
+- Filter by level, search by text, export as JSON
+- Persists last 500 entries in localStorage
 
-These get stored in the Worker's environment bindings (not in code, not in wrangler.toml).
+**Tab 4: Issues** — Embedded issue tracker
+- Renders the existing `IssueTracker` component inline (not as a separate modal)
+- Same Zustand store, same sync — just a different mount point
+- Benefits from Phase 1 universal sync
 
-### Step 2: Worker passes secrets to sandbox container
-
-In the Worker code (where sandbox sessions are created), forward relevant secrets as env vars:
+### Data Model
 
 ```typescript
-const env = {
-  ...baseEnv,
-  ANTHROPIC_API_KEY: c.env.ANTHROPIC_API_KEY,  // already done
-  TURSO_DATABASE_URL: c.env.TURSO_DATABASE_URL,
-  TURSO_AUTH_TOKEN: c.env.TURSO_AUTH_TOKEN,
-  GITHUB_TOKEN: c.env.GITHUB_TOKEN,
-  ENCRYPTION_SECRET: c.env.ENCRYPTION_SECRET,
-  AUTH_SECRET: c.env.AUTH_SECRET,
+interface PlaygroundPanel {
+  id: string;
+  name: string;
+  code: string;           // TSX/JSX source
+  props: Record<string, unknown>;
+  tailwindClasses: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PlaygroundState {
+  panels: PlaygroundPanel[];
+  activePanel: string | null;
+  viewport: 'mobile' | 'tablet' | 'desktop';
+  isOpen: boolean;
 }
 ```
 
-### Step 3: Sandbox Claude uses env vars directly
+**Storage**: `playground:${userId}` in AUTH_KV. Syncs universally via same polling pattern from Phase 1.
 
-Instead of running `op inject`, the sandbox Claude creates `.env.local` from available env vars:
+### shadcn Component Catalog
 
-```bash
-cat > .env.local << 'ENVEOF'
-TURSO_DATABASE_URL=${TURSO_DATABASE_URL}
-TURSO_AUTH_TOKEN=${TURSO_AUTH_TOKEN}
-ENCRYPTION_SECRET=${ENCRYPTION_SECRET}
-AUTH_SECRET=${AUTH_SECRET}
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-ENVEOF
-```
+Generated at build time (same approach as `scripts/generate-plugin-catalog.mjs`):
+- Script reads shadcn component registry and outputs a static TypeScript catalog
+- Each entry: name, category, code snippet, dependencies, Tailwind classes
+- Browseable in the Components tab — "Use" copies code into active panel
+- No runtime shadcn dependency
 
-Or programmatically in Node.js by reading process.env.
+### Files to create/modify
+| File | Purpose |
+|------|---------|
+| `ui/src/components/DevPlayground.tsx` | **NEW** — Main overlay (tabs, layout) |
+| `ui/src/components/playground/CanvasTab.tsx` | **NEW** — Live preview + props editor |
+| `ui/src/components/playground/ComponentsTab.tsx` | **NEW** — shadcn catalog browser |
+| `ui/src/components/playground/ConsoleTab.tsx` | **NEW** — Debug/console (absorbs DebugPanel) |
+| `ui/src/hooks/usePlayground.ts` | **NEW** — Zustand store |
+| `ui/src/lib/generated/component-catalog.ts` | **NEW** — Static shadcn catalog |
+| `scripts/generate-component-catalog.mjs` | **NEW** — Build script for catalog |
+| `src/api/playground.ts` | **NEW** — KV persistence service |
+| `src/api/playground-routes.ts` | **NEW** — API routes (GET/PUT) |
+| `ui/src/components/MobileDrawer.tsx` | Add "Dev Playground" button |
+| `ui/src/components/Layout.tsx` | Mount `<DevPlayground />` |
+| `ui/src/components/settings/DevToolsTab.tsx` | Add "Open Playground" button |
 
-## Alternative Approach: 1Password Service Account in Container
+---
 
-### Prerequisites
-- May require upgrading to Teams Starter Pack ($19.95/mo) or Business ($7.99/user/mo)
-- Service account already created but untested on Individual plan
-- Test first: run `op vault list` with OP_SERVICE_ACCOUNT_TOKEN set
+## Phase 3: Console Logger Integration
 
-### If it works on Individual plan
+**Goal**: Unify the debug experience.
 
-1. Store OP_SERVICE_ACCOUNT_TOKEN as a Cloudflare Worker secret
-2. Pass it to the container env
-3. Install op CLI in the Dockerfile
-4. Sandbox Claude runs: `op inject -i .env.local.tpl -o .env.local`
+### Changes
+- Extract log display from `DebugPanel.tsx` into reusable `<ConsoleLogViewer />` component
+- Use `ConsoleLogViewer` in both: playground Console tab AND floating mini-panel
+- Add log levels: `debug`, `info`, `warn`, `error` (currently category-based only)
+- Persist last 500 entries in localStorage (currently in-memory only)
+- Floating mini-panel (existing DebugPanel) stays as a quick-access shortcut
 
-### Vault access limitation
-- Service accounts CANNOT access Personal or Private vaults
-- Must grant access to Business vault (where op://Business/... references point)
-- Check: Developer > Service Accounts > click account > verify vault access includes "Business"
+### Files to modify
+| File | Change |
+|------|--------|
+| `ui/src/components/DebugPanel.tsx` | Extract `<ConsoleLogViewer />`, keep floating mini-panel |
+| `ui/src/components/playground/ConsoleTab.tsx` | Use `<ConsoleLogViewer />` full-size |
+| `ui/src/hooks/useDebugLog.ts` | Add log levels, localStorage persistence, 500-entry cap |
 
-## wp-jupiter Specific Requirements
+---
 
-### Required env vars (from .env.local.tpl)
+## Implementation Order
 
-| Variable | Source |
-|----------|--------|
-| TURSO_DATABASE_URL | op://Business/TURSO_DATABASE_URL/credential |
-| TURSO_AUTH_TOKEN | op://Business/TURSO_AUTH_TOKEN/credential |
-| ENCRYPTION_SECRET | op://Business/ENCRYPTION_SECRET/credential (or generate with openssl) |
-| AUTH_SECRET | op://Business/AUTH_SECRET/credential (or generate with openssl) |
-| NEXT_PUBLIC_APP_URL | http://localhost:3000 (for dev) |
+1. **Phase 1** (Universal Issue Sync) — ~3 commits
+   - Backend: sync endpoint + patch endpoint + updatedAt tracking
+   - Frontend: polling sync in useIssueTracker
+   - Test the sync across multiple tabs
 
-### Setup after secrets are available
-```bash
-cd /workspace/wp-jupiter
-npm install           # already done
-# Create .env.local from env vars (see Step 3 above)
-npm run db:push       # push schema to Turso
-npm run dev           # start dev server
-```
+2. **Phase 2** (Dev Playground) — ~6 commits
+   - Zustand store + API routes for playground persistence
+   - Main overlay shell with tab system
+   - Component catalog build script + browser UI
+   - Canvas tab with live preview
+   - Wire up entry points (Settings, MobileDrawer, keyboard shortcut)
+   - Embed issue tracker as tab
 
-## Decision Summary
+3. **Phase 3** (Console Logger) — ~2 commits
+   - Extract ConsoleLogViewer from DebugPanel
+   - Integrate into playground Console tab + add log levels/persistence
 
-| Approach | Cost | Complexity | Works today? |
-|----------|------|-----------|-------------|
-| Worker-secrets route | $0 | Low | Yes |
-| 1Password service account | $0 or $7.99+/mo | Medium | Maybe (test token first) |
-| Manual paste each session | $0 | High (tedious) | Yes |
-
-**Recommendation:** Worker-secrets route. Same pattern already used for ANTHROPIC_API_KEY. No plan upgrade, no op CLI in container, no service account complexity.
-
-## GitHub Actions (Separate Concern)
-
-The service account token ("GitHub Actions") is still useful for CI/CD pipelines:
-- Store as GitHub repo secret: OP_SERVICE_ACCOUNT_TOKEN
-- GitHub Actions can run `op inject` to populate env during builds
-- This is independent of the VaporForge sandbox approach
-
-## Gemini CLI Integration (Future Consideration)
-
-Discussed adding Gemini as a second model in VaporForge:
-
-### Option 1: Model Router
-- Add model selector in UI, route to Claude SDK or Gemini API
-- Install @google/genai in container alongside Claude SDK
-- Separate agent script: gemini-agent.js
-
-### Option 2: Prompt Refinement Chain (Recommended)
-- Gemini generates/refines prompts before sending to Claude
-- Lightweight API call in Worker layer, not in container
-- Keep Claude as primary executor with full sandbox integration
-
-### Option 3: Specialized Roles
-- Claude: coding, tool use, file operations (sandbox workflow)
-- Gemini: research, summarization, prompt generation, long-context
-
-### Practical notes
-- Gemini lacks Claude SDK's tool-use/sandbox integration
-- Session continuity differs (no sdkSessionId equivalent)
-- Streaming formats differ between APIs
-- Store GEMINI_API_KEY as Worker secret, same pattern as other keys
-
-## Cost Breakdown: Per-User Economics
-
-### Cloudflare Pricing (Workers Paid Plan - $5/mo base)
-
-| Resource | Included free/mo | Overage rate |
-|----------|-----------------|--------------|
-| CPU | 375 vCPU-minutes | $0.00002/vCPU-second |
-| Memory | 25 GiB-hours | $0.0000025/GiB-second |
-| Disk | 200 GB-hours | $0.00000007/GB-second |
-| Network egress (NA/EU) | 1 TB | $0.025/GB |
-
-### Estimated cost per user per month
-
-| Item | Calculation | Cost |
-|------|------------|------|
-| CPU | ~30 min active/session x 60 sessions/mo = 1800 min | ~$2.16 |
-| Memory | ~512MB provisioned during active sessions | ~$0.50 |
-| Disk | Sandbox storage while active | ~$0.30 |
-| Network | Code transfer, streaming responses | ~$0.50 |
-| **Total per active user** | | **~$3-5/mo** |
-
-### Revenue model at $20/mo subscription
-
-| Metric | Value |
-|--------|-------|
-| Revenue per user | $20.00 |
-| Cloudflare cost per user | ~$3-5 |
-| Anthropic API cost | $0 (user's own account) |
-| **Margin per user** | **$15-17 (~80%)** |
-| Break-even users (covering $5 base) | 1 user |
-
-Notes:
-- Sandboxes only charge for active CPU, not idle time (scale-to-zero)
-- Heavy users (developers coding all day) might cost $8-10/mo
-- Light users (occasional use) might cost $1-2/mo
-- Usage caps on concurrent sandboxes and session duration help control outliers
-
-## Competitive Landscape: 1Code Comparison
-
-### What is 1Code?
-
-1Code (1code.dev) by 21st.dev is the closest direct competitor. Open-source orchestration
-layer for Claude Code with a visual UI. They describe it as "Claude Code, but usable."
-
-### Feature comparison
-
-| Feature | VaporForge | 1Code |
-|---------|-----------|-------|
-| **What it is** | Cloud IDE with Claude in sandboxes | Visual client for Claude Code |
-| **Auth model** | User's Anthropic OAuth/setup-token | User's Claude Pro/Max subscription |
-| **Execution** | Cloudflare Sandboxes (fully cloud) | Local (Mac/Linux/Windows) + cloud web |
-| **Mobile** | Yes (mobile-first UX, v0.3.x) | Yes (mobile monitoring app) |
-| **Install required** | No (browser-only) | Desktop app download or web |
-| **Parallel agents** | Single session (multi planned) | Multiple parallel agents |
-| **Git integration** | Clone repo into sandbox | PR preview, merge from UI |
-| **Open source** | No | Yes (GitHub) |
-| **Pricing** | TBD (~$20/mo?) | $20/mo Pro, $100/mo Max |
-| **API cost to user** | On their Anthropic account | On their Claude Pro/Max subscription |
-
-### Where VaporForge differentiates
-
-1. **Zero install** - Works from any browser, any device. No Mac app, no download.
-2. **True cloud execution** - Code runs in Cloudflare sandboxes, not on user's machine.
-   User's laptop can sleep, sandbox keeps running.
-3. **Mobile-first UX** - Full mobile experience with keyboard-aware layout, drawer nav,
-   bottom sheets (v0.3.x work). 1Code has mobile monitoring but not a full mobile IDE.
-4. **Infrastructure included** - VaporForge provides the sandbox environment. 1Code requires
-   the user to have Claude Code installed locally (or use their web sandboxes).
-
-### Where 1Code is ahead
-
-1. **Parallel agents** - Can run multiple Claude Code sessions simultaneously
-2. **Open source** - Community trust, contributions, transparency
-3. **Git workflow** - Built-in PR preview, merge, branch management
-4. **Desktop integration** - Native Mac app with system-level access
-5. **Established** - Already on Product Hunt, has user base
-
-### Business model comparison
-
-Both use the same fundamental model: user brings their own Anthropic subscription,
-platform charges for the orchestration/infrastructure layer.
-
-| Cost element | VaporForge | 1Code |
-|-------------|-----------|-------|
-| User pays Anthropic | Yes (Pro/Max) | Yes (Pro/Max) |
-| User pays platform | ~$20/mo | $20-100/mo |
-| Platform's API cost | $0 | $0 |
-| Platform's infra cost | ~$3-5/user (Cloudflare) | Minimal (runs on user's machine for desktop) |
-| Margin | ~80% | ~95%+ (desktop), lower for web sandboxes |
-
-## Legality: Charging for VaporForge
-
-### Allowed
-
-Anthropic's commercial terms explicitly allow building paid products on top of their API.
-You can "use the Services to power products and services you make available to your own
-customers and end users." This is what Cursor, 1Code, Windsurf, and Replit all do.
-
-### Not allowed
-
-- Direct "reselling" of the raw API (pass-through proxy)
-- Misrepresenting AI output as human-generated
-- Violating Anthropic's Usage Policy (harmful content, etc.)
-
-### What you need
-
-- Your own Terms of Service for VaporForge users
-- Usage limits/caps per subscriber (concurrent sandboxes, session duration)
-- Clear disclosure that AI is involved
-- Follow Anthropic's Usage Policy
-- Privacy policy (you handle user data in KV/R2)
-
-### VaporForge is clearly an application, not a resale
-
-VaporForge adds significant value: sandbox environment, file management, IDE UI, mobile
-experience, session management, auth flow. This is firmly in "application" territory.
-
-## Next Steps
-
-1. Test service account token locally (set OP_SERVICE_ACCOUNT_TOKEN, run op vault list)
-2. Store wp-jupiter secrets as Cloudflare Worker secrets via wrangler secret put
-3. Update Worker code to forward secrets to sandbox env
-4. Test: create VaporForge session, verify env vars are available in container
-5. Sandbox Claude creates .env.local from env vars and runs wp-jupiter
-6. Draft Terms of Service and Privacy Policy for VaporForge
-7. Set up usage caps (max concurrent sandboxes, session duration limits)
-8. Consider Stripe integration for subscription billing
+## What this does NOT do
+- Does NOT restructure the monorepo (npm workspaces, etc.)
+- Does NOT install shadcn/ui as a runtime dependency (catalog is static reference only)
+- Does NOT require Cloudflare Workers config changes (uses existing KV namespaces)
+- Does NOT add WebSocket sync (polling is sufficient; WS can come later if needed)
+- Does NOT inject code into other projects — VaporForge itself is the shared layer, data syncs via KV
