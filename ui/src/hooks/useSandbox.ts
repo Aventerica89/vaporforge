@@ -524,7 +524,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Dedup: track emitted tool IDs to prevent duplicate renders
       const emittedToolIds = new Set<string>();
 
-      for await (const chunk of sdkApi.stream(
+      for await (const chunk of sdkApi.streamWs(
         session.id, message, undefined, controller.signal, get().sdkMode
       )) {
         // Skip connection and heartbeat events — just reset the timeout
@@ -639,8 +639,22 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           parts.push({ type: 'error', content: chunk.content });
           set({ streamingParts: [...parts] });
           debugLog('stream', 'error', `Stream error: ${chunk.content}`);
+        } else if (chunk.type === 'session-reset') {
+          // Agent script signals stale session — persist will clear it
+          continue;
         } else if (chunk.type === 'done') {
           // Stream completed normally
+          resetTimeout();
+          useStreamDebug.getState().endStream();
+          // Persist assistant message to KV (WS can't use waitUntil)
+          const doneChunk = chunk as Record<string, unknown>;
+          sdkApi.persistMessage(
+            session.id,
+            (doneChunk.fullText as string) || content,
+            (doneChunk.sessionId as string) || ''
+          );
+        } else if (chunk.type === 'ws-exit') {
+          // WebSocket agent process exited
           resetTimeout();
           useStreamDebug.getState().endStream();
         }

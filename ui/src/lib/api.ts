@@ -377,6 +377,180 @@ export const sdkApi = {
       }
     }
   },
+
+  // WebSocket-based streaming (bypasses execStream SSE buffering)
+  streamWs: async function* (
+    sessionId: string,
+    prompt: string,
+    cwd?: string,
+    signal?: AbortSignal,
+    mode?: 'agent' | 'plan'
+  ): AsyncGenerator<{
+    type: string;
+    id?: string;
+    content?: string;
+    sessionId?: string;
+    fullText?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+    output?: string;
+    restoredAt?: string;
+  }> {
+    const token = localStorage.getItem('session_token');
+    if (!token) throw new Error('Not authenticated');
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const params = new URLSearchParams({
+      sessionId,
+      prompt,
+      cwd: cwd || '/workspace',
+      mode: mode || 'agent',
+      token,
+    });
+    const wsUrl = `${proto}//${location.host}/api/sdk/ws?${params}`;
+
+    const ws = new WebSocket(wsUrl);
+
+    // Queue + resolver pattern for async iteration
+    type QueueItem = { value: Record<string, unknown>; done: false } | { done: true };
+    const queue: QueueItem[] = [];
+    let resolve: ((item: QueueItem) => void) | null = null;
+    let wsError: Error | null = null;
+
+    function push(item: QueueItem) {
+      if (resolve) {
+        const r = resolve;
+        resolve = null;
+        r(item);
+      } else {
+        queue.push(item);
+      }
+    }
+
+    function pull(): Promise<QueueItem> {
+      if (queue.length > 0) {
+        return Promise.resolve(queue.shift()!);
+      }
+      return new Promise<QueueItem>((r) => { resolve = r; });
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        // Map protocol types to frontend event types
+        switch (msg.type) {
+          case 'text-delta':
+            push({ value: { type: 'text', content: msg.text }, done: false });
+            break;
+          case 'session-init':
+            push({ value: { type: 'session-init', sessionId: msg.sessionId }, done: false });
+            break;
+          case 'tool-start':
+            push({ value: { type: 'tool-start', id: msg.id, name: msg.name, input: msg.input }, done: false });
+            break;
+          case 'tool-result':
+            push({ value: { type: 'tool-result', id: msg.id, name: msg.name, output: msg.output }, done: false });
+            break;
+          case 'done':
+            push({ value: { type: 'done', sessionId: msg.sessionId, fullText: msg.fullText }, done: false });
+            break;
+          case 'error':
+            push({ value: { type: 'error', content: msg.error }, done: false });
+            break;
+          case 'session-reset':
+            push({ value: { type: 'session-reset' }, done: false });
+            break;
+          case 'process-exit':
+            push({ value: { type: 'ws-exit', exitCode: msg.exitCode }, done: false });
+            // Signal end of stream after a brief delay for final frames
+            setTimeout(() => push({ done: true }), 50);
+            break;
+          default:
+            // Forward unknown types as-is
+            push({ value: msg, done: false });
+        }
+      } catch {
+        // Non-JSON frame, skip
+      }
+    };
+
+    ws.onerror = () => {
+      wsError = new Error('WebSocket connection failed');
+      push({ done: true });
+    };
+
+    ws.onclose = () => {
+      push({ done: true });
+    };
+
+    // Handle abort signal
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        ws.close();
+      }, { once: true });
+    }
+
+    // Wait for connection to open
+    await new Promise<void>((ok, fail) => {
+      ws.onopen = () => ok();
+      // If onerror fires before onopen, reject
+      const origError = ws.onerror;
+      ws.onerror = (e) => {
+        if (origError) (origError as (ev: Event) => void)(e);
+        fail(new Error('WebSocket connection failed'));
+      };
+    });
+    // Restore the standard error handler after open
+    ws.onerror = () => {
+      wsError = new Error('WebSocket error');
+      push({ done: true });
+    };
+
+    try {
+      while (true) {
+        const item = await pull();
+        if (item.done) break;
+        yield item.value as {
+          type: string;
+          id?: string;
+          content?: string;
+          sessionId?: string;
+          fullText?: string;
+          name?: string;
+          input?: Record<string, unknown>;
+          output?: string;
+          restoredAt?: string;
+        };
+      }
+    } finally {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    }
+
+    if (wsError) throw wsError;
+  },
+
+  // Persist assistant message to KV after WS stream completes
+  persistMessage: async (
+    sessionId: string,
+    content: string,
+    sdkSessionId: string
+  ): Promise<void> => {
+    try {
+      const token = localStorage.getItem('session_token');
+      await fetch(`${API_BASE}/sdk/persist`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ sessionId, content, sdkSessionId }),
+      });
+    } catch {
+      // Best-effort persistence — don't break the UI
+    }
+  },
 };
 
 // User Config API
