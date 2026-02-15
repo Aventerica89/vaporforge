@@ -119,11 +119,16 @@ const components: Components = {
 export function ChatMarkdown({ content, isStreaming = false }: ChatMarkdownProps) {
   const processed = isStreaming ? prepareStreamingMarkdown(content) : content;
 
+  // During streaming, skip heavy KaTeX processing — it blocks the main thread
+  // and prevents progressive rendering. Math renders once the message finalizes.
+  const remarkPlugins = isStreaming ? [remarkGfm] : [remarkGfm, remarkMath];
+  const rehypePlugins = isStreaming ? [] : [rehypeKatex];
+
   return (
     <div className="prose-chat text-sm leading-relaxed break-words">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
+        remarkPlugins={remarkPlugins}
+        rehypePlugins={rehypePlugins}
         components={components}
       >
         {processed}

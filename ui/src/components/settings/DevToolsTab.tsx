@@ -8,6 +8,13 @@ import {
   RefreshCw,
   Shield,
   Loader2,
+  Activity,
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Bug,
+  Coins,
+  Timer,
 } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
 import { BUILD_HASH, BUILD_DATE, COMMIT_LOG } from '@/lib/generated/build-info';
@@ -16,6 +23,10 @@ import { usePlayground } from '@/hooks/usePlayground';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { sessionsApi } from '@/lib/api';
+import { StreamDebugger } from '@/components/devtools/StreamDebugger';
+import { TokenViewer } from '@/components/devtools/TokenViewer';
+import { LatencyMeter } from '@/components/devtools/LatencyMeter';
+import { WikiTab } from '@/components/WikiTab';
 
 interface ConfigStatus {
   stampExists: boolean;
@@ -141,6 +152,48 @@ export function DevToolsTab() {
         <p className="mt-2 text-[10px] text-muted-foreground/60">
           Shortcut: Cmd+Shift+D
         </p>
+      </div>
+
+      {/* Debug Overlay toggle */}
+      <DebugOverlayToggle />
+
+      {/* Diagnostic widgets */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Diagnostics
+        </h3>
+
+        <CollapsibleWidget
+          icon={<Activity className="h-3.5 w-3.5 text-green-400" />}
+          title="Stream Debugger"
+          description="Real-time SSE event log"
+        >
+          <StreamDebugger />
+        </CollapsibleWidget>
+
+        <CollapsibleWidget
+          icon={<Coins className="h-3.5 w-3.5 text-primary" />}
+          title="Token Viewer"
+          description="Estimated token usage per message"
+        >
+          <TokenViewer />
+        </CollapsibleWidget>
+
+        <CollapsibleWidget
+          icon={<Timer className="h-3.5 w-3.5 text-secondary" />}
+          title="Latency Meter"
+          description="TTFT, stream duration, tokens/sec"
+        >
+          <LatencyMeter />
+        </CollapsibleWidget>
+
+        <CollapsibleWidget
+          icon={<BookOpen className="h-3.5 w-3.5 text-cyan-400" />}
+          title="Wiki"
+          description="VaporForge surface documentation"
+        >
+          <WikiTab />
+        </CollapsibleWidget>
       </div>
 
       {/* Quick actions */}
@@ -345,6 +398,95 @@ function InfoRow({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+function DebugOverlayToggle() {
+  const [enabled, setEnabled] = useState(
+    () => localStorage.getItem('vf_debug') === '1'
+  );
+
+  const toggle = useCallback(() => {
+    const next = !enabled;
+    if (next) {
+      localStorage.setItem('vf_debug', '1');
+    } else {
+      localStorage.removeItem('vf_debug');
+    }
+    setEnabled(next);
+    // Notify DebugPanel via storage event
+    window.dispatchEvent(new StorageEvent('storage', { key: 'vf_debug' }));
+  }, [enabled]);
+
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bug className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Debug Overlay
+            </h3>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+              Floating debug panel with live diagnostics
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={toggle}
+          className={`relative h-6 w-11 rounded-full transition-colors ${
+            enabled ? 'bg-primary' : 'bg-muted'
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              enabled ? 'translate-x-5' : ''
+            }`}
+          />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CollapsibleWidget({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors"
+      >
+        {icon}
+        <div className="flex-1 text-left">
+          <span className="text-xs font-medium text-foreground">{title}</span>
+          <span className="ml-2 text-[10px] text-muted-foreground/60">
+            {description}
+          </span>
+        </div>
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        )}
+      </button>
+      {open && (
+        <div className="border-t border-border/40">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
