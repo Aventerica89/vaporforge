@@ -1,6 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import type { LanguageModel } from 'ai';
+import type { EmbeddingModel, LanguageModel } from 'ai';
 
 /** Supported provider names */
 export type ProviderName = 'claude' | 'gemini';
@@ -121,6 +121,19 @@ export async function getProviderCredentials(
       ? { apiKey: secrets.GEMINI_API_KEY }
       : undefined,
   };
+}
+
+/**
+ * Create a Google text-embedding-004 model for semantic search.
+ * Returns null if no Gemini API key is available.
+ */
+export function createEmbeddingModel(
+  credentials: ProviderCredentials
+): EmbeddingModel | null {
+  const key = credentials.gemini?.apiKey;
+  if (!key) return null;
+  const google = createGoogleGenerativeAI({ apiKey: key });
+  return google.textEmbeddingModel('text-embedding-004');
 }
 
 /** Check which providers a user has credentials for (direct API only) */

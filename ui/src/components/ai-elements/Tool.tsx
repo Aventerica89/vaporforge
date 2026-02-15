@@ -32,6 +32,7 @@ const TOOL_LABELS: Record<string, string> = {
   listFiles: 'List Files',
   searchCode: 'Search Code',
   runCommand: 'Run Command',
+  semanticSearch: 'Semantic Search',
 };
 
 function formatOutput(output: unknown): string {

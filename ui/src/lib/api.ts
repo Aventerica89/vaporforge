@@ -674,6 +674,32 @@ export const vaporFilesApi = {
     }),
 };
 
+// Embeddings API (semantic search)
+export const embeddingsApi = {
+  index: (sessionId: string) =>
+    request<{ fileCount: number; duration: number; model: string }>(
+      '/embeddings/index',
+      { method: 'POST', body: JSON.stringify({ sessionId }) }
+    ),
+
+  status: (sessionId: string) =>
+    request<{
+      indexed: boolean;
+      fileCount: number;
+      lastIndexedAt: string | null;
+      indexing: boolean;
+    }>(`/embeddings/status?sessionId=${encodeURIComponent(sessionId)}`),
+
+  search: (sessionId: string, query: string, topK?: number) =>
+    request<{
+      results: Array<{ path: string; score: number; snippet: string; language: string }>;
+      queryTime: number;
+    }>('/embeddings/search', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, query, topK }),
+    }),
+};
+
 // AI Providers API
 export const aiProvidersApi = {
   get: () =>

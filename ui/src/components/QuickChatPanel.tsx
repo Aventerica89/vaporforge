@@ -17,6 +17,9 @@ import {
   Zap,
   Clock,
   Wrench,
+  Database,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -27,6 +30,8 @@ import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
 import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
+import { Sources, type SourceFile } from './ai-elements/Sources';
+import { embeddingsApi } from '@/lib/api';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -282,10 +287,13 @@ export function QuickChatPanel() {
               {showHistory ? 'Chat History' : 'Quick Chat'}
             </h2>
             {!showHistory && activeSessionId && (
-              <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
-                <Wrench className="h-2.5 w-2.5" />
-                Agent
-              </span>
+              <>
+                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
+                  <Wrench className="h-2.5 w-2.5" />
+                  Agent
+                </span>
+                <EmbeddingStatusBadge sessionId={activeSessionId} />
+              </>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -579,6 +587,31 @@ function ProviderToggle({
   );
 }
 
+/** Parse semanticSearch tool output into SourceFile[] for the Sources component */
+function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
+  const sources: SourceFile[] = [];
+  for (const part of parts) {
+    if (part.type !== 'dynamic-tool') continue;
+    const toolPart = part as DynamicToolUIPart;
+    if (toolPart.toolName !== 'semanticSearch') continue;
+    if (toolPart.state !== 'output-available') continue;
+    if (!('output' in toolPart) || typeof toolPart.output !== 'string') continue;
+
+    // Parse lines like: [87%] /workspace/src/auth.ts
+    const lines = (toolPart.output as string).split('\n');
+    for (const line of lines) {
+      const match = line.match(/^\[(\d+)%\]\s+(.+)$/);
+      if (match) {
+        sources.push({
+          path: match[2].trim(),
+          score: parseInt(match[1], 10) / 100,
+        });
+      }
+    }
+  }
+  return sources;
+}
+
 function QuickChatMessage({
   msg,
   isLastAssistant,
@@ -628,6 +661,12 @@ function QuickChatMessage({
   }
 
   // Rich path: iterate parts for tool calls, reasoning, and text
+  const sources = extractSourcesFromParts(msg.parts);
+
+  const handleSourceClick = (path: string) => {
+    useSandboxStore.getState().openFile(path);
+  };
+
   return (
     <div className="group/message space-y-1">
       <div className="flex items-center gap-2">
@@ -689,6 +728,10 @@ function QuickChatMessage({
         return null;
       })}
 
+      {sources.length > 0 && (
+        <Sources sources={sources} onSourceClick={handleSourceClick} />
+      )}
+
       {!isStreaming && textContent && (
         <MessageActions content={textContent} />
       )}
@@ -712,5 +755,78 @@ function ProviderBadge({ provider }: { provider: ProviderName }) {
       )}
       {provider}
     </span>
+  );
+}
+
+function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
+  const [status, setStatus] = useState<{
+    indexed: boolean;
+    fileCount: number;
+    indexing: boolean;
+  }>({ indexed: false, fileCount: 0, indexing: false });
+  const [reindexing, setReindexing] = useState(false);
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await embeddingsApi.status(sessionId);
+      if (res.success && res.data) {
+        setStatus(res.data);
+      }
+    } catch {
+      // Silent — badge just won't show
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 10000);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
+
+  const handleReindex = useCallback(async () => {
+    setReindexing(true);
+    try {
+      await embeddingsApi.index(sessionId);
+      await fetchStatus();
+    } catch {
+      // Silent
+    } finally {
+      setReindexing(false);
+    }
+  }, [sessionId, fetchStatus]);
+
+  if (status.indexing || reindexing) {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-medium text-blue-400">
+        <Loader2 className="h-2.5 w-2.5 animate-spin" />
+        Indexing...
+      </span>
+    );
+  }
+
+  if (status.indexed) {
+    return (
+      <button
+        type="button"
+        onClick={handleReindex}
+        title="Re-index workspace"
+        className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+      >
+        <Database className="h-2.5 w-2.5" />
+        {status.fileCount} files
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleReindex}
+      title="Index workspace for semantic search"
+      className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+    >
+      <RefreshCw className="h-2.5 w-2.5" />
+      Index
+    </button>
   );
 }

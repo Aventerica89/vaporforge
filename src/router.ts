@@ -24,6 +24,7 @@ import { quickchatRoutes } from './api/quickchat';
 import { transformRoutes } from './api/transform';
 import { analyzeRoutes } from './api/analyze';
 import { commitMsgRoutes } from './api/commit-msg';
+import { embeddingsRoutes } from './api/embeddings';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -76,7 +77,7 @@ export function createRouter(env: Env) {
   );
 
   // Version header — allows clients to detect deploys
-  const VF_VERSION = '0.15.0';
+  const VF_VERSION = '0.17.0';
   app.use('*', async (c, next) => {
     await next();
     c.header('X-VF-Version', VF_VERSION);
@@ -325,6 +326,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/transform', transformRoutes);
   protectedRoutes.route('/analyze', analyzeRoutes);
   protectedRoutes.route('/commit-msg', commitMsgRoutes);
+  protectedRoutes.route('/embeddings', embeddingsRoutes);
 
   app.route('/api', protectedRoutes);
 

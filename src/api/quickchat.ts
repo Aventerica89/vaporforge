@@ -7,8 +7,11 @@ import {
   createModel,
   getProviderCredentials,
   getAvailableProviders,
+  createEmbeddingModel,
   type ProviderName,
+  type ProviderCredentials,
 } from '../services/ai-provider-factory';
+import { searchEmbeddings } from '../services/embeddings';
 
 type Variables = { user: User };
 
@@ -160,9 +163,12 @@ function shellEscape(s: string | undefined | null): string {
 
 function createSandboxTools(
   sandboxManager: SandboxManager,
-  sessionId: string
+  sessionId: string,
+  env?: Env,
+  userId?: string,
+  credentials?: ProviderCredentials
 ) {
-  return {
+  const baseTools = {
     readFile: tool({
       description: 'Read a file from the workspace',
       parameters: z.object({
@@ -188,7 +194,7 @@ function createSandboxTools(
       },
     }),
     searchCode: tool({
-      description: 'Search for a pattern in source files',
+      description: 'Search for a pattern in source files (literal/regex grep)',
       parameters: z.object({
         pattern: z.string().describe('Search pattern (regex)'),
         path: z.string().default('/workspace').describe('Directory to search'),
@@ -218,6 +224,34 @@ function createSandboxTools(
           stderr: result.stderr,
           exitCode: result.exitCode,
         };
+      },
+    }),
+  };
+
+  // Add semanticSearch if Gemini credentials are available
+  const embeddingModel = credentials ? createEmbeddingModel(credentials) : null;
+  if (!embeddingModel || !env || !userId) {
+    return baseTools;
+  }
+
+  return {
+    ...baseTools,
+    semanticSearch: tool({
+      description: 'Search workspace files by meaning/concept. Use for architecture, functionality, or "where is X?" questions. More powerful than grep for conceptual queries.',
+      parameters: z.object({
+        query: z.string().describe('Natural language description of what to find'),
+        topK: z.number().min(1).max(20).default(5).describe('Number of results'),
+      }),
+      execute: async ({ query, topK }) => {
+        const results = await searchEmbeddings(
+          env.SESSIONS_KV, userId, sessionId, query, embeddingModel, topK
+        );
+        if (!results || results.length === 0) {
+          return 'No embeddings index found. The workspace needs to be indexed first (happens automatically on session create, or use the Re-index button).';
+        }
+        return results
+          .map((r) => `[${(r.score * 100).toFixed(0)}%] ${r.path}\n  ${r.snippet}`)
+          .join('\n\n');
       },
     }),
   };
@@ -273,12 +307,28 @@ quickchatRoutes.post('/stream', async (c) => {
     ? c.get('sandboxManager')
     : null;
   const tools = sandboxManager && sessionId
-    ? createSandboxTools(sandboxManager, sessionId)
+    ? createSandboxTools(sandboxManager, sessionId, c.env, user.id, creds)
     : undefined;
+
+  // Build system prompt — add semantic search guidance if available
+  const hasSemanticSearch = tools && 'semanticSearch' in tools;
+  const systemParts: string[] = [
+    'You are a helpful coding assistant with access to a cloud development sandbox.',
+  ];
+  if (hasSemanticSearch) {
+    systemParts.push(
+      'You have access to a semanticSearch tool that finds files by meaning.',
+      'Use it proactively when the user asks about code architecture,',
+      'functionality, or "where is X?" questions.',
+      'After using semanticSearch, reference the specific files you found',
+      'in your response with full paths.'
+    );
+  }
 
   // Stream using AI SDK — returns UIMessageStream for useChat v6
   const result = streamText({
     model: aiModel,
+    system: systemParts.join(' '),
     messages: messages.map((m) => ({
       role: m.role as 'user' | 'assistant',
       content: extractTextFromMessage(m),

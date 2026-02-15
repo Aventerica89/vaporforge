@@ -8,6 +8,8 @@ import { collectUserConfigs } from './config';
 import { getVfRules } from './user';
 import { collectGeminiMcpConfig } from './ai-providers';
 import { assembleSandboxConfig } from '../config-assembly';
+import { getProviderCredentials, createEmbeddingModel } from '../services/ai-provider-factory';
+import { buildEmbeddingsIndex } from '../services/embeddings';
 
 type Variables = {
   user: User;
@@ -128,6 +130,25 @@ sessionRoutes.post('/create', async (c) => {
         JSON.stringify(session)
       );
     }
+
+    // Background: auto-index workspace for semantic search if Gemini key exists
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id);
+          const embModel = createEmbeddingModel(creds);
+          if (embModel) {
+            // Wait a few seconds for container filesystem to settle
+            await new Promise((r) => setTimeout(r, 3000));
+            await buildEmbeddingsIndex(
+              sandboxManager, sessionId, user.id, embModel, c.env.SESSIONS_KV
+            );
+          }
+        } catch (err) {
+          console.error('[sessions/create] background indexing error:', err);
+        }
+      })()
+    );
 
     return c.json<ApiResponse<Session>>({
       success: true,
