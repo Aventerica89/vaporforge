@@ -6,7 +6,7 @@ FROM docker.io/cloudflare/sandbox:0.7.0
 RUN npm install -g @anthropic-ai/claude-code
 
 # Install Agent SDK globally + in /opt/claude-agent (keeps /workspace clean for user projects)
-RUN npm install -g @anthropic-ai/claude-agent-sdk@latest && \
+RUN npm install -g @anthropic-ai/claude-agent-sdk@latest ws && \
     mkdir -p /opt/claude-agent && cd /opt/claude-agent && npm init -y && npm install @anthropic-ai/claude-agent-sdk@latest
 ENV NODE_PATH=/usr/local/lib/node_modules
 
@@ -64,16 +64,33 @@ try {
 const fs = require('fs');
 const path = require('path');
 
+// Synchronous, unbuffered write to stdout (fd 1).
+// Bypasses Node's stream buffering which blocks output when piped.
+function emit(obj) {
+  fs.writeSync(1, JSON.stringify(obj) + '\n');
+}
+
 // Keys to strip from the env passed to the SDK's CLI child process.
 // These are VF internal transport vars the SDK doesn't need directly.
 const STRIP_FROM_SDK_ENV = new Set([
   'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
+  'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
+]);
+
+// Tools blocked in plan mode (read-only research mode).
+// Plan mode allows reading, searching, and web browsing but blocks mutations.
+const PLAN_MODE_BLOCKED_TOOLS = new Set([
+  'Bash',
+  'Write',
+  'Edit',
+  'NotebookEdit',
 ]);
 
 // Minimal YAML frontmatter parser (no external deps needed in container)
 function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return { meta: {}, body: content };
+
   const meta = {};
   for (const line of match[1].split('\n')) {
     const kv = line.match(/^(\w[\w-]*):\s*(.+)$/);
@@ -89,43 +106,61 @@ function loadAgentsFromDisk() {
   const configDir = process.env.CLAUDE_CONFIG_DIR || '/root/.claude';
   const agentsDir = path.join(configDir, 'agents');
   const agents = {};
+
   try {
     if (!fs.existsSync(agentsDir)) return agents;
     const files = fs.readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+
     for (const file of files) {
       const content = fs.readFileSync(path.join(agentsDir, file), 'utf8');
       const { meta, body } = parseFrontmatter(content);
       const name = meta.name || file.replace(/\.md$/, '');
-      agents[name] = { description: meta.description || '', prompt: body.trim() };
+
+      agents[name] = {
+        description: meta.description || '',
+        prompt: body.trim(),
+      };
+
       if (meta.tools) {
         agents[name].tools = meta.tools.split(',').map(t => t.trim()).filter(Boolean);
       }
       if (meta.disallowedTools) {
         agents[name].disallowedTools = meta.disallowedTools.split(',').map(t => t.trim()).filter(Boolean);
       }
-      if (meta.model) agents[name].model = meta.model;
+      if (meta.model) {
+        agents[name].model = meta.model;
+      }
     }
+
     const count = Object.keys(agents).length;
-    if (count > 0) console.error(`[claude-agent] Loaded ${count} agent(s): ${Object.keys(agents).join(', ')}`);
+    if (count > 0) {
+      console.error(`[claude-agent] Loaded ${count} agent(s): ${Object.keys(agents).join(', ')}`);
+    }
   } catch (err) {
     console.error(`[claude-agent] Failed to load agents: ${err.message}`);
   }
+
   return agents;
 }
 
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
+  // "Claude Code process exited with code N at XX.getProcessExitError ..."
   const exitMatch = raw.match(/process exited with code (\d+)/i);
   if (exitMatch) {
     return `Claude Code process crashed (exit code ${exitMatch[1]}). This usually means the session state is stale or the sandbox restarted.`;
   }
+  // Strip file paths and stack frames for cleaner messages
   const firstLine = raw.split('\n')[0].trim();
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
 }
 
 function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
+  const mode = process.env.VF_SESSION_MODE || 'agent';
+  const isPlan = mode === 'plan';
+  if (isPlan) console.error('[claude-agent] Running in PLAN mode (read-only)');
   const agents = loadAgentsFromDisk();
 
   // Filter out keys the SDK's CLI child process shouldn't see
@@ -155,8 +190,17 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     agents,
     ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
-    permissionMode: 'bypassPermissions',
-    allowDangerouslySkipPermissions: true,
+    permissionMode: isPlan ? 'plan' : 'bypassPermissions',
+    allowDangerouslySkipPermissions: !isPlan,
+    ...(isPlan ? {
+      canUseTool: async (toolName) => {
+        if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
+          console.error(`[claude-agent] Plan mode: blocked ${toolName}`);
+          return false;
+        }
+        return true;
+      },
+    } : {}),
     continue: true,
     systemPrompt: {
       type: 'preset',
@@ -182,54 +226,99 @@ async function runStream(prompt, sessionId, cwd, useResume) {
   let newSessionId = sessionId || '';
   let responseText = '';
 
+  // Dedup: track emitted tool IDs to skip duplicates
+  // (tools can arrive via streaming AND in the final assistant message)
+  const emittedToolIds = new Set();
+
+  // Track parent tool context for composite IDs (nested agent tools)
+  let currentParentToolUseId = null;
+
+  // Map original toolId -> composite toolId (for tool-result matching)
+  const toolIdMapping = new Map();
+
+  // Helper: create composite ID for nested tools ("parentId:childId")
+  const makeCompositeId = (originalId, parentId) =>
+    parentId ? `${parentId}:${originalId}` : originalId;
+
   for await (const msg of stream) {
+    // Session ID from system init event (snake_case per SDK)
     if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
       newSessionId = msg.session_id;
-      console.log(JSON.stringify({ type: 'session-init', sessionId: newSessionId }));
+      emit({ type: 'session-init', sessionId: newSessionId });
     }
 
+    // Track parent_tool_use_id for nested agent tools
+    if (msg.parent_tool_use_id !== undefined) {
+      currentParentToolUseId = msg.parent_tool_use_id;
+    }
+
+    // Streaming text deltas (requires includePartialMessages: true)
     if (msg.type === 'stream_event') {
       const event = msg.event;
       if (event && event.type === 'content_block_delta' && event.delta && event.delta.type === 'text_delta') {
         responseText += event.delta.text;
-        console.log(JSON.stringify({ type: 'text-delta', text: event.delta.text }));
+        emit({ type: 'text-delta', text: event.delta.text });
       }
     }
 
+    // Tool use events - forward tool invocations for UI display
     if (msg.type === 'assistant' && msg.message && msg.message.content) {
       for (const block of msg.message.content) {
         if (block.type === 'tool_use') {
-          console.log(JSON.stringify({
+          const originalId = block.id || `tool-${Date.now()}`;
+          const compositeId = makeCompositeId(originalId, currentParentToolUseId);
+
+          // Skip if already emitted (dedup streaming vs final message)
+          if (emittedToolIds.has(compositeId)) continue;
+          emittedToolIds.add(compositeId);
+
+          // Store mapping so tool-result can find the composite ID
+          toolIdMapping.set(originalId, compositeId);
+
+          emit({
             type: 'tool-start',
+            id: compositeId,
             name: block.name || 'unknown',
             input: block.input || {},
-          }));
+          });
         }
       }
+      // Also capture final text from assistant message
       responseText = msg.message.content
         .filter(b => b.type === 'text')
         .map(b => b.text)
         .join('');
     }
 
+    // Tool result events
     if (msg.type === 'tool_result' || (msg.type === 'stream_event' && msg.event && msg.event.type === 'tool_result')) {
       const toolEvent = msg.type === 'tool_result' ? msg : msg.event;
-      console.log(JSON.stringify({
+      // Resolve composite ID from mapping, fallback to original
+      const originalId = toolEvent.tool_use_id || toolEvent.id || '';
+      const compositeId = toolIdMapping.get(originalId) || originalId;
+
+      emit({
         type: 'tool-result',
+        id: compositeId,
         name: toolEvent.name || toolEvent.tool_name || 'unknown',
         output: typeof toolEvent.output === 'string'
           ? toolEvent.output.slice(0, 500)
           : JSON.stringify(toolEvent.output || toolEvent.content || '').slice(0, 500),
-      }));
+      });
     }
 
+    // Result message with final session_id
     if (msg.type === 'result' && msg.session_id) {
       newSessionId = msg.session_id;
     }
 
+    // Handle errors from SDK — report but don't exit
+    // process.exit(1) here kills the RPC stream, causing
+    // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
-      console.log(JSON.stringify({ type: 'error', error: errorMsg }));
+      emit({ type: 'error', error: errorMsg });
+      // Let the for-await loop complete — 'done' will be sent at the end
     }
   }
 
@@ -240,39 +329,45 @@ async function handleQuery(prompt, sessionId, cwd) {
   let result;
 
   try {
+    // First attempt: resume existing session if we have a sessionId
     result = await runStream(prompt, sessionId, cwd, !!sessionId);
   } catch (err) {
     const friendly = cleanErrorMessage(err);
 
+    // If we were trying to resume a session and it crashed, retry fresh
     if (sessionId) {
-      console.log(JSON.stringify({
+      emit({
         type: 'error',
         error: `Session resume failed: ${friendly}. Starting fresh session...`,
-      }));
-      console.log(JSON.stringify({ type: 'session-reset' }));
+      });
+      // Signal to backend that the old sdkSessionId is invalid
+      emit({ type: 'session-reset' });
 
       try {
         result = await runStream(prompt, '', cwd, false);
       } catch (retryErr) {
         const retryMsg = cleanErrorMessage(retryErr);
-        console.log(JSON.stringify({ type: 'error', error: retryMsg }));
-        console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+        emit({ type: 'error', error: retryMsg });
+        emit({ type: 'done', sessionId: '', fullText: '' });
         return;
       }
     } else {
-      console.log(JSON.stringify({ type: 'error', error: friendly }));
-      console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+      // No session to retry without — report the error
+      emit({ type: 'error', error: friendly });
+      emit({ type: 'done', sessionId: '', fullText: '' });
       return;
     }
   }
 
-  console.log(JSON.stringify({
+  // Final message with complete response
+  emit({
     type: 'done',
     sessionId: result.newSessionId,
     fullText: result.responseText,
-  }));
+  });
 }
 
+// Read arguments from command line
 const args = process.argv.slice(2);
 if (args.length < 1) {
   console.error(JSON.stringify({
@@ -284,10 +379,14 @@ if (args.length < 1) {
 
 const [prompt, sessionId, cwd] = args;
 handleQuery(prompt, sessionId, cwd).catch(err => {
+  // Output clean error to stdout (parsed by backend) — avoid raw stack traces
   const friendly = cleanErrorMessage(err);
-  console.log(JSON.stringify({ type: 'error', error: friendly }));
-  console.log(JSON.stringify({ type: 'done', sessionId: '', fullText: '' }));
+  emit({ type: 'error', error: friendly });
+  emit({ type: 'done', sessionId: '', fullText: '' });
+  // Log full detail to stderr for server-side debugging only
   console.error(`[claude-agent] fatal: ${err.stack || err.message || err}`);
+  // Exit cleanly (code 0) — errors are already reported via stdout protocol.
+  // Using exit(1) causes the backend to emit a redundant "process exited with code 1" error.
   process.exit(0);
 });
 CLAUDE_AGENT_EOF
@@ -574,3 +673,164 @@ process.stderr.write('[gemini-mcp] Server started\n');
 GEMINI_MCP_EOF
 
 RUN chmod +x /opt/claude-agent/gemini-mcp-server.js
+
+# Embed WebSocket agent server for real-time streaming
+# IMPORTANT: Keep in sync with src/sandbox-scripts/ws-agent-server.js
+RUN cat > /opt/claude-agent/ws-agent-server.js << 'WS_SERVER_EOF'
+#!/usr/bin/env node
+
+// WebSocket agent server for VaporForge containers.
+// Listens on port 8765, receives queries via context files,
+// spawns claude-agent.js, and pipes stdout lines as WS frames.
+//
+// Lifecycle: Started once per container wake. Handles sequential queries.
+// Protocol: Worker writes context to /tmp/vf-pending-query.json via
+// sandbox.writeFile(), then proxies the browser WS via wsConnect(8765).
+
+const { WebSocketServer } = require('ws');
+const { spawn } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+
+const PORT = 8765;
+const CONTEXT_FILE = '/tmp/vf-pending-query.json';
+const AGENT_SCRIPT = '/opt/claude-agent/claude-agent.js';
+
+const wss = new WebSocketServer({ port: PORT });
+let activeChild = null;
+
+console.log(`[ws-agent-server] listening on port ${PORT}`);
+
+wss.on('connection', (ws) => {
+  console.log('[ws-agent-server] client connected');
+
+  // Kill any lingering child from a previous aborted connection
+  if (activeChild) {
+    try { activeChild.kill('SIGTERM'); } catch {}
+    activeChild = null;
+  }
+
+  // Wait briefly for context file to be written by the Worker
+  setTimeout(() => startQuery(ws), 150);
+});
+
+function startQuery(ws) {
+  // Read context file written by the Worker
+  let context;
+  try {
+    const raw = fs.readFileSync(CONTEXT_FILE, 'utf8');
+    context = JSON.parse(raw);
+  } catch (err) {
+    sendJson(ws, { type: 'error', error: `Failed to read context: ${err.message}` });
+    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    ws.close();
+    return;
+  }
+
+  // Delete context file immediately (contains secrets)
+  try { fs.unlinkSync(CONTEXT_FILE); } catch {}
+
+  const { prompt, sessionId, cwd, env: extraEnv, mode } = context;
+
+  if (!prompt) {
+    sendJson(ws, { type: 'error', error: 'No prompt in context file' });
+    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    ws.close();
+    return;
+  }
+
+  // Build child env: inherit container env, overlay Worker-provided vars
+  const childEnv = { ...process.env, ...(extraEnv || {}) };
+
+  // Spawn claude-agent.js with the same args the SSE path uses
+  const args = [AGENT_SCRIPT, prompt, sessionId || '', cwd || '/workspace'];
+  console.log(`[ws-agent-server] spawning agent, sessionId=${(sessionId || '').slice(0, 8)}`);
+
+  const child = spawn('node', args, {
+    cwd: cwd || '/workspace',
+    env: childEnv,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  activeChild = child;
+
+  let stdoutBuf = '';
+
+  child.stdout.on('data', (chunk) => {
+    if (ws.readyState !== 1) return; // WS not open
+    stdoutBuf += chunk.toString();
+    const lines = stdoutBuf.split('\n');
+    stdoutBuf = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      // Forward raw JSON lines as WS frames
+      ws.send(line);
+    }
+  });
+
+  child.stderr.on('data', (chunk) => {
+    const text = chunk.toString().trim();
+    if (!text) return;
+    // Log agent debug output server-side
+    if (text.startsWith('[claude-agent]')) {
+      console.log(`[ws-agent-server] ${text.slice(0, 200)}`);
+      return;
+    }
+    // Forward structured errors to the client
+    if (text.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.type === 'error') {
+          sendJson(ws, { type: 'error', error: parsed.error || 'Agent error' });
+          return;
+        }
+      } catch {}
+    }
+    // Forward cleaned stderr as error
+    const firstLine = text.split('\n')[0].replace(/\s+at\s+.+$/, '').trim();
+    sendJson(ws, { type: 'error', error: firstLine || 'Agent error' });
+  });
+
+  child.on('close', (code) => {
+    activeChild = null;
+    // Flush any remaining stdout
+    if (stdoutBuf.trim() && ws.readyState === 1) {
+      ws.send(stdoutBuf.trim());
+    }
+    sendJson(ws, { type: 'process-exit', exitCode: code || 0 });
+    console.log(`[ws-agent-server] agent exited with code ${code}`);
+    // Don't close the WS — let the client close it
+  });
+
+  child.on('error', (err) => {
+    activeChild = null;
+    sendJson(ws, { type: 'error', error: `Spawn failed: ${err.message}` });
+    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+  });
+
+  // If client disconnects, kill the child process
+  ws.on('close', () => {
+    console.log('[ws-agent-server] client disconnected');
+    if (child && !child.killed) {
+      try { child.kill('SIGTERM'); } catch {}
+      activeChild = null;
+    }
+  });
+}
+
+function sendJson(ws, obj) {
+  if (ws.readyState === 1) {
+    ws.send(JSON.stringify(obj));
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('[ws-agent-server] shutting down');
+  if (activeChild) {
+    try { activeChild.kill('SIGTERM'); } catch {}
+  }
+  wss.close(() => process.exit(0));
+});
+WS_SERVER_EOF
+
+RUN chmod +x /opt/claude-agent/ws-agent-server.js
