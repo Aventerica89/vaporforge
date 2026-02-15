@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.15.0';
+export const APP_VERSION = '0.15.1';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.15.1',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Keyboard Shortcuts + Panel Layout Persistence',
+    items: [
+      'Settings now shows all 15 keyboard shortcuts across 5 groups (was 7)',
+      'New AI Tools shortcut group: Quick Chat, Code Transform, Code Analysis, Commit Message',
+      'Panel sizes persist across page reloads — resize once, keep your layout',
+      'Cmd+Shift+0 resets panels to default (or your saved custom default)',
+      'Panel Layout card in Settings: visual size preview with Save/Reset buttons',
+    ],
+  },
   {
     version: '0.15.0',
     date: '2026-02-15',

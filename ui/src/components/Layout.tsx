@@ -30,6 +30,7 @@ import { useMarketplace } from '@/hooks/useMarketplace';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
+import { useLayoutStore } from '@/hooks/useLayoutStore';
 
 export function Layout() {
   const { loadSessions, currentSession, openFiles, isCreatingSession } =
@@ -48,6 +49,27 @@ export function Layout() {
   const [fileTreeCollapsed, setFileTreeCollapsed] = useState(false);
   const [rightPanelCollapsed, setRightPanelCollapsed] = useState(true);
   const [terminalCollapsed, setTerminalCollapsed] = useState(false);
+
+  // Track live panel sizes for settings display
+  const setCurrentSizes = useLayoutStore((s) => s.setCurrentSizes);
+  const handleLayout = useCallback(
+    (sizes: number[]) => setCurrentSizes(sizes),
+    [setCurrentSizes],
+  );
+
+  // Subscribe to reset requests from settings
+  const resetRequested = useLayoutStore((s) => s.resetRequested);
+  const clearResetRequest = useLayoutStore((s) => s.clearResetRequest);
+  const getSavedDefault = useLayoutStore((s) => s.getSavedDefault);
+
+  useEffect(() => {
+    if (!resetRequested) return;
+    const defaults = getSavedDefault();
+    fileTreePanelRef.current?.resize(defaults[0]);
+    // Chat panel auto-fills remaining space
+    rightPanelRef.current?.resize(defaults[2]);
+    clearResetRequest();
+  }, [resetRequested, clearResetRequest, getSavedDefault]);
 
   const toggleFileTree = useCallback(() => {
     const panel = fileTreePanelRef.current;
@@ -164,6 +186,13 @@ export function Layout() {
         return;
       }
 
+      // Cmd+Shift+0 — reset panel layout to default
+      if (e.shiftKey && (e.key === '0' || e.key === ')')) {
+        e.preventDefault();
+        useLayoutStore.getState().resetToDefault();
+        return;
+      }
+
       if (!currentSession) return;
 
       if (e.key === '1') {
@@ -238,7 +267,12 @@ export function Layout() {
       ) : currentSession ? (
         /* Desktop/Tablet Layout - Resizable Panels */
         /* Order: Files (15%) | Chat (55%) | Editor+Terminal (30%) */
-        <PanelGroup direction="horizontal" className="flex-1">
+        <PanelGroup
+          direction="horizontal"
+          className="flex-1"
+          autoSaveId="vf-layout"
+          onLayout={handleLayout}
+        >
           {/* File Tree */}
           <Panel
             ref={fileTreePanelRef}
