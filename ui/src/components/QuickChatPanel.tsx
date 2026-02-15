@@ -3,11 +3,9 @@ import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
   X,
-  Send,
   MessageSquare,
   Trash2,
   Plus,
-  Square,
   ChevronLeft,
   Sparkles,
   Crown,
@@ -32,6 +30,13 @@ import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { Sources, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputSubmit,
+  PromptInputSpeech,
+  PromptInputHint,
+} from '@/components/prompt-input';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -152,7 +157,7 @@ export function QuickChatPanel() {
   const [showHistory, setShowHistory] = useState(false);
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -162,7 +167,9 @@ export function QuickChatPanel() {
   // Focus input when panel opens
   useEffect(() => {
     if (isOpen && !showHistory) {
-      setTimeout(() => inputRef.current?.focus(), 200);
+      setTimeout(() => {
+        panelRef.current?.querySelector('textarea')?.focus();
+      }, 200);
     }
   }, [isOpen, showHistory]);
 
@@ -219,10 +226,9 @@ export function QuickChatPanel() {
     [hasAnyProvider, isStreaming, sendMessage]
   );
 
-  // Send message
-  const handleSend = useCallback(() => {
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) return;
+  // Send message — called by compound PromptInput with the message text
+  const handleSend = useCallback((message: string) => {
+    if (!message || isStreaming) return;
 
     if (!hasAnyProvider) {
       setError(
@@ -231,20 +237,8 @@ export function QuickChatPanel() {
       return;
     }
     setError(null);
-    sendMessage({ text: trimmed });
-    setInput('');
-  }, [input, isStreaming, hasAnyProvider, selectedProvider, sendMessage, setError]);
-
-  // Handle Enter key
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
+    sendMessage({ text: message });
+  }, [isStreaming, hasAnyProvider, selectedProvider, sendMessage, setError]);
 
   // Tool approval handlers
   const handleApprove = useCallback((approvalId: string) => {
@@ -270,7 +264,7 @@ export function QuickChatPanel() {
       />
 
       {/* Panel */}
-      <div className="relative flex h-full w-full max-w-lg flex-col bg-background border-l border-border shadow-2xl animate-slide-in-right">
+      <div ref={panelRef} className="relative flex h-full w-full max-w-lg flex-col bg-background border-l border-border shadow-2xl animate-slide-in-right">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
@@ -492,56 +486,30 @@ export function QuickChatPanel() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="border-t border-border p-3">
+            {/* Input — compound PromptInput */}
+            <PromptInput
+              input={input}
+              onInputChange={setInput}
+              onSubmit={handleSend}
+              onStop={stop}
+              status={isStreaming ? 'streaming' : 'idle'}
+              disabled={!hasAnyProvider}
+              compact
+            >
               <div className="flex items-end gap-2">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => {
-                    setInput(e.target.value);
-                    // Auto-resize
-                    const el = e.target;
-                    el.style.height = 'auto';
-                    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-                  }}
-                  onKeyDown={handleKeyDown}
-                  placeholder={hasAnyProvider ? 'Ask anything...' : 'Configure a provider in Settings first'}
-                  disabled={!hasAnyProvider}
-                  rows={1}
-                  className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{ minHeight: '40px', maxHeight: '120px' }}
+                <PromptInputTextarea
+                  placeholder={
+                    hasAnyProvider
+                      ? 'Ask anything...'
+                      : 'Configure a provider in Settings first'
+                  }
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm"
                 />
-                {isStreaming ? (
-                  <button
-                    type="button"
-                    onClick={stop}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                    title="Stop"
-                  >
-                    <Square className="h-4 w-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSend}
-                    disabled={!input.trim() || !hasAnyProvider}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground disabled:opacity-30 hover:bg-primary/90 transition-colors"
-                    title="Send (Enter)"
-                  >
-                    <Send className="h-4 w-4" />
-                  </button>
-                )}
+                <PromptInputSpeech />
+                <PromptInputSubmit />
               </div>
-              <div className="mt-1.5 flex items-center justify-between px-1">
-                <span className="text-[10px] text-muted-foreground">
-                  Enter to send, Shift+Enter for new line
-                </span>
-                <span className={`text-[10px] text-muted-foreground/60 transition-opacity ${input.length > 100 ? 'opacity-100' : 'opacity-0'}`}>
-                  {input.length}
-                </span>
-              </div>
-            </div>
+              <PromptInputHint />
+            </PromptInput>
           </>
         )}
       </div>

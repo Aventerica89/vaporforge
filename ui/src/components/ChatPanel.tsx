@@ -1,14 +1,14 @@
-import { useRef, useEffect, useCallback, memo } from 'react';
-import { Trash2, Loader2, ArrowDown } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { Trash2, Loader2, ArrowDown, Paperclip } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { chatApi } from '@/lib/api';
+import { chatApi, filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';
-import { PromptInput } from '@/components/chat/PromptInput';
 import { EmptyState } from '@/components/chat/EmptyState';
 import {
   Message,
@@ -17,7 +17,20 @@ import {
   MessageFooter,
   MessageAttachments,
 } from '@/components/chat/message';
-import type { Message as MessageType } from '@/lib/types';
+import {
+  PromptInput,
+  PromptInputTextarea,
+  PromptInputSubmit,
+  PromptInputTools,
+  PromptInputHint,
+  PromptInputActions,
+  PromptInputSpeech,
+  PromptInputSlashMenu,
+  PromptInputReforge,
+  PromptInputModeToggle,
+  PromptInputAttachments,
+} from '@/components/prompt-input';
+import type { Message as MessageType, ImageAttachment } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // MemoizedMessageItem — selects its own message by ID, skips re-render when
@@ -105,11 +118,16 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
   const messageCount = useMessageCount();
   const sendMessage = useSandboxStore((s) => s.sendMessage);
   const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const stopStreaming = useSandboxStore((s) => s.stopStreaming);
   const clearMessages = useSandboxStore((s) => s.clearMessages);
   const currentFile = useSandboxStore((s) => s.currentFile);
+  const sdkMode = useSandboxStore((s) => s.sdkMode);
+  const setMode = useSandboxStore((s) => s.setMode);
+  const sessionId = useSandboxStore((s) => s.currentSession?.id);
   // For auto-scroll: subscribe to streamingContent length, not full content
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
 
+  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
 
@@ -149,6 +167,32 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
       onRefresh: handleRefresh,
       disabled: !compact,
     });
+
+  // Image upload function — uploads to sandbox, returns attachment with uploadedPath
+  const uploadImage = useCallback(
+    async (img: ImageAttachment): Promise<ImageAttachment | null> => {
+      if (!sessionId) return null;
+      try {
+        const result = await filesApi.uploadBase64(
+          sessionId,
+          img.filename,
+          img.dataUrl,
+        );
+        if (result.success && result.data) {
+          return { ...img, uploadedPath: result.data.path };
+        }
+      } catch (err) {
+        useDebugLog.getState().addEntry({
+          category: 'api',
+          level: 'error',
+          summary: `Image upload failed: ${img.filename}`,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+      return null;
+    },
+    [sessionId],
+  );
 
   return (
     <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border/60'}`}>
@@ -233,14 +277,48 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
         )}
       </div>
 
-      {/* Input */}
+      {/* Input — compound PromptInput */}
       <PromptInput
+        input={input}
+        onInputChange={setInput}
         onSubmit={sendMessage}
-        isStreaming={isStreaming}
-        currentFileName={currentFile?.name}
+        onStop={stopStreaming}
+        status={isStreaming ? 'streaming' : 'idle'}
+        uploadImage={uploadImage}
         compact={compact}
         keyboardOpen={keyboardOpen}
-      />
+        disabled={!sessionId}
+      >
+        <PromptInputTools>
+          {currentFile && (
+            <>
+              <Paperclip className="h-3 w-3 text-muted-foreground/60" />
+              <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
+                {currentFile.name}
+              </span>
+            </>
+          )}
+          <PromptInputReforge />
+          <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />
+        </PromptInputTools>
+        <PromptInputSlashMenu />
+        <div className="relative rounded-xl border border-border/60 bg-background transition-colors focus-within:border-primary/50 focus-within:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]">
+          <PromptInputAttachments />
+          <PromptInputTextarea
+            placeholder={
+              sdkMode === 'plan'
+                ? 'Research mode — Claude can read but not edit...'
+                : 'Message Claude...'
+            }
+          />
+          <div className="absolute bottom-2 right-2 flex items-center gap-1">
+            <PromptInputActions />
+            <PromptInputSpeech />
+            <PromptInputSubmit />
+          </div>
+        </div>
+        <PromptInputHint />
+      </PromptInput>
     </div>
   );
 }

@@ -776,6 +776,44 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     if (controller) {
       controller.abort();
     }
+    // Directly reset streaming state as safety net — the catch block
+    // should also do this, but if abort doesn't propagate (race condition,
+    // stream already exited for-await loop), this prevents a frozen UI.
+    const wasStreaming = get().isStreaming;
+    if (wasStreaming) {
+      const accumulatedContent = get().streamingContent;
+      const accumulatedParts = get().streamingParts;
+      const session = get().currentSession;
+
+      // If there's accumulated content, promote it to a message
+      if (session && (accumulatedContent || accumulatedParts.length > 0)) {
+        const stoppedMessage: Message = {
+          id: crypto.randomUUID(),
+          sessionId: session.id,
+          role: 'assistant' as const,
+          content: accumulatedContent || '',
+          timestamp: new Date().toISOString(),
+          parts: accumulatedParts.length > 0
+            ? accumulatedParts
+            : [{ type: 'text' as const, content: accumulatedContent }],
+        };
+        set((state) => ({
+          messagesById: { ...state.messagesById, [stoppedMessage.id]: stoppedMessage },
+          messageIds: [...state.messageIds, stoppedMessage.id],
+          isStreaming: false,
+          streamingContent: '',
+          streamingParts: [],
+          streamAbortController: null,
+        }));
+      } else {
+        set({
+          isStreaming: false,
+          streamingContent: '',
+          streamingParts: [],
+          streamAbortController: null,
+        });
+      }
+    }
   },
 
   clearMessages: () => set({ messagesById: {}, messageIds: [] }),

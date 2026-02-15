@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.17.0';
+export const APP_VERSION = '0.18.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.18.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Compound PromptInput + Streaming Fix',
+    items: [
+      'AI Elements compound PromptInput: 12 composable sub-components replace 467-line monolith',
+      'Drag-and-drop image upload scoped to input area with visual overlay',
+      'Voice input via Web Speech API (Chrome) with pulsing mic indicator',
+      'File attachment button for image selection',
+      'Status-aware submit button: idle, streaming (stop), uploading (spinner)',
+      'Streaming fix: stopStreaming now directly resets isStreaming state as safety net',
+      'QuickChatPanel upgraded to compound PromptInput',
+      'ChatPanel upgraded with composable tools toolbar, Reforge, and mode toggle',
+    ],
+  },
   {
     version: '0.17.0',
     date: '2026-02-15',
