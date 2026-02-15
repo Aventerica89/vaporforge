@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import {
-  streamQuickChat,
   listQuickChats,
   getQuickChatHistory,
   deleteQuickChat,
@@ -9,14 +8,14 @@ import {
   type ProviderName,
 } from '@/lib/quickchat-api';
 
+/**
+ * Panel-only state for Quick Chat.
+ * Message streaming is handled by AI SDK useChat in QuickChatPanel.
+ */
 interface QuickChatState {
   isOpen: boolean;
   chats: QuickChatMeta[];
   activeChatId: string | null;
-  messages: QuickChatMessage[];
-  isStreaming: boolean;
-  streamingContent: string;
-  streamingReasoning: string;
   error: string | null;
 
   // Provider selection
@@ -30,24 +29,16 @@ interface QuickChatState {
   toggleQuickChat: () => void;
   setProvider: (provider: ProviderName, model?: string) => void;
   loadChats: () => Promise<void>;
-  selectChat: (chatId: string) => Promise<void>;
+  selectChat: (chatId: string) => Promise<QuickChatMessage[]>;
   newChat: () => void;
   deleteChat: (chatId: string) => Promise<void>;
-  sendMessage: (content: string) => Promise<void>;
-  stopStream: () => void;
-  regenerate: () => Promise<void>;
+  setError: (error: string | null) => void;
 }
-
-let abortController: AbortController | null = null;
 
 export const useQuickChat = create<QuickChatState>((set, get) => ({
   isOpen: false,
   chats: [],
   activeChatId: null,
-  messages: [],
-  isStreaming: false,
-  streamingContent: '',
-  streamingReasoning: '',
   error: null,
   selectedProvider: 'claude',
   selectedModel: undefined,
@@ -78,7 +69,6 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
       const result = await listQuickChats();
       const { selectedProvider } = get();
 
-      // Auto-select an available provider if current one isn't available
       let provider = selectedProvider;
       if (
         result.availableProviders.length > 0 &&
@@ -98,23 +88,17 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
   },
 
   selectChat: async (chatId) => {
-    set({ activeChatId: chatId, messages: [], error: null });
+    set({ activeChatId: chatId, error: null });
     try {
-      const messages = await getQuickChatHistory(chatId);
-      set({ messages });
+      return await getQuickChatHistory(chatId);
     } catch {
       set({ error: 'Failed to load chat history' });
+      return [];
     }
   },
 
   newChat: () => {
-    set({
-      activeChatId: null,
-      messages: [],
-      streamingContent: '',
-      streamingReasoning: '',
-      error: null,
-    });
+    set({ activeChatId: null, error: null });
   },
 
   deleteChat: async (chatId) => {
@@ -125,7 +109,7 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
       set({
         chats: filtered,
         ...(activeChatId === chatId
-          ? { activeChatId: null, messages: [] }
+          ? { activeChatId: null }
           : {}),
       });
     } catch {
@@ -133,163 +117,5 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
     }
   },
 
-  sendMessage: async (content) => {
-    const {
-      selectedProvider,
-      selectedModel,
-      activeChatId,
-      messages,
-      availableProviders,
-    } = get();
-
-    // Guard: check provider is available
-    if (!availableProviders.includes(selectedProvider)) {
-      set({
-        error: `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : 'Gemini'}. Add one in Settings > AI Providers.`,
-      });
-      return;
-    }
-
-    // Generate a chat ID if this is a new conversation
-    const chatId =
-      activeChatId ||
-      `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-    if (!activeChatId) {
-      set({ activeChatId: chatId });
-    }
-
-    // Add user message optimistically
-    const userMsg: QuickChatMessage = {
-      id: `${Date.now()}-u`,
-      role: 'user',
-      content,
-      provider: selectedProvider,
-      model: selectedModel,
-      createdAt: new Date().toISOString(),
-    };
-
-    const updatedMessages = [...messages, userMsg];
-    set({
-      messages: updatedMessages,
-      isStreaming: true,
-      streamingContent: '',
-      streamingReasoning: '',
-      error: null,
-    });
-
-    // Build history from existing messages (last 20 for context window)
-    const history = updatedMessages.slice(-20).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    abortController = new AbortController();
-
-    try {
-      let fullText = '';
-      let reasoningText = '';
-
-      for await (const event of streamQuickChat({
-        chatId,
-        message: content,
-        provider: selectedProvider,
-        model: selectedModel,
-        history: history.slice(0, -1),
-        signal: abortController.signal,
-      })) {
-        if (event.type === 'text' && event.content) {
-          fullText += event.content;
-          set({ streamingContent: fullText });
-        } else if (event.type === 'reasoning' && event.content) {
-          reasoningText += event.content;
-          set({ streamingReasoning: reasoningText });
-        } else if (event.type === 'error') {
-          set({
-            error: event.content || 'Stream error',
-            isStreaming: false,
-          });
-          return;
-        } else if (event.type === 'done') {
-          fullText = event.fullText || fullText;
-        }
-      }
-
-      // Add assistant message (with reasoning if present)
-      const assistantMsg: QuickChatMessage = {
-        id: `${Date.now()}-a`,
-        role: 'assistant',
-        content: fullText,
-        provider: selectedProvider,
-        model: selectedModel,
-        ...(reasoningText ? { reasoning: reasoningText } : {}),
-        createdAt: new Date().toISOString(),
-      };
-
-      set((state) => ({
-        messages: [...state.messages, assistantMsg],
-        isStreaming: false,
-        streamingContent: '',
-        streamingReasoning: '',
-      }));
-
-      // Refresh chat list
-      get().loadChats();
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        set({ isStreaming: false, streamingContent: '' });
-        return;
-      }
-      set({
-        error: err instanceof Error ? err.message : 'Failed to send',
-        isStreaming: false,
-      });
-    } finally {
-      abortController = null;
-    }
-  },
-
-  stopStream: () => {
-    abortController?.abort();
-    const { streamingContent, streamingReasoning, messages } = get();
-
-    // If there was partial content, add it as a message
-    if (streamingContent) {
-      const partialMsg: QuickChatMessage = {
-        id: `${Date.now()}-a`,
-        role: 'assistant',
-        content: streamingContent + '\n\n*(stopped)*',
-        provider: get().selectedProvider,
-        ...(streamingReasoning ? { reasoning: streamingReasoning } : {}),
-        createdAt: new Date().toISOString(),
-      };
-      set({
-        messages: [...messages, partialMsg],
-        isStreaming: false,
-        streamingContent: '',
-        streamingReasoning: '',
-      });
-    } else {
-      set({ isStreaming: false, streamingContent: '', streamingReasoning: '' });
-    }
-  },
-
-  regenerate: async () => {
-    const { messages, isStreaming } = get();
-    if (isStreaming || messages.length < 2) return;
-
-    // Find the last user message content
-    const lastUserMsg = [...messages]
-      .reverse()
-      .find((m) => m.role === 'user');
-    if (!lastUserMsg) return;
-
-    // Remove the trailing user+assistant pair so sendMessage can re-add
-    const lastUserIdx = messages.lastIndexOf(lastUserMsg);
-    const trimmed = messages.slice(0, lastUserIdx);
-    set({ messages: trimmed });
-
-    // Re-send — sendMessage will add user msg + stream new response
-    await get().sendMessage(lastUserMsg.content);
-  },
+  setError: (error) => set({ error }),
 }));

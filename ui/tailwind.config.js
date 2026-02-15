@@ -72,6 +72,8 @@ export default {
       animation: {
         'scale-in': 'scale-in 0.2s ease-out',
         'slide-in-right': 'slide-in-right 0.3s ease-out',
+        'collapsible-down': 'collapsible-down 0.2s ease-out',
+        'collapsible-up': 'collapsible-up 0.2s ease-out',
       },
       keyframes: {
         'scale-in': {
@@ -81,6 +83,14 @@ export default {
         'slide-in-right': {
           '0%': { transform: 'translateX(100%)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        'collapsible-down': {
+          '0%': { height: '0', opacity: '0' },
+          '100%': { height: 'var(--radix-collapsible-content-height)', opacity: '1' },
+        },
+        'collapsible-up': {
+          '0%': { height: 'var(--radix-collapsible-content-height)', opacity: '1' },
+          '100%': { height: '0', opacity: '0' },
         },
       },
     },

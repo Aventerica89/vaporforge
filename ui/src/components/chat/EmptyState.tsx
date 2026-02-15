@@ -1,15 +1,16 @@
 import { Bot, Code, Bug, TestTube, Lightbulb } from 'lucide-react';
+import { Suggestions, Suggestion } from '../ai-elements/Suggestion';
 
 interface EmptyStateProps {
   onSuggestion: (text: string) => void;
 }
 
 const SUGGESTIONS = [
-  { icon: Code, text: 'Explain this code', color: 'text-primary' },
-  { icon: Bug, text: 'Help me fix this bug', color: 'text-secondary' },
-  { icon: TestTube, text: 'Write tests for this file', color: 'text-primary/80' },
-  { icon: Lightbulb, text: 'Suggest improvements', color: 'text-secondary/80' },
-];
+  { icon: Code, text: 'Explain this code' },
+  { icon: Bug, text: 'Help me fix this bug' },
+  { icon: TestTube, text: 'Write tests for this file' },
+  { icon: Lightbulb, text: 'Suggest improvements' },
+] as const;
 
 export function EmptyState({ onSuggestion }: EmptyStateProps) {
   return (
@@ -24,18 +25,16 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
       <p className="mb-5 text-xs text-muted-foreground">
         Ask Claude anything about your code
       </p>
-      <div className="flex flex-wrap justify-center gap-2">
-        {SUGGESTIONS.map(({ icon: Icon, text, color }) => (
-          <button
+      <Suggestions className="justify-center">
+        {SUGGESTIONS.map(({ icon: Icon, text }) => (
+          <Suggestion
             key={text}
-            onClick={() => onSuggestion(text)}
-            className="flex items-center gap-1.5 rounded-full border border-border bg-background/50 px-3 py-1.5 text-xs text-muted-foreground transition-all hover:border-primary/50 hover:text-foreground hover:shadow-[0_0_8px_-3px_hsl(var(--primary)/0.2)]"
-          >
-            <Icon className={`h-3 w-3 ${color}`} />
-            {text}
-          </button>
+            suggestion={text}
+            icon={<Icon className="h-3 w-3" />}
+            onClick={onSuggestion}
+          />
         ))}
-      </div>
+      </Suggestions>
     </div>
   );
 }

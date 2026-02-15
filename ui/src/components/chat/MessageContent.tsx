@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ToolCallBlock } from './ToolCallBlock';
@@ -72,7 +73,7 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
   }
 }
 
-export function MessageContent({ message }: MessageContentProps) {
+export const MessageContent = memo(function MessageContent({ message }: MessageContentProps) {
   if (message.parts && message.parts.length > 0) {
     return (
       <>
@@ -101,7 +102,7 @@ export function MessageContent({ message }: MessageContentProps) {
       )}
     </>
   );
-}
+});
 
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
   if (parts.length > 0) {

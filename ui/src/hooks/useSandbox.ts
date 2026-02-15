@@ -33,8 +33,9 @@ interface SandboxState {
   openFiles: Array<{ path: string; content: string; isDirty: boolean }>;
   activeFileIndex: number;
 
-  // Chat state
-  messages: Message[];
+  // Chat state (normalized: O(1) per-message lookup, stable references)
+  messagesById: Record<string, Message>;
+  messageIds: string[];
   isStreaming: boolean;
   streamingContent: string;
   streamingParts: MessagePart[];
@@ -69,6 +70,10 @@ interface SandboxState {
   sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
   clearMessages: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
+
+  // Derived helper — returns messages array from normalized state.
+  // Use messageIds + messagesById selectors in components instead for perf.
+  getMessages: () => Message[];
 
   loadGitStatus: () => Promise<void>;
   stageFiles: (files: string[]) => Promise<void>;
@@ -107,7 +112,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   openFiles: [],
   activeFileIndex: -1,
 
-  messages: [],
+  messagesById: {},
+  messageIds: [],
   isStreaming: false,
   streamingContent: '',
   streamingParts: [],
@@ -141,7 +147,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           sessions: [session, ...state.sessions],
           currentSession: session,
           isCreatingSession: false,
-          messages: [],
+          messagesById: {},
+          messageIds: [],
           streamingContent: '',
           files: [],
           filesByPath: {},
@@ -175,7 +182,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           currentPath: '/workspace',
           openFiles: [],
           activeFileIndex: -1,
-          messages: [],
+          messagesById: {},
+          messageIds: [],
           terminalOutput: [],
         });
         localStorage.setItem('vf_active_session', sessionId);
@@ -197,7 +205,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           currentPath: '/workspace',
           openFiles: [],
           activeFileIndex: -1,
-          messages: [],
+          messagesById: {},
+          messageIds: [],
           terminalOutput: [],
         });
         localStorage.setItem('vf_active_session', sessionId);
@@ -212,7 +221,13 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     try {
       const historyResult = await chatApi.history(sessionId);
       if (historyResult.success && historyResult.data) {
-        set({ messages: historyResult.data });
+        const byId: Record<string, Message> = {};
+        const ids: string[] = [];
+        for (const msg of historyResult.data) {
+          byId[msg.id] = msg;
+          ids.push(msg.id);
+        }
+        set({ messagesById: byId, messageIds: ids });
       }
     } catch (error) {
       debugLog('sandbox', 'warn', `History load failed: ${error instanceof Error ? error.message : 'unknown'}`);
@@ -228,7 +243,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       currentPath: '/workspace',
       openFiles: [],
       activeFileIndex: -1,
-      messages: [],
+      messagesById: {},
+      messageIds: [],
       terminalOutput: [],
       gitStatus: null,
       streamingContent: '',
@@ -474,7 +490,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     };
 
     set((state) => ({
-      messages: [...state.messages, userMessage],
+      messagesById: { ...state.messagesById, [userMessage.id]: userMessage },
+      messageIds: [...state.messageIds, userMessage.id],
       isStreaming: true,
       streamingContent: '',
       streamingParts: [],
@@ -664,7 +681,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       };
 
       set((state) => ({
-        messages: [...state.messages, assistantMessage],
+        messagesById: { ...state.messagesById, [assistantMessage.id]: assistantMessage },
+        messageIds: [...state.messageIds, assistantMessage.id],
         isStreaming: false,
         streamingContent: '',
         streamingParts: [],
@@ -700,7 +718,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       };
 
       set((state) => ({
-        messages: [...state.messages, errorMessage],
+        messagesById: { ...state.messagesById, [errorMessage.id]: errorMessage },
+        messageIds: [...state.messageIds, errorMessage.id],
         isStreaming: false,
         streamingContent: '',
         streamingParts: [],
@@ -708,9 +727,14 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }
   },
 
-  clearMessages: () => set({ messages: [] }),
+  clearMessages: () => set({ messagesById: {}, messageIds: [] }),
 
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
+
+  getMessages: () => {
+    const { messageIds, messagesById } = get();
+    return messageIds.map((id) => messagesById[id]).filter(Boolean);
+  },
 
   loadGitStatus: async () => {
     const session = get().currentSession;
@@ -923,3 +947,22 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 });
 
 export const useSandboxStore = create<SandboxState>()(createSandboxStore);
+
+// ---------------------------------------------------------------------------
+// Granular selectors — use these in components to avoid full-store re-renders
+// ---------------------------------------------------------------------------
+
+/** Select a single message by ID — only re-renders when that specific message changes */
+export function useMessage(id: string): Message | undefined {
+  return useSandboxStore((s) => s.messagesById[id]);
+}
+
+/** Select all message IDs — re-renders only when the list of IDs changes */
+export function useMessageIds(): string[] {
+  return useSandboxStore((s) => s.messageIds);
+}
+
+/** Select message count — avoids subscribing to message content */
+export function useMessageCount(): number {
+  return useSandboxStore((s) => s.messageIds.length);
+}

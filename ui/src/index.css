@@ -388,6 +388,24 @@
   border-radius: 4px;
 }
 
+/* Text shimmer — gradient sweep across text (AI Elements Shimmer) */
+@keyframes shimmer-text {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.shimmer-text {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted-foreground)) 0%,
+    hsl(var(--primary)) 40%,
+    hsl(var(--secondary)) 60%,
+    hsl(var(--muted-foreground)) 100%
+  );
+  background-size: 250% 100%;
+  animation: shimmer-text 2s ease-in-out infinite;
+}
+
 /* Mobile-Specific Utilities */
 @media (max-width: 768px) {
   .hide-mobile { display: none !important; }

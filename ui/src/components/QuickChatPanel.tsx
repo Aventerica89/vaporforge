@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport, type UIMessage } from 'ai';
 import {
   X,
   Send,
@@ -19,7 +21,8 @@ import { useQuickChat } from '@/hooks/useQuickChat';
 import { ChatMarkdown } from './chat/ChatMarkdown';
 import { ReasoningBlock } from './chat/ReasoningBlock';
 import { MessageActions } from './chat/MessageActions';
-import type { QuickChatMessage as QuickChatMsg } from '@/lib/quickchat-api';
+import { Suggestions, Suggestion } from './ai-elements/Suggestion';
+import { Shimmer } from './ai-elements/Shimmer';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -29,11 +32,31 @@ const SUGGESTIONS = [
   { label: 'Optimize performance', icon: Zap },
 ] as const;
 
-/** Model aliases available per provider */
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
   claude: ['sonnet', 'haiku', 'opus'],
   gemini: ['flash', 'pro'],
 };
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('session_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Extract text from UIMessage parts */
+function getMessageText(msg: UIMessage): string {
+  return msg.parts
+    .filter((p): p is { type: 'text'; text: string } => p.type === 'text' && 'text' in p)
+    .map((p) => p.text)
+    .join('');
+}
+
+/** Extract reasoning from UIMessage parts */
+function getMessageReasoning(msg: UIMessage): string {
+  return msg.parts
+    .filter((p) => p.type === 'reasoning')
+    .map((p) => ('text' in p ? p.text : ''))
+    .join('');
+}
 
 export function QuickChatPanel() {
   const {
@@ -41,11 +64,7 @@ export function QuickChatPanel() {
     closeQuickChat,
     chats,
     activeChatId,
-    messages,
-    isStreaming,
-    streamingContent,
-    streamingReasoning,
-    error,
+    error: panelError,
     selectedProvider,
     selectedModel,
     availableProviders,
@@ -53,23 +72,66 @@ export function QuickChatPanel() {
     selectChat,
     newChat,
     deleteChat,
-    sendMessage,
-    stopStream,
-    regenerate,
+    loadChats,
+    setError,
   } = useQuickChat();
 
   const hasAnyProvider = availableProviders.length > 0;
 
+  // Generate stable chatId for new conversations
+  const chatId = useMemo(
+    () => activeChatId || `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    [activeChatId]
+  );
+
+  // AI SDK v6 transport — handles HTTP + UIMessageStream protocol
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/quickchat/stream',
+        headers: () => getAuthHeaders(),
+        body: () => ({
+          chatId,
+          provider: selectedProvider,
+          model: selectedModel,
+        }),
+      }),
+    [chatId, selectedProvider, selectedModel]
+  );
+
+  // AI SDK v6 useChat — transport-based architecture
+  const {
+    messages,
+    sendMessage,
+    status,
+    stop,
+    setMessages,
+    error: chatError,
+  } = useChat({
+    id: chatId,
+    transport,
+    onFinish: () => {
+      loadChats();
+    },
+    onError: (err) => {
+      setError(err instanceof Error ? err.message : String(err));
+    },
+  });
+
+  const isStreaming = status === 'streaming' || status === 'submitted';
+  const error = panelError || (chatError ? chatError.message : null);
+
+  // Local input state (v6 useChat no longer manages input)
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll on new messages / reasoning
+  // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent, streamingReasoning]);
+  }, [messages, status]);
 
   // Focus input when panel opens
   useEffect(() => {
@@ -78,15 +140,15 @@ export function QuickChatPanel() {
     }
   }, [isOpen, showHistory]);
 
-  // Thinking duration timer (runs until first reasoning or text arrives)
+  // Thinking duration timer
   useEffect(() => {
-    if (isStreaming && !streamingContent && !streamingReasoning) {
+    if (status === 'submitted') {
       setThinkingSeconds(0);
       const interval = setInterval(() => setThinkingSeconds((s) => s + 1), 1000);
       return () => clearInterval(interval);
     }
     setThinkingSeconds(0);
-  }, [isStreaming, streamingContent, streamingReasoning]);
+  }, [status]);
 
   // Cmd+Shift+Q shortcut
   useEffect(() => {
@@ -100,15 +162,54 @@ export function QuickChatPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSend = useCallback(async () => {
+  // Handle chat selection — load history from KV into useChat
+  const handleSelectChat = useCallback(
+    async (id: string) => {
+      const history = await selectChat(id);
+      const aiMessages: UIMessage[] = history.map((m) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        parts: [{ type: 'text' as const, text: m.content }],
+      }));
+      setMessages(aiMessages);
+      setShowHistory(false);
+    },
+    [selectChat, setMessages]
+  );
+
+  // Handle new chat — clear useChat messages
+  const handleNewChat = useCallback(() => {
+    newChat();
+    setMessages([]);
+    setInput('');
+  }, [newChat, setMessages]);
+
+  // Handle suggestion click
+  const handleSuggestionClick = useCallback(
+    (text: string) => {
+      if (!hasAnyProvider || isStreaming) return;
+      sendMessage({ text });
+    },
+    [hasAnyProvider, isStreaming, sendMessage]
+  );
+
+  // Send message
+  const handleSend = useCallback(() => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
-    setInput('');
-    // Reset textarea height after clearing
-    if (inputRef.current) inputRef.current.style.height = 'auto';
-    await sendMessage(trimmed);
-  }, [input, isStreaming, sendMessage]);
 
+    if (!hasAnyProvider) {
+      setError(
+        `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : 'Gemini'}. Add one in Settings > AI Providers.`
+      );
+      return;
+    }
+    setError(null);
+    sendMessage({ text: trimmed });
+    setInput('');
+  }, [input, isStreaming, hasAnyProvider, selectedProvider, sendMessage, setError]);
+
+  // Handle Enter key
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
@@ -119,24 +220,7 @@ export function QuickChatPanel() {
     [handleSend]
   );
 
-  const handleSuggestionClick = useCallback(
-    (text: string) => {
-      sendMessage(text);
-    },
-    [sendMessage]
-  );
-
-  // Auto-resize textarea
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      setInput(e.target.value);
-      const el = e.target;
-      el.style.height = 'auto';
-      el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
-    },
-    []
-  );
-
+  // Find last assistant message index for streaming indicator
   const lastAssistantIdx = messages.length - 1 -
     [...messages].reverse().findIndex((m) => m.role === 'assistant');
 
@@ -179,7 +263,7 @@ export function QuickChatPanel() {
                   History
                 </button>
                 <button
-                  onClick={newChat}
+                  onClick={handleNewChat}
                   className="rounded p-1 hover:bg-accent"
                   title="New chat"
                 >
@@ -213,10 +297,7 @@ export function QuickChatPanel() {
                       ? 'border-primary bg-primary/5'
                       : 'border-border hover:border-primary/30'
                   }`}
-                  onClick={() => {
-                    selectChat(chat.id);
-                    setShowHistory(false);
-                  }}
+                  onClick={() => handleSelectChat(chat.id)}
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium truncate">
@@ -293,18 +374,16 @@ export function QuickChatPanel() {
                     </div>
                   )}
                   {hasAnyProvider ? (
-                    <div className="flex flex-wrap justify-center gap-2.5 px-4">
+                    <Suggestions className="justify-center px-4">
                       {SUGGESTIONS.map((s) => (
-                        <button
+                        <Suggestion
                           key={s.label}
-                          onClick={() => handleSuggestionClick(s.label)}
-                          className="flex items-center gap-2 rounded-full border border-border/60 bg-muted/30 px-4 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground hover:bg-primary/5 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                        >
-                          <s.icon className="h-3.5 w-3.5" />
-                          {s.label}
-                        </button>
+                          suggestion={s.label}
+                          icon={<s.icon className="h-3.5 w-3.5" />}
+                          onClick={handleSuggestionClick}
+                        />
                       ))}
-                    </div>
+                    </Suggestions>
                   ) : (
                     <div className="text-center px-6">
                       <p className="text-xs text-yellow-400 mb-2">
@@ -325,12 +404,12 @@ export function QuickChatPanel() {
                   msg={msg}
                   isLastAssistant={idx === lastAssistantIdx}
                   isStreaming={isStreaming}
-                  onRegenerate={regenerate}
+                  provider={selectedProvider}
                 />
               ))}
 
-              {/* Streaming indicator */}
-              {isStreaming && (
+              {/* Waiting indicator (submitted but no content yet) */}
+              {status === 'submitted' && (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-secondary">
@@ -338,40 +417,21 @@ export function QuickChatPanel() {
                     </span>
                     <ProviderBadge provider={selectedProvider} />
                   </div>
-
-                  {/* Waiting state (before any content arrives) */}
-                  {!streamingContent && !streamingReasoning && (
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <div className="relative h-3 w-3">
-                          <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
-                          <div className="relative h-3 w-3 rounded-full bg-primary/60" />
-                        </div>
-                        <span className="text-xs font-medium">Thinking</span>
-                        {thinkingSeconds > 0 && (
-                          <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
-                            <Clock className="h-2.5 w-2.5" />
-                            {thinkingSeconds}s
-                          </span>
-                        )}
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <div className="relative h-3 w-3">
+                        <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
+                        <div className="relative h-3 w-3 rounded-full bg-primary/60" />
                       </div>
+                      <Shimmer className="text-xs font-medium">Thinking...</Shimmer>
+                      {thinkingSeconds > 0 && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+                          <Clock className="h-2.5 w-2.5" />
+                          {thinkingSeconds}s
+                        </span>
+                      )}
                     </div>
-                  )}
-
-                  {/* Reasoning block (while reasoning is streaming) */}
-                  {streamingReasoning && (
-                    <ReasoningBlock
-                      content={streamingReasoning}
-                      isStreaming={!streamingContent}
-                    />
-                  )}
-
-                  {/* Streaming text */}
-                  {streamingContent && (
-                    <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-                      <ChatMarkdown content={streamingContent} />
-                    </div>
-                  )}
+                  </div>
                 </div>
               )}
 
@@ -390,20 +450,24 @@ export function QuickChatPanel() {
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    // Auto-resize
+                    const el = e.target;
+                    el.style.height = 'auto';
+                    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder={hasAnyProvider ? 'Ask anything...' : 'Configure a provider in Settings first'}
                   disabled={!hasAnyProvider}
                   rows={1}
                   className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    minHeight: '40px',
-                    maxHeight: '120px',
-                  }}
+                  style={{ minHeight: '40px', maxHeight: '120px' }}
                 />
                 {isStreaming ? (
                   <button
-                    onClick={stopStream}
+                    type="button"
+                    onClick={stop}
                     className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                     title="Stop"
                   >
@@ -411,6 +475,7 @@ export function QuickChatPanel() {
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handleSend}
                     disabled={!input.trim() || !hasAnyProvider}
                     className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground disabled:opacity-30 hover:bg-primary/90 transition-colors"
@@ -436,7 +501,7 @@ export function QuickChatPanel() {
   );
 }
 
-/* ── Sub-components ─────────────────────────── */
+/* -- Sub-components ---------------------------------------- */
 
 function ProviderToggle({
   selected,
@@ -478,45 +543,49 @@ function QuickChatMessage({
   msg,
   isLastAssistant,
   isStreaming,
-  onRegenerate,
+  provider,
 }: {
-  msg: QuickChatMsg;
+  msg: UIMessage;
   isLastAssistant: boolean;
   isStreaming: boolean;
-  onRegenerate: () => void;
+  provider: ProviderName;
 }) {
   if (msg.role === 'user') {
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3 py-2 text-sm text-foreground">
-          <ChatMarkdown content={msg.content} />
+          <ChatMarkdown content={getMessageText(msg)} />
         </div>
       </div>
     );
   }
 
-  // Assistant message
+  const reasoningText = getMessageReasoning(msg);
+  const textContent = getMessageText(msg);
+
   return (
     <div className="group/message space-y-1">
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wider text-secondary">
           AI
         </span>
-        <ProviderBadge provider={msg.provider} />
+        <ProviderBadge provider={provider} />
       </div>
 
-      {msg.reasoning && (
-        <ReasoningBlock content={msg.reasoning} />
+      {reasoningText && (
+        <ReasoningBlock
+          content={reasoningText}
+          isStreaming={isLastAssistant && isStreaming}
+        />
       )}
 
       <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-        <ChatMarkdown content={msg.content} />
+        <ChatMarkdown content={textContent} />
       </div>
 
-      <MessageActions
-        content={msg.content}
-        onRetry={isLastAssistant && !isStreaming ? onRegenerate : undefined}
-      />
+      {!isStreaming && (
+        <MessageActions content={textContent} />
+      )}
     </div>
   );
 }

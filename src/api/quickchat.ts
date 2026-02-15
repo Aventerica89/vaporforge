@@ -105,30 +105,51 @@ async function writeMessages(
 
 /* ── Schemas ────────────────────────────────── */
 
-const StreamRequestSchema = z.object({
-  chatId: z.string().min(1).max(100),
-  message: z.string().min(1).max(50_000),
-  provider: z.enum(['claude', 'gemini']),
-  model: z.string().max(50).optional(),
-  history: z
-    .array(
-      z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string(),
-      })
-    )
-    .optional(),
+/**
+ * AI SDK v6 useChat sends UIMessage[] with `parts` instead of `content`.
+ * DefaultChatTransport also adds `id`, `trigger`, `messageId`.
+ */
+const UIMessagePartSchema = z.object({
+  type: z.string(),
+  text: z.string().optional(),
+  reasoning: z.string().optional(),
 });
 
-/* ── SSE helper ─────────────────────────────── */
+const StreamRequestSchema = z.object({
+  chatId: z.string().min(1).max(100),
+  provider: z.enum(['claude', 'gemini']),
+  model: z.string().max(50).optional(),
+  // AI SDK v6 transport fields
+  id: z.string().optional(),
+  trigger: z.string().optional(),
+  messageId: z.string().optional(),
+  messages: z
+    .array(
+      z.object({
+        id: z.string().optional(),
+        role: z.enum(['user', 'assistant', 'system']),
+        // v6 UIMessage uses parts[], content may be absent
+        content: z.string().optional(),
+        parts: z.array(UIMessagePartSchema).optional(),
+      })
+    )
+    .min(1),
+});
 
-function sseEvent(data: Record<string, unknown>): string {
-  return `data: ${JSON.stringify(data)}\n\n`;
+/** Extract text content from a UIMessage (handles both parts[] and content) */
+function extractTextFromMessage(msg: { content?: string; parts?: Array<{ type: string; text?: string }> }): string {
+  if (msg.parts && msg.parts.length > 0) {
+    return msg.parts
+      .filter((p) => p.type === 'text' && p.text)
+      .map((p) => p.text!)
+      .join('');
+  }
+  return msg.content || '';
 }
 
 /* ── Routes ─────────────────────────────────── */
 
-// POST /stream — SSE streaming quick chat
+// POST /stream — AI SDK data stream (consumed by useChat on frontend)
 quickchatRoutes.post('/stream', async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
@@ -144,8 +165,11 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
-  const { chatId, message, provider, model: modelAlias, history } =
-    parsed.data;
+  const { chatId, provider, model: modelAlias, messages } = parsed.data;
+
+  // Extract the last user message for KV persistence
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+  const lastUserContent = lastUserMsg ? extractTextFromMessage(lastUserMsg) : '';
 
   // Get credentials
   const creds = await getProviderCredentials(
@@ -156,186 +180,99 @@ quickchatRoutes.post('/stream', async (c) => {
 
   let aiModel;
   try {
-    aiModel = createModel(
-      provider as ProviderName,
-      creds,
-      modelAlias
-    );
+    aiModel = createModel(provider as ProviderName, creds, modelAlias);
   } catch (err) {
     return c.json<ApiResponse<never>>(
       {
         success: false,
         error:
-          err instanceof Error
-            ? err.message
-            : 'Failed to create AI model',
+          err instanceof Error ? err.message : 'Failed to create AI model',
       },
       400
     );
   }
 
-  // Build messages array
-  const messages: Array<{ role: 'user' | 'assistant'; content: string }> =
-    [];
+  // Stream using AI SDK — returns UIMessageStream for useChat v6
+  const result = streamText({
+    model: aiModel,
+    messages: messages.map((m) => ({
+      role: m.role as 'user' | 'assistant',
+      content: extractTextFromMessage(m),
+    })),
+    maxOutputTokens: 16384,
+  });
 
-  // Include history if provided
-  if (history) {
-    for (const msg of history) {
-      messages.push({ role: msg.role, content: msg.content });
-    }
-  }
+  // Persist messages to KV after stream completes (background)
+  c.executionCtx.waitUntil(
+    (async () => {
+      try {
+        const fullText = await result.text;
 
-  messages.push({ role: 'user', content: message });
-
-  // Stream response
-  const { readable, writable } = new TransformStream();
-  const writer = writable.getWriter();
-  const encoder = new TextEncoder();
-
-  const write = (data: Record<string, unknown>) =>
-    writer.write(encoder.encode(sseEvent(data)));
-
-  // Start streaming in background
-  const streamPromise = (async () => {
-    try {
-      await write({ type: 'connected' });
-
-      const result = streamText({
-        model: aiModel,
-        messages,
-        maxTokens: 16384,
-      });
-
-      let fullText = '';
-      let reasoningText = '';
-      let eventCount = 0;
-
-      for await (const part of result.fullStream) {
-        eventCount++;
-        if (part.type === 'text-delta') {
-          // AI SDK v6: property is `text`, not `textDelta`
-          const delta = (part as { text?: string }).text;
-          if (delta) {
-            fullText += delta;
-            await write({ type: 'text', content: delta });
-          }
-        } else if (part.type === 'reasoning-delta') {
-          // AI SDK v6: property is `text`, not `textDelta`
-          const delta = (part as { text?: string }).text;
-          if (delta) {
-            reasoningText += delta;
-            await write({ type: 'reasoning', content: delta });
-          }
-        } else if (part.type === 'error') {
-          console.error('[quickchat/stream] Stream error event:', part);
-          const msg = (part as { error?: unknown }).error;
-          await write({ type: 'error', content: String(msg) });
-        }
-      }
-
-      // Log diagnostic info if no text was produced
-      if (!fullText && eventCount === 0) {
-        console.error('[quickchat/stream] Zero stream events received');
-      } else if (!fullText) {
-        console.error(
-          `[quickchat/stream] ${eventCount} events but no text output`
+        const now = new Date().toISOString();
+        const existing = await readMessages(
+          c.env.SESSIONS_KV,
+          user.id,
+          chatId
         );
-      }
 
-      await write({ type: 'done', fullText });
-
-      // Persist messages after stream completes
-      const now = new Date().toISOString();
-      const existing = await readMessages(
-        c.env.SESSIONS_KV,
-        user.id,
-        chatId
-      );
-
-      const userMsg: QuickChatMessage = {
-        id: `${Date.now()}-u`,
-        role: 'user',
-        content: message,
-        provider: provider as ProviderName,
-        model: modelAlias,
-        createdAt: now,
-      };
-
-      const assistantMsg: QuickChatMessage = {
-        id: `${Date.now()}-a`,
-        role: 'assistant',
-        content: fullText,
-        provider: provider as ProviderName,
-        model: modelAlias,
-        createdAt: now,
-      };
-
-      await writeMessages(c.env.SESSIONS_KV, user.id, chatId, [
-        ...existing,
-        userMsg,
-        assistantMsg,
-      ]);
-
-      // Update chat list
-      const chatList = await readChatList(
-        c.env.SESSIONS_KV,
-        user.id
-      );
-      const existingIdx = chatList.findIndex((ch) => ch.id === chatId);
-      const title =
-        message.length > 60
-          ? message.slice(0, 57) + '...'
-          : message;
-
-      if (existingIdx >= 0) {
-        chatList[existingIdx] = {
-          ...chatList[existingIdx],
-          updatedAt: now,
-          messageCount: existing.length + 2,
-        };
-      } else {
-        chatList.unshift({
-          id: chatId,
-          title,
+        const userMsg: QuickChatMessage = {
+          id: `${Date.now()}-u`,
+          role: 'user',
+          content: lastUserContent,
           provider: provider as ProviderName,
           model: modelAlias,
           createdAt: now,
-          updatedAt: now,
-          messageCount: 2,
-        });
+        };
+
+        const assistantMsg: QuickChatMessage = {
+          id: `${Date.now()}-a`,
+          role: 'assistant',
+          content: fullText,
+          provider: provider as ProviderName,
+          model: modelAlias,
+          createdAt: now,
+        };
+
+        await writeMessages(c.env.SESSIONS_KV, user.id, chatId, [
+          ...existing,
+          userMsg,
+          assistantMsg,
+        ]);
+
+        // Update chat list
+        const chatList = await readChatList(c.env.SESSIONS_KV, user.id);
+        const existingIdx = chatList.findIndex((ch) => ch.id === chatId);
+        const title =
+          lastUserContent.length > 60
+            ? lastUserContent.slice(0, 57) + '...'
+            : lastUserContent;
+
+        if (existingIdx >= 0) {
+          chatList[existingIdx] = {
+            ...chatList[existingIdx],
+            updatedAt: now,
+            messageCount: existing.length + 2,
+          };
+        } else {
+          chatList.unshift({
+            id: chatId,
+            title,
+            provider: provider as ProviderName,
+            model: modelAlias,
+            createdAt: now,
+            updatedAt: now,
+            messageCount: 2,
+          });
+        }
+
+        await writeChatList(c.env.SESSIONS_KV, user.id, chatList.slice(0, 50));
+      } catch (err) {
+        console.error('[quickchat/stream] KV persist error:', err);
       }
+    })()
+  );
 
-      // Keep last 50 chats
-      await writeChatList(
-        c.env.SESSIONS_KV,
-        user.id,
-        chatList.slice(0, 50)
-      );
-    } catch (err) {
-      const errMsg =
-        err instanceof Error ? err.message : 'Stream error';
-      console.error('[quickchat/stream] Error:', errMsg, err);
-      try {
-        await write({ type: 'error', content: errMsg });
-      } catch {
-        // writer may already be closed
-      }
-    } finally {
-      await writer.close();
-    }
-  })();
-
-  // Use waitUntil to keep the stream alive after response is sent
-  c.executionCtx.waitUntil(streamPromise);
-
-  return new Response(readable, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no',
-    },
-  });
+  return result.toUIMessageStreamResponse();
 });
 
 // GET /list — list quick chat conversations + available providers

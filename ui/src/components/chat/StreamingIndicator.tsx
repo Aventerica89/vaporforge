@@ -1,4 +1,5 @@
 import type { MessagePart } from '@/lib/types';
+import { Shimmer } from '../ai-elements/Shimmer';
 
 interface StreamingIndicatorProps {
   parts: MessagePart[];
@@ -10,13 +11,13 @@ export function StreamingIndicator({ parts, hasContent }: StreamingIndicatorProp
   const isToolRunning = lastPart?.type === 'tool-start';
   const isReasoning = lastPart?.type === 'reasoning';
 
-  let label = 'Thinking';
+  let label = 'Thinking...';
   if (isToolRunning && lastPart.name) {
-    label = `Running ${lastPart.name}`;
+    label = `Running ${lastPart.name}...`;
   } else if (isReasoning) {
-    label = 'Reasoning';
+    label = 'Reasoning...';
   } else if (hasContent) {
-    label = 'Writing';
+    label = 'Writing...';
   }
 
   return (
@@ -27,7 +28,7 @@ export function StreamingIndicator({ parts, hasContent }: StreamingIndicatorProp
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
         </div>
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <Shimmer className="text-xs font-medium">{label}</Shimmer>
       </div>
 
       {/* Shimmer skeleton lines */}

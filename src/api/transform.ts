@@ -123,7 +123,7 @@ transformRoutes.post('/stream', async (c) => {
         model: aiModel,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
-        maxTokens: 8192,
+        maxOutputTokens: 8192,
       });
 
       let fullText = '';

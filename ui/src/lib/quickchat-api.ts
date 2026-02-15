@@ -30,62 +30,6 @@ export interface QuickChatMessage {
   createdAt: string;
 }
 
-/** SSE stream event from /quickchat/stream */
-export interface QuickChatStreamEvent {
-  type: 'connected' | 'text' | 'reasoning' | 'error' | 'done';
-  content?: string;
-  fullText?: string;
-}
-
-/** Stream a quick chat message. Yields SSE events. */
-export async function* streamQuickChat(params: {
-  chatId: string;
-  message: string;
-  provider: 'claude' | 'gemini';
-  model?: string;
-  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
-  signal?: AbortSignal;
-}): AsyncGenerator<QuickChatStreamEvent> {
-  const response = await fetch(`${API_BASE}/quickchat/stream`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(params),
-    signal: params.signal,
-  });
-
-  if (!response.ok) {
-    const data = await response.json().catch(() => ({ error: 'Stream failed' }));
-    throw new Error((data as { error?: string }).error || 'Quick chat stream failed');
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) return;
-
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6);
-        if (data === '[DONE]') continue;
-        try {
-          yield JSON.parse(data) as QuickChatStreamEvent;
-        } catch {
-          // Skip invalid JSON
-        }
-      }
-    }
-  }
-}
-
 export type ProviderName = 'claude' | 'gemini';
 
 export interface QuickChatListResponse {

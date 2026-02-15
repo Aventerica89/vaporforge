@@ -1,6 +1,6 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, memo } from 'react';
 import { Trash2, Loader2, ArrowDown } from 'lucide-react';
-import { useSandboxStore } from '@/hooks/useSandbox';
+import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { chatApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
@@ -17,6 +17,72 @@ import {
   MessageFooter,
   MessageAttachments,
 } from '@/components/chat/message';
+import type { Message as MessageType } from '@/lib/types';
+
+// ---------------------------------------------------------------------------
+// MemoizedMessageItem — selects its own message by ID, skips re-render when
+// the message object hasn't changed (reference equality from the map).
+// ---------------------------------------------------------------------------
+
+const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
+  const message = useMessage(id);
+  if (!message) return null;
+
+  return (
+    <Message role={message.role}>
+      {message.role === 'user' ? (
+        <MessageBubble>
+          <MessageAttachments message={message} />
+        </MessageBubble>
+      ) : (
+        <MessageBody>
+          <MessageContent message={message} />
+          <MessageFooter>
+            <MessageActions content={message.content} />
+          </MessageFooter>
+        </MessageBody>
+      )}
+    </Message>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// StreamingMessage — isolated component that subscribes ONLY to streaming state.
+// Prevents the message list from re-rendering on every streaming chunk.
+// ---------------------------------------------------------------------------
+
+function StreamingMessage() {
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const streamingContent = useSandboxStore((s) => s.streamingContent);
+  const streamingParts = useSandboxStore((s) => s.streamingParts);
+
+  if (!isStreaming) return null;
+
+  return (
+    <Message role="assistant" isStreaming>
+      <MessageBody>
+        {streamingContent || streamingParts.length > 0 ? (
+          <>
+            <StreamingContent
+              parts={streamingParts}
+              fallbackContent={streamingContent}
+            />
+            <TypingCursor />
+          </>
+        ) : (
+          <StreamingIndicator
+            parts={streamingParts}
+            hasContent={false}
+          />
+        )}
+      </MessageBody>
+    </Message>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ChatPanel
+// ---------------------------------------------------------------------------
 
 interface ChatPanelProps {
   /** Hide the header bar — used on mobile where MobileLayout provides chrome */
@@ -26,22 +92,23 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) {
-  const {
-    messages,
-    sendMessage,
-    isStreaming,
-    streamingContent,
-    streamingParts,
-    clearMessages,
-    currentFile,
-  } = useSandboxStore();
+  // Granular selectors — each subscribes only to the slice it needs
+  const messageIds = useMessageIds();
+  const messageCount = useMessageCount();
+  const sendMessage = useSandboxStore((s) => s.sendMessage);
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const clearMessages = useSandboxStore((s) => s.clearMessages);
+  const currentFile = useSandboxStore((s) => s.currentFile);
+  // For auto-scroll: subscribe to streamingContent length, not full content
+  const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or streaming progress
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messageCount, hasStreamingContent]);
 
   // Auto-scroll when keyboard opens
   useEffect(() => {
@@ -59,7 +126,13 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
     if (!currentSessionId) return;
     const result = await chatApi.history(currentSessionId);
     if (result.success && result.data) {
-      useSandboxStore.setState({ messages: result.data });
+      const byId: Record<string, MessageType> = {};
+      const ids: string[] = [];
+      for (const msg of result.data) {
+        byId[msg.id] = msg;
+        ids.push(msg.id);
+      }
+      useSandboxStore.setState({ messagesById: byId, messageIds: ids });
     }
   }, [currentSessionId]);
 
@@ -84,7 +157,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
               </span>
             )}
           </div>
-          {messages.length > 0 && (
+          {messageCount > 0 && (
             <button
               onClick={clearMessages}
               className="rounded p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
@@ -97,7 +170,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
       )}
 
       {/* Compact mode: inline clear button */}
-      {compact && messages.length > 0 && (
+      {compact && messageCount > 0 && (
         <div className="flex justify-end px-3 pt-2">
           <button
             onClick={clearMessages}
@@ -136,48 +209,16 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
             )}
           </div>
         )}
-        {messages.length === 0 && !isStreaming ? (
+        {messageCount === 0 && !isStreaming ? (
           <EmptyState onSuggestion={(text) => sendMessage(text)} />
         ) : (
           <div className="mx-auto max-w-3xl space-y-1">
-            {messages.map((message) => (
-              <Message key={message.id} role={message.role}>
-                {message.role === 'user' ? (
-                  <MessageBubble>
-                    <MessageAttachments message={message} />
-                  </MessageBubble>
-                ) : (
-                  <MessageBody>
-                    <MessageContent message={message} />
-                    <MessageFooter>
-                      <MessageActions content={message.content} />
-                    </MessageFooter>
-                  </MessageBody>
-                )}
-              </Message>
+            {messageIds.map((id) => (
+              <MemoizedMessageItem key={id} id={id} />
             ))}
 
-            {/* Streaming message */}
-            {isStreaming && (
-              <Message role="assistant" isStreaming>
-                <MessageBody>
-                  {streamingContent || streamingParts.length > 0 ? (
-                    <>
-                      <StreamingContent
-                        parts={streamingParts}
-                        fallbackContent={streamingContent}
-                      />
-                      <TypingCursor />
-                    </>
-                  ) : (
-                    <StreamingIndicator
-                      parts={streamingParts}
-                      hasContent={false}
-                    />
-                  )}
-                </MessageBody>
-              </Message>
-            )}
+            {/* Streaming message — isolated subscriber */}
+            <StreamingMessage />
 
             <div ref={messagesEndRef} />
           </div>

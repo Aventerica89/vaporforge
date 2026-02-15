@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.13.1';
+export const APP_VERSION = '0.14.2';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,48 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.14.2',
+    date: '2026-02-14',
+    tag: 'feature',
+    title: 'Quick Chat — AI SDK useChat Migration',
+    items: [
+      'QuickChatPanel rewritten with AI SDK v6 useChat hook and DefaultChatTransport',
+      'Backend stream endpoint returns UIMessageStreamResponse for native useChat consumption',
+      'Message format upgraded to UIMessage parts[] (text, reasoning) with backward-compatible parsing',
+      'Local input state replaces useChat-managed input for direct control',
+      'Removed legacy streamQuickChat SSE generator — all streaming now handled by AI SDK transport',
+      'Fixed maxTokens → maxOutputTokens rename across quickchat and transform endpoints',
+    ],
+  },
+  {
+    version: '0.14.1',
+    date: '2026-02-14',
+    tag: 'feature',
+    title: 'Chat Performance — Normalized State + Memoized Messages',
+    items: [
+      'Normalized message state: messages stored in Record<id, Message> + ordered ID array for O(1) lookup',
+      'Granular Zustand selectors: streaming updates no longer re-render historical messages',
+      'React.memo on MemoizedMessageItem: each message only re-renders when its own data changes',
+      'Isolated StreamingMessage component: subscribes only to streaming state, decoupled from message list',
+      'MessageContent wrapped in React.memo for nested render isolation',
+      'useMessage(id) / useMessageIds() / useMessageCount() selector hooks for per-message subscriptions',
+    ],
+  },
+  {
+    version: '0.14.0',
+    date: '2026-02-14',
+    tag: 'feature',
+    title: 'AI Elements Chat UX — Suggestion, Reasoning, Shimmer',
+    items: [
+      'Suggestion chips: reusable compound component (Suggestions + Suggestion) in main chat and Quick Chat empty states',
+      'Reasoning upgrade: Radix Collapsible with auto-open on stream start, auto-close after stream end, duration timer ("Thought for Ns")',
+      'Shimmer text effect: CSS gradient sweep animation on streaming status labels (Thinking, Reasoning, Writing)',
+      'Collapsible animations: smooth height transitions via Radix CSS variables',
+      'cn() utility: lightweight class name joiner for component styling',
+      'AI Elements component library: new ui/src/components/ai-elements/ directory for adapted Vercel AI Elements',
+    ],
+  },
   {
     version: '0.13.1',
     date: '2026-02-14',
