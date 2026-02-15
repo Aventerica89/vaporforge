@@ -84,6 +84,11 @@ export function QuickChatPanel() {
     [activeChatId]
   );
 
+  // Ref holds latest body values — avoids stale closure when useChat
+  // keeps its internal transport reference after prop changes
+  const bodyRef = useRef({ chatId, selectedProvider, selectedModel });
+  bodyRef.current = { chatId, selectedProvider, selectedModel };
+
   // AI SDK v6 transport — handles HTTP + UIMessageStream protocol
   const transport = useMemo(
     () =>
@@ -91,12 +96,13 @@ export function QuickChatPanel() {
         api: '/api/quickchat/stream',
         headers: () => getAuthHeaders(),
         body: () => ({
-          chatId,
-          provider: selectedProvider,
-          model: selectedModel,
+          chatId: bodyRef.current.chatId,
+          provider: bodyRef.current.selectedProvider,
+          model: bodyRef.current.selectedModel,
         }),
       }),
-    [chatId, selectedProvider, selectedModel]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
   );
 
   // AI SDK v6 useChat — transport-based architecture
@@ -119,7 +125,19 @@ export function QuickChatPanel() {
   });
 
   const isStreaming = status === 'streaming' || status === 'submitted';
-  const error = panelError || (chatError ? chatError.message : null);
+
+  // Extract clean error message — DefaultChatTransport may wrap
+  // the full JSON response body as the error message
+  const rawError = panelError || (chatError ? chatError.message : null);
+  const error = (() => {
+    if (!rawError) return null;
+    try {
+      const parsed = JSON.parse(rawError);
+      return parsed.error || rawError;
+    } catch {
+      return rawError;
+    }
+  })();
 
   // Local input state (v6 useChat no longer manages input)
   const [input, setInput] = useState('');
