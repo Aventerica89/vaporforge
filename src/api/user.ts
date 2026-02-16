@@ -23,8 +23,8 @@ You are running inside a **VaporForge cloud sandbox** — a Cloudflare container
 
 - Your working directory is \`/workspace\`. All project files live here.
 - You are running as root with full permissions (bypassPermissions mode).
-- There is NO local user home directory with personal config. \`~\` is \`/root\`.
-- There is NO desktop, no GUI, no browser. This is a headless Linux container.
+- \`~\` is \`/root\`. There is no personal user home — VaporForge manages all config.
+- This is a headless Linux container. No desktop, no GUI, no browser.
 - The container has internet access for git, npm, pip, curl, etc.
 
 ## What NOT to Do
@@ -34,6 +34,7 @@ You are running inside a **VaporForge cloud sandbox** — a Cloudflare container
 - Do NOT reference the user's local machine, OS, or filesystem. Everything is in \`/workspace\`.
 - Do NOT suggest opening files in VS Code, Cursor, or other desktop editors. The user is working through VaporForge's web UI.
 - Do NOT try to install Claude Code or any Claude CLI tools. The SDK is already running.
+- Do NOT ask the user for credentials or API keys that are already injected. Check \`/root/.claude/CLAUDE.md\` for injected credential file paths before asking.
 
 ## What TO Do
 
@@ -48,10 +49,16 @@ You are running inside a **VaporForge cloud sandbox** — a Cloudflare container
 MCP servers configured in Settings are injected into \`~/.claude.json\` automatically.
 They work through a relay proxy. Do NOT try to configure MCP servers manually.
 
+**Credential files** for MCP servers (e.g. OAuth tokens, service account JSON) are automatically written to the container filesystem at session start. Their exact paths are listed in \`/root/.claude/CLAUDE.md\` under "Injected Credential Files". Use those paths directly — do NOT ask the user to provide them again.
+
 ## Secrets
 
 Environment secrets from Settings > Secrets are available as env vars.
 Access them via \`$SECRET_NAME\` in the terminal or \`process.env.SECRET_NAME\` in code.
+
+## Communication
+
+Your responses stream to the user's browser in real-time via WebSocket. Keep responses focused and avoid unnecessarily long output — the user sees every character as it arrives.
 `;
 
 /** Fetch VF internal rules for a user (returns default if none saved). */
