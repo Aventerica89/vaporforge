@@ -30,6 +30,10 @@ const NO_SESSION_TABS: readonly TabDefinition[] = [
   { id: 'more', label: 'More', icon: MoreHorizontal },
 ] as const;
 
+/** HIG colors */
+const ACTIVE_COLOR = '#1dd3e6';
+const INACTIVE_COLOR = '#8E8E93';
+
 interface MobileTabBarProps {
   readonly activeTab: MobileTab;
   readonly onTabChange: (tab: MobileTab) => void;
@@ -50,41 +54,29 @@ export const MobileTabBar = memo(function MobileTabBar({
     onTabChange(tab);
   };
 
-  const baseClasses = [
-    'flex',
-    'flex-col',
-    'bg-card/95',
-    'backdrop-blur-md',
-    'border-t',
-    'border-border',
-    'transition-transform',
-    'duration-200',
-  ];
-
-  const hideClass = keyboardOpen ? 'translate-y-full' : '';
-  const className = [...baseClasses, hideClass].filter(Boolean).join(' ');
-
   return (
     <nav
       role="tablist"
-      className={className}
+      className={[
+        'flex flex-col',
+        'transition-transform duration-200',
+        keyboardOpen ? 'translate-y-full' : '',
+      ].filter(Boolean).join(' ')}
+      style={{
+        background: 'rgba(30, 30, 30, 0.94)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: '0.5px solid rgba(255, 255, 255, 0.15)',
+      }}
     >
-      {/* Button row — sits above safe area */}
-      <div className="flex items-center justify-around" style={{ minHeight: '49px' }}>
+      {/* Button row — 49pt content height (HIG spec) */}
+      <div
+        className="flex items-center justify-around"
+        style={{ height: '49px', paddingTop: '6px' }}
+      >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const Icon = tab.icon;
-
-          const tabClasses = [
-            'flex',
-            'flex-col',
-            'items-center',
-            'justify-center',
-            'flex-1',
-            'py-1.5',
-            'gap-0.5',
-            isActive ? 'text-primary' : 'text-muted-foreground',
-          ].join(' ');
 
           return (
             <button
@@ -92,14 +84,25 @@ export const MobileTabBar = memo(function MobileTabBar({
               role="tab"
               aria-selected={isActive}
               aria-label={tab.label}
-              className={tabClasses}
+              className="flex flex-1 flex-col items-center justify-center gap-0.5"
+              style={{
+                minHeight: '44px',
+                minWidth: '44px',
+                color: isActive ? ACTIVE_COLOR : INACTIVE_COLOR,
+                WebkitTapHighlightColor: 'transparent',
+              }}
               onClick={() => handleTabPress(tab.id)}
             >
               <Icon
-                size={20}
+                size={25}
                 strokeWidth={isActive ? 2.5 : 1.5}
               />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <span
+                className="font-medium"
+                style={{ fontSize: '10px' }}
+              >
+                {tab.label}
+              </span>
             </button>
           );
         })}
