@@ -19,6 +19,9 @@ import {
   Search,
   ClipboardPaste,
   Upload,
+  Pencil,
+  Save,
+  Code,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
@@ -348,6 +351,19 @@ export function McpTab() {
   const [parsedNames, setParsedNames] = useState<Record<number, string>>({});
   const [isPasting, setIsPasting] = useState(false);
 
+  // Edit mode state
+  const [editingServer, setEditingServer] = useState<string | null>(null);
+  const [editTransport, setEditTransport] = useState<Transport>('http');
+  const [editUrl, setEditUrl] = useState('');
+  const [editCommand, setEditCommand] = useState('');
+  const [editLocalUrl, setEditLocalUrl] = useState('');
+  const [editHeaders, setEditHeaders] = useState<Array<{ key: string; value: string }>>([]);
+  const [editEnv, setEditEnv] = useState<Array<{ key: string; value: string }>>([]);
+  const [editCredFiles, setEditCredFiles] = useState<Array<{ path: string; content: string }>>([]);
+  const [editError, setEditError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [showJson, setShowJson] = useState<string | null>(null);
+
   const toggleExpanded = (name: string) => {
     setExpandedServers((prev) => {
       const next = new Set(prev);
@@ -528,6 +544,108 @@ export function McpTab() {
       });
       if (result.added.length > 0) await loadServers();
     }
+  };
+
+  /** Open edit mode for a server */
+  const startEdit = (server: McpServerConfig) => {
+    setEditingServer(server.name);
+    setEditTransport(server.transport);
+    setEditUrl(server.url || '');
+    setEditLocalUrl(server.localUrl || '');
+    // Reconstruct full command string from command + args
+    const cmdParts = [server.command || '', ...(server.args || [])].filter(Boolean);
+    setEditCommand(cmdParts.join(' '));
+    setEditHeaders(
+      server.headers
+        ? Object.entries(server.headers).map(([key, value]) => ({ key, value }))
+        : []
+    );
+    setEditEnv(
+      server.env
+        ? Object.entries(server.env).map(([key, value]) => ({ key, value }))
+        : []
+    );
+    setEditCredFiles(server.credentialFiles || []);
+    setEditError('');
+    setShowJson(null);
+    // Auto-expand the server
+    setExpandedServers((prev) => new Set([...prev, server.name]));
+  };
+
+  /** Cancel edit mode */
+  const cancelEdit = () => {
+    setEditingServer(null);
+    setEditError('');
+  };
+
+  /** Save edits */
+  const handleSaveEdit = async () => {
+    if (!editingServer) return;
+
+    if (editTransport === 'http') {
+      const urlErr = validateUrl(editUrl);
+      if (urlErr) { setEditError(urlErr); return; }
+    } else if (editTransport === 'stdio') {
+      if (!editCommand.trim()) { setEditError('Command is required'); return; }
+    } else if (editTransport === 'relay') {
+      const localErr = validateLocalUrl(editLocalUrl);
+      if (localErr) { setEditError(localErr); return; }
+    }
+
+    setIsSaving(true);
+    setEditError('');
+    try {
+      const payload: Record<string, unknown> = { transport: editTransport };
+
+      if (editTransport === 'http') {
+        payload.url = editUrl;
+        const headers = entriesToRecord(editHeaders);
+        if (headers) payload.headers = headers;
+      } else if (editTransport === 'stdio') {
+        const parts = editCommand.trim().split(/\s+/);
+        payload.command = parts[0];
+        if (parts.length > 1) payload.args = parts.slice(1);
+        const env = entriesToRecord(editEnv);
+        if (env) payload.env = env;
+        const validCreds = editCredFiles.filter((c) => c.path.trim() && c.content.trim());
+        if (validCreds.length > 0) {
+          payload.credentialFiles = validCreds.map((c) => ({
+            path: c.path.trim(),
+            content: c.content.trim(),
+          }));
+        }
+      } else if (editTransport === 'relay') {
+        payload.localUrl = editLocalUrl;
+      }
+
+      const result = await mcpApi.update(editingServer, payload as Partial<McpServerConfig>);
+      if (result.success) {
+        setEditingServer(null);
+        await loadServers();
+      } else {
+        setEditError(result.error || 'Failed to save');
+      }
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : 'Failed to save');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  /** Get JSON representation for a server */
+  const getServerJson = (server: McpServerConfig): string => {
+    const config: Record<string, unknown> = {};
+    if (server.transport === 'http') {
+      config.url = server.url;
+      if (server.headers && Object.keys(server.headers).length > 0) config.headers = server.headers;
+    } else if (server.transport === 'stdio') {
+      config.command = server.command;
+      if (server.args && server.args.length > 0) config.args = server.args;
+      if (server.env && Object.keys(server.env).length > 0) config.env = server.env;
+    } else if (server.transport === 'relay') {
+      config.localUrl = server.localUrl;
+    }
+    return JSON.stringify({ [server.name]: config }, null, 2);
   };
 
   const handleRemove = async (serverName: string) => {
@@ -1019,6 +1137,8 @@ export function McpTab() {
             const { dot, label } = STATUS_CONFIG[health];
             const isExpanded = expandedServers.has(server.name);
             const isPinging = health === 'checking';
+            const isEditing = editingServer === server.name;
+            const isShowingJson = showJson === server.name;
 
             return (
               <div
@@ -1042,7 +1162,6 @@ export function McpTab() {
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      {/* Status dot */}
                       <span
                         className={`h-2 w-2 shrink-0 rounded-full ${dot}`}
                         title={label}
@@ -1053,22 +1172,35 @@ export function McpTab() {
                       </span>
                       {(server.toolCount ?? 0) > 0 && (
                         <span className="text-[10px] text-muted-foreground">
-                          {server.toolCount} tool{server.toolCount !== 1 ? 's' : ''}
+                          {server.toolCount} tool{server.toolCount !== 1 ? 's' : ''} available
                         </span>
                       )}
                       {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
                         <Lock className="h-3 w-3 shrink-0 text-yellow-400" />
                       )}
-                      {/* Expand chevron */}
                       {isExpanded ? (
                         <ChevronDown className="h-3 w-3 text-muted-foreground" />
                       ) : (
                         <ChevronRight className="h-3 w-3 text-muted-foreground" />
                       )}
                     </div>
-                    <p className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground font-mono">
-                      {subtitle}
-                    </p>
+                    {/* Tool pills in main row */}
+                    {server.tools && server.tools.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1 pl-4">
+                        {server.tools.map((tool) => (
+                          <span
+                            key={tool}
+                            className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground border border-border"
+                          >
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 truncate pl-4 text-[10px] text-muted-foreground font-mono">
+                        {subtitle}
+                      </p>
+                    )}
                   </div>
 
                   <div className="ml-2 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -1083,6 +1215,32 @@ export function McpTab() {
                         <RefreshCw className={`h-3.5 w-3.5 ${isPinging ? 'animate-spin' : ''}`} />
                       </button>
                     )}
+
+                    {/* JSON view button */}
+                    <button
+                      onClick={() => setShowJson(isShowingJson ? null : server.name)}
+                      className={`rounded p-1 transition-all ${
+                        isShowingJson
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      }`}
+                      title="View JSON"
+                    >
+                      <Code className="h-3.5 w-3.5" />
+                    </button>
+
+                    {/* Edit button */}
+                    <button
+                      onClick={() => isEditing ? cancelEdit() : startEdit(server)}
+                      className={`rounded p-1 transition-all ${
+                        isEditing
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                      }`}
+                      title="Edit server"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
 
                     {/* Toggle switch */}
                     <button
@@ -1109,15 +1267,194 @@ export function McpTab() {
                   </div>
                 </div>
 
-                {/* Expanded details */}
-                {isExpanded && (
+                {/* JSON view */}
+                {isShowingJson && (
+                  <div className="border-t border-border/50 px-4 py-3 animate-fade-up">
+                    <pre className="rounded-lg bg-muted/50 border border-border/50 p-3 text-xs font-mono text-foreground/80 overflow-x-auto leading-relaxed">
+                      {getServerJson(server)}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Edit form */}
+                {isEditing && (
+                  <div className="border-t border-border/50 px-4 py-3 space-y-3 animate-fade-up">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-semibold text-foreground">Edit {server.name}</h4>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={cancelEdit}
+                          className="rounded-md px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={isSaving}
+                          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        >
+                          {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                          Save
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Transport toggle */}
+                    <div className="flex gap-1 rounded-lg bg-muted p-1">
+                      {(['http', 'stdio', 'relay'] as Transport[]).map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => { setEditTransport(t); setEditError(''); }}
+                          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold transition-all ${
+                            editTransport === t
+                              ? 'bg-primary text-primary-foreground shadow-sm'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                          }`}
+                        >
+                          {t === 'http' ? <Globe className="h-3 w-3" /> : t === 'stdio' ? <Terminal className="h-3 w-3" /> : <Radio className="h-3 w-3" />}
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Transport-specific fields */}
+                    {editTransport === 'http' && (
+                      <input
+                        type="text"
+                        value={editUrl}
+                        onChange={(e) => { setEditUrl(e.target.value); setEditError(''); }}
+                        placeholder="https://mcp.example.com/sse"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+                      />
+                    )}
+                    {editTransport === 'stdio' && (
+                      <div>
+                        <input
+                          type="text"
+                          value={editCommand}
+                          onChange={(e) => { setEditCommand(e.target.value); setEditError(''); }}
+                          placeholder="npx @scope/mcp-server-name"
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+                        />
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          Full command to start the server
+                        </p>
+                      </div>
+                    )}
+                    {editTransport === 'relay' && (
+                      <input
+                        type="text"
+                        value={editLocalUrl}
+                        onChange={(e) => { setEditLocalUrl(e.target.value); setEditError(''); }}
+                        placeholder="http://localhost:9222"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+                      />
+                    )}
+
+                    {/* Headers (HTTP) */}
+                    {editTransport === 'http' && (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Headers</label>
+                        <KeyValueEditor entries={editHeaders} onChange={setEditHeaders} keyPlaceholder="Authorization" valuePlaceholder="Bearer sk-..." />
+                      </div>
+                    )}
+
+                    {/* Env vars (stdio) */}
+                    {editTransport === 'stdio' && (
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-muted-foreground">Environment Variables</label>
+                        <KeyValueEditor entries={editEnv} onChange={setEditEnv} keyPlaceholder="GITHUB_TOKEN" valuePlaceholder="ghp_..." />
+                      </div>
+                    )}
+
+                    {/* Credential files (stdio) */}
+                    {editTransport === 'stdio' && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-medium text-muted-foreground">Credential Files</label>
+                          {editCredFiles.length < 5 && (
+                            <button
+                              type="button"
+                              onClick={() => setEditCredFiles([...editCredFiles, { path: '', content: '' }])}
+                              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                            >
+                              <Plus className="h-3 w-3" /> Add File
+                            </button>
+                          )}
+                        </div>
+                        {editCredFiles.map((cred, i) => (
+                          <div key={i} className="space-y-1.5 rounded-lg border border-border/60 bg-background/50 p-2.5">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={cred.path}
+                                onChange={(e) => setEditCredFiles(editCredFiles.map((c, j) =>
+                                  j === i ? { ...c, path: e.target.value } : c
+                                ))}
+                                placeholder="/root/.config/credentials.json"
+                                className="flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setEditCredFiles(editCredFiles.filter((_, j) => j !== i))}
+                                className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+                            <div className="relative">
+                              <textarea
+                                value={cred.content}
+                                onChange={(e) => setEditCredFiles(editCredFiles.map((c, j) =>
+                                  j === i ? { ...c, content: e.target.value } : c
+                                ))}
+                                placeholder="Paste file content or use Upload button"
+                                rows={2}
+                                className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none resize-y"
+                              />
+                              <label className="absolute right-2 top-1.5 flex cursor-pointer items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors border border-primary/20">
+                                <Upload className="h-3 w-3" />
+                                Upload
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".json,.yaml,.yml,.toml,.txt,.pem,.key,.crt,.cfg,.conf,*"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      const text = reader.result as string;
+                                      setEditCredFiles(editCredFiles.map((c, j) => {
+                                        if (j !== i) return c;
+                                        const pathVal = c.path || `/root/.config/${file.name}`;
+                                        return { ...c, content: text, path: pathVal };
+                                      }));
+                                    };
+                                    reader.readAsText(file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {editError && (
+                      <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">{editError}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Expanded details (read-only, when NOT editing) */}
+                {isExpanded && !isEditing && !isShowingJson && (
                   <div className="border-t border-border/50 px-4 py-3 space-y-2 animate-fade-up">
-                    {/* Description */}
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       {catalogEntry?.description || 'Custom MCP server'}
                     </p>
 
-                    {/* Status line */}
                     <div className="flex items-center gap-2 text-[11px]">
                       <Circle className={`h-2.5 w-2.5 fill-current ${
                         health === 'online' ? 'text-green-500'
@@ -1138,26 +1475,7 @@ export function McpTab() {
                       </span>
                     </div>
 
-                    {/* Tool list */}
-                    {server.tools && server.tools.length > 0 && (
-                      <div className="space-y-1.5">
-                        <span className="text-[11px] text-primary">
-                          {server.toolCount} tool{(server.toolCount ?? 0) !== 1 ? 's' : ''} available
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {server.tools.map((tool) => (
-                            <span
-                              key={tool}
-                              className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground border border-border"
-                            >
-                              {tool}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Discover tools prompt (no tools cached yet) */}
+                    {/* Discover tools prompt */}
                     {(!server.tools || server.tools.length === 0) && server.transport === 'http' && server.enabled && (
                       <button
                         onClick={(e) => {
@@ -1170,7 +1488,7 @@ export function McpTab() {
                       </button>
                     )}
 
-                    {/* Credential files indicator */}
+                    {/* Credential files */}
                     {server.credentialFiles && server.credentialFiles.length > 0 && (
                       <div className="space-y-1">
                         {server.credentialFiles.map((cred, i) => (
@@ -1181,14 +1499,12 @@ export function McpTab() {
                       </div>
                     )}
 
-                    {/* Auth note */}
                     {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
                       <p className="text-[11px] text-yellow-400/80 bg-yellow-500/5 rounded px-2.5 py-1.5 border border-yellow-500/10">
                         {catalogEntry.authNote || `${catalogEntry.auth} authentication required`}
                       </p>
                     )}
 
-                    {/* Repo link */}
                     {catalogEntry?.repoUrl && (
                       <a
                         href={catalogEntry.repoUrl}

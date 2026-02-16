@@ -161,6 +161,71 @@ mcpRoutes.delete('/:name', async (c) => {
   });
 });
 
+// PUT /:name — update a server's config (name stays the same)
+mcpRoutes.put('/:name', async (c) => {
+  const user = c.get('user');
+  const name = c.req.param('name');
+
+  // Don't match the /toggle sub-route
+  if (name === 'toggle') return c.notFound();
+
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const index = servers.findIndex((s) => s.name === name);
+
+  if (index === -1) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'MCP server not found',
+    }, 404);
+  }
+
+  const body = await c.req.json();
+  const parsed = McpServerConfigSchema.omit({
+    addedAt: true,
+    enabled: true,
+    name: true,
+  }).safeParse(body);
+
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: parsed.error.issues[0]?.message || 'Invalid input',
+    }, 400);
+  }
+
+  const { transport, url, command, args, localUrl, headers, env, credentialFiles } = parsed.data;
+
+  if (transport === 'http' && !url) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'URL is required for HTTP transport' }, 400);
+  }
+  if (transport === 'stdio' && !command) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Command is required for stdio transport' }, 400);
+  }
+  if (transport === 'relay' && !localUrl) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Local URL is required for relay transport' }, 400);
+  }
+
+  const updatedServer: McpServerConfig = {
+    ...servers[index],
+    transport,
+    url,
+    command,
+    args,
+    localUrl,
+    headers,
+    env,
+    credentialFiles,
+  };
+
+  const updated = servers.map((s) => (s.name === name ? updatedServer : s));
+  await writeServers(c.env.SESSIONS_KV, user.id, updated);
+
+  return c.json<ApiResponse<McpServerConfig>>({
+    success: true,
+    data: updatedServer,
+  });
+});
+
 // PUT /:name/toggle — toggle enabled/disabled
 mcpRoutes.put('/:name/toggle', async (c) => {
   const user = c.get('user');

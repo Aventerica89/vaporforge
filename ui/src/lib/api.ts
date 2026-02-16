@@ -630,6 +630,12 @@ export const mcpApi = {
     return { added, failed };
   },
 
+  update: (name: string, server: Partial<Omit<McpServerConfig, 'addedAt' | 'enabled' | 'name'>>) =>
+    request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(server),
+    }),
+
   remove: (name: string) =>
     request<{ deleted: boolean }>(`/mcp/${encodeURIComponent(name)}`, {
       method: 'DELETE',
