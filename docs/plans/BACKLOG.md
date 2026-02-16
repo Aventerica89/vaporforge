@@ -11,6 +11,10 @@
 - [x] **Custom Headers** — Key-value pairs for HTTP server auth tokens (Phase 1, v0.21.0)
 - [x] **Env Vars per Server** — Key-value pairs for stdio server credentials (Phase 1, v0.21.0)
 - [x] **Expandable Tool List** — Show available tools as pill badges per server (Phase 1, v0.21.0)
+- [x] **Credential File Upload** — Upload service account JSON, PEM keys, etc. per server. Injected to container filesystem. (v0.21.1)
+- [x] **Multi-File Credentials** — Multiple credential files per server with path auto-injection into CLAUDE.md (v0.21.2)
+- [x] **Fresh Config per Message** — MCP config recomputed on every message, not cached from session creation (v0.21.2)
+- [x] **npx Pre-Install** — stdio servers using npx have packages pre-installed before SDK starts (v0.21.2)
 - [ ] **Start/Stop + View Logs** — Toggle servers on/off with state persistence, view MCP server logs for debugging (from Warp)
 - [ ] **Server Sharing** — Share server configs with team members, auto-redact secrets (from Warp)
 

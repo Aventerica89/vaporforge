@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.21.0';
+export const APP_VERSION = '0.21.2';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,32 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.21.2',
+    date: '2026-02-16',
+    tag: 'feature',
+    title: 'MCP Credential Files + Reliability',
+    items: [
+      'Multi-file credential support: upload multiple credential files per MCP server',
+      'Credential file paths auto-injected into container CLAUDE.md so the agent knows they exist',
+      'Fresh MCP config on every message: no more stale config from session creation time',
+      'npx package pre-install: stdio MCP servers using npx no longer fail silently in containers',
+      'Diagnostic logging: transport-type logging shows exactly which MCP servers the agent receives',
+      'Fixed stdio command field parsing: split command into executable + args correctly',
+    ],
+  },
+  {
+    version: '0.21.1',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'Credential File Upload for MCP Servers',
+    items: [
+      'Upload credential files (service account JSON, PEM keys, etc.) for stdio MCP servers',
+      'Files stored per-server in KV, injected to container filesystem at configured paths',
+      'Instructional UI guides users through the credential file workflow',
+      'Credential paths automatically appended to sandbox CLAUDE.md',
+    ],
+  },
   {
     version: '0.21.0',
     date: '2026-02-15',

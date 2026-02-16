@@ -59,6 +59,8 @@ export function AboutTab() {
           <FeatureChip>Git clone</FeatureChip>
           <FeatureChip>Plugin marketplace</FeatureChip>
           <FeatureChip>MCP servers</FeatureChip>
+          <FeatureChip>MCP credentials</FeatureChip>
+          <FeatureChip>WebSocket streaming</FeatureChip>
           <FeatureChip>Gemini integration</FeatureChip>
           <FeatureChip>1Password secrets</FeatureChip>
           <FeatureChip>R2 file storage</FeatureChip>

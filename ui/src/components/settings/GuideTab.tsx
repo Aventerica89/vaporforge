@@ -170,8 +170,14 @@ export function GuideTab() {
         <p className="text-sm text-muted-foreground leading-relaxed">
           Connect external tools via the Model Context Protocol. Supports HTTP (remote servers),
           stdio (local processes), and relay (bridge local servers to cloud via WebSocket).
-          Servers are written to <code className="text-primary">~/.claude.json</code> in the container.
+          Paste JSON configs from Claude Code or Warp with auto-format detection.
         </p>
+        <ul className="space-y-1 text-sm text-muted-foreground">
+          <Tip><strong className="text-foreground">Credential files</strong> — Upload service account JSON, PEM keys, etc. per server</Tip>
+          <Tip><strong className="text-foreground">Tool discovery</strong> — Ping servers to see available tools as pill badges</Tip>
+          <Tip><strong className="text-foreground">Custom headers</strong> — Add auth headers for HTTP servers</Tip>
+          <Tip><strong className="text-foreground">Env vars</strong> — Set environment variables for stdio servers</Tip>
+        </ul>
       </Section>
 
       <Section icon={<Puzzle className="h-4 w-4 text-primary" />} title="Plugins vs Standalone">
@@ -247,7 +253,7 @@ export function GuideTab() {
         <ul className="space-y-1 text-sm text-muted-foreground">
           <Tip><strong className="text-foreground">Log</strong> — Console output and error tracking</Tip>
           <Tip><strong className="text-foreground">Wiki</strong> — Documentation of all VaporForge surfaces</Tip>
-          <Tip><strong className="text-foreground">Stream</strong> — Real-time SSE event log with type filtering</Tip>
+          <Tip><strong className="text-foreground">Stream</strong> — Real-time WebSocket event log with type filtering</Tip>
           <Tip><strong className="text-foreground">Tokens</strong> — Per-message token estimates with input/output breakdown</Tip>
           <Tip><strong className="text-foreground">Latency</strong> — TTFT, stream duration, and tokens/sec meters</Tip>
         </ul>
