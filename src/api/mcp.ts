@@ -72,7 +72,7 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
-  const { name, transport, url, command, args, localUrl, headers, env, credentialFile, credentialPath } = parsed.data;
+  const { name, transport, url, command, args, localUrl, headers, env, credentialFiles } = parsed.data;
 
   // Transport-specific validation
   if (transport === 'http' && !url) {
@@ -123,8 +123,7 @@ mcpRoutes.post('/', async (c) => {
     localUrl,
     headers,
     env,
-    credentialFile,
-    credentialPath,
+    credentialFiles,
     enabled: true,
     addedAt: new Date().toISOString(),
   };
@@ -404,11 +403,10 @@ export async function collectCredentialFiles(
 
   for (const server of servers) {
     if (!server.enabled) continue;
-    if (server.credentialFile && server.credentialPath) {
-      files.push({
-        path: server.credentialPath,
-        content: server.credentialFile,
-      });
+    if (server.credentialFiles && server.credentialFiles.length > 0) {
+      for (const cred of server.credentialFiles) {
+        files.push({ path: cred.path, content: cred.content });
+      }
     }
   }
 

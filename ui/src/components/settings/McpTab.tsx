@@ -340,8 +340,7 @@ export function McpTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [headerEntries, setHeaderEntries] = useState<Array<{ key: string; value: string }>>([]);
   const [envEntries, setEnvEntries] = useState<Array<{ key: string; value: string }>>([]);
-  const [credentialFile, setCredentialFile] = useState('');
-  const [credentialPath, setCredentialPath] = useState('');
+  const [credentialFiles, setCredentialFiles] = useState<Array<{ path: string; content: string }>>([]);
   const [showPaste, setShowPaste] = useState(false);
   const [pasteInput, setPasteInput] = useState('');
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
@@ -392,8 +391,7 @@ export function McpTab() {
     setTransport('http');
     setHeaderEntries([]);
     setEnvEntries([]);
-    setCredentialFile('');
-    setCredentialPath('');
+    setCredentialFiles([]);
     setShowAdd(false);
   };
 
@@ -435,9 +433,12 @@ export function McpTab() {
         if (parts.length > 1) server.args = parts.slice(1);
         const env = entriesToRecord(envEntries);
         if (env) server.env = env;
-        if (credentialFile.trim() && credentialPath.trim()) {
-          server.credentialFile = credentialFile.trim();
-          server.credentialPath = credentialPath.trim();
+        const validCreds = credentialFiles.filter((c) => c.path.trim() && c.content.trim());
+        if (validCreds.length > 0) {
+          server.credentialFiles = validCreds.map((c) => ({
+            path: c.path.trim(),
+            content: c.content.trim(),
+          }));
         }
       } else if (transport === 'relay') {
         server.localUrl = localUrl;
@@ -789,29 +790,59 @@ export function McpTab() {
             </div>
           )}
 
-          {/* Credential File (stdio only) */}
+          {/* Credential Files (stdio only) */}
           {transport === 'stdio' && (
             <div className="space-y-3">
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                Credential File <span className="text-muted-foreground/50">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={credentialPath}
-                onChange={(e) => setCredentialPath(e.target.value)}
-                placeholder="/root/.gmail-mcp/credentials.json"
-                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-              <p className="text-xs text-muted-foreground -mt-1.5">
-                Path where the credential file will be written in the container
-              </p>
-              <textarea
-                value={credentialFile}
-                onChange={(e) => setCredentialFile(e.target.value)}
-                placeholder='Paste credential JSON content (e.g. credentials.json from OAuth flow)'
-                rows={4}
-                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
-              />
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Credential Files <span className="text-muted-foreground/50">(optional, max 5)</span>
+                </label>
+                {credentialFiles.length < 5 && (
+                  <button
+                    type="button"
+                    onClick={() => setCredentialFiles([...credentialFiles, { path: '', content: '' }])}
+                    className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+                  >
+                    <Plus className="h-3 w-3" /> Add File
+                  </button>
+                )}
+              </div>
+              {credentialFiles.map((cred, i) => (
+                <div key={i} className="space-y-2 rounded-lg border border-border/60 bg-background/50 p-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={cred.path}
+                      onChange={(e) => setCredentialFiles(credentialFiles.map((c, j) =>
+                        j === i ? { ...c, path: e.target.value } : c
+                      ))}
+                      placeholder="/root/.config/credentials.json"
+                      className="flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setCredentialFiles(credentialFiles.filter((_, j) => j !== i))}
+                      className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <textarea
+                    value={cred.content}
+                    onChange={(e) => setCredentialFiles(credentialFiles.map((c, j) =>
+                      j === i ? { ...c, content: e.target.value } : c
+                    ))}
+                    placeholder="Paste file content (JSON, YAML, etc.)"
+                    rows={3}
+                    className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none resize-y"
+                  />
+                </div>
+              ))}
+              {credentialFiles.length === 0 && (
+                <p className="text-xs text-muted-foreground/60 italic">
+                  Files written to the container at session start (e.g. OAuth credentials)
+                </p>
+              )}
             </div>
           )}
 
@@ -1099,11 +1130,15 @@ export function McpTab() {
                       </button>
                     )}
 
-                    {/* Credential file indicator */}
-                    {server.credentialPath && (
-                      <p className="text-[11px] text-muted-foreground bg-muted/30 rounded px-2.5 py-1.5 border border-border/40 font-mono">
-                        Credential file: {server.credentialPath}
-                      </p>
+                    {/* Credential files indicator */}
+                    {server.credentialFiles && server.credentialFiles.length > 0 && (
+                      <div className="space-y-1">
+                        {server.credentialFiles.map((cred, i) => (
+                          <p key={i} className="text-[11px] text-muted-foreground bg-muted/30 rounded px-2.5 py-1.5 border border-border/40 font-mono">
+                            Credential: {cred.path}
+                          </p>
+                        ))}
+                      </div>
                     )}
 
                     {/* Auth note */}

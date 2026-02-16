@@ -130,10 +130,8 @@ export interface McpServerConfig {
   headers?: Record<string, string>;
   /** Env vars for stdio servers (e.g. { GITHUB_TOKEN: "ghp_..." }) */
   env?: Record<string, string>;
-  /** Credential file content for stdio servers (e.g. OAuth credentials.json) */
-  credentialFile?: string;
-  /** Path to write credential file in container (e.g. /root/.gmail-mcp/credentials.json) */
-  credentialPath?: string;
+  /** Credential files to write into the container (e.g. OAuth credentials) */
+  credentialFiles?: Array<{ path: string; content: string }>;
   /** Cached tool names from last ping (display only) */
   tools?: string[];
   /** Total tool count from last ping */

@@ -212,10 +212,11 @@ export const McpServerConfigSchema = z.object({
   headers: z.record(z.string()).optional(),
   /** Env vars for stdio servers (e.g. { GITHUB_TOKEN: "ghp_..." }) */
   env: z.record(z.string()).optional(),
-  /** Credential file content for stdio servers (e.g. OAuth credentials.json) */
-  credentialFile: z.string().max(10_000).optional(),
-  /** Path to write credential file in container (e.g. /root/.gmail-mcp/credentials.json) */
-  credentialPath: z.string().max(500).optional(),
+  /** Credential files to write into the container (e.g. OAuth credentials) */
+  credentialFiles: z.array(z.object({
+    path: z.string().min(1).max(500),
+    content: z.string().min(1).max(10_000),
+  })).max(5).optional(),
   /** Cached tool names from last ping (display only) */
   tools: z.array(z.string()).optional(),
   /** Total tool count from last ping */
