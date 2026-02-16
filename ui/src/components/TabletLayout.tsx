@@ -333,7 +333,7 @@ export function TabletLayout() {
               </span>
             </div>
           )}
-        <div className="flex-1 overflow-hidden">{renderContent()}</div>
+        <div className="flex flex-1 flex-col min-h-0">{renderContent()}</div>
       </div>
 
       {/* Clone repo modal */}

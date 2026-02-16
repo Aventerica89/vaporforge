@@ -38,7 +38,7 @@ export function MobileLayout() {
     hasSession,
   });
   const [showCloneModal, setShowCloneModal] = useState(false);
-  const containerHeight = `${viewportHeight}px`;
+  const containerHeight = keyboardOpen ? `${viewportHeight}px` : '100%';
 
   const sessionId = currentSession?.id;
   useEffect(() => {

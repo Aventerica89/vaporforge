@@ -71,8 +71,8 @@ export const MobileTabBar = memo(function MobileTabBar({
     >
       {/* Button row — 49pt content height (HIG spec) */}
       <div
-        className="flex items-center justify-around"
-        style={{ height: '49px', paddingTop: '6px' }}
+        className="flex items-stretch justify-around"
+        style={{ height: '49px' }}
       >
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
