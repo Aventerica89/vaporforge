@@ -610,6 +610,26 @@ export const mcpApi = {
       body: JSON.stringify(server),
     }),
 
+  /** Add multiple servers sequentially, return results per server */
+  addBatch: async (
+    servers: Array<Omit<McpServerConfig, 'addedAt' | 'enabled'>>
+  ): Promise<{ added: string[]; failed: Array<{ name: string; error: string }> }> => {
+    const added: string[] = [];
+    const failed: Array<{ name: string; error: string }> = [];
+    for (const server of servers) {
+      const result = await request<McpServerConfig>('/mcp', {
+        method: 'POST',
+        body: JSON.stringify(server),
+      });
+      if (result.success) {
+        added.push(server.name);
+      } else {
+        failed.push({ name: server.name, error: result.error || 'Failed' });
+      }
+    }
+    return { added, failed };
+  },
+
   remove: (name: string) =>
     request<{ deleted: boolean }>(`/mcp/${encodeURIComponent(name)}`, {
       method: 'DELETE',
@@ -622,13 +642,23 @@ export const mcpApi = {
 
   /** Batch health-check all enabled HTTP servers */
   ping: () =>
-    request<Record<string, { status: string; httpStatus?: number }>>('/mcp/ping', {
+    request<Record<string, {
+      status: string;
+      httpStatus?: number;
+      tools?: string[];
+      toolCount?: number;
+    }>>('/mcp/ping', {
       method: 'POST',
     }),
 
   /** Single server health-check */
   pingOne: (name: string) =>
-    request<{ status: string; httpStatus?: number }>(`/mcp/${encodeURIComponent(name)}/ping`, {
+    request<{
+      status: string;
+      httpStatus?: number;
+      tools?: string[];
+      toolCount?: number;
+    }>(`/mcp/${encodeURIComponent(name)}/ping`, {
       method: 'POST',
     }),
 };

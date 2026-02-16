@@ -208,6 +208,14 @@ export const McpServerConfigSchema = z.object({
   args: z.array(z.string()).optional(),
   /** Local URL for relay transport (e.g. http://localhost:9222) */
   localUrl: z.string().url().optional(),
+  /** HTTP headers for auth (e.g. { Authorization: "Bearer ..." }) */
+  headers: z.record(z.string()).optional(),
+  /** Env vars for stdio servers (e.g. { GITHUB_TOKEN: "ghp_..." }) */
+  env: z.record(z.string()).optional(),
+  /** Cached tool names from last ping (display only) */
+  tools: z.array(z.string()).optional(),
+  /** Total tool count from last ping */
+  toolCount: z.number().optional(),
   enabled: z.boolean().default(true),
   addedAt: z.string(),
 });

@@ -72,7 +72,7 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
-  const { name, transport, url, command, args, localUrl } = parsed.data;
+  const { name, transport, url, command, args, localUrl, headers, env } = parsed.data;
 
   // Transport-specific validation
   if (transport === 'http' && !url) {
@@ -121,6 +121,8 @@ mcpRoutes.post('/', async (c) => {
     command,
     args,
     localUrl,
+    headers,
+    env,
     enabled: true,
     addedAt: new Date().toISOString(),
   };
@@ -205,15 +207,23 @@ export async function collectMcpConfig(
     if (!server.enabled) continue;
 
     if (server.transport === 'http' && server.url) {
-      result[server.name] = {
+      const config: Record<string, unknown> = {
         type: 'http',
         url: server.url,
       };
+      if (server.headers && Object.keys(server.headers).length > 0) {
+        config.headers = server.headers;
+      }
+      result[server.name] = config;
     } else if (server.transport === 'stdio' && server.command) {
-      result[server.name] = {
+      const config: Record<string, unknown> = {
         command: server.command,
         args: server.args || [],
       };
+      if (server.env && Object.keys(server.env).length > 0) {
+        config.env = server.env;
+      }
+      result[server.name] = config;
     } else if (server.transport === 'relay' && server.localUrl) {
       // Relay: SDK talks to the in-container proxy which tunnels to the browser
       result[server.name] = {
@@ -224,6 +234,47 @@ export async function collectMcpConfig(
   }
 
   return result;
+}
+
+/** Query an MCP server for its available tools via JSON-RPC */
+async function discoverTools(
+  url: string,
+  headers?: Record<string, string>
+): Promise<{ tools: string[]; toolCount: number } | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/list',
+        params: {},
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) return null;
+
+    const data = await res.json() as {
+      result?: { tools?: Array<{ name: string }> };
+    };
+
+    const toolList = data?.result?.tools;
+    if (!Array.isArray(toolList)) return null;
+
+    const names = toolList.map((t) => t.name).filter(Boolean);
+    return { tools: names, toolCount: names.length };
+  } catch {
+    return null;
+  }
 }
 
 // POST /ping — batch health-check all enabled HTTP servers
@@ -241,6 +292,7 @@ mcpRoutes.post('/ping', async (c) => {
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(server.url!, {
           method: 'GET',
+          headers: server.headers || {},
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -297,14 +349,37 @@ mcpRoutes.post('/:name/ping', async (c) => {
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(server.url, {
       method: 'GET',
+      headers: server.headers || {},
       signal: controller.signal,
     });
     clearTimeout(timer);
 
     const status = res.status === 401 || res.status === 403 ? 'auth-required' : 'online';
-    return c.json<ApiResponse<{ status: string; httpStatus: number }>>({
+
+    // Discover tools if server is reachable
+    let tools: string[] | undefined;
+    let toolCount: number | undefined;
+    if (status === 'online') {
+      const discovered = await discoverTools(server.url, server.headers);
+      if (discovered) {
+        tools = discovered.tools;
+        toolCount = discovered.toolCount;
+        // Cache tools in KV
+        const updated = servers.map((s) =>
+          s.name === name ? { ...s, tools, toolCount } : s
+        );
+        await writeServers(c.env.SESSIONS_KV, user.id, updated);
+      }
+    }
+
+    return c.json<ApiResponse<{
+      status: string;
+      httpStatus: number;
+      tools?: string[];
+      toolCount?: number;
+    }>>({
       success: true,
-      data: { status, httpStatus: res.status },
+      data: { status, httpStatus: res.status, tools, toolCount },
     });
   } catch {
     return c.json<ApiResponse<{ status: string }>>({

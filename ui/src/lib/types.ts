@@ -126,6 +126,14 @@ export interface McpServerConfig {
   args?: string[];
   /** Local URL for relay transport (e.g. http://localhost:9222) */
   localUrl?: string;
+  /** HTTP headers for auth (e.g. { Authorization: "Bearer ..." }) */
+  headers?: Record<string, string>;
+  /** Env vars for stdio servers (e.g. { GITHUB_TOKEN: "ghp_..." }) */
+  env?: Record<string, string>;
+  /** Cached tool names from last ping (display only) */
+  tools?: string[];
+  /** Total tool count from last ping */
+  toolCount?: number;
   enabled: boolean;
   addedAt: string;
 }
