@@ -17,9 +17,15 @@ import {
   ExternalLink,
   Circle,
   Search,
+  ClipboardPaste,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
+import {
+  parseMcpConfig,
+  isValidServerName,
+  type ParseResult,
+} from '@/lib/mcp-config-parser';
 import {
   MCP_CATALOG,
   CATEGORY_LABELS,
@@ -84,6 +90,91 @@ const AUTH_BADGE: Record<CatalogServer['auth'], { label: string; className: stri
   oauth: { label: 'OAuth', className: 'text-yellow-400' },
   'api-key': { label: 'API Key', className: 'text-yellow-400' },
 };
+
+/** Convert key-value entries to a Record, filtering empty pairs */
+function entriesToRecord(
+  entries: Array<{ key: string; value: string }>
+): Record<string, string> | undefined {
+  const filtered = entries.filter((e) => e.key.trim() && e.value.trim());
+  if (filtered.length === 0) return undefined;
+  return Object.fromEntries(filtered.map((e) => [e.key.trim(), e.value]));
+}
+
+/* ─── Key-Value Editor (headers / env vars) ──────────── */
+
+function KeyValueEditor({
+  entries,
+  onChange,
+  keyPlaceholder,
+  valuePlaceholder,
+}: {
+  entries: Array<{ key: string; value: string }>;
+  onChange: (entries: Array<{ key: string; value: string }>) => void;
+  keyPlaceholder: string;
+  valuePlaceholder: string;
+}) {
+  const [showValues, setShowValues] = useState(false);
+
+  const handleAdd = () => {
+    onChange([...entries, { key: '', value: '' }]);
+  };
+
+  const handleRemove = (index: number) => {
+    onChange(entries.filter((_, i) => i !== index));
+  };
+
+  const handleChange = (index: number, field: 'key' | 'value', val: string) => {
+    onChange(entries.map((e, i) => (i === index ? { ...e, [field]: val } : e)));
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+        >
+          <Plus className="h-3 w-3" /> Add
+        </button>
+        {entries.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowValues((p) => !p)}
+            className="text-[10px] text-muted-foreground hover:text-foreground"
+          >
+            {showValues ? 'Hide values' : 'Show values'}
+          </button>
+        )}
+      </div>
+      {entries.map((entry, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <input
+            type="text"
+            value={entry.key}
+            onChange={(e) => handleChange(i, 'key', e.target.value)}
+            placeholder={keyPlaceholder}
+            className="flex-1 rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+          />
+          <input
+            type={showValues ? 'text' : 'password'}
+            value={entry.value}
+            onChange={(e) => handleChange(i, 'value', e.target.value)}
+            placeholder={valuePlaceholder}
+            className="flex-[2] rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => handleRemove(i)}
+            className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /* ─── Catalog browse section ──────────────────────────── */
 
@@ -247,6 +338,13 @@ export function McpTab() {
   const [statuses, setStatuses] = useState<Record<string, ServerHealth>>({});
   const [expandedServers, setExpandedServers] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
+  const [headerEntries, setHeaderEntries] = useState<Array<{ key: string; value: string }>>([]);
+  const [envEntries, setEnvEntries] = useState<Array<{ key: string; value: string }>>([]);
+  const [showPaste, setShowPaste] = useState(false);
+  const [pasteInput, setPasteInput] = useState('');
+  const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [parsedNames, setParsedNames] = useState<Record<number, string>>({});
+  const [isPasting, setIsPasting] = useState(false);
 
   const toggleExpanded = (name: string) => {
     setExpandedServers((prev) => {
@@ -290,6 +388,8 @@ export function McpTab() {
     setError('');
     setNameError('');
     setTransport('http');
+    setHeaderEntries([]);
+    setEnvEntries([]);
     setShowAdd(false);
   };
 
@@ -323,10 +423,14 @@ export function McpTab() {
 
       if (transport === 'http') {
         server.url = url;
+        const headers = entriesToRecord(headerEntries);
+        if (headers) server.headers = headers;
       } else if (transport === 'stdio') {
         const parts = command.trim().split(/\s+/);
         server.command = parts[0];
         if (parts.length > 1) server.args = parts.slice(1);
+        const env = entriesToRecord(envEntries);
+        if (env) server.env = env;
       } else if (transport === 'relay') {
         server.localUrl = localUrl;
       }
@@ -354,6 +458,65 @@ export function McpTab() {
     const result = await mcpApi.add(server);
     if (result.success) {
       await loadServers();
+    }
+  };
+
+  /** Parse pasted JSON config */
+  const handleParse = () => {
+    const result = parseMcpConfig(pasteInput);
+    setParseResult(result);
+    if (result.success) {
+      const names: Record<number, string> = {};
+      result.servers.forEach((s, i) => {
+        names[i] = s.name || '';
+      });
+      setParsedNames(names);
+    }
+  };
+
+  /** Add all parsed servers from paste modal */
+  const handlePasteAdd = async () => {
+    if (!parseResult?.success) return;
+    setIsPasting(true);
+
+    const serversToAdd = parseResult.servers.map((s, i) => ({
+      name: parsedNames[i] || s.name,
+      transport: s.transport,
+      url: s.url,
+      command: s.command,
+      args: s.args,
+      headers: s.headers,
+      env: s.env,
+    }));
+
+    // Validate all names
+    const invalid = serversToAdd.find((s) => !isValidServerName(s.name));
+    if (invalid) {
+      setParseResult({
+        ...parseResult,
+        error: `Invalid name "${invalid.name}" — use letters, numbers, dashes, underscores`,
+      });
+      setIsPasting(false);
+      return;
+    }
+
+    const result = await mcpApi.addBatch(
+      serversToAdd as Array<Omit<McpServerConfig, 'addedAt' | 'enabled'>>
+    );
+    setIsPasting(false);
+
+    if (result.failed.length === 0) {
+      setShowPaste(false);
+      setPasteInput('');
+      setParseResult(null);
+      setParsedNames({});
+      await loadServers();
+    } else {
+      setParseResult({
+        ...parseResult,
+        error: result.failed.map((f) => `${f.name}: ${f.error}`).join(', '),
+      });
+      if (result.added.length > 0) await loadServers();
     }
   };
 
@@ -407,6 +570,16 @@ export function McpTab() {
           ...prev,
           [serverName]: result.data!.status as ServerHealth,
         }));
+        // Update tools in local state if discovered
+        if (result.data.tools) {
+          setServers((prev) =>
+            prev.map((s) =>
+              s.name === serverName
+                ? { ...s, tools: result.data!.tools, toolCount: result.data!.toolCount }
+                : s
+            )
+          );
+        }
       }
     } catch {
       setStatuses((prev) => ({ ...prev, [serverName]: 'offline' }));
@@ -438,13 +611,22 @@ export function McpTab() {
             </span>
           )}
         </h3>
-        <button
-          onClick={() => { setShowAdd(!showAdd); setError(''); setNameError(''); }}
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
-        >
-          {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showAdd ? 'Cancel' : 'Add Server'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setShowPaste(true); setShowAdd(false); }}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-secondary/10 text-secondary-foreground hover:bg-secondary/20 transition-colors border border-border"
+          >
+            <ClipboardPaste className="h-4 w-4" />
+            Paste Config
+          </button>
+          <button
+            onClick={() => { setShowAdd(!showAdd); setShowPaste(false); setError(''); setNameError(''); }}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+          >
+            {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showAdd ? 'Cancel' : 'Add Server'}
+          </button>
+        </div>
       </div>
 
       <p className="text-sm text-muted-foreground leading-relaxed bg-muted/50 rounded-lg px-4 py-3 border border-border/50">
@@ -569,6 +751,36 @@ export function McpTab() {
             </div>
           )}
 
+          {/* Headers (HTTP only) */}
+          {transport === 'http' && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Headers <span className="text-muted-foreground/50">(optional)</span>
+              </label>
+              <KeyValueEditor
+                entries={headerEntries}
+                onChange={setHeaderEntries}
+                keyPlaceholder="Authorization"
+                valuePlaceholder="Bearer sk-..."
+              />
+            </div>
+          )}
+
+          {/* Env Vars (stdio only) */}
+          {transport === 'stdio' && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Environment Variables <span className="text-muted-foreground/50">(optional)</span>
+              </label>
+              <KeyValueEditor
+                entries={envEntries}
+                onChange={setEnvEntries}
+                keyPlaceholder="GITHUB_TOKEN"
+                valuePlaceholder="ghp_..."
+              />
+            </div>
+          )}
+
           {error && (
             <p className="text-xs text-red-400 font-medium bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">{error}</p>
           )}
@@ -585,6 +797,98 @@ export function McpTab() {
             )}
             Add Server
           </button>
+        </div>
+      )}
+
+      {/* Paste Config Modal */}
+      {showPaste && (
+        <div className="space-y-4 rounded-xl border border-border bg-card/50 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">Paste MCP Server Config</h4>
+            <button
+              onClick={() => { setShowPaste(false); setPasteInput(''); setParseResult(null); }}
+              className="rounded p-1 hover:bg-accent"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Paste a JSON config from docs or Claude Code. Supports single servers and
+            <code className="mx-1 rounded bg-muted px-1.5 py-0.5 text-[10px]">mcpServers</code>
+            blocks with multiple servers.
+          </p>
+
+          <textarea
+            value={pasteInput}
+            onChange={(e) => { setPasteInput(e.target.value); setParseResult(null); }}
+            placeholder='{"mcpServers": {"my-server": {"url": "https://..."}}}'
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono leading-relaxed h-32 resize-y focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
+          />
+
+          {!parseResult && (
+            <button
+              onClick={handleParse}
+              disabled={!pasteInput.trim()}
+              className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Parse
+            </button>
+          )}
+
+          {parseResult && !parseResult.success && (
+            <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">
+              {parseResult.error}
+            </p>
+          )}
+
+          {parseResult?.success && (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-green-400">
+                Found {parseResult.servers.length} server{parseResult.servers.length > 1 ? 's' : ''}
+              </p>
+
+              {parseResult.error && (
+                <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">
+                  {parseResult.error}
+                </p>
+              )}
+
+              <div className="space-y-2">
+                {parseResult.servers.map((server, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                      TRANSPORT_BADGE[server.transport].bg
+                    } ${TRANSPORT_BADGE[server.transport].text}`}>
+                      {server.transport}
+                    </span>
+                    <input
+                      type="text"
+                      value={parsedNames[i] ?? server.name}
+                      onChange={(e) => setParsedNames((prev) => ({ ...prev, [i]: e.target.value }))}
+                      placeholder="server-name"
+                      className="flex-1 bg-transparent text-sm font-mono focus:outline-none"
+                    />
+                    <span className="truncate text-[10px] text-muted-foreground max-w-[200px]">
+                      {server.url || server.command || ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handlePasteAdd}
+                disabled={isPasting}
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {isPasting ? (
+                  <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                ) : (
+                  `Add ${parseResult.servers.length} Server${parseResult.servers.length > 1 ? 's' : ''}`
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -642,6 +946,11 @@ export function McpTab() {
                       <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.bg} ${badge.text}`}>
                         {server.transport}
                       </span>
+                      {(server.toolCount ?? 0) > 0 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          {server.toolCount} tool{server.toolCount !== 1 ? 's' : ''}
+                        </span>
+                      )}
                       {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
                         <Lock className="h-3 w-3 shrink-0 text-yellow-400" />
                       )}
@@ -723,6 +1032,38 @@ export function McpTab() {
                         Added {new Date(server.addedAt).toLocaleDateString()}
                       </span>
                     </div>
+
+                    {/* Tool list */}
+                    {server.tools && server.tools.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] text-primary">
+                          {server.toolCount} tool{(server.toolCount ?? 0) !== 1 ? 's' : ''} available
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {server.tools.map((tool) => (
+                            <span
+                              key={tool}
+                              className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground border border-border"
+                            >
+                              {tool}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Discover tools prompt (no tools cached yet) */}
+                    {(!server.tools || server.tools.length === 0) && server.transport === 'http' && server.enabled && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePingOne(server.name);
+                        }}
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Ping to discover tools
+                      </button>
+                    )}
 
                     {/* Auth note */}
                     {catalogEntry?.auth && catalogEntry.auth !== 'none' && (
