@@ -39,7 +39,7 @@ export function Layout() {
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
-  const isMobile = layoutTier === 'phone';
+  const isMobile = layoutTier === 'phone' || layoutTier === 'tablet';
   const isTablet = layoutTier === 'tablet';
 
   // Panel refs for collapse/expand
