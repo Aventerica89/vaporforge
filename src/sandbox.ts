@@ -676,13 +676,31 @@ export class SandboxManager {
     // Credential files (e.g. OAuth credentials.json for stdio MCP servers)
     if (config.credentialFiles && config.credentialFiles.length > 0) {
       for (const cred of config.credentialFiles) {
-        // Ensure parent directory exists
         const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
         if (parentDir) {
           await sandbox.mkdir(parentDir, { recursive: true });
         }
         await sandbox.writeFile(cred.path, cred.content);
         console.log(`[injectAllConfig] ${sid}: wrote credential file ${cred.path}`);
+      }
+
+      // Append credential file locations to CLAUDE.md so the agent knows about them
+      const credSection = [
+        '\n\n---\n',
+        '## Injected Credential Files',
+        '',
+        'The following credential files have been pre-loaded into this container by VaporForge.',
+        'They are ready to use — do NOT ask the user for these files or credentials.',
+        '',
+        ...config.credentialFiles.map((c) => `- \`${c.path}\``),
+      ].join('\n');
+      try {
+        const existing = await sandbox.readFile('/root/.claude/CLAUDE.md');
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', existing + credSection);
+      } catch {
+        // CLAUDE.md may not exist yet, create with just this section
+        await sandbox.mkdir('/root/.claude', { recursive: true });
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', credSection.trim());
       }
     }
 
