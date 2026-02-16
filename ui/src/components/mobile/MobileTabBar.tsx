@@ -18,6 +18,7 @@ interface TabDefinition {
 }
 
 const SESSION_TABS: readonly TabDefinition[] = [
+  { id: 'home', label: 'Home', icon: Home },
   { id: 'chat', label: 'Chat', icon: MessageSquare },
   { id: 'files', label: 'Files', icon: FolderTree },
   { id: 'terminal', label: 'Terminal', icon: Terminal },

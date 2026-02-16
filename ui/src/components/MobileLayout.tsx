@@ -14,7 +14,7 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 
 export function MobileLayout() {
-  const { currentSession, isCreatingSession, selectSession } = useSandboxStore();
+  const { currentSession, isCreatingSession, selectSession, deselectSession } = useSandboxStore();
   useAutoReconnect();
   const { isVisible: keyboardOpen, viewportHeight } = useKeyboard();
   const { activeTab, setActiveTab, onSessionChange } = useMobileNav();
@@ -49,6 +49,13 @@ export function MobileLayout() {
     selectSession(id);
   };
 
+  const handleTabChange = (tab: import('./mobile/MobileTabBar').MobileTab) => {
+    if (tab === 'home' && hasSession) {
+      deselectSession();
+    }
+    setActiveTab(tab);
+  };
+
   const renderTabContent = () => {
     if (isCreatingSession) return <SessionBootScreen />;
 
@@ -65,6 +72,8 @@ export function MobileLayout() {
     }
 
     switch (activeTab) {
+      case 'home':
+        return <WelcomeScreen />;
       case 'chat':
         return <ChatPanel />;
       case 'files':
@@ -101,8 +110,14 @@ export function MobileLayout() {
         style={{ minHeight: '44px' }}
       >
         <div className="flex items-center gap-2">
-          {currentSession && (
+          {currentSession ? (
             <span className={`h-2 w-2 rounded-full ${statusColor}`} />
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 512 512" className="shrink-0">
+              <rect width="512" height="512" rx="96" fill="#0f1419" />
+              <path d="M222 230 L162 296 L222 362" stroke="#1dd3e6" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              <path d="M290 230 L350 296 L290 362" stroke="#E945F5" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
           )}
           <span className="max-w-[200px] truncate text-sm font-semibold">
             {sessionName}
@@ -121,7 +136,7 @@ export function MobileLayout() {
       {/* Tab bar */}
       <MobileTabBar
         activeTab={hasSession ? activeTab : (activeTab === 'more' ? 'more' : 'home')}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         hasSession={hasSession}
         keyboardOpen={keyboardOpen}
       />
