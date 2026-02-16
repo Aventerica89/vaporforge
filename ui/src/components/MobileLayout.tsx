@@ -3,6 +3,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useMobileNav } from '@/hooks/useMobileNav';
+import { useSwipeTabs } from '@/hooks/useSwipeTabs';
 import { MobileTabBar } from './mobile/MobileTabBar';
 import { MoreMenu } from './mobile/MoreMenu';
 import { ChatPanel } from './ChatPanel';
@@ -17,6 +18,12 @@ export function MobileLayout() {
   useAutoReconnect();
   const { isVisible: keyboardOpen, viewportHeight } = useKeyboard();
   const { activeTab, setActiveTab, onSessionChange } = useMobileNav();
+  const hasSession = !!currentSession;
+  const swipeHandlers = useSwipeTabs({
+    activeTab,
+    onTabChange: setActiveTab,
+    hasSession,
+  });
   const [showCloneModal, setShowCloneModal] = useState(false);
   const containerHeight = `${viewportHeight}px`;
 
@@ -24,8 +31,6 @@ export function MobileLayout() {
   useEffect(() => {
     onSessionChange();
   }, [sessionId, onSessionChange]);
-
-  const hasSession = !!currentSession;
 
   const sessionName = currentSession
     ? (currentSession.metadata as { name?: string })?.name ||
@@ -106,7 +111,10 @@ export function MobileLayout() {
       </div>
 
       {/* Tab content */}
-      <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+      <div
+        className="flex flex-1 flex-col min-h-0 overflow-hidden"
+        {...swipeHandlers}
+      >
         {renderTabContent()}
       </div>
 
