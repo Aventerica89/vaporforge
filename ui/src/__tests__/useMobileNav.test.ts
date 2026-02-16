@@ -23,10 +23,10 @@ describe('useMobileNav', () => {
 
   it('tracks swipe direction for animation', () => {
     const { result } = renderHook(() => useMobileNav());
-    // chat(0) -> files(1) = swipe left (forward)
+    // chat(1) -> files(2) = swipe left (forward)
     act(() => result.current.setActiveTab('files'));
     expect(result.current.swipeDirection).toBe('left');
-    // files(1) -> chat(0) = swipe right (backward)
+    // files(2) -> chat(1) = swipe right (backward)
     act(() => result.current.setActiveTab('chat'));
     expect(result.current.swipeDirection).toBe('right');
   });
@@ -42,5 +42,30 @@ describe('useMobileNav', () => {
     expect(result.current.swipeDirection).not.toBeNull();
     act(() => result.current.onSessionChange());
     expect(result.current.swipeDirection).toBeNull();
+  });
+
+  it('does not change swipe direction when selecting the same tab', () => {
+    const { result } = renderHook(() => useMobileNav());
+    // default is chat, selecting chat again should not change direction from null
+    act(() => result.current.setActiveTab('chat'));
+    expect(result.current.swipeDirection).toBeNull();
+  });
+
+  it('handles home tab correctly', () => {
+    const { result } = renderHook(() => useMobileNav());
+    // chat(1) -> home(0) = right
+    act(() => result.current.setActiveTab('home'));
+    expect(result.current.activeTab).toBe('home');
+    expect(result.current.swipeDirection).toBe('right');
+  });
+
+  it('tracks direction for multi-hop jumps', () => {
+    const { result } = renderHook(() => useMobileNav());
+    // chat(1) -> terminal(3) = left
+    act(() => result.current.setActiveTab('terminal'));
+    expect(result.current.swipeDirection).toBe('left');
+    // terminal(3) -> chat(1) = right
+    act(() => result.current.setActiveTab('chat'));
+    expect(result.current.swipeDirection).toBe('right');
   });
 });
