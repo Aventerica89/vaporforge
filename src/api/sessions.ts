@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
-import { collectMcpConfig, hasRelayServers } from './mcp';
+import { collectMcpConfig, hasRelayServers, collectCredentialFiles } from './mcp';
 import { collectPluginConfigs } from './plugins';
 import { collectUserConfigs } from './config';
 import { getVfRules } from './user';
@@ -91,6 +91,9 @@ sessionRoutes.post('/create', async (c) => {
     // Collect Gemini MCP config if enabled and API key exists
     const geminiMcp = await collectGeminiMcpConfig(c.env.SESSIONS_KV, user.id);
 
+    // Collect credential files for stdio MCP servers (e.g. OAuth credentials.json)
+    const credentialFiles = await collectCredentialFiles(c.env.SESSIONS_KV, user.id);
+
     const session = await sandboxManager.createSandbox(sessionId, user.id, {
       gitRepo: parsed.data.gitRepo,
       branch: parsed.data.branch,
@@ -102,6 +105,7 @@ sessionRoutes.post('/create', async (c) => {
       vfRules,
       startRelayProxy: needsRelay,
       injectGeminiAgent: !!geminiMcp,
+      credentialFiles,
     });
 
     // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers

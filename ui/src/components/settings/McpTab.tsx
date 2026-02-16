@@ -340,6 +340,8 @@ export function McpTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [headerEntries, setHeaderEntries] = useState<Array<{ key: string; value: string }>>([]);
   const [envEntries, setEnvEntries] = useState<Array<{ key: string; value: string }>>([]);
+  const [credentialFile, setCredentialFile] = useState('');
+  const [credentialPath, setCredentialPath] = useState('');
   const [showPaste, setShowPaste] = useState(false);
   const [pasteInput, setPasteInput] = useState('');
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
@@ -390,6 +392,8 @@ export function McpTab() {
     setTransport('http');
     setHeaderEntries([]);
     setEnvEntries([]);
+    setCredentialFile('');
+    setCredentialPath('');
     setShowAdd(false);
   };
 
@@ -431,6 +435,10 @@ export function McpTab() {
         if (parts.length > 1) server.args = parts.slice(1);
         const env = entriesToRecord(envEntries);
         if (env) server.env = env;
+        if (credentialFile.trim() && credentialPath.trim()) {
+          server.credentialFile = credentialFile.trim();
+          server.credentialPath = credentialPath.trim();
+        }
       } else if (transport === 'relay') {
         server.localUrl = localUrl;
       }
@@ -781,6 +789,32 @@ export function McpTab() {
             </div>
           )}
 
+          {/* Credential File (stdio only) */}
+          {transport === 'stdio' && (
+            <div className="space-y-3">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Credential File <span className="text-muted-foreground/50">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={credentialPath}
+                onChange={(e) => setCredentialPath(e.target.value)}
+                placeholder="/root/.gmail-mcp/credentials.json"
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              <p className="text-xs text-muted-foreground -mt-1.5">
+                Path where the credential file will be written in the container
+              </p>
+              <textarea
+                value={credentialFile}
+                onChange={(e) => setCredentialFile(e.target.value)}
+                placeholder='Paste credential JSON content (e.g. credentials.json from OAuth flow)'
+                rows={4}
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-y"
+              />
+            </div>
+          )}
+
           {error && (
             <p className="text-xs text-red-400 font-medium bg-red-500/10 rounded-lg px-3 py-2 border border-red-500/20">{error}</p>
           )}
@@ -1063,6 +1097,13 @@ export function McpTab() {
                       >
                         Ping to discover tools
                       </button>
+                    )}
+
+                    {/* Credential file indicator */}
+                    {server.credentialPath && (
+                      <p className="text-[11px] text-muted-foreground bg-muted/30 rounded px-2.5 py-1.5 border border-border/40 font-mono">
+                        Credential file: {server.credentialPath}
+                      </p>
                     )}
 
                     {/* Auth note */}

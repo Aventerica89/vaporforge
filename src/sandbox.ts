@@ -95,6 +95,8 @@ export interface SandboxConfig {
   startRelayProxy?: boolean;
   /** Inject gemini-expert agent into the container */
   injectGeminiAgent?: boolean;
+  /** Credential files to write into the container (e.g. OAuth credentials.json) */
+  credentialFiles?: Array<{ path: string; content: string }>;
 }
 
 export class SandboxManager {
@@ -669,6 +671,19 @@ export class SandboxManager {
         '/root/.claude/agents/gemini-expert.md',
         agentContent
       );
+    }
+
+    // Credential files (e.g. OAuth credentials.json for stdio MCP servers)
+    if (config.credentialFiles && config.credentialFiles.length > 0) {
+      for (const cred of config.credentialFiles) {
+        // Ensure parent directory exists
+        const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
+        if (parentDir) {
+          await sandbox.mkdir(parentDir, { recursive: true });
+        }
+        await sandbox.writeFile(cred.path, cred.content);
+        console.log(`[injectAllConfig] ${sid}: wrote credential file ${cred.path}`);
+      }
     }
 
     // Write sentinel stamp so we can skip re-injection on future wake

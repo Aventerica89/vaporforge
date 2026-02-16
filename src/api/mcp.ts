@@ -72,7 +72,7 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
-  const { name, transport, url, command, args, localUrl, headers, env } = parsed.data;
+  const { name, transport, url, command, args, localUrl, headers, env, credentialFile, credentialPath } = parsed.data;
 
   // Transport-specific validation
   if (transport === 'http' && !url) {
@@ -123,6 +123,8 @@ mcpRoutes.post('/', async (c) => {
     localUrl,
     headers,
     env,
+    credentialFile,
+    credentialPath,
     enabled: true,
     addedAt: new Date().toISOString(),
   };
@@ -388,6 +390,30 @@ mcpRoutes.post('/:name/ping', async (c) => {
     });
   }
 });
+
+/**
+ * Collect credential files from enabled MCP servers for container injection.
+ * Returns an array of { path, content } pairs to write into the container filesystem.
+ */
+export async function collectCredentialFiles(
+  kv: KVNamespace,
+  userId: string
+): Promise<Array<{ path: string; content: string }>> {
+  const servers = await readServers(kv, userId);
+  const files: Array<{ path: string; content: string }> = [];
+
+  for (const server of servers) {
+    if (!server.enabled) continue;
+    if (server.credentialFile && server.credentialPath) {
+      files.push({
+        path: server.credentialPath,
+        content: server.credentialFile,
+      });
+    }
+  }
+
+  return files;
+}
 
 /** Check if a user has any enabled relay-transport MCP servers */
 export async function hasRelayServers(
