@@ -3,6 +3,128 @@
 All notable changes to VaporForge are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.23.0] - 2026-02-16
+
+### Added
+- Apple HIG mobile layout redesign: iPhone uses bottom tab bar (49pt + safe area), iPad uses 280px sidebar
+- MobileNavBar component: 44pt translucent blur nav bar with back/title/actions
+- MobileTabBar upgrade: 25pt SF Symbol-style icons, system colors, blur background
+- Sub-navigation system: Settings and Marketplace render inline within mobile layouts via `useMobileNav` hook
+- TabletLayout component: iPad sidebar with logo, session nav, tools, sessions list
+- Swipe gesture navigation between tabs on iPhone
+- MoreMenu refactored to use `onNavigate` callback instead of direct store toggles
+
+### Changed
+- Layout.tsx splits routing by `layoutTier` (tablet/phone/desktop) instead of boolean `isMobile`
+- Desktop panel defaults simplified (tablet/phone handled by their own layouts)
+
+## [0.22.0] - 2026-02-16
+
+### Added
+- Smart Context Phase 1: Session Auto-Context
+- `gather-context.sh`: fault-tolerant bash script (2KB cap, 10s timeout) gathers git status, TODOs, code metrics, previous session context
+- Auto-context cached at container startup via `ws-agent-server.js`
+- `buildSystemPromptAppend()` reads cached context and appends to system prompt
+- Auto-context toggle in Command Center settings (optimistic UI update)
+- `.vaporforge/knowledge/` directory created in container for Phase 2 prep
+
+## [0.21.2] - 2026-02-15
+
+### Added
+- Multi-file credential support per MCP server (uploaded + injected to container filesystem)
+- Diagnostic transport-type logging for MCP injection
+
+### Fixed
+- Fresh MCP config computed on every message (fixes stale session-mcp KV key)
+- npx package pre-install for stdio servers (fixes silent SDK server drops)
+- Gemini config merge bug resolved
+
+## [0.21.0] - 2026-02-15
+
+### Added
+- MCP server management upgrade (Phase 1)
+- Paste JSON config with auto-detection (Claude Code, Warp, raw formats)
+- Custom HTTP headers for auth + env vars for stdio servers
+- Tool discovery: ping servers for available tools displayed as pill badges
+- Credential file upload and injection per server
+- Edit existing servers (PUT endpoint)
+- Multi-server batch add from pasted JSON
+
+## [0.20.0] - 2026-02-15
+
+### Added
+- WebSocket streaming for main chat (replaces broken SSE)
+- `ws-agent-server.js` in container on port 8765, spawns `claude-agent.js` per query
+- Worker proxies WebSocket via `sandbox.wsConnect(request, 8765)`
+- Context file pattern: Worker writes config to `/tmp/vf-pending-query.json`, container reads and deletes
+- `POST /api/sdk/persist` endpoint for browser to save full text after stream completes
+- WS auth via `?token=JWT` query param
+
+### Fixed
+- Real-time streaming now works in production (CF Sandbox `execStream()` SSE buffering bypassed entirely)
+
+## [0.19.0] - 2026-02-15
+
+### Added
+- `emit()` helper using `fs.writeSync(1, ...)` to bypass Node block-buffered stdout
+- `useSmoothText` hook: typewriter buffer via requestAnimationFrame with adaptive speed
+- `SmoothTextPart` component: streaming text smoothed, completed text renders instantly
+
+### Fixed
+- Prompt input CSS polish: muted background, hover state, focus glow, backdrop blur
+
+## [0.16.0] - 2026-02-14
+
+### Added
+- DevTools batch: DevChangelog (in-app commit log viewer), DevPlayground (component sandbox)
+- Layout customization in Settings with live panel size display and reset
+
+## [0.15.0] - 2026-02-14
+
+### Added
+- Tool-calling agent for Quick Chat with 4 sandbox tools: readFile, listFiles, searchCode, runCommand
+- AI SDK v6 `tool()` definitions with `stepCountIs(10)` max steps
+- `Tool.tsx` component: collapsible tool invocation display
+- `Confirmation.tsx` component: approval UI for privileged operations
+- Agent mode indicator in QuickChatPanel
+- Tools automatically enabled when active sandbox session exists
+
+## [0.14.2] - 2026-02-14
+
+### Changed
+- Migrated to `useChat` (AI SDK v6) with `DefaultChatTransport` and UIMessage `parts[]` rendering
+
+## [0.14.1] - 2026-02-14
+
+### Changed
+- Per-message performance: atomFamily normalized state with React.memo
+
+## [0.14.0] - 2026-02-14
+
+### Added
+- AI Elements: Suggestion component, Reasoning component, Shimmer loading indicator
+
+## [0.11.0] - 2026-02-13
+
+### Added
+- Phase B: Structured Intelligence (upgrades AI SDK from streamText-only to structured output)
+- Code Analysis: `streamObject()` with progressive panel, complexity meter (1-10), severity-badged issues
+- Smart Commit Message: `generateObject()` with editable type/scope/subject/body card
+- Test Results Parser: auto-detects Jest/Vitest/pytest/Mocha output with pass/fail/skip counts
+- Stack Trace Parser: clickable frames, dimmed node_modules, opens file in editor
+- Shared Zod schemas for structured AI output
+- Editor context menu + Cmd+Shift+A for code analysis
+
+## [0.10.0] - 2026-02-13
+
+### Added
+- Vercel AI SDK integration for Quick Chat and Code Transform
+- SSE streaming via `streamText()` with KV-persisted chat history (7-day TTL)
+- Quick Chat slide-out panel (Cmd+Shift+Q) with provider toggle
+- Code Transform with lazy Monaco DiffEditor (Cmd+Shift+T)
+- Multi-provider support: Claude (Sonnet/Haiku/Opus) and Gemini (Flash/Pro)
+- Claude API key support separate from OAuth tokens
+
 ## [0.9.6] - 2026-02-12
 
 ### Added
