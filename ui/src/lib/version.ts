@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.20.0';
+export const APP_VERSION = '0.21.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.21.0',
+    date: '2026-02-15',
+    tag: 'feature',
+    title: 'MCP Server Management Upgrade',
+    items: [
+      'Paste JSON config to add servers (supports Claude Code, Warp, and raw formats)',
+      'Custom HTTP headers for server authentication (Bearer tokens, API keys)',
+      'Environment variables for stdio/CLI servers',
+      'Tool discovery: ping servers to see available tools as pill badges',
+      'Multi-server batch add from pasted JSON blocks',
+    ],
+  },
   {
     version: '0.20.0',
     date: '2026-02-15',
