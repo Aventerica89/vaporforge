@@ -282,9 +282,15 @@ export async function collectMcpConfig(
       }
       result[server.name] = config;
     } else if (server.transport === 'stdio' && server.command) {
+      // Parse command field: user may enter "npx @package/name --flag"
+      // but the SDK expects command="npx", args=["@package/name","--flag"].
+      // Split on whitespace: first token is the executable, rest are args.
+      const parts = server.command.trim().split(/\s+/);
+      const executable = parts[0];
+      const inlineArgs = parts.slice(1);
       const config: Record<string, unknown> = {
-        command: server.command,
-        args: server.args || [],
+        command: executable,
+        args: [...inlineArgs, ...(server.args || [])],
       };
       if (server.env && Object.keys(server.env).length > 0) {
         config.env = server.env;
