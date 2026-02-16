@@ -8,6 +8,7 @@ import { Editor } from './Editor';
 import { ChatPanel } from './ChatPanel';
 import { XTerminal } from './XTerminal';
 import { MobileLayout } from './MobileLayout';
+import { TabletLayout } from './TabletLayout';
 import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
@@ -39,8 +40,6 @@ export function Layout() {
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
-  const isMobile = layoutTier === 'phone' || layoutTier === 'tablet';
-  const isTablet = layoutTier === 'tablet';
 
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
@@ -128,17 +127,8 @@ export function Layout() {
     loadSessions();
   }, [loadSessions]);
 
-  // Tablet: collapse file tree by default for more screen real estate
-  useEffect(() => {
-    if (isTablet && fileTreePanelRef.current) {
-      fileTreePanelRef.current.collapse();
-      setFileTreeCollapsed(true);
-    }
-  }, [isTablet]);
-
   // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (focus), Cmd+Shift+P (marketplace)
   useEffect(() => {
-    if (isMobile) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -209,20 +199,43 @@ export function Layout() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMobile, currentSession, toggleFileTree, toggleRightPanel, toggleFocusMode]);
+  }, [currentSession, toggleFileTree, toggleRightPanel, toggleFocusMode]);
 
-  // Panel size defaults
-  const fileTreeDefaultSize = isTablet ? 0 : 15;
-  const chatDefaultSize = isTablet ? 65 : 55;
-  const rightDefaultSize = isTablet ? 35 : 30;
+  // Panel size defaults (desktop only — tablet/phone handled by their own layouts)
+  const fileTreeDefaultSize = 15;
+  const chatDefaultSize = 55;
+  const rightDefaultSize = 30;
 
-  // Mobile gets its own layout — check BEFORE settings/marketplace
-  // (settings and marketplace render WITHIN mobile layouts, not as separate pages)
-  if (isMobile) {
+  // iPad gets sidebar layout (Apple HIG)
+  if (layoutTier === 'tablet') {
+    return (
+      <>
+        <TabletLayout />
+        <QuickChatPanel />
+        <CodeTransformPanel />
+        <CodeAnalysisPanel />
+        <CommitMessageCard />
+        <TestResultsOverlay />
+        <StackTraceOverlay />
+        <IssueTracker />
+        <DevChangelog />
+        <DevPlayground />
+        <DebugPanel />
+      </>
+    );
+  }
+
+  // iPhone gets tab bar layout (Apple HIG)
+  if (layoutTier === 'phone') {
     return (
       <>
         <MobileLayout />
         <QuickChatPanel />
+        <CodeTransformPanel />
+        <CodeAnalysisPanel />
+        <CommitMessageCard />
+        <TestResultsOverlay />
+        <StackTraceOverlay />
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
