@@ -737,11 +737,13 @@ export function McpTab() {
                 type="text"
                 value={command}
                 onChange={(e) => { setCommand(e.target.value); setError(''); }}
-                placeholder="node /path/to/server.js --flag"
+                placeholder="npx @gongrzhe/server-gmail-autoauth-mcp"
                 className="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-mono transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                Command and arguments to start the stdio MCP server
+              <p className="mt-1.5 text-xs text-muted-foreground leading-relaxed">
+                The full command to start the server. Find this in the server's README — usually{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[10px]">npx @scope/package-name</code> or{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[10px]">node /path/to/server.js</code>
               </p>
             </div>
           )}
