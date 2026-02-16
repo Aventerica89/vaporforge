@@ -838,11 +838,17 @@ export function McpTab() {
                   />
                 </div>
               ))}
-              {credentialFiles.length === 0 && (
-                <p className="text-xs text-muted-foreground/60 italic">
-                  Files written to the container at session start (e.g. OAuth credentials)
+              <div className="rounded-lg bg-muted/30 px-3 py-2.5 border border-border/40 space-y-1.5">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Some MCP servers need credential files on disk (e.g. OAuth tokens).
+                  Add each file the server expects — enter the <strong className="text-foreground/80">container path</strong> where
+                  it should be written, then paste the file content below.
                 </p>
-              )}
+                <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                  Example: Gmail MCP needs <code className="rounded bg-muted px-1 py-0.5">credentials.json</code> and <code className="rounded bg-muted px-1 py-0.5">gcp-oauth.keys.json</code> in <code className="rounded bg-muted px-1 py-0.5">/root/.gmail-mcp/</code>.
+                  Files are injected at session start and persist until the container recycles.
+                </p>
+              </div>
             </div>
           )}
 
