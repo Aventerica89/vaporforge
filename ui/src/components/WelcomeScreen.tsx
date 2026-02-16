@@ -156,6 +156,11 @@ export function WelcomeScreen() {
       <div className="mx-auto w-full max-w-2xl space-y-6 md:space-y-8 py-8 md:py-16 animate-fade-up">
         {/* Hero Header */}
         <div className="text-center space-y-3">
+          <img
+            src="/app/icon.svg"
+            alt="VaporForge"
+            className="mx-auto h-16 w-16 md:h-20 md:w-20 rounded-2xl animate-fade-down"
+          />
           <h1 className="text-3xl md:text-4xl font-display font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary animate-fade-down">
             VAPORFORGE
           </h1>

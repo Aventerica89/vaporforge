@@ -51,13 +51,11 @@ export const MobileTabBar = memo(function MobileTabBar({
 
   const baseClasses = [
     'flex',
-    'items-center',
-    'justify-around',
+    'flex-col',
     'bg-card/95',
     'backdrop-blur-md',
     'border-t',
     'border-border',
-    'safe-bottom',
     'transition-transform',
     'duration-200',
   ];
@@ -69,40 +67,44 @@ export const MobileTabBar = memo(function MobileTabBar({
     <nav
       role="tablist"
       className={className}
-      style={{ minHeight: '49px' }}
     >
-      {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
-        const Icon = tab.icon;
+      {/* Button row — sits above safe area */}
+      <div className="flex items-center justify-around" style={{ minHeight: '49px' }}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const Icon = tab.icon;
 
-        const tabClasses = [
-          'flex',
-          'flex-col',
-          'items-center',
-          'justify-center',
-          'flex-1',
-          'py-1',
-          'gap-0.5',
-          isActive ? 'text-primary' : 'text-muted-foreground',
-        ].join(' ');
+          const tabClasses = [
+            'flex',
+            'flex-col',
+            'items-center',
+            'justify-center',
+            'flex-1',
+            'py-1.5',
+            'gap-0.5',
+            isActive ? 'text-primary' : 'text-muted-foreground',
+          ].join(' ');
 
-        return (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={isActive}
-            aria-label={tab.label}
-            className={tabClasses}
-            onClick={() => handleTabPress(tab.id)}
-          >
-            <Icon
-              size={20}
-              strokeWidth={isActive ? 2.5 : 1.5}
-            />
-            <span className="text-[10px] font-medium">{tab.label}</span>
-          </button>
-        );
-      })}
+          return (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={isActive}
+              aria-label={tab.label}
+              className={tabClasses}
+              onClick={() => handleTabPress(tab.id)}
+            >
+              <Icon
+                size={20}
+                strokeWidth={isActive ? 2.5 : 1.5}
+              />
+              <span className="text-[10px] font-medium">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {/* Safe area spacer — background extends behind home indicator */}
+      <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
     </nav>
   );
 });
