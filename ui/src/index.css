@@ -487,6 +487,22 @@
   pointer-events: auto;
 }
 
+/* Mobile Tab Bar */
+.mobile-tab-bar {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tab content transition */
+.tab-content-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.tab-content-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
 /* Word breaking utilities */
 @layer utilities {
   .overflow-wrap-anywhere {
