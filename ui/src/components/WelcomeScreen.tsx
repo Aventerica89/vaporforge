@@ -159,7 +159,7 @@ export function WelcomeScreen() {
           <img
             src="/app/icon.svg"
             alt="VaporForge"
-            className="mx-auto h-16 w-16 md:h-20 md:w-20 rounded-2xl animate-fade-down"
+            className="mx-auto h-16 w-16 md:h-20 md:w-20 rounded-2xl border border-border shadow-[0_0_20px_hsl(var(--primary)/0.3)] animate-fade-down"
           />
           <h1 className="text-3xl md:text-4xl font-display font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary animate-fade-down">
             VAPORFORGE
