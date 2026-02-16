@@ -18,6 +18,7 @@ import {
   Circle,
   Search,
   ClipboardPaste,
+  Upload,
 } from 'lucide-react';
 import { mcpApi } from '@/lib/api';
 import type { McpServerConfig } from '@/lib/types';
@@ -827,15 +828,46 @@ export function McpTab() {
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                  <textarea
-                    value={cred.content}
-                    onChange={(e) => setCredentialFiles(credentialFiles.map((c, j) =>
-                      j === i ? { ...c, content: e.target.value } : c
-                    ))}
-                    placeholder="Paste file content (JSON, YAML, etc.)"
-                    rows={3}
-                    className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none resize-y"
-                  />
+                  <div className="relative">
+                    <textarea
+                      value={cred.content}
+                      onChange={(e) => setCredentialFiles(credentialFiles.map((c, j) =>
+                        j === i ? { ...c, content: e.target.value } : c
+                      ))}
+                      placeholder="Paste file content or use Upload button"
+                      rows={3}
+                      className="w-full rounded border border-border bg-background px-2 py-1.5 text-xs font-mono focus:border-primary focus:outline-none resize-y"
+                    />
+                    <label className="absolute right-2 top-2 flex cursor-pointer items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors border border-primary/20">
+                      <Upload className="h-3 w-3" />
+                      Upload
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".json,.yaml,.yml,.toml,.txt,.pem,.key,.crt,.cfg,.conf,*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const text = reader.result as string;
+                            setCredentialFiles(credentialFiles.map((c, j) => {
+                              if (j !== i) return c;
+                              const pathVal = c.path || `/root/.config/${file.name}`;
+                              return { ...c, content: text, path: pathVal };
+                            }));
+                          };
+                          reader.readAsText(file);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                  {cred.content && (
+                    <p className="text-[10px] text-muted-foreground/60">
+                      {cred.content.length.toLocaleString()} chars loaded
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="rounded-lg bg-muted/30 px-3 py-2.5 border border-border/40 space-y-1.5">
