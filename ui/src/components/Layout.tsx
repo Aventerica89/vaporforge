@@ -216,7 +216,22 @@ export function Layout() {
   const chatDefaultSize = isTablet ? 65 : 55;
   const rightDefaultSize = isTablet ? 35 : 30;
 
-  // Full-page marketplace view
+  // Mobile gets its own layout — check BEFORE settings/marketplace
+  // (settings and marketplace render WITHIN mobile layouts, not as separate pages)
+  if (isMobile) {
+    return (
+      <>
+        <MobileLayout />
+        <QuickChatPanel />
+        <IssueTracker />
+        <DevChangelog />
+        <DevPlayground />
+        <DebugPanel />
+      </>
+    );
+  }
+
+  // Desktop-only: Full-page marketplace view
   if (marketplaceOpen) {
     return (
       <>
@@ -230,25 +245,11 @@ export function Layout() {
     );
   }
 
-  // Full-page settings view (both mobile and desktop)
+  // Desktop-only: Full-page settings view
   if (settingsOpen) {
     return (
       <>
         <SettingsPage />
-        <QuickChatPanel />
-        <IssueTracker />
-        <DevChangelog />
-        <DevPlayground />
-        <DebugPanel />
-      </>
-    );
-  }
-
-  // Mobile gets its own layout with drawer navigation
-  if (isMobile) {
-    return (
-      <>
-        <MobileLayout />
         <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
