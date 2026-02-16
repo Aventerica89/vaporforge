@@ -95,6 +95,8 @@ export interface SandboxConfig {
   startRelayProxy?: boolean;
   /** Inject gemini-expert agent into the container */
   injectGeminiAgent?: boolean;
+  /** Gemini MCP server config (separate from user mcpServers for clean merging) */
+  geminiMcpServers?: Record<string, Record<string, unknown>>;
   /** Credential files to write into the container (e.g. OAuth credentials.json) */
   credentialFiles?: Array<{ path: string; content: string }>;
 }
@@ -478,19 +480,50 @@ export class SandboxManager {
     const sandbox = this.getSandboxInstance(sessionId);
     const sid = sessionId.slice(0, 8);
 
-    // Write ~/.claude.json with merged MCP servers
-    const hasMcp = config.mcpServers && Object.keys(config.mcpServers).length > 0;
-    const hasPluginMcp = config.pluginConfigs?.mcpServers
-      && Object.keys(config.pluginConfigs.mcpServers).length > 0;
-    if (hasMcp || hasPluginMcp) {
-      const mergedMcp: Record<string, Record<string, unknown>> = {
-        ...(config.mcpServers || {}),
-        ...(config.pluginConfigs?.mcpServers || {}),
-      };
+    // Write ~/.claude.json with ALL merged MCP servers (user + plugin + gemini)
+    const mergedMcp: Record<string, Record<string, unknown>> = {
+      ...(config.mcpServers || {}),
+      ...(config.pluginConfigs?.mcpServers || {}),
+      ...(config.geminiMcpServers || {}),
+    };
+    if (Object.keys(mergedMcp).length > 0) {
       await sandbox.writeFile(
         '/root/.claude.json',
         JSON.stringify({ mcpServers: mergedMcp }, null, 2)
       );
+    }
+
+    // Pre-install npx packages for stdio MCP servers so the SDK can start them.
+    // Without this, npx tries to download at runtime inside the container and times out.
+    const npxPackages: string[] = [];
+    for (const [name, cfg] of Object.entries(mergedMcp)) {
+      const c = cfg as Record<string, unknown>;
+      if (c.command === 'npx' && Array.isArray(c.args) && c.args.length > 0) {
+        // First arg is the package name (possibly with -y flag before it)
+        const args = c.args as string[];
+        const pkg = args.find((a: string) => !a.startsWith('-'));
+        if (pkg) {
+          npxPackages.push(pkg);
+          console.log(`[refreshMcpConfig] ${sid}: will pre-install npx package "${pkg}" for MCP server "${name}"`);
+        }
+      }
+    }
+    if (npxPackages.length > 0) {
+      // Install all npx packages globally in parallel (best-effort, 60s timeout).
+      // Using --prefer-offline so cached packages don't re-download.
+      const installCmd = `npm install -g ${npxPackages.join(' ')} --prefer-offline 2>&1 || true`;
+      try {
+        const result = await sandbox.exec(installCmd, { timeout: 60_000 });
+        const output = (result.stdout || '').trim();
+        if (output) {
+          // Log just the last 3 lines to keep it concise
+          const lines = output.split('\n');
+          const tail = lines.slice(-3).join(' | ');
+          console.log(`[refreshMcpConfig] ${sid}: npm install result: ${tail}`);
+        }
+      } catch (err) {
+        console.warn(`[refreshMcpConfig] ${sid}: npx package pre-install failed (non-fatal): ${err}`);
+      }
     }
 
     // Write credential files (idempotent — overwrites existing)

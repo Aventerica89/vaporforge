@@ -32,6 +32,7 @@ export async function assembleSandboxConfig(
     userConfigs,
     vfRules,
     injectGeminiAgent: !!geminiMcp,
+    geminiMcpServers: geminiMcp || undefined,
     startRelayProxy: await hasRelayServers(kv, userId),
     credentialFiles,
   };

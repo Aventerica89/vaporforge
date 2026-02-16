@@ -120,8 +120,16 @@ sdkRoutes.post('/stream', async (c) => {
   try {
     console.log(`[sdk/stream] session=${sessionId.slice(0, 8)} status=${session.status} sandbox=${session.sandboxId?.slice(0, 8)}`);
 
-    // Retrieve MCP server config for this session (stored at creation / plugin sync)
-    const mcpConfigRaw = await c.env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
+    // Compute fresh MCP config from sandboxConfig (not stale session-mcp KV key).
+    // This ensures MCP servers added after session creation are immediately available.
+    const freshMcpConfig = {
+      ...(sandboxConfig.mcpServers || {}),
+      ...(sandboxConfig.pluginConfigs?.mcpServers || {}),
+      ...(sandboxConfig.geminiMcpServers || {}),
+    };
+    const mcpConfigStr = Object.keys(freshMcpConfig).length > 0
+      ? JSON.stringify(freshMcpConfig)
+      : null;
 
     // Get streaming output from sandbox
     const stream = await sandboxManager.execStreamInSandbox(
@@ -135,7 +143,7 @@ sdkRoutes.post('/stream', async (c) => {
           CLAUDE_CONFIG_DIR: '/root/.claude',
           ...collectProjectSecrets(c.env),
           ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
-          ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
+          ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
           VF_SESSION_MODE: mode,
         },
         timeout: 300000,
@@ -539,9 +547,30 @@ export async function handleSdkWs(
   }
 
   const sdkSessionId = session.sdkSessionId || '';
-  const mcpConfigRaw = await env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
+
+  // Compute fresh MCP config from sandboxConfig (not stale session-mcp KV key).
+  const freshMcpConfig = {
+    ...(sandboxConfig.mcpServers || {}),
+    ...(sandboxConfig.pluginConfigs?.mcpServers || {}),
+    ...(sandboxConfig.geminiMcpServers || {}),
+  };
+  const mcpConfigStr = Object.keys(freshMcpConfig).length > 0
+    ? JSON.stringify(freshMcpConfig)
+    : null;
 
   try {
+    // Log MCP config being passed (diagnostic — shows which servers the agent gets)
+    const mcpNames = Object.keys(freshMcpConfig);
+    console.log(`[sdk/ws] MCP servers for agent (${mcpNames.length}): ${mcpNames.join(', ')}`);
+    if (mcpNames.length > 0) {
+      // Log transport type per server to help diagnose startup failures
+      for (const [name, cfg] of Object.entries(freshMcpConfig)) {
+        const c = cfg as Record<string, unknown>;
+        const transport = c.command ? 'stdio' : c.type || c.url ? 'http' : 'unknown';
+        console.log(`[sdk/ws]   ${name}: ${transport}${c.command ? ` cmd=${c.command}` : ''}${c.url ? ` url=${String(c.url).slice(0, 60)}` : ''}`);
+      }
+    }
+
     // Refresh MCP config in container so hot-added servers are available.
     // Each WS message spawns a fresh agent process that reads ~/.claude.json,
     // so writing the latest config here gives us instant MCP hot-reload.
@@ -564,7 +593,7 @@ export async function handleSdkWs(
         CLAUDE_CONFIG_DIR: '/root/.claude',
         ...collectProjectSecrets(env),
         ...await collectUserSecrets(env.SESSIONS_KV, user.id),
-        ...(mcpConfigRaw ? { CLAUDE_MCP_SERVERS: mcpConfigRaw } : {}),
+        ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
         VF_SESSION_MODE: mode,
       },
     });
