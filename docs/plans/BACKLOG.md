@@ -41,6 +41,10 @@
 - [ ] **Session Handoff Summary** — At session end (or before container timeout), auto-generate a summary of what was accomplished, what's in progress, and what's next. Stored in KV and loaded into the next session's context.
 - [ ] **Knowledge Base Caching** — Let users save frequently-referenced docs (API specs, framework patterns, internal conventions) as local knowledge files that Claude can read without web fetches. Like a per-project context7.
 - [ ] **Workflow Templates** — Pre-built step-by-step templates for common tasks (add feature, fix bug, add API endpoint, set up auth) that Claude follows automatically. Extends the existing commands system with structured checklists.
+- [ ] **Code Patterns Capture** — Alongside gotchas and decisions, capture recurring code patterns (auth flow, DB queries, error handling conventions) to a persistent `patterns.md` file. Auto-injected into future sessions so Claude follows established conventions.
+- [ ] **Autonomy Presets** — Settings UI for configuring what Claude can do without asking (read files, run tests, commit) vs. what requires approval (push, delete, modify config). Three built-in presets: Conservative, Standard, Autonomous.
+- [ ] **Container Hooks (Auto-Enforcement)** — Hookify-style rules inside the sandbox: block wrong package managers, warn on console.log before commit, require tests for changes. Instruction-based enforcement via VF rules, upgradeable to native SDK hooks when available.
+- [ ] **Code Intelligence in Auto-Context** — Enhance the auto-context script with code metrics: file counts by type, cached test coverage percentage, dependency counts (prod/dev). Gives Claude instant codebase scale awareness.
 
 ## Future Ideas
 

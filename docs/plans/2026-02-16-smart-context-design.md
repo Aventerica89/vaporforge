@@ -55,6 +55,11 @@ Last 5 commits:
 src/api/quickchat.ts:42: TODO: add rate limiting
 ui/src/components/Editor.tsx:180: FIXME: Monaco resize on panel change
 
+### Code Intelligence
+Files: 47 TS/TSX
+Coverage: 82%
+Dependencies: 12 prod, 8 dev
+
 ### Previous session summary (if exists)
 Last worked on: MCP credential file upload
 Status: Complete, deployed as v0.21.2
@@ -78,6 +83,14 @@ Next steps: Smart context system design
    echo ""
    echo "### TODOs"
    grep -rn "TODO\|FIXME\|HACK" --include="*.ts" --include="*.tsx" --include="*.js" /workspace/src/ 2>/dev/null | head -15
+   echo ""
+   echo "### Code Intelligence"
+   # File count by type
+   echo "Files: $(find /workspace/src -name '*.ts' -o -name '*.tsx' 2>/dev/null | wc -l) TS/TSX"
+   # Test coverage (if cached result exists)
+   [ -f /workspace/coverage/coverage-summary.json ] && echo "Coverage: $(node -e 'console.log(JSON.parse(require("fs").readFileSync("/workspace/coverage/coverage-summary.json","utf8")).total.lines.pct + "%")' 2>/dev/null)"
+   # Package count
+   [ -f /workspace/package.json ] && echo "Dependencies: $(node -e 'const p=JSON.parse(require("fs").readFileSync("/workspace/package.json","utf8"));console.log(Object.keys(p.dependencies||{}).length+" prod, "+Object.keys(p.devDependencies||{}).length+" dev")' 2>/dev/null)"
    echo ""
    # Load previous session summary if it exists
    if [ -f /workspace/.vaporforge/session-summary.md ]; then
@@ -119,6 +132,7 @@ Next steps: Smart context system design
      knowledge/
        gotchas.md          # Problems encountered and fixes
        decisions.md        # Architecture Decision Records
+       patterns.md         # Recurring code patterns and conventions
    ```
 
 3. **Gotcha format:**
@@ -141,7 +155,16 @@ Next steps: Smart context system design
    **Consequence:** Need ws-agent-server.js running in container on port 8765
    ```
 
-5. **Injection** — The `gather-context.sh` script (from Feature 1) reads these files and includes them in the auto-context. Claude sees past gotchas and decisions at the start of every session.
+5. **Pattern format:**
+   ```markdown
+   ## Auth Pattern (2026-02-16)
+   **Where:** src/middleware/auth.ts, src/lib/auth/refresh.ts
+   **How:** JWT stored in httpOnly cookies, refresh logic in dedicated module
+   **Usage:** All protected routes use the auth middleware automatically
+   **Related files:** src/lib/db.ts (user lookup), prisma/schema.prisma (User model)
+   ```
+
+6. **Injection** — The `gather-context.sh` script (from Feature 1) reads these files and includes them in the auto-context. Claude sees past gotchas, decisions, and patterns at the start of every session.
 
 6. **VaporForge UI** — Add a "Knowledge" section to the file explorer sidebar that shows `.vaporforge/knowledge/` files with a special icon. Users can also view/edit them from Settings.
 
@@ -150,8 +173,13 @@ Next steps: Smart context system design
 Option A (simplest): Add to VF rules in Command Center:
 ```
 When you resolve a non-obvious bug or make a significant architectural decision,
-offer to save it by writing to /workspace/.vaporforge/knowledge/gotchas.md or
-decisions.md. Append, don't overwrite. Use the format documented at the top of each file.
+offer to save it by writing to /workspace/.vaporforge/knowledge/gotchas.md,
+decisions.md, or patterns.md. Append, don't overwrite. Use the format documented
+at the top of each file.
+
+- gotchas.md: Problems encountered, root cause, fix, and prevention
+- decisions.md: Architecture decisions with context, options, trade-offs
+- patterns.md: Recurring code patterns, conventions, and "how we do X here"
 ```
 
 Option B (richer): A dedicated `/capture` slash command that Claude runs to extract and format the knowledge entry from the current conversation context.
@@ -161,7 +189,7 @@ Option B (richer): A dedicated `/capture` slash command that Claude runs to extr
 |------|--------|
 | `src/sandbox.ts` | Create `.vaporforge/knowledge/` directory on session start |
 | `src/api/user.ts` | Default VF rules updated to include capture instructions |
-| `Dockerfile` | Include gotchas.md and decisions.md templates |
+| `Dockerfile` | Include gotchas.md, decisions.md, and patterns.md templates |
 | `ui/src/components/FileExplorer.tsx` | Special icon for .vaporforge/ directory |
 
 **Estimated effort:** Small for Option A (just VF rules update + directory creation). Medium for Option B (new command + UI).
@@ -221,15 +249,104 @@ Option B (richer): A dedicated `/capture` slash command that Claude runs to extr
 
 ---
 
+### Feature 4: Autonomy Presets
+
+**What:** Let users configure what Claude can do without asking vs. what requires explicit approval. Exposed as a settings UI so users control the autonomy level per-project.
+
+**How it works:**
+
+1. **Settings UI** — A new "Autonomy" section in Settings (or Command Center) with two lists:
+   - **Pre-approved operations** (Claude does these without asking):
+     - Reading any file in the project
+     - Running tests, linting, building
+     - Installing dependencies already in package.json
+     - Creating/editing files in src/, tests/, docs/
+     - Git: status, diff, log, add, commit (NOT push)
+   - **Requires approval** (Claude must ask first):
+     - `git push` (any branch)
+     - Deleting files or branches
+     - Modifying package.json, .env, CI config, Dockerfile
+     - Database migrations
+     - Installing NEW packages not in package.json
+
+2. **Injection** — The autonomy config is written to the CLAUDE.md or VF rules section in the container. Claude reads it and follows the rules.
+
+3. **Presets** — Three built-in presets for quick setup:
+   - **Conservative** — Ask before most operations
+   - **Standard** (default) — Read/test/lint freely, ask before writes to config files
+   - **Autonomous** — Do everything except push/delete/force operations
+
+**Files to modify:**
+| File | Change |
+|------|--------|
+| `ui/src/components/settings/CommandCenterTab.tsx` | Add autonomy preset selector + custom lists |
+| `src/api/user.ts` | Store/retrieve autonomy config in KV |
+| `src/sandbox.ts` | Inject autonomy rules into CLAUDE.md or VF rules |
+
+**Estimated effort:** Small — mostly UI for editing two lists + injection into existing VF rules pipeline.
+
+---
+
+### Feature 5: Container Hooks (Auto-Enforcement)
+
+**What:** Hookify-style automatic rule enforcement inside the sandbox. Instead of relying on Claude to follow rules, enforce them with pre/post-command hooks that block or warn.
+
+**How it works:**
+
+1. **Hook definition** — Users define hooks in Settings (or a `.vaporforge/hooks.json` file):
+   ```json
+   [
+     {
+       "name": "no-npm",
+       "trigger": "before-command",
+       "pattern": "npm install|npm i|yarn add",
+       "action": "block",
+       "message": "Use 'bun install' or 'bun add' instead"
+     },
+     {
+       "name": "no-console-in-commits",
+       "trigger": "before-commit",
+       "pattern": "console\\.log",
+       "action": "warn",
+       "message": "Remove console.log statements before committing"
+     },
+     {
+       "name": "require-tests",
+       "trigger": "before-commit",
+       "pattern": "src/.*\\.ts$",
+       "action": "warn",
+       "message": "Did you write/update tests for this change?"
+     }
+   ]
+   ```
+
+2. **Injection** — Hooks are injected into the container's CLAUDE.md as explicit rules. Since the Claude SDK doesn't support native hooks, the enforcement happens via strong instructions in the system prompt. The VF rules section gets a "Container Hooks" block that lists each hook as a mandatory rule.
+
+3. **Future enhancement** — If/when the Claude SDK supports pre/post tool-use hooks natively (like Claude Code does locally), switch from instruction-based enforcement to SDK-level enforcement.
+
+**Files to modify:**
+| File | Change |
+|------|--------|
+| `ui/src/components/settings/CommandCenterTab.tsx` | Add hooks editor (name, pattern, action, message) |
+| `src/api/user.ts` | Store/retrieve hooks config in KV |
+| `src/sandbox.ts` | Inject hooks as rules into CLAUDE.md |
+| `Dockerfile` | (future) Native hook support when SDK adds it |
+
+**Estimated effort:** Small for instruction-based enforcement. Medium for native SDK hooks (when available).
+
+---
+
 ## Implementation Order
 
 | Phase | Feature | Effort | Impact |
 |-------|---------|--------|--------|
-| 1 | Session Auto-Context | Small | High — instant project awareness |
-| 2 | Gotchas & Decisions Capture (Option A) | Small | Medium — grows over time |
+| 1 | Session Auto-Context (+ Code Intelligence) | Small | High — instant project awareness |
+| 2 | Gotchas, Decisions & Patterns Capture | Small | Medium — grows over time |
 | 3 | Session Handoff Summary | Medium | High — seamless continuity |
+| 4 | Autonomy Presets | Small | Medium — reduces permission friction |
+| 5 | Container Hooks | Small-Medium | Medium — automatic rule enforcement |
 
-Phase 1 alone delivers the biggest improvement: Claude starts every session already knowing git state, TODOs, and (if saved) what happened last time. Phases 2-3 build the flywheel — the more sessions a user has, the smarter Claude gets about their project.
+Phase 1 alone delivers the biggest improvement: Claude starts every session already knowing git state, TODOs, code metrics, and (if saved) what happened last time. Phases 2-3 build the flywheel — the more sessions a user has, the smarter Claude gets about their project. Phases 4-5 add behavioral guardrails so Claude works the way the user wants without constant supervision.
 
 ---
 
@@ -237,11 +354,14 @@ Phase 1 alone delivers the biggest improvement: Claude starts every session alre
 
 The user's original question was: "What would make working with you seamless?"
 
-With these 3 features:
+With these 5 features:
 - **No repeated context** — Auto-context gives instant project awareness
 - **No repeated mistakes** — Gotchas persist across sessions
 - **No lost decisions** — ADRs keep architectural consistency
+- **No lost patterns** — Code conventions captured and referenced automatically
 - **No "where was I?"** — Session summaries bridge conversations
+- **No permission friction** — Autonomy presets let Claude act without constant approval
+- **No rule violations** — Container hooks enforce rules automatically
 - **No manual CLAUDE.md maintenance** — Knowledge accumulates automatically
 
 The result: VaporForge sessions feel like continuing a conversation with a teammate, not starting over with a stranger.
