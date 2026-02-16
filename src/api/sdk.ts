@@ -542,6 +542,11 @@ export async function handleSdkWs(
   const mcpConfigRaw = await env.SESSIONS_KV.get(`session-mcp:${sessionId}`);
 
   try {
+    // Refresh MCP config in container so hot-added servers are available.
+    // Each WS message spawns a fresh agent process that reads ~/.claude.json,
+    // so writing the latest config here gives us instant MCP hot-reload.
+    await sandboxManager.refreshMcpConfig(session.sandboxId!, sandboxConfig);
+
     // Start WS server in container
     console.log(`[sdk/ws] starting WS server in sandbox ${session.sandboxId?.slice(0, 8)}`);
     await sandboxManager.startWsServer(session.sandboxId!);

@@ -466,6 +466,46 @@ export class SandboxManager {
     }
   }
 
+  /**
+   * Refresh MCP config + credential files in a running container.
+   * Called before each WS message so hot-added servers are available immediately.
+   * Lightweight: just writes ~/.claude.json + credential files (no full re-injection).
+   */
+  async refreshMcpConfig(
+    sessionId: string,
+    config: SandboxConfig
+  ): Promise<void> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
+
+    // Write ~/.claude.json with merged MCP servers
+    const hasMcp = config.mcpServers && Object.keys(config.mcpServers).length > 0;
+    const hasPluginMcp = config.pluginConfigs?.mcpServers
+      && Object.keys(config.pluginConfigs.mcpServers).length > 0;
+    if (hasMcp || hasPluginMcp) {
+      const mergedMcp: Record<string, Record<string, unknown>> = {
+        ...(config.mcpServers || {}),
+        ...(config.pluginConfigs?.mcpServers || {}),
+      };
+      await sandbox.writeFile(
+        '/root/.claude.json',
+        JSON.stringify({ mcpServers: mergedMcp }, null, 2)
+      );
+    }
+
+    // Write credential files (idempotent — overwrites existing)
+    if (config.credentialFiles && config.credentialFiles.length > 0) {
+      for (const cred of config.credentialFiles) {
+        const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
+        if (parentDir) {
+          await sandbox.mkdir(parentDir, { recursive: true });
+        }
+        await sandbox.writeFile(cred.path, cred.content);
+      }
+      console.log(`[refreshMcpConfig] ${sid}: refreshed ${config.credentialFiles.length} credential files`);
+    }
+  }
+
   // Proxy a WebSocket connection to the container's WS server on port 8765
   async wsConnectToSandbox(sessionId: string, request: Request): Promise<Response> {
     const sandbox = this.getSandboxInstance(sessionId);
