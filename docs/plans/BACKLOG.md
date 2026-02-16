@@ -24,6 +24,8 @@
 - [ ] **Token Viewer** — Display token usage per message (input/output/cache), running totals per session
 - [ ] **Latency Meter** — Time-to-first-token, tokens/sec, and total response time visualized per message
 - [ ] **Plan/Task UI Components** — Multi-step agent workflow visualization (task list, dependency graph, progress)
+- [ ] **Smart Test Gap Analysis** — Identify files with <80% coverage, files with no tests at all, and critical paths (auth, payment, API) below 95%. Built-in command or DevTools panel.
+- [ ] **Performance Regression Detection** — Track build time and bundle size baselines per session. Alert when build time increases >1s or bundle grows significantly. Store baselines in `.vaporforge/perf-baseline.json`.
 
 ## Billing + Business
 
@@ -45,6 +47,35 @@
 - [ ] **Autonomy Presets** — Settings UI for configuring what Claude can do without asking (read files, run tests, commit) vs. what requires approval (push, delete, modify config). Three built-in presets: Conservative, Standard, Autonomous.
 - [ ] **Container Hooks (Auto-Enforcement)** — Hookify-style rules inside the sandbox: block wrong package managers, warn on console.log before commit, require tests for changes. Instruction-based enforcement via VF rules, upgradeable to native SDK hooks when available.
 - [ ] **Code Intelligence in Auto-Context** — Enhance the auto-context script with code metrics: file counts by type, cached test coverage percentage, dependency counts (prod/dev). Gives Claude instant codebase scale awareness.
+- [ ] **Mistake Journal** — Track what Claude gets wrong and WHY in `.vaporforge/knowledge/mistakes.md`. Format: what happened, root cause, prevention, pattern learned. Auto-prompt at session end to review corrections/rejections. Different from gotchas (project bugs) — this tracks Claude's own errors to improve across sessions.
+- [ ] **Proactive Health Checks** — Extend auto-context with a health check script: staged console.logs, vulnerable dependencies (`bun audit`), unused dependencies (`depcheck`), large files (>500KB), failing tests from last run, new TODOs in recent changes. Surface issues before user asks.
+- [ ] **Context Diffing** — Auto-snapshot project state at session end; diff against snapshot at next session start. Shows what changed between sessions (new commits by others, package changes, file modifications). Gives Claude awareness of external changes.
+- [ ] **Intent Prediction** — VF rules that teach Claude to anticipate next steps: writing component → offer tests + story; adding API route → suggest client function + types; modifying schema → remind about migrations; fixing bug → suggest regression test. "If (current action) then predict (next step) and offer."
+- [ ] **Code Archaeology Command** — Built-in `/archaeology` command that shows WHY code exists: first commit context, major changes (top 5), last modified, related PRs, recent activity. Run before modifying unfamiliar code to understand intent.
+- [ ] **Quality Pre-flight Checks** — Before suggesting code changes, Claude auto-verifies: similar code exists (consistency), imports available, matches existing style, error cases considered, breaking changes assessed, conventions from patterns.md respected. VF rules enhancement.
+- [ ] **Confidence Levels** — VF rules requiring Claude to express uncertainty explicitly. High (90%+): "This will work because...". Medium (60-90%): "Should work, may need adjustment...". Low (<60%): "Best guess, verify by...". Never pretend certainty when guessing.
+- [ ] **Cross-Session Intelligence** — Track codebase evolution in `.vaporforge/knowledge/evolution.md`. Weekly summaries: theme (e.g., "auth overhaul"), changes made, learnings, tech debt created. Auto-generated from git history + session summaries. Gives Claude project trajectory awareness.
+
+## UI/UX Innovations (from Claude Advice 2)
+
+> Origin: Second round of Claude-inside-VaporForge feedback. Focus on visual interface innovations and workflow enhancements.
+
+- [ ] **Time-Travel Session View** — Timeline scrubber showing session history with auto-checkpoints before risky operations. One-click rollback to any point. Visual markers for milestones. Export section as "how I built this" tutorial. The killer feature no one else has.
+- [ ] **Confidence-Based Execution** — Show Claude's confidence percentage per suggestion. User sets auto-apply threshold (e.g., 80%). Above threshold: auto-applied. Below: requires approval. Settings slider for threshold + per-operation overrides. Trust through transparency.
+- [ ] **Parallel Universe Mode** — AI explores 2-3 approaches simultaneously for a given task. Side-by-side comparison with confidence scores, trade-offs, and code preview per approach. User selects which to apply. "See tradeoffs before committing."
+- [ ] **Context Spotlight** — Visual heatmap overlay on file tree showing what Claude is currently reading/thinking about. Live status: "Reading Button.tsx (line 45-67), Reason: Understanding pattern before creating Form." Always know what Claude is doing and why.
+- [ ] **Annotated Diff View** — Diff view where Claude annotates each change with reasoning: "Added null check (security)", "Added expiry validation (from auth-best-practices.md)". Shows confidence and risk level per change. Accept All / Accept with Edit / Reject buttons.
+- [ ] **Quick Actions Palette (Cmd+K)** — Command palette for session operations: rollback to checkpoint, undo last Claude action, create checkpoint, replay session from point, export as markdown, show context spotlight, view session stats, clear and start fresh.
+- [ ] **Live Activity Monitor** — Always-visible corner widget showing what Claude is doing in real-time. Expandable view with: files read, files modified, tests run, tokens used, estimated cost, session time. Replace mystery with transparency.
+- [ ] **Session Recording & Replay** — Record entire sessions with playback at variable speed (0.5x-5x). Share with teammates. Export as documentation. Bookmark key moments. Use cases: review while away, share "how I solved X", create tutorials, audit trail.
+- [ ] **AI Learning Dashboard** — Shows what Claude has learned about YOUR codebase: detected patterns (commit format, import style, auth patterns), conventions learned (package manager, aliases, error handling), your preferences (autonomy, explanation style, risk), common mistakes it's learned to avoid. Reset/export controls.
+- [ ] **Trust Score System** — Real-time trust metric that builds over successful interactions. Score goes up with: successful changes, proactive bug catches, passing tests. Score goes down with: failed operations, broken tests. Higher trust = more autonomy. Visible in UI.
+
+## Settings Enhancements
+
+- [ ] **Learning Preferences** — Settings for how Claude communicates: explanation style (Just Do It / Balanced / Teach Me), code comment level (None / When Complex / Comprehensive), show progress (live updates, tool visibility, token meter, time estimates).
+- [ ] **Mentor Mode** — Toggle that makes Claude explain everything it does in detail. Useful for learning. Shows what middleware is, why JWT works this way, etc. Continue / Ask Question / Skip buttons per explanation block. Stored as user preference.
+- [ ] **Cost Optimizer** — Track token usage and estimated cost per session, daily, and monthly. Show expensive operations. Daily/monthly budget settings with alerts. Tips for reducing cost (targeted searches vs full codebase scans). Helps users understand and control API spending.
 
 ## Future Ideas
 
