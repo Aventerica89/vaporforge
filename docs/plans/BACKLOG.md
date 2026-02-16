@@ -30,6 +30,18 @@
 - [ ] **Stripe Subscription Billing** — $20/mo Pro, $80/mo Premium. Stripe Checkout, customer portal, webhook handler. See `docs/business-plan.md` for full cost/competitive analysis.
 - [ ] **Usage Metering** — Track sandbox compute hours, API calls, storage per user for billing tiers
 
+## Smart Context (from Claude-in-VaporForge feedback)
+
+> Origin: A user asked Claude inside VaporForge how to optimize their setup. Claude's advice became a product roadmap. See `docs/plans/2026-02-16-smart-context-design.md` for full design.
+
+- [ ] **Session Auto-Context** — On session start, auto-run a context script (git status, recent commits, TODOs, running processes) and inject the output alongside CLAUDE.md. Gives Claude instant project awareness without the user having to explain anything.
+- [ ] **Gotchas Capture** — When a user resolves a tricky bug or debugging session in chat, offer to save it as a gotcha (problem/cause/fix/prevention) to a persistent knowledge file. Auto-injected into future sessions so Claude never hits the same issue twice.
+- [ ] **Decision Log** — When architectural decisions are made in chat (framework choice, pattern selection, trade-offs), offer to capture them as an ADR (Architecture Decision Record) saved per-project. Claude references these to stay consistent.
+- [ ] **Dependency Map Auto-Gen** — On session start or on-demand, scan the codebase for import graphs and generate a dependency map showing critical paths, circular dependency warnings, and "if you modify X, also check Y" relationships.
+- [ ] **Session Handoff Summary** — At session end (or before container timeout), auto-generate a summary of what was accomplished, what's in progress, and what's next. Stored in KV and loaded into the next session's context.
+- [ ] **Knowledge Base Caching** — Let users save frequently-referenced docs (API specs, framework patterns, internal conventions) as local knowledge files that Claude can read without web fetches. Like a per-project context7.
+- [ ] **Workflow Templates** — Pre-built step-by-step templates for common tasks (add feature, fix bug, add API endpoint, set up auth) that Claude follows automatically. Extends the existing commands system with structured checklists.
+
 ## Future Ideas
 
 - [ ] **Collaborative Sessions** — Multiple users in one sandbox session (shared terminal, chat, editor)
