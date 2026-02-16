@@ -7,14 +7,14 @@ import type { SandboxConfig } from './sandbox';
 import { collectMcpConfig, hasRelayServers, collectCredentialFiles } from './api/mcp';
 import { collectPluginConfigs } from './api/plugins';
 import { collectUserConfigs } from './api/config';
-import { getVfRules } from './api/user';
+import { getVfRules, getAutoContextPref } from './api/user';
 import { collectGeminiMcpConfig } from './api/ai-providers';
 
 export async function assembleSandboxConfig(
   kv: KVNamespace,
   userId: string
 ): Promise<SandboxConfig> {
-  const [claudeMd, mcpServers, pluginConfigs, userConfigs, vfRules, geminiMcp, credentialFiles] =
+  const [claudeMd, mcpServers, pluginConfigs, userConfigs, vfRules, geminiMcp, credentialFiles, autoContext] =
     await Promise.all([
       kv.get(`user-config:${userId}:claude-md`),
       collectMcpConfig(kv, userId),
@@ -23,6 +23,7 @@ export async function assembleSandboxConfig(
       getVfRules(kv, userId),
       collectGeminiMcpConfig(kv, userId),
       collectCredentialFiles(kv, userId),
+      getAutoContextPref(kv, userId),
     ]);
 
   return {
@@ -35,5 +36,6 @@ export async function assembleSandboxConfig(
     geminiMcpServers: geminiMcp || undefined,
     startRelayProxy: await hasRelayServers(kv, userId),
     credentialFiles,
+    autoContext,
   };
 }

@@ -37,6 +37,7 @@ function emit(obj) {
 const STRIP_FROM_SDK_ENV = new Set([
   'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
   'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
+  'VF_AUTO_CONTEXT',           // VF internal (read in buildOptions to control auto-context injection)
 ]);
 
 // Tools blocked in plan mode (read-only research mode).
@@ -105,6 +106,32 @@ function loadAgentsFromDisk() {
   return agents;
 }
 
+// Build the system prompt append string, optionally including auto-context.
+// Auto-context is gathered by gather-context.sh at container startup and
+// cached to /tmp/vf-auto-context.md. Disabled when VF_AUTO_CONTEXT === '0'.
+const BASE_SYSTEM_APPEND = 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.';
+const AUTO_CONTEXT_PATH = '/tmp/vf-auto-context.md';
+
+function buildSystemPromptAppend() {
+  if (process.env.VF_AUTO_CONTEXT === '0') {
+    return BASE_SYSTEM_APPEND;
+  }
+
+  try {
+    if (fs.existsSync(AUTO_CONTEXT_PATH)) {
+      const ctx = fs.readFileSync(AUTO_CONTEXT_PATH, 'utf8').trim();
+      if (ctx) {
+        console.error(`[claude-agent] Auto-context loaded (${ctx.length} chars)`);
+        return BASE_SYSTEM_APPEND + '\n\n' + ctx;
+      }
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to read auto-context: ${err.message}`);
+  }
+
+  return BASE_SYSTEM_APPEND;
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
@@ -167,7 +194,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
-      append: 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+      append: buildSystemPromptAppend(),
     },
     env: {
       ...filteredEnv,

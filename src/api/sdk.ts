@@ -145,6 +145,7 @@ sdkRoutes.post('/stream', async (c) => {
           ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
           ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
           VF_SESSION_MODE: mode,
+          VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
         },
         timeout: 300000,
       }
@@ -595,6 +596,7 @@ export async function handleSdkWs(
         ...await collectUserSecrets(env.SESSIONS_KV, user.id),
         ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
         VF_SESSION_MODE: mode,
+        VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
       },
     });
     console.log(`[sdk/ws] context file written, proxying WS to sandbox`);

@@ -565,6 +565,18 @@ export const userApi = {
     }),
 };
 
+// Auto-Context API
+export const autoContextApi = {
+  get: () =>
+    request<{ enabled: boolean }>('/user/auto-context'),
+
+  set: (enabled: boolean) =>
+    request<{ enabled: boolean }>('/user/auto-context', {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    }),
+};
+
 // VF Internal Rules API
 export const vfRulesApi = {
   get: () =>

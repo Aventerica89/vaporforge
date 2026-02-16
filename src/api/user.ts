@@ -61,6 +61,16 @@ Access them via \`$SECRET_NAME\` in the terminal or \`process.env.SECRET_NAME\` 
 Your responses stream to the user's browser in real-time via WebSocket. Keep responses focused and avoid unnecessarily long output — the user sees every character as it arrives.
 `;
 
+/** Fetch auto-context preference for a user. Default: true (enabled). */
+export async function getAutoContextPref(
+  kv: KVNamespace,
+  userId: string
+): Promise<boolean> {
+  const raw = await kv.get(`user-config:${userId}:auto-context`);
+  if (raw === null) return true;
+  return raw !== 'false';
+}
+
 /** Fetch VF internal rules for a user (returns default if none saved). */
 export async function getVfRules(
   kv: KVNamespace,
@@ -142,6 +152,39 @@ userRoutes.delete('/vf-rules', async (c) => {
   return c.json<ApiResponse<{ content: string }>>({
     success: true,
     data: { content: DEFAULT_VF_RULES },
+  });
+});
+
+// Get auto-context preference
+userRoutes.get('/auto-context', async (c) => {
+  const user = c.get('user');
+  const enabled = await getAutoContextPref(c.env.SESSIONS_KV, user.id);
+  return c.json<ApiResponse<{ enabled: boolean }>>({
+    success: true,
+    data: { enabled },
+  });
+});
+
+// Set auto-context preference
+userRoutes.put('/auto-context', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json<{ enabled: boolean }>();
+
+  if (typeof body.enabled !== 'boolean') {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'enabled must be a boolean',
+    }, 400);
+  }
+
+  await c.env.SESSIONS_KV.put(
+    `user-config:${user.id}:auto-context`,
+    String(body.enabled)
+  );
+
+  return c.json<ApiResponse<{ enabled: boolean }>>({
+    success: true,
+    data: { enabled: body.enabled },
   });
 });
 

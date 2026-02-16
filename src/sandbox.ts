@@ -99,6 +99,8 @@ export interface SandboxConfig {
   geminiMcpServers?: Record<string, Record<string, unknown>>;
   /** Credential files to write into the container (e.g. OAuth credentials.json) */
   credentialFiles?: Array<{ path: string; content: string }>;
+  /** Enable auto-context injection (git state, TODOs, code metrics). Default: true. */
+  autoContext?: boolean;
 }
 
 export class SandboxManager {
@@ -213,6 +215,10 @@ export class SandboxManager {
         throw new Error('Container started but shell never became responsive');
       }
       console.log(`[createSandbox] ${sessionId.slice(0, 8)}: health check PASSED`);
+
+      // Create .vaporforge directory for knowledge capture (Phase 2 prep)
+      step = 'createVaporforgeDir';
+      await sandbox.mkdir('/workspace/.vaporforge/knowledge', { recursive: true });
 
       // Start MCP relay proxy if relay servers are configured
       // Command is a fixed string (no user input) — safe for sandbox.exec

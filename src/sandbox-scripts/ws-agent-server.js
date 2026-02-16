@@ -22,6 +22,30 @@ let activeChild = null;
 
 console.log(`[ws-agent-server] listening on port ${PORT}`);
 
+// Run context-gathering script ONCE at startup (not per-connection).
+// Caches output to /tmp/vf-auto-context.md for claude-agent.js to read.
+const CONTEXT_SCRIPT = '/opt/claude-agent/gather-context.sh';
+const AUTO_CONTEXT_FILE = '/tmp/vf-auto-context.md';
+
+try {
+  const { execFileSync } = require('child_process');
+  if (fs.existsSync(CONTEXT_SCRIPT)) {
+    const output = execFileSync('bash', [CONTEXT_SCRIPT], {
+      cwd: '/workspace',
+      timeout: 10000,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (output && output.trim()) {
+      fs.writeFileSync(AUTO_CONTEXT_FILE, output.trim());
+      console.log(`[ws-agent-server] auto-context gathered (${output.trim().length} chars)`);
+    }
+  }
+} catch (err) {
+  // Non-fatal — auto-context is best-effort
+  console.log(`[ws-agent-server] auto-context gathering skipped: ${err.message || err}`);
+}
+
 wss.on('connection', (ws) => {
   console.log('[ws-agent-server] client connected');
 

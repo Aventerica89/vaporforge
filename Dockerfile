@@ -75,6 +75,7 @@ function emit(obj) {
 const STRIP_FROM_SDK_ENV = new Set([
   'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
   'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
+  'VF_AUTO_CONTEXT',           // VF internal (read in buildOptions to control auto-context injection)
 ]);
 
 // Tools blocked in plan mode (read-only research mode).
@@ -143,6 +144,32 @@ function loadAgentsFromDisk() {
   return agents;
 }
 
+// Build the system prompt append string, optionally including auto-context.
+// Auto-context is gathered by gather-context.sh at container startup and
+// cached to /tmp/vf-auto-context.md. Disabled when VF_AUTO_CONTEXT === '0'.
+const BASE_SYSTEM_APPEND = 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.';
+const AUTO_CONTEXT_PATH = '/tmp/vf-auto-context.md';
+
+function buildSystemPromptAppend() {
+  if (process.env.VF_AUTO_CONTEXT === '0') {
+    return BASE_SYSTEM_APPEND;
+  }
+
+  try {
+    if (fs.existsSync(AUTO_CONTEXT_PATH)) {
+      const ctx = fs.readFileSync(AUTO_CONTEXT_PATH, 'utf8').trim();
+      if (ctx) {
+        console.error(`[claude-agent] Auto-context loaded (${ctx.length} chars)`);
+        return BASE_SYSTEM_APPEND + '\n\n' + ctx;
+      }
+    }
+  } catch (err) {
+    console.error(`[claude-agent] Failed to read auto-context: ${err.message}`);
+  }
+
+  return BASE_SYSTEM_APPEND;
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
@@ -205,7 +232,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
-      append: 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.',
+      append: buildSystemPromptAppend(),
     },
     env: {
       ...filteredEnv,
@@ -701,6 +728,30 @@ let activeChild = null;
 
 console.log(`[ws-agent-server] listening on port ${PORT}`);
 
+// Run context-gathering script ONCE at startup (not per-connection).
+// Caches output to /tmp/vf-auto-context.md for claude-agent.js to read.
+const CONTEXT_SCRIPT = '/opt/claude-agent/gather-context.sh';
+const AUTO_CONTEXT_FILE = '/tmp/vf-auto-context.md';
+
+try {
+  const { execFileSync } = require('child_process');
+  if (fs.existsSync(CONTEXT_SCRIPT)) {
+    const output = execFileSync('bash', [CONTEXT_SCRIPT], {
+      cwd: '/workspace',
+      timeout: 10000,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (output && output.trim()) {
+      fs.writeFileSync(AUTO_CONTEXT_FILE, output.trim());
+      console.log(`[ws-agent-server] auto-context gathered (${output.trim().length} chars)`);
+    }
+  }
+} catch (err) {
+  // Non-fatal — auto-context is best-effort
+  console.log(`[ws-agent-server] auto-context gathering skipped: ${err.message || err}`);
+}
+
 wss.on('connection', (ws) => {
   console.log('[ws-agent-server] client connected');
 
@@ -834,3 +885,147 @@ process.on('SIGTERM', () => {
 WS_SERVER_EOF
 
 RUN chmod +x /opt/claude-agent/ws-agent-server.js
+
+# Embed auto-context gathering script
+# IMPORTANT: Keep in sync with src/sandbox-scripts/gather-context.sh
+RUN cat > /opt/claude-agent/gather-context.sh << 'GATHER_CONTEXT_EOF'
+#!/usr/bin/env bash
+# VaporForge Session Auto-Context Gatherer
+# Runs ONCE at container startup inside /workspace.
+# Outputs structured markdown (max ~2KB) for Claude's system prompt.
+# Must NEVER fail — all sections are guarded and exit 0 is guaranteed.
+
+set -o pipefail 2>/dev/null || true
+
+MAX_CHARS=2048
+output=""
+
+append() {
+  local text="$1"
+  local remaining=$(( MAX_CHARS - ${#output} ))
+  if [ "$remaining" -le 0 ]; then
+    return 1
+  fi
+  if [ "${#text}" -gt "$remaining" ]; then
+    output="${output}${text:0:$remaining}"
+    return 1
+  fi
+  output="${output}${text}"
+  return 0
+}
+
+cd /workspace 2>/dev/null || exit 0
+
+append "## Project State (auto-generated)
+" || { printf '%s' "$output"; exit 0; }
+
+# --- Git ---
+if [ -d .git ] && command -v git >/dev/null 2>&1; then
+  branch=$(git branch --show-current 2>/dev/null)
+  if [ -n "$branch" ]; then
+    append "
+### Git
+Branch: ${branch}
+" || { printf '%s' "$output"; exit 0; }
+
+    status=$(git status --short 2>/dev/null | head -20)
+    if [ -n "$status" ]; then
+      append "Status:
+${status}
+" || { printf '%s' "$output"; exit 0; }
+    else
+      append "Status: clean working tree
+" || { printf '%s' "$output"; exit 0; }
+    fi
+
+    log=$(git log --oneline -5 2>/dev/null)
+    if [ -n "$log" ]; then
+      append "
+Recent commits:
+${log}
+" || { printf '%s' "$output"; exit 0; }
+    fi
+  fi
+fi
+
+# --- TODOs ---
+if command -v grep >/dev/null 2>&1; then
+  todos=$(grep -rn 'TODO\|FIXME\|HACK' \
+    --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' \
+    --include='*.py' --include='*.rs' --include='*.go' \
+    --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=dist \
+    . 2>/dev/null | head -15)
+  if [ -n "$todos" ]; then
+    append "
+### TODOs
+${todos}
+" || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+# --- Code Intelligence ---
+append "
+### Code Intelligence
+" || { printf '%s' "$output"; exit 0; }
+
+# File counts by extension
+ts_count=$(find . -name '*.ts' -o -name '*.tsx' 2>/dev/null | grep -v node_modules | grep -v .git | wc -l | tr -d ' ')
+js_count=$(find . -name '*.js' -o -name '*.jsx' 2>/dev/null | grep -v node_modules | grep -v .git | wc -l | tr -d ' ')
+py_count=$(find . -name '*.py' 2>/dev/null | grep -v node_modules | grep -v .git | wc -l | tr -d ' ')
+
+counts=""
+[ "$ts_count" -gt 0 ] 2>/dev/null && counts="${counts}${ts_count} TS/TSX, "
+[ "$js_count" -gt 0 ] 2>/dev/null && counts="${counts}${js_count} JS/JSX, "
+[ "$py_count" -gt 0 ] 2>/dev/null && counts="${counts}${py_count} Python, "
+counts="${counts%, }"
+if [ -n "$counts" ]; then
+  append "Files: ${counts}
+" || { printf '%s' "$output"; exit 0; }
+fi
+
+# Package dependencies
+if [ -f package.json ]; then
+  deps=$(node -e '
+    try {
+      const p = JSON.parse(require("fs").readFileSync("package.json","utf8"));
+      const d = Object.keys(p.dependencies||{}).length;
+      const dd = Object.keys(p.devDependencies||{}).length;
+      console.log(d + " prod, " + dd + " dev");
+    } catch {}
+  ' 2>/dev/null)
+  if [ -n "$deps" ]; then
+    append "Dependencies: ${deps}
+" || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+# Cached test coverage
+if [ -f coverage/coverage-summary.json ]; then
+  cov=$(node -e '
+    try {
+      const c = JSON.parse(require("fs").readFileSync("coverage/coverage-summary.json","utf8"));
+      console.log(c.total.lines.pct + "%");
+    } catch {}
+  ' 2>/dev/null)
+  if [ -n "$cov" ]; then
+    append "Test coverage: ${cov}
+" || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+# --- Previous Session Summary ---
+if [ -f .vaporforge/session-summary.md ]; then
+  summary=$(head -50 .vaporforge/session-summary.md 2>/dev/null)
+  if [ -n "$summary" ]; then
+    append "
+### Previous Session
+${summary}
+" || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+printf '%s' "$output"
+exit 0
+GATHER_CONTEXT_EOF
+
+RUN chmod +x /opt/claude-agent/gather-context.sh
