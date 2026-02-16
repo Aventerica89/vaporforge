@@ -9,15 +9,13 @@ import {
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
-import { useSettingsStore } from '@/hooks/useSettings';
-import { useMarketplace } from '@/hooks/useMarketplace';
-import { useIssueTracker } from '@/hooks/useIssueTracker';
-import { usePlayground } from '@/hooks/usePlayground';
 import { haptics } from '@/lib/haptics';
+import type { SubView } from '@/hooks/useMobileNav';
 
 interface MoreMenuProps {
   readonly onOpenCloneModal: () => void;
   readonly onSelectSession: (id: string) => void;
+  readonly onNavigate: (view: SubView) => void;
 }
 
 function MenuItem({
@@ -62,13 +60,15 @@ function SectionHeader({ children }: { readonly children: string }) {
   );
 }
 
-export function MoreMenu({ onOpenCloneModal, onSelectSession }: MoreMenuProps) {
+export function MoreMenu({
+  onOpenCloneModal,
+  onSelectSession,
+  onNavigate,
+}: MoreMenuProps) {
   const sessions = useSandboxStore((s) => s.sessions);
   const currentSession = useSandboxStore((s) => s.currentSession);
   const createSession = useSandboxStore((s) => s.createSession);
   const logout = useAuthStore((s) => s.logout);
-  const openSettings = useSettingsStore((s) => s.openSettings);
-  const openTracker = useIssueTracker((s) => s.openTracker);
 
   const handleNewSession = async () => {
     haptics.light();
@@ -118,13 +118,16 @@ export function MoreMenu({ onOpenCloneModal, onSelectSession }: MoreMenuProps) {
                 className={[
                   'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm',
                   'transition-colors active:scale-[0.98]',
-                  isActive ? 'bg-primary/10 text-primary' : 'hover:bg-accent',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'hover:bg-accent',
                 ].join(' ')}
               >
                 <span
-                  className={['h-2 w-2 shrink-0 rounded-full', dotColor].join(
-                    ' ',
-                  )}
+                  className={[
+                    'h-2 w-2 shrink-0 rounded-full',
+                    dotColor,
+                  ].join(' ')}
                 />
                 <span className="truncate">{name}</span>
                 {isActive && (
@@ -144,22 +147,22 @@ export function MoreMenu({ onOpenCloneModal, onSelectSession }: MoreMenuProps) {
         <MenuItem
           icon={<Bug className="h-4.5 w-4.5 text-orange-500" />}
           label="Bug Tracker"
-          onClick={() => openTracker()}
+          onClick={() => onNavigate('issues')}
         />
         <MenuItem
           icon={<Hammer className="h-4.5 w-4.5 text-amber-500" />}
           label="Dev Playground"
-          onClick={() => usePlayground.getState().openPlayground()}
+          onClick={() => onNavigate('playground')}
         />
         <MenuItem
           icon={<Puzzle className="h-4.5 w-4.5 text-primary" />}
           label="Plugins"
-          onClick={() => useMarketplace.getState().openMarketplace()}
+          onClick={() => onNavigate('marketplace')}
         />
         <MenuItem
           icon={<Settings className="h-4.5 w-4.5 text-muted-foreground" />}
           label="Settings"
-          onClick={() => openSettings()}
+          onClick={() => onNavigate('settings')}
         />
       </div>
 
