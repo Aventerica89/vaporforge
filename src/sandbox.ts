@@ -448,13 +448,13 @@ export class SandboxManager {
     const sid = sessionId.slice(0, 8);
     const sandbox = this.getSandboxInstance(sessionId);
 
-    // Fast check: is port 8765 already bound?
-    const portCheck = await sandbox.exec(
-      'ss -tln 2>/dev/null | grep -q :8765 && echo "UP" || echo "DOWN"',
+    // Fast check: is the WS server process already running?
+    const pgrepCheck = await sandbox.exec(
+      'pgrep -f ws-agent-server.js && echo "UP" || echo "DOWN"',
       { timeout: 3000 }
     );
-    if (portCheck.stdout?.trim() === 'UP') {
-      console.log(`[startWsServer] ${sid}: already running on :8765`);
+    if (pgrepCheck.stdout?.includes('UP')) {
+      console.log(`[startWsServer] ${sid}: already running`);
       return;
     }
 
@@ -464,28 +464,13 @@ export class SandboxManager {
       { timeout: 5000 }
     );
 
-    // Poll for port binding (50ms intervals, 3s max) instead of hardcoded 500ms sleep
-    const MAX_WAIT = 3000;
-    const INTERVAL = 50;
-    const start = Date.now();
-    while (Date.now() - start < MAX_WAIT) {
-      const check = await sandbox.exec(
-        'ss -tln 2>/dev/null | grep -q :8765 && echo "UP" || echo "DOWN"',
-        { timeout: 3000 }
-      );
-      if (check.stdout?.trim() === 'UP') {
-        console.log(`[startWsServer] ${sid}: started in ${Date.now() - start}ms`);
-        return;
-      }
-      await new Promise((r) => setTimeout(r, INTERVAL));
-    }
-
-    // Final fallback — check pgrep
-    const verify = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 5000 });
+    // Brief wait for Node process to bind port, then verify
+    await new Promise((r) => setTimeout(r, 300));
+    const verify = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 3000 });
     if (verify.stdout?.trim()) {
-      console.log(`[startWsServer] ${sid}: started (pid ${verify.stdout.trim()})`);
+      console.log(`[startWsServer] ${sid}: started (pid ${verify.stdout.trim().split('\n')[0]})`);
     } else {
-      console.error(`[startWsServer] ${sid}: failed to start — check /tmp/ws-agent-server.log`);
+      console.error(`[startWsServer] ${sid}: failed to start`);
       throw new Error('WebSocket agent server failed to start');
     }
   }

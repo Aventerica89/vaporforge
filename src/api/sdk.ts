@@ -577,38 +577,41 @@ export async function handleSdkWs(
       timestamp: new Date().toISOString(),
     };
 
-    // --- Phase 3: All container ops + KV write in parallel ---
+    // --- Phase 3: Container ops (sequential — CF Sandbox can't handle concurrent exec) ---
     // refreshMcpConfig: writes ~/.claude.json + npm install (skips if hashes match)
+    await sandboxManager.refreshMcpConfig(session.sandboxId!, sandboxConfig, hashes);
+    const t3a = Date.now();
+    console.log(`[sdk/ws] Phase 3a (refreshMcp): ${t3a - t2}ms`);
+
     // startWsServer: ensures port 8765 is listening (fast if already running)
-    // writeContextFile: writes /tmp/vf-pending-query.json for WS server to read
-    // KV write: persists user message (non-blocking, doesn't gate WS setup)
-    await Promise.all([
-      sandboxManager.refreshMcpConfig(session.sandboxId!, sandboxConfig, hashes),
-      sandboxManager.startWsServer(session.sandboxId!),
-      sandboxManager.writeContextFile(session.sandboxId!, {
-        prompt: sdkPrompt,
-        sessionId: sdkSessionId,
-        cwd,
-        env: {
-          CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
-          NODE_PATH: '/usr/local/lib/node_modules',
-          CLAUDE_CONFIG_DIR: '/root/.claude',
-          ...collectProjectSecrets(env),
-          ...userSecrets,
-          ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
-          VF_SESSION_MODE: mode,
-          VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
-        },
-      }),
-      env.SESSIONS_KV.put(
-        `message:${sessionId}:${userMsgId}`,
-        JSON.stringify(userMessage),
-        { expirationTtl: 7 * 24 * 60 * 60 }
-      ),
-    ]);
+    await sandboxManager.startWsServer(session.sandboxId!);
+
+    // writeContextFile + KV persist (file write must complete before WS proxy)
+    await sandboxManager.writeContextFile(session.sandboxId!, {
+      prompt: sdkPrompt,
+      sessionId: sdkSessionId,
+      cwd,
+      env: {
+        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+        NODE_PATH: '/usr/local/lib/node_modules',
+        CLAUDE_CONFIG_DIR: '/root/.claude',
+        ...collectProjectSecrets(env),
+        ...userSecrets,
+        ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
+        VF_SESSION_MODE: mode,
+        VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
+      },
+    });
+
+    // KV write is non-blocking — doesn't gate WS setup
+    env.SESSIONS_KV.put(
+      `message:${sessionId}:${userMsgId}`,
+      JSON.stringify(userMessage),
+      { expirationTtl: 7 * 24 * 60 * 60 }
+    ).catch(() => {});
 
     const t3 = Date.now();
-    console.log(`[sdk/ws] Phase 3 (parallel setup): ${t3 - t2}ms`);
+    console.log(`[sdk/ws] Phase 3 (setup): ${t3 - t2}ms`);
     console.log(`[sdk/ws] Total pre-WS: ${t3 - t0}ms`);
 
     // Proxy the WebSocket connection to the container
