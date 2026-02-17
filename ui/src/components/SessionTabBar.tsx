@@ -12,6 +12,7 @@ import {
   Puzzle,
   Bug,
   MessageSquare,
+  Globe,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
@@ -19,6 +20,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
+import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
@@ -37,7 +39,7 @@ export function SessionTabBar() {
     renameSession,
     gitStatus,
   } = useSandboxStore();
-  const { logout } = useAuthStore();
+  const { logout, isAdmin } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
   const { openSettings } = useSettingsStore();
 
@@ -272,6 +274,17 @@ export function SessionTabBar() {
             <Moon className="h-3.5 w-3.5" />
           )}
         </button>
+
+        {/* Agency (admin only) */}
+        {isAdmin && (
+          <button
+            onClick={() => useAgencyStore.getState().openDashboard()}
+            className="rounded-md p-1.5 hover:bg-accent"
+            title="Agency Sites"
+          >
+            <Globe className="h-3.5 w-3.5" />
+          </button>
+        )}
 
         {/* Marketplace */}
         <button

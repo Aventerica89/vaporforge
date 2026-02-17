@@ -23,11 +23,14 @@ import { CodeAnalysisPanel } from './CodeAnalysisPanel';
 import { CommitMessageCard } from './CommitMessageCard';
 import { TestResultsOverlay } from './TestResultsOverlay';
 import { StackTraceOverlay } from './StackTraceOverlay';
+import { AgencyDashboard } from './agency/AgencyDashboard';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { useAgencyStore } from '@/hooks/useAgencyStore';
+import { useAuthStore } from '@/hooks/useAuth';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
@@ -40,6 +43,8 @@ export function Layout() {
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
+  const { isAdmin } = useAuthStore();
+  const { dashboardOpen: agencyDashboardOpen } = useAgencyStore();
 
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
@@ -236,6 +241,20 @@ export function Layout() {
         <CommitMessageCard />
         <TestResultsOverlay />
         <StackTraceOverlay />
+        <IssueTracker />
+        <DevChangelog />
+        <DevPlayground />
+        <DebugPanel />
+      </>
+    );
+  }
+
+  // Desktop-only: Full-page agency dashboard (admin only)
+  if (isAdmin && agencyDashboardOpen) {
+    return (
+      <>
+        <AgencyDashboard />
+        <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
