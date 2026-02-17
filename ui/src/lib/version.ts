@@ -18,9 +18,9 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     tag: 'fix',
     title: 'Mobile Home Screen Horizontal Shift Fix',
     items: [
-      'Fixed content shifting left on iOS Safari home screen (repo/session names were clipped)',
+      'Fixed cards overflowing viewport on mobile (explicit grid-cols-1 + min-w-0 containment)',
       'Replaced hover:scale with active:scale press states per Apple HIG (no more sticky hover on touch)',
-      'Added overflow-x-hidden to prevent horizontal scroll caused by scaled elements',
+      'All card containers properly constrained within viewport width — no band-aid overflow-hidden',
     ],
   },
   {

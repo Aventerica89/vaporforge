@@ -152,8 +152,8 @@ export function WelcomeScreen() {
   const visibleSessions = showAll ? activeSessions : activeSessions.slice(0, 8);
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 safe-bottom">
-      <div className="mx-auto w-full max-w-2xl space-y-6 md:space-y-8 py-8 md:py-16 animate-fade-up">
+    <div className="flex-1 w-full min-w-0 overflow-y-auto p-4 md:p-8 safe-bottom">
+      <div className="mx-auto w-full max-w-2xl min-w-0 space-y-6 md:space-y-8 py-8 md:py-16 animate-fade-up">
         {/* Hero Header */}
         <div className="text-center space-y-3">
           <svg
@@ -181,7 +181,7 @@ export function WelcomeScreen() {
         </div>
 
         {/* Action Cards */}
-        <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up stagger-2">
+        <div className="grid grid-cols-1 gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up stagger-2">
           <button
             onClick={handleNewSession}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] active:scale-[0.97] group"
@@ -284,11 +284,11 @@ export function WelcomeScreen() {
               </div>
             </div>
             {ghRepos.length > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {ghRepos.slice(0, 6).map((repo) => (
                   <div
                     key={repo.full_name}
-                    className="glass-card group flex items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
+                    className="glass-card group flex min-w-0 items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
                   >
                     <button
                       onClick={() => handleCloneGhRepo(repo)}
@@ -346,7 +346,7 @@ export function WelcomeScreen() {
             <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
               My Repos
             </h3>
-            <div className="glass-card p-4 space-y-3">
+            <div className="glass-card min-w-0 p-4 space-y-3">
               <p className="text-xs text-muted-foreground">
                 Enter your GitHub username to sync your repositories
               </p>
@@ -380,11 +380,11 @@ export function WelcomeScreen() {
               Favorites
               <span className="ml-2 text-yellow-500/60">{favorites.length}</span>
             </h3>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {favorites.slice(0, 6).map((repo) => (
                 <div
                   key={repo.url}
-                  className="glass-card group flex items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
+                  className="glass-card group flex min-w-0 items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
                 >
                   <button
                     onClick={() => handleCloneFavorite(repo.url)}
@@ -461,7 +461,7 @@ export function WelcomeScreen() {
                 {visibleSessions.map((session, index) => (
                   <div
                     key={session.id}
-                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 transition-all duration-300 hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] active:scale-[0.98] animate-fade-up"
+                    className="glass-card group flex w-full min-w-0 items-center justify-between p-4 md:p-5 transition-all duration-300 hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] active:scale-[0.98] animate-fade-up"
                     style={{ animationDelay: `${(index + 1) * 50}ms` }}
                   >
                     {editingId === session.id ? (
@@ -622,7 +622,7 @@ export function WelcomeScreen() {
                 return (
                   <div
                     key={session.id}
-                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 opacity-60 border-red-500/20 transition-all duration-300 hover:opacity-80"
+                    className="glass-card group flex w-full min-w-0 items-center justify-between p-4 md:p-5 opacity-60 border-red-500/20 transition-all duration-300 hover:opacity-80"
                   >
                     <div className="flex-1 min-w-0">
                       <p className="font-mono text-sm md:text-base font-semibold truncate line-through text-muted-foreground">

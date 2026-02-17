@@ -1,7 +1,7 @@
 // VaporForge Service Worker
 // Offline-first PWA support with intelligent caching
 
-const CACHE_VERSION = 'vaporforge-v29';
+const CACHE_VERSION = 'vaporforge-v30';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 const MAX_DYNAMIC_ITEMS = 50;
