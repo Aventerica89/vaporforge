@@ -448,10 +448,13 @@ export class SandboxManager {
     const sid = sessionId.slice(0, 8);
     const sandbox = this.getSandboxInstance(sessionId);
 
-    // Check if already running
-    const check = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 5000 });
-    if (check.stdout?.trim()) {
-      console.log(`[startWsServer] ${sid}: already running (pid ${check.stdout.trim()})`);
+    // Fast check: is port 8765 already bound?
+    const portCheck = await sandbox.exec(
+      'ss -tln 2>/dev/null | grep -q :8765 && echo "UP" || echo "DOWN"',
+      { timeout: 3000 }
+    );
+    if (portCheck.stdout?.trim() === 'UP') {
+      console.log(`[startWsServer] ${sid}: already running on :8765`);
       return;
     }
 
@@ -461,10 +464,23 @@ export class SandboxManager {
       { timeout: 5000 }
     );
 
-    // Wait for it to bind
-    await new Promise((r) => setTimeout(r, 500));
+    // Poll for port binding (50ms intervals, 3s max) instead of hardcoded 500ms sleep
+    const MAX_WAIT = 3000;
+    const INTERVAL = 50;
+    const start = Date.now();
+    while (Date.now() - start < MAX_WAIT) {
+      const check = await sandbox.exec(
+        'ss -tln 2>/dev/null | grep -q :8765 && echo "UP" || echo "DOWN"',
+        { timeout: 3000 }
+      );
+      if (check.stdout?.trim() === 'UP') {
+        console.log(`[startWsServer] ${sid}: started in ${Date.now() - start}ms`);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, INTERVAL));
+    }
 
-    // Verify it started
+    // Final fallback — check pgrep
     const verify = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 5000 });
     if (verify.stdout?.trim()) {
       console.log(`[startWsServer] ${sid}: started (pid ${verify.stdout.trim()})`);
@@ -481,10 +497,25 @@ export class SandboxManager {
    */
   async refreshMcpConfig(
     sessionId: string,
-    config: SandboxConfig
+    config: SandboxConfig,
+    hashes?: { mcpConfigHash: string; credFilesHash: string }
   ): Promise<void> {
     const sandbox = this.getSandboxInstance(sessionId);
     const sid = sessionId.slice(0, 8);
+
+    // Read container state to check if work can be skipped
+    let containerState: Record<string, string> = {};
+    if (hashes) {
+      try {
+        const stateResult = await sandbox.exec(
+          'cat /tmp/vf-state.json 2>/dev/null || echo "{}"',
+          { timeout: 3000 }
+        );
+        containerState = JSON.parse(stateResult.stdout?.trim() || '{}');
+      } catch {
+        // First message or corrupted state — will do full refresh
+      }
+    }
 
     // Write ~/.claude.json with ALL merged MCP servers (user + plugin + gemini)
     const mergedMcp: Record<string, Record<string, unknown>> = {
@@ -492,48 +523,56 @@ export class SandboxManager {
       ...(config.pluginConfigs?.mcpServers || {}),
       ...(config.geminiMcpServers || {}),
     };
-    if (Object.keys(mergedMcp).length > 0) {
+
+    const skipMcpWrite =
+      hashes && containerState.mcpConfigHash === hashes.mcpConfigHash;
+
+    if (!skipMcpWrite && Object.keys(mergedMcp).length > 0) {
       await sandbox.writeFile(
         '/root/.claude.json',
         JSON.stringify({ mcpServers: mergedMcp }, null, 2)
       );
+    } else if (skipMcpWrite) {
+      console.log(`[refreshMcpConfig] ${sid}: MCP config unchanged, skipping write`);
     }
 
-    // Pre-install npx packages for stdio MCP servers so the SDK can start them.
-    // Without this, npx tries to download at runtime inside the container and times out.
-    const npxPackages: string[] = [];
-    for (const [name, cfg] of Object.entries(mergedMcp)) {
-      const c = cfg as Record<string, unknown>;
-      if (c.command === 'npx' && Array.isArray(c.args) && c.args.length > 0) {
-        // First arg is the package name (possibly with -y flag before it)
-        const args = c.args as string[];
-        const pkg = args.find((a: string) => !a.startsWith('-'));
-        if (pkg) {
-          npxPackages.push(pkg);
-          console.log(`[refreshMcpConfig] ${sid}: will pre-install npx package "${pkg}" for MCP server "${name}"`);
+    // Pre-install npx packages — SKIP if MCP config hash matches (packages already installed)
+    if (!skipMcpWrite) {
+      const npxPackages: string[] = [];
+      for (const [name, cfg] of Object.entries(mergedMcp)) {
+        const c = cfg as Record<string, unknown>;
+        if (c.command === 'npx' && Array.isArray(c.args) && c.args.length > 0) {
+          const args = c.args as string[];
+          const pkg = args.find((a: string) => !a.startsWith('-'));
+          if (pkg) {
+            npxPackages.push(pkg);
+            console.log(`[refreshMcpConfig] ${sid}: will pre-install npx package "${pkg}" for server "${name}"`);
+          }
         }
       }
-    }
-    if (npxPackages.length > 0) {
-      // Install all npx packages globally in parallel (best-effort, 60s timeout).
-      // Using --prefer-offline so cached packages don't re-download.
-      const installCmd = `npm install -g ${npxPackages.join(' ')} --prefer-offline 2>&1 || true`;
-      try {
-        const result = await sandbox.exec(installCmd, { timeout: 60_000 });
-        const output = (result.stdout || '').trim();
-        if (output) {
-          // Log just the last 3 lines to keep it concise
-          const lines = output.split('\n');
-          const tail = lines.slice(-3).join(' | ');
-          console.log(`[refreshMcpConfig] ${sid}: npm install result: ${tail}`);
+      if (npxPackages.length > 0) {
+        const installCmd = `npm install -g ${npxPackages.join(' ')} --prefer-offline 2>&1 || true`;
+        try {
+          const result = await sandbox.exec(installCmd, { timeout: 60_000 });
+          const output = (result.stdout || '').trim();
+          if (output) {
+            const lines = output.split('\n');
+            const tail = lines.slice(-3).join(' | ');
+            console.log(`[refreshMcpConfig] ${sid}: npm install result: ${tail}`);
+          }
+        } catch (err) {
+          console.warn(`[refreshMcpConfig] ${sid}: npx pre-install failed (non-fatal): ${err}`);
         }
-      } catch (err) {
-        console.warn(`[refreshMcpConfig] ${sid}: npx package pre-install failed (non-fatal): ${err}`);
       }
+    } else {
+      console.log(`[refreshMcpConfig] ${sid}: npm packages unchanged, skipping install`);
     }
 
-    // Write credential files (idempotent — overwrites existing)
-    if (config.credentialFiles && config.credentialFiles.length > 0) {
+    // Write credential files — SKIP if hash matches
+    const skipCredWrite =
+      hashes && containerState.credFilesHash === hashes.credFilesHash;
+
+    if (!skipCredWrite && config.credentialFiles && config.credentialFiles.length > 0) {
       for (const cred of config.credentialFiles) {
         const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
         if (parentDir) {
@@ -542,6 +581,19 @@ export class SandboxManager {
         await sandbox.writeFile(cred.path, cred.content);
       }
       console.log(`[refreshMcpConfig] ${sid}: refreshed ${config.credentialFiles.length} credential files`);
+    } else if (skipCredWrite) {
+      console.log(`[refreshMcpConfig] ${sid}: credential files unchanged, skipping`);
+    }
+
+    // Write updated state file so next message can skip too
+    if (hashes) {
+      const newState = {
+        ...containerState,
+        mcpConfigHash: hashes.mcpConfigHash,
+        credFilesHash: hashes.credFilesHash,
+        updatedAt: new Date().toISOString(),
+      };
+      await sandbox.writeFile('/tmp/vf-state.json', JSON.stringify(newState));
     }
   }
 

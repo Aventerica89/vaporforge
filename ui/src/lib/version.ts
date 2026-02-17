@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.23.2';
+export const APP_VERSION = '0.24.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.24.0',
+    date: '2026-02-17',
+    tag: 'feature',
+    title: 'Cortex: Streaming Latency Optimization',
+    items: [
+      'Parallel container setup — MCP config, WS server, and context file write run concurrently',
+      'Hash-based skip logic — redundant npm installs and config writes skipped when unchanged',
+      'Port polling replaces hardcoded 500ms sleep for WS server startup detection',
+      'File polling replaces hardcoded 150ms wait for context file in container',
+      'Config + user secrets fetched concurrently in Phase 1',
+      'WS server and npx packages pre-installed at session creation time',
+    ],
+  },
   {
     version: '0.23.2',
     date: '2026-02-16',

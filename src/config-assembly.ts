@@ -9,6 +9,12 @@ import { collectPluginConfigs } from './api/plugins';
 import { collectUserConfigs } from './api/config';
 import { getVfRules, getAutoContextPref } from './api/user';
 import { collectGeminiMcpConfig } from './api/ai-providers';
+import { configHash } from './lib/config-hash';
+
+export interface ConfigWithHashes {
+  config: SandboxConfig;
+  hashes: { mcpConfigHash: string; credFilesHash: string };
+}
 
 export async function assembleSandboxConfig(
   kv: KVNamespace,
@@ -38,4 +44,24 @@ export async function assembleSandboxConfig(
     credentialFiles,
     autoContext,
   };
+}
+
+export async function assembleSandboxConfigWithHashes(
+  kv: KVNamespace,
+  userId: string
+): Promise<ConfigWithHashes> {
+  const config = await assembleSandboxConfig(kv, userId);
+
+  const mergedMcp = {
+    ...(config.mcpServers || {}),
+    ...(config.pluginConfigs?.mcpServers || {}),
+    ...(config.geminiMcpServers || {}),
+  };
+
+  const [mcpConfigHash, credFilesHash] = await Promise.all([
+    configHash(mergedMcp as Record<string, unknown>),
+    configHash(config.credentialFiles as unknown as Record<string, unknown>),
+  ]);
+
+  return { config, hashes: { mcpConfigHash, credFilesHash } };
 }

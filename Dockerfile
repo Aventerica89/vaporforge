@@ -761,8 +761,23 @@ wss.on('connection', (ws) => {
     activeChild = null;
   }
 
-  // Wait briefly for context file to be written by the Worker
-  setTimeout(() => startQuery(ws), 150);
+  // Poll for context file (50ms intervals, 3s max) instead of hardcoded 150ms wait
+  const POLL_INTERVAL = 50;
+  const POLL_MAX = 3000;
+  let elapsed = 0;
+  const pollTimer = setInterval(() => {
+    elapsed += POLL_INTERVAL;
+    if (fs.existsSync(CONTEXT_FILE)) {
+      clearInterval(pollTimer);
+      startQuery(ws);
+    } else if (elapsed >= POLL_MAX) {
+      clearInterval(pollTimer);
+      console.log('[ws-agent-server] context file not found after 3s');
+      sendJson(ws, { type: 'error', error: 'Context file timeout' });
+      sendJson(ws, { type: 'process-exit', exitCode: 1 });
+      ws.close();
+    }
+  }, POLL_INTERVAL);
 });
 
 function startQuery(ws) {

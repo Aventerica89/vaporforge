@@ -108,12 +108,46 @@ sessionRoutes.post('/create', async (c) => {
       credentialFiles,
     });
 
-    // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
-    const allMcpServers = {
+    // Pre-start WS server in background so first message doesn't wait for it
+    if (session.sandboxId) {
+      c.executionCtx.waitUntil(
+        sandboxManager.startWsServer(session.sandboxId).catch((err: unknown) => {
+          console.warn('[sessions/create] WS server pre-start failed (non-fatal):', err);
+        })
+      );
+    }
+
+    // Pre-install npx packages in background so first message doesn't wait for npm
+    const allMcpServers: Record<string, Record<string, unknown>> = {
       ...(mcpServers || {}),
       ...(pluginConfigs?.mcpServers || {}),
       ...(geminiMcp || {}),
     };
+    const npxPkgs: string[] = [];
+    for (const [, cfg] of Object.entries(allMcpServers)) {
+      const mc = cfg as Record<string, unknown>;
+      if (mc.command === 'npx' && Array.isArray(mc.args)) {
+        const pkg = (mc.args as string[]).find((a: string) => !a.startsWith('-'));
+        if (pkg) npxPkgs.push(pkg);
+      }
+    }
+    if (npxPkgs.length > 0 && session.sandboxId) {
+      c.executionCtx.waitUntil(
+        (async () => {
+          try {
+            // Wait briefly for container to finish booting
+            await new Promise((r) => setTimeout(r, 2000));
+            const installCmd = `npm install -g ${npxPkgs.join(' ')} --prefer-offline 2>&1 || true`;
+            await sandboxManager.execInSandbox(session.sandboxId!, installCmd, { timeout: 60_000 });
+            console.log(`[sessions/create] pre-installed ${npxPkgs.length} npx packages`);
+          } catch (err) {
+            console.warn('[sessions/create] npx pre-install failed (non-fatal):', err);
+          }
+        })()
+      );
+    }
+
+    // Persist merged MCP config in KV so SDK stream can pass it via options.mcpServers
     if (Object.keys(allMcpServers).length > 0) {
       await c.env.SESSIONS_KV.put(
         `session-mcp:${sessionId}`,

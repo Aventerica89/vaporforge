@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { User, Session, Message, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 import type { SandboxManager } from '../sandbox';
-import { assembleSandboxConfig } from '../config-assembly';
+import { assembleSandboxConfig, assembleSandboxConfigWithHashes } from '../config-assembly';
 
 type Variables = {
   user: User;
@@ -510,8 +510,17 @@ export async function handleSdkWs(
     return new Response('Invalid OAuth token', { status: 401 });
   }
 
-  // Assemble config and wake sandbox
-  const sandboxConfig = await assembleSandboxConfig(env.SESSIONS_KV, user.id);
+  const t0 = Date.now();
+
+  // --- Phase 1: Config assembly + user secrets in parallel (both are KV reads) ---
+  const [{ config: sandboxConfig, hashes }, userSecrets] = await Promise.all([
+    assembleSandboxConfigWithHashes(env.SESSIONS_KV, user.id),
+    collectUserSecrets(env.SESSIONS_KV, user.id),
+  ]);
+  const t1 = Date.now();
+  console.log(`[sdk/ws] Phase 1 (config+secrets): ${t1 - t0}ms`);
+
+  // --- Phase 2: Wake sandbox (needs config for restore path) ---
   const session = await sandboxManager.getOrWakeSandbox(sessionId, sandboxConfig);
 
   if (!session || session.userId !== user.id) {
@@ -520,21 +529,8 @@ export async function handleSdkWs(
   if (!session.sandboxId) {
     return new Response('Sandbox not active', { status: 400 });
   }
-
-  // Persist user message to KV
-  const userMsgId = crypto.randomUUID();
-  const userMessage: Message = {
-    id: userMsgId,
-    sessionId,
-    role: 'user',
-    content: prompt,
-    timestamp: new Date().toISOString(),
-  };
-  await env.SESSIONS_KV.put(
-    `message:${sessionId}:${userMsgId}`,
-    JSON.stringify(userMessage),
-    { expirationTtl: 7 * 24 * 60 * 60 }
-  );
+  const t2 = Date.now();
+  console.log(`[sdk/ws] Phase 2 (wake): ${t2 - t1}ms`);
 
   // Strip command/agent prefix (same logic as SSE handler)
   const cmdPrefixMatch = prompt.match(/^\[(command|agent):\/([^\]]+)\]\n/);
@@ -549,7 +545,7 @@ export async function handleSdkWs(
 
   const sdkSessionId = session.sdkSessionId || '';
 
-  // Compute fresh MCP config from sandboxConfig (not stale session-mcp KV key).
+  // Compute fresh MCP config string (sync — no await needed)
   const freshMcpConfig = {
     ...(sandboxConfig.mcpServers || {}),
     ...(sandboxConfig.pluginConfigs?.mcpServers || {}),
@@ -559,53 +555,67 @@ export async function handleSdkWs(
     ? JSON.stringify(freshMcpConfig)
     : null;
 
-  try {
-    // Log MCP config being passed (diagnostic — shows which servers the agent gets)
-    const mcpNames = Object.keys(freshMcpConfig);
-    console.log(`[sdk/ws] MCP servers for agent (${mcpNames.length}): ${mcpNames.join(', ')}`);
-    if (mcpNames.length > 0) {
-      // Log transport type per server to help diagnose startup failures
-      for (const [name, cfg] of Object.entries(freshMcpConfig)) {
-        const c = cfg as Record<string, unknown>;
-        const transport = c.command ? 'stdio' : c.type || c.url ? 'http' : 'unknown';
-        console.log(`[sdk/ws]   ${name}: ${transport}${c.command ? ` cmd=${c.command}` : ''}${c.url ? ` url=${String(c.url).slice(0, 60)}` : ''}`);
-      }
+  // Log MCP config (diagnostic)
+  const mcpNames = Object.keys(freshMcpConfig);
+  console.log(`[sdk/ws] MCP servers for agent (${mcpNames.length}): ${mcpNames.join(', ')}`);
+  if (mcpNames.length > 0) {
+    for (const [name, cfg] of Object.entries(freshMcpConfig)) {
+      const c = cfg as Record<string, unknown>;
+      const transport = c.command ? 'stdio' : c.type || c.url ? 'http' : 'unknown';
+      console.log(`[sdk/ws]   ${name}: ${transport}${c.command ? ` cmd=${c.command}` : ''}${c.url ? ` url=${String(c.url).slice(0, 60)}` : ''}`);
     }
+  }
 
-    // Refresh MCP config in container so hot-added servers are available.
-    // Each WS message spawns a fresh agent process that reads ~/.claude.json,
-    // so writing the latest config here gives us instant MCP hot-reload.
-    await sandboxManager.refreshMcpConfig(session.sandboxId!, sandboxConfig);
+  try {
+    // Prepare user message for KV persistence
+    const userMsgId = crypto.randomUUID();
+    const userMessage: Message = {
+      id: userMsgId,
+      sessionId,
+      role: 'user',
+      content: prompt,
+      timestamp: new Date().toISOString(),
+    };
 
-    // Start WS server in container
-    console.log(`[sdk/ws] starting WS server in sandbox ${session.sandboxId?.slice(0, 8)}`);
-    await sandboxManager.startWsServer(session.sandboxId!);
-    console.log(`[sdk/ws] WS server started`);
+    // --- Phase 3: All container ops + KV write in parallel ---
+    // refreshMcpConfig: writes ~/.claude.json + npm install (skips if hashes match)
+    // startWsServer: ensures port 8765 is listening (fast if already running)
+    // writeContextFile: writes /tmp/vf-pending-query.json for WS server to read
+    // KV write: persists user message (non-blocking, doesn't gate WS setup)
+    await Promise.all([
+      sandboxManager.refreshMcpConfig(session.sandboxId!, sandboxConfig, hashes),
+      sandboxManager.startWsServer(session.sandboxId!),
+      sandboxManager.writeContextFile(session.sandboxId!, {
+        prompt: sdkPrompt,
+        sessionId: sdkSessionId,
+        cwd,
+        env: {
+          CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+          NODE_PATH: '/usr/local/lib/node_modules',
+          CLAUDE_CONFIG_DIR: '/root/.claude',
+          ...collectProjectSecrets(env),
+          ...userSecrets,
+          ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
+          VF_SESSION_MODE: mode,
+          VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
+        },
+      }),
+      env.SESSIONS_KV.put(
+        `message:${sessionId}:${userMsgId}`,
+        JSON.stringify(userMessage),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      ),
+    ]);
 
-    // Write context file for the WS server to read
-    console.log(`[sdk/ws] writing context file`);
-    await sandboxManager.writeContextFile(session.sandboxId!, {
-      prompt: sdkPrompt,
-      sessionId: sdkSessionId,
-      cwd,
-      env: {
-        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
-        NODE_PATH: '/usr/local/lib/node_modules',
-        CLAUDE_CONFIG_DIR: '/root/.claude',
-        ...collectProjectSecrets(env),
-        ...await collectUserSecrets(env.SESSIONS_KV, user.id),
-        ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
-        VF_SESSION_MODE: mode,
-        VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
-      },
-    });
-    console.log(`[sdk/ws] context file written, proxying WS to sandbox`);
+    const t3 = Date.now();
+    console.log(`[sdk/ws] Phase 3 (parallel setup): ${t3 - t2}ms`);
+    console.log(`[sdk/ws] Total pre-WS: ${t3 - t0}ms`);
 
     // Proxy the WebSocket connection to the container
     return sandboxManager.wsConnectToSandbox(session.sandboxId!, request);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[sdk/ws] FAILED: ${msg}`);
+    console.error(`[sdk/ws] FAILED after ${Date.now() - t0}ms: ${msg}`);
     return new Response(`WebSocket setup failed: ${msg}`, { status: 500 });
   }
 }
