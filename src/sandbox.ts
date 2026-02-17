@@ -588,6 +588,36 @@ export class SandboxManager {
     return sandbox.wsConnect(request, 8765);
   }
 
+  /**
+   * Expose a container port via a public preview URL.
+   * Used for agency mode to preview Astro dev server in an iframe.
+   * URL format: https://{port}-{sandboxId}-{token}.{hostname}
+   */
+  async exposePort(
+    sessionId: string,
+    port: number,
+    hostname: string
+  ): Promise<{ url: string; port: number; name: string | undefined }> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
+    console.log(`[exposePort] ${sid}: exposing port ${port} on ${hostname}`);
+    const result = await sandbox.exposePort(port, { hostname });
+    console.log(`[exposePort] ${sid}: exposed → ${result.url}`);
+    return result;
+  }
+
+  /** Check if a port is already exposed for a session. */
+  async isPortExposed(sessionId: string, port: number): Promise<boolean> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    return sandbox.isPortExposed(port);
+  }
+
+  /** Unexpose a previously exposed port. */
+  async unexposePort(sessionId: string, port: number): Promise<void> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    await sandbox.unexposePort(port);
+  }
+
   // Write query context to a temp file in the container (for the WS server to read)
   async writeContextFile(
     sessionId: string,

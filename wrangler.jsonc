@@ -77,14 +77,24 @@
   },
 
   // Static assets for UI
+  // run_worker_first: Worker runs BEFORE asset handler for all requests.
+  // Required so proxyToSandbox intercepts *.vaporforge.dev subdomain requests
+  // instead of the asset handler serving dist/index.html for them.
   "assets": {
-    "directory": "./dist"
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true
   },
 
-  // Custom domains
+  // Custom domains (wildcard route needed for sandbox preview URLs)
   "routes": [
     {
       "pattern": "vaporforge.dev/*",
+      "zone_name": "vaporforge.dev"
+    },
+    {
+      "pattern": "*.vaporforge.dev/*",
       "zone_name": "vaporforge.dev"
     },
     {

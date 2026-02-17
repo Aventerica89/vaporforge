@@ -343,6 +343,29 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/commit-msg', commitMsgRoutes);
   protectedRoutes.route('/embeddings', embeddingsRoutes);
 
+  // Temporary: exposePort validation endpoint (remove after Agency Mode ships)
+  protectedRoutes.post('/agency/test-expose', async (c) => {
+    const sandboxManager = c.get('sandboxManager');
+    const body = await c.req.json<{ sessionId: string; port?: number }>();
+
+    if (!body.sessionId) {
+      return c.json({ success: false, error: 'Missing sessionId' }, 400);
+    }
+
+    const port = body.port || 4321;
+    try {
+      const result = await sandboxManager.exposePort(
+        body.sessionId,
+        port,
+        'vaporforge.dev'
+      );
+      return c.json({ success: true, data: result });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return c.json({ success: false, error: msg }, 500);
+    }
+  });
+
   app.route('/api', protectedRoutes);
 
   // Catch-all for static files (handled by Cloudflare assets)

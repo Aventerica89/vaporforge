@@ -33,6 +33,9 @@ declare global {
     SUPABASE_URL?: string;
     SUPABASE_SERVICE_ROLE_KEY?: string;
 
+    // Static Assets binding (for run_worker_first mode)
+    ASSETS: Fetcher;
+
     // Environment variables
     ENVIRONMENT: string;
   }

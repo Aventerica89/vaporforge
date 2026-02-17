@@ -2,6 +2,7 @@ import { createRouter } from './router';
 import { SessionDurableObject } from './websocket';
 // Sandbox class is provided by @cloudflare/sandbox SDK
 export { Sandbox } from '@cloudflare/sandbox';
+import { proxyToSandbox } from '@cloudflare/sandbox';
 
 export { SessionDurableObject };
 
@@ -11,6 +12,15 @@ export default {
     env: Env,
     ctx: ExecutionContext
   ): Promise<Response> {
+    // Preview URL proxy — intercepts requests to exposed sandbox ports
+    // URL format: https://{port}-{sandboxId}-{token}.vaporforge.dev
+    // proxyToSandbox expects env.Sandbox but our binding is SANDBOX_CONTAINER
+    const proxyResponse = await proxyToSandbox(request, {
+      ...env,
+      Sandbox: env.SANDBOX_CONTAINER,
+    });
+    if (proxyResponse) return proxyResponse;
+
     // Handle WebSocket upgrade
     if (request.headers.get('Upgrade') === 'websocket') {
       const url = new URL(request.url);
@@ -31,9 +41,17 @@ export default {
       return stub.fetch(request);
     }
 
-    // Create router and handle request
+    // Create router and handle API requests
     const router = createRouter(env);
-    return router.fetch(request, env, ctx);
+    const routerResponse = await router.fetch(request, env, ctx);
+
+    // If router returned 404, delegate to static assets (SPA)
+    // With run_worker_first: true, we must explicitly serve assets
+    if (routerResponse.status === 404 && env.ASSETS) {
+      return env.ASSETS.fetch(request);
+    }
+
+    return routerResponse;
   },
 
   // Scheduled handler: purge pending-delete sessions after 5 days
