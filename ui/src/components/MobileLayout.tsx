@@ -38,7 +38,11 @@ export function MobileLayout() {
     hasSession,
   });
   const [showCloneModal, setShowCloneModal] = useState(false);
-  const containerHeight = keyboardOpen ? `${viewportHeight}px` : '100%';
+  // Use 100dvh when keyboard is closed (fills full dynamic viewport,
+  // including area behind address bar chrome). Switch to exact pixel
+  // height from visualViewport only when keyboard is open, since dvh
+  // does NOT respond to the virtual keyboard (Apple HIG / WebKit spec).
+  const containerHeight = keyboardOpen ? `${viewportHeight}px` : '100dvh';
 
   const sessionId = currentSession?.id;
   useEffect(() => {
