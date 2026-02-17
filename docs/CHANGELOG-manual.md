@@ -14,6 +14,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Swipe gesture navigation between tabs on iPhone
 - MoreMenu refactored to use `onNavigate` callback instead of direct store toggles
 
+### Fixed
+- MobileLayout viewport: use `100dvh` when keyboard closed (fills full dynamic viewport including behind address bar chrome); exact `visualViewport` pixels only when keyboard open
+
 ### Changed
 - Layout.tsx splits routing by `layoutTier` (tablet/phone/desktop) instead of boolean `isMobile`
 - Desktop panel defaults simplified (tablet/phone handled by their own layouts)
