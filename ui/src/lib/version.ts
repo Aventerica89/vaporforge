@@ -15,15 +15,14 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.24.0',
     date: '2026-02-17',
-    tag: 'feature',
-    title: 'Cortex: Streaming Latency Optimization',
+    tag: 'fix',
+    title: 'Streaming Reliability + Shimmer Fix',
     items: [
-      'Parallel container setup — MCP config, WS server, and context file write run concurrently',
-      'Hash-based skip logic — redundant npm installs and config writes skipped when unchanged',
-      'Port polling replaces hardcoded 500ms sleep for WS server startup detection',
-      'File polling replaces hardcoded 150ms wait for context file in container',
-      'Config + user secrets fetched concurrently in Phase 1',
+      'Hash-based skip logic — redundant MCP config writes and npm installs skipped when unchanged',
+      'Fixed shimmer indicator — "Thinking..." now shows text with gradient sweep instead of solid rectangle',
       'WS server and npx packages pre-installed at session creation time',
+      'File polling replaces hardcoded 150ms wait for context file in container',
+      'Config + user secrets fetched concurrently (Phase 1 parallel KV reads)',
     ],
   },
   {
