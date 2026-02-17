@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.21.2';
+export const APP_VERSION = '0.23.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,34 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.23.0',
+    date: '2026-02-16',
+    tag: 'feature',
+    title: 'Mobile Layout Redesign (Apple HIG)',
+    items: [
+      'Apple HIG mobile layout: iPhone bottom tab bar (49pt + safe area), iPad 280px sidebar',
+      'MobileNavBar: 44pt translucent blur nav bar with back/title/actions',
+      'MobileTabBar upgrade: 25pt SF Symbol-style icons, system colors, blur background',
+      'Sub-navigation system: Settings and Marketplace render inline within mobile layouts',
+      'TabletLayout: iPad sidebar with logo, session nav, tools, sessions list',
+      'Swipe gesture navigation between tabs on iPhone',
+      'Viewport fix: 100dvh when keyboard closed fills full dynamic viewport including behind address bar',
+    ],
+  },
+  {
+    version: '0.22.0',
+    date: '2026-02-16',
+    tag: 'feature',
+    title: 'Smart Context Phase 1 — Session Auto-Context',
+    items: [
+      'gather-context.sh: fault-tolerant bash script gathers git status, TODOs, code metrics, previous session context',
+      'Auto-context cached at container startup via ws-agent-server.js',
+      'buildSystemPromptAppend() reads cached context and appends to system prompt',
+      'Auto-context toggle in Command Center settings with optimistic UI update',
+      '.vaporforge/knowledge/ directory created in container for Phase 2 prep',
+    ],
+  },
   {
     version: '0.21.2',
     date: '2026-02-16',
