@@ -89,7 +89,7 @@ export const MobileNavBar = memo(function MobileNavBar({
           {statusDot && (
             <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
           )}
-          <span className="truncate text-sm font-semibold text-foreground">
+          <span className="truncate font-semibold text-foreground" style={{ fontSize: '15px' }}>
             {title}
           </span>
         </div>

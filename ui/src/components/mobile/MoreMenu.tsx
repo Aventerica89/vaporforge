@@ -41,7 +41,7 @@ function MenuItem({
         onClick();
       }}
       className={[
-        'flex w-full items-center gap-3 rounded-xl px-4 py-3.5',
+        'flex w-full items-center gap-3 rounded-xl px-4 py-3.5 min-h-[44px]',
         'text-sm font-medium transition-colors active:scale-[0.98]',
         colorClass,
       ].join(' ')}
@@ -54,7 +54,7 @@ function MenuItem({
 
 function SectionHeader({ children }: { readonly children: string }) {
   return (
-    <h4 className="px-4 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+    <h4 className="px-4 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
       {children}
     </h4>
   );
@@ -116,7 +116,7 @@ export function MoreMenu({
                   onSelectSession(session.id);
                 }}
                 className={[
-                  'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm',
+                  'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm min-h-[44px]',
                   'transition-colors active:scale-[0.98]',
                   isActive
                     ? 'bg-primary/10 text-primary'
@@ -131,7 +131,7 @@ export function MoreMenu({
                 />
                 <span className="truncate">{name}</span>
                 {isActive && (
-                  <span className="ml-auto text-[10px] font-bold uppercase tracking-wider text-primary/60">
+                  <span className="ml-auto text-[11px] font-bold uppercase tracking-wider text-primary/60">
                     Active
                   </span>
                 )}

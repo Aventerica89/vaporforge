@@ -261,7 +261,7 @@ export function TabletLayout() {
                 'flex w-full items-center gap-2 rounded-lg px-3 py-2',
                 'text-sm text-primary hover:bg-primary/10 transition-colors',
               ].join(' ')}
-              style={{ minHeight: '36px' }}
+              style={{ minHeight: '44px' }}
             >
               + New Session
             </button>
@@ -288,7 +288,7 @@ export function TabletLayout() {
                       ? 'bg-primary/15 text-primary'
                       : 'text-muted-foreground hover:bg-accent/50',
                   ].join(' ')}
-                  style={{ minHeight: '36px' }}
+                  style={{ minHeight: '44px' }}
                 >
                   <span
                     className={[
@@ -326,7 +326,7 @@ export function TabletLayout() {
           activeView !== 'marketplace' && (
             <div
               className="flex shrink-0 items-center px-4 border-b border-border/50"
-              style={{ height: '36px' }}
+              style={{ minHeight: '44px' }}
             >
               <span className="text-xs font-medium text-muted-foreground truncate">
                 {sessionName}
@@ -351,7 +351,7 @@ function SidebarSectionLabel({
   readonly children: string;
 }) {
   return (
-    <div className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+    <div className="px-3 pb-1 pt-2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">
       {children}
     </div>
   );

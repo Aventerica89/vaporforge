@@ -59,42 +59,42 @@ const TAB_GROUPS: TabGroup[] = [
   {
     label: 'General',
     tabs: [
-      { id: 'appearance', label: 'Appearance', icon: <Palette className="h-4 w-4" /> },
-      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="h-4 w-4" /> },
+      { id: 'appearance', label: 'Appearance', icon: <Palette className="h-[18px] w-[18px]" /> },
+      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="h-[18px] w-[18px]" /> },
     ],
   },
   {
     label: 'Workspace',
     tabs: [
-      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4 w-4" /> },
-      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-4 w-4" /> },
-      { id: 'commands', label: 'Commands', icon: <Terminal className="h-4 w-4" /> },
-      { id: 'agents', label: 'Agents', icon: <Bot className="h-4 w-4" /> },
-      { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-4 w-4" /> },
-      { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-4 w-4" /> },
-      { id: 'secrets', label: 'Secrets', icon: <Key className="h-4 w-4" /> },
-      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-4 w-4" /> },
-      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-4 w-4" /> },
-      { id: 'files', label: 'Files', icon: <HardDrive className="h-4 w-4" /> },
+      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-[18px] w-[18px]" /> },
+      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-[18px] w-[18px]" /> },
+      { id: 'commands', label: 'Commands', icon: <Terminal className="h-[18px] w-[18px]" /> },
+      { id: 'agents', label: 'Agents', icon: <Bot className="h-[18px] w-[18px]" /> },
+      { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-[18px] w-[18px]" /> },
+      { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-[18px] w-[18px]" /> },
+      { id: 'secrets', label: 'Secrets', icon: <Key className="h-[18px] w-[18px]" /> },
+      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-[18px] w-[18px]" /> },
+      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-[18px] w-[18px]" /> },
+      { id: 'files', label: 'Files', icon: <HardDrive className="h-[18px] w-[18px]" /> },
     ],
   },
   {
     label: 'Account',
     tabs: [
-      { id: 'account', label: 'Account', icon: <User className="h-4 w-4" /> },
+      { id: 'account', label: 'Account', icon: <User className="h-[18px] w-[18px]" /> },
     ],
   },
   {
     label: 'Developer',
     tabs: [
-      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-4 w-4" /> },
+      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-[18px] w-[18px]" /> },
     ],
   },
   {
     label: 'Help',
     tabs: [
-      { id: 'guide', label: 'Guide', icon: <BookOpen className="h-4 w-4" /> },
-      { id: 'about', label: 'About', icon: <Info className="h-4 w-4" /> },
+      { id: 'guide', label: 'Guide', icon: <BookOpen className="h-[18px] w-[18px]" /> },
+      { id: 'about', label: 'About', icon: <Info className="h-[18px] w-[18px]" /> },
     ],
   },
 ];
@@ -147,40 +147,43 @@ export function SettingsPage() {
       className="flex flex-col bg-background overflow-hidden"
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
-      {/* ─── Top bar ─── */}
-      <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3 safe-area-header">
-        <div className="flex items-center gap-3">
-          <h1
-            className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
-            style={{ fontFamily: 'var(--font-display)' }}
+      {/* ─── Top bar (hidden on mobile — MobileNavBar shows title) ─── */}
+      {!isMobile && (
+        <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3 safe-area-header">
+          <div className="flex items-center gap-3">
+            <h1
+              className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              Settings
+            </h1>
+            <span className="font-mono text-xs text-muted-foreground/60">
+              v{APP_VERSION}
+            </span>
+          </div>
+          <button
+            onClick={closeSettings}
+            className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            aria-label="Close settings"
           >
-            Settings
-          </h1>
-          <span className="font-mono text-xs text-muted-foreground/60">
-            v{APP_VERSION}
-          </span>
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={closeSettings}
-          className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-          aria-label="Close settings"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+      )}
 
-      {/* ─── Mobile: horizontal tab bar ─── */}
+      {/* ─── Mobile: horizontal tab bar (44pt touch targets per HIG) ─── */}
       {isMobile && (
-        <div className="flex shrink-0 overflow-x-auto border-b border-border/60 px-3 scrollbar-none">
+        <div className="flex shrink-0 overflow-x-auto border-b border-border/60 px-2 scrollbar-none">
           {ALL_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap px-3 py-2.5 text-xs font-medium transition-all border-b-2 -mb-px ${
+              className={`flex items-center gap-1.5 whitespace-nowrap px-3 font-medium transition-all border-b-2 -mb-px ${
                 activeTab === tab.id
                   ? 'border-primary text-primary shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.3)]'
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
+              style={{ minHeight: '44px', fontSize: '13px' }}
             >
               {tab.icon}
               {tab.label}
@@ -198,7 +201,7 @@ export function SettingsPage() {
               const isDev = group.label === 'Developer';
               return (
               <div key={group.label} className="mb-2">
-                <span className={`mb-1 block px-3 font-display text-[10px] font-bold uppercase tracking-widest ${isDev ? 'text-amber-500/60' : 'text-muted-foreground/50'}`}>
+                <span className={`mb-1 block px-3 font-display text-[11px] font-bold uppercase tracking-widest ${isDev ? 'text-amber-500/60' : 'text-muted-foreground/50'}`}>
                   {group.label}
                 </span>
                 {group.tabs.map((tab) => {
