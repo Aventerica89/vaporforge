@@ -89,10 +89,13 @@ export interface GitCommit {
 }
 
 // User types
+export type UserRole = 'user' | 'admin';
+
 export interface User {
   id: string;
   email: string;
   name?: string;
+  role?: UserRole;
 }
 
 // API Response

@@ -1,3 +1,4 @@
+import type { Context, Next } from 'hono';
 import type { User, AuthTokenPayloadType } from './types';
 
 const TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
@@ -134,6 +135,7 @@ export class AuthService {
       id: userId,
       email: `${userId}@claude-cloud.local`,
       claudeToken,
+      role: 'user',
       createdAt: new Date().toISOString(),
     };
 
@@ -149,6 +151,7 @@ export class AuthService {
     const payload: AuthTokenPayloadType = {
       sub: user.id,
       email: user.email,
+      role: user.role ?? 'user',
       iat: Math.floor(Date.now() / 1000),
       exp: Math.floor((Date.now() + TOKEN_EXPIRY) / 1000),
     };
@@ -270,6 +273,19 @@ export class AuthService {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
   }
+}
+
+/**
+ * Hono middleware: requires the authenticated user to have role=admin.
+ * Returns 404 (not 403) to hide the existence of admin endpoints.
+ * Must be used AFTER the auth middleware that sets c.get('user').
+ */
+export async function requireAdmin(c: Context, next: Next) {
+  const user = c.get('user') as User | undefined;
+  if (!user || user.role !== 'admin') {
+    return c.notFound();
+  }
+  await next();
 }
 
 // Middleware helper to extract and validate auth

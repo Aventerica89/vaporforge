@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { AuthService, extractAuth, KV_USER_TTL } from './auth';
+import { AuthService, extractAuth, requireAdmin, KV_USER_TTL } from './auth';
 import { SandboxManager } from './sandbox';
 import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';
@@ -25,6 +25,7 @@ import { transformRoutes } from './api/transform';
 import { analyzeRoutes } from './api/analyze';
 import { commitMsgRoutes } from './api/commit-msg';
 import { embeddingsRoutes } from './api/embeddings';
+import { agencyRoutes } from './api/agency';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -155,6 +156,7 @@ export function createRouter(env: Env) {
         user: {
           id: result.user.id,
           email: result.user.email,
+          role: result.user.role ?? 'user',
         },
       },
     });
@@ -342,6 +344,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/analyze', analyzeRoutes);
   protectedRoutes.route('/commit-msg', commitMsgRoutes);
   protectedRoutes.route('/embeddings', embeddingsRoutes);
+  protectedRoutes.route('/agency', agencyRoutes);
 
   // Temporary: exposePort validation endpoint (remove after Agency Mode ships)
   protectedRoutes.post('/agency/test-expose', async (c) => {

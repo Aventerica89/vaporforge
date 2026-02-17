@@ -127,11 +127,15 @@ export const WSMessageSchema = z.discriminatedUnion('type', [
 export type WSMessage = z.infer<typeof WSMessageSchema>;
 
 // Auth schemas
+export const UserRoles = ['user', 'admin'] as const;
+export type UserRole = typeof UserRoles[number];
+
 export const UserSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   name: z.string().optional(),
   claudeToken: z.string().optional(),
+  role: z.enum(UserRoles).default('user'),
   createdAt: z.string(),
 });
 
@@ -140,6 +144,7 @@ export type User = z.infer<typeof UserSchema>;
 export const AuthTokenPayload = z.object({
   sub: z.string(), // user id
   email: z.string(),
+  role: z.enum(UserRoles).default('user'),
   iat: z.number(),
   exp: z.number(),
 });
