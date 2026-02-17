@@ -5,7 +5,7 @@
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
 - **Live**: https://vaporforge.dev (app at /app/, landing at /)
-- **Version**: 0.23.0
+- **Version**: 0.23.2
 - **Repo**: Aventerica89/vaporforge
 
 ## MANDATORY RULES

@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.23.1';
+export const APP_VERSION = '0.23.2';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.23.2',
+    date: '2026-02-16',
+    tag: 'fix',
+    title: 'Mobile Home Screen Horizontal Shift Fix',
+    items: [
+      'Fixed content shifting left on iOS Safari home screen (repo/session names were clipped)',
+      'Replaced hover:scale with active:scale press states per Apple HIG (no more sticky hover on touch)',
+      'Added overflow-x-hidden to prevent horizontal scroll caused by scaled elements',
+    ],
+  },
   {
     version: '0.23.1',
     date: '2026-02-17',

@@ -152,7 +152,7 @@ export function WelcomeScreen() {
   const visibleSessions = showAll ? activeSessions : activeSessions.slice(0, 8);
 
   return (
-    <div className="flex-1 overflow-auto p-4 md:p-8 safe-bottom">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 safe-bottom">
       <div className="mx-auto w-full max-w-2xl space-y-6 md:space-y-8 py-8 md:py-16 animate-fade-up">
         {/* Hero Header */}
         <div className="text-center space-y-3">
@@ -184,7 +184,7 @@ export function WelcomeScreen() {
         <div className="grid gap-3 md:gap-4 sm:grid-cols-2 lg:grid-cols-3 animate-fade-up stagger-2">
           <button
             onClick={handleNewSession}
-            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-primary hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] group"
+            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] active:scale-[0.97] group"
           >
             <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-primary/10 transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110">
               <svg
@@ -213,7 +213,7 @@ export function WelcomeScreen() {
 
           <button
             onClick={() => setShowCloneModal(true)}
-            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-secondary hover:shadow-[0_0_20px_hsl(var(--secondary)/0.3)] group"
+            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-secondary hover:shadow-[0_0_20px_hsl(var(--secondary)/0.3)] active:scale-[0.97] group"
           >
             <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-secondary/10 transition-all duration-300 group-hover:bg-secondary/20 group-hover:scale-110">
               <svg
@@ -242,7 +242,7 @@ export function WelcomeScreen() {
 
           <button
             onClick={() => useQuickChat.getState().openQuickChat()}
-            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:scale-[1.02] hover:border-blue-500 hover:shadow-[0_0_20px_hsl(210_100%_50%/0.3)] group"
+            className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-blue-500 hover:shadow-[0_0_20px_hsl(210_100%_50%/0.3)] active:scale-[0.97] group"
           >
             <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-blue-500/10 transition-all duration-300 group-hover:bg-blue-500/20 group-hover:scale-110">
               <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-blue-500 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_hsl(210_100%_50%/0.8)]" />
@@ -461,7 +461,7 @@ export function WelcomeScreen() {
                 {visibleSessions.map((session, index) => (
                   <div
                     key={session.id}
-                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 transition-all duration-300 hover:scale-[1.01] hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] animate-fade-up"
+                    className="glass-card group flex w-full items-center justify-between p-4 md:p-5 transition-all duration-300 hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] active:scale-[0.98] animate-fade-up"
                     style={{ animationDelay: `${(index + 1) * 50}ms` }}
                   >
                     {editingId === session.id ? (
