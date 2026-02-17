@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.23.0';
+export const APP_VERSION = '0.23.1';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,21 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.23.1',
+    date: '2026-02-17',
+    tag: 'fix',
+    title: 'Apple HIG Polish — Touch Targets + Typography',
+    items: [
+      'All interactive elements now meet 44pt minimum touch target (was 36px in several places)',
+      'Settings mobile tab strip: 44pt height with 13px Footnote text and 18px icons',
+      'iPad sidebar: session buttons and New Session upgraded from 36px to 44pt',
+      'MoreMenu: all menu items and session buttons now 44pt touch targets',
+      'MobileNavBar title uses 15px Subheadline per iOS type scale',
+      'All section labels upgraded from 10px to 11pt Caption 2 minimum',
+      'Redundant Settings top bar hidden on mobile (MobileNavBar already shows title)',
+    ],
+  },
   {
     version: '0.23.0',
     date: '2026-02-16',
