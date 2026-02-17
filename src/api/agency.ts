@@ -1,12 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireAdmin } from '../auth';
+import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
 
 type Variables = {
   user: User;
   authService: unknown;
-  sandboxManager: unknown;
+  sandboxManager: SandboxManager;
 };
 
 // Schema for agency site records (KV-persisted)
@@ -144,4 +145,53 @@ agencyRoutes.delete('/sites/:id', async (c) => {
 
   await c.env.SESSIONS_KV.delete(`${KV_PREFIX}${id}`);
   return c.json({ success: true });
+});
+
+// Start editing session — clone repo, start dev server, expose preview URL
+agencyRoutes.post('/sites/:id/edit', async (c) => {
+  const id = c.req.param('id');
+  const site = await c.env.SESSIONS_KV.get<AgencySite>(
+    `${KV_PREFIX}${id}`,
+    'json'
+  );
+
+  if (!site) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
+
+  const sm = c.get('sandboxManager');
+  const hostname = new URL(c.req.url).hostname.replace(/^[^.]+\./, '');
+
+  try {
+    const result = await sm.startAgencySession(
+      id,
+      site.repoUrl,
+      hostname
+    );
+
+    // Update site status to staging
+    const updated: AgencySite = {
+      ...site,
+      status: 'staging',
+      lastEdited: new Date().toISOString(),
+    };
+    await c.env.SESSIONS_KV.put(
+      `${KV_PREFIX}${id}`,
+      JSON.stringify(updated)
+    );
+
+    return c.json({
+      success: true,
+      data: {
+        previewUrl: result.previewUrl,
+        sessionId: result.sessionId,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({
+      success: false,
+      error: `Failed to start editing session: ${msg}`,
+    }, 500);
+  }
 });

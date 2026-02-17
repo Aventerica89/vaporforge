@@ -618,6 +618,62 @@ export class SandboxManager {
     await sandbox.unexposePort(port);
   }
 
+  /**
+   * Start an agency editing session:
+   * 1. Create/resume sandbox with the site's repo
+   * 2. Install deps + start dev server on port 4321
+   * 3. Expose port 4321 for iframe preview
+   * 4. Return preview URL + sessionId
+   */
+  async startAgencySession(
+    siteId: string,
+    repoUrl: string,
+    hostname: string,
+    branch: string = 'main'
+  ): Promise<{ previewUrl: string; sessionId: string }> {
+    const sessionId = `agency-${siteId}`;
+    const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
+
+    // Check if container is already running with a dev server
+    const alreadyExposed = await sandbox.isPortExposed(4321);
+    if (alreadyExposed) {
+      console.log(`[agencySession] ${sid}: port 4321 already exposed, reusing`);
+      const result = await sandbox.exposePort(4321, { hostname });
+      return { previewUrl: result.url, sessionId };
+    }
+
+    console.log(`[agencySession] ${sid}: cloning ${repoUrl} (branch: ${branch})`);
+    await sandbox.gitCheckout(repoUrl, {
+      targetDir: WORKSPACE_PATH,
+      branch,
+    });
+
+    // Install dependencies (fixed command string, no user input)
+    console.log(`[agencySession] ${sid}: installing dependencies`);
+    await sandbox.exec('npm install', {
+      cwd: WORKSPACE_PATH,
+      timeout: 120_000,
+    });
+
+    // Start dev server in background on port 4321 (fixed command, no user input)
+    console.log(`[agencySession] ${sid}: starting dev server on :4321`);
+    await sandbox.exec(
+      'nohup npx astro dev --host 0.0.0.0 --port 4321 > /tmp/dev-server.log 2>&1 &',
+      { cwd: WORKSPACE_PATH, timeout: 10_000 }
+    );
+
+    // Wait for server to bind
+    await new Promise((r) => setTimeout(r, 5000));
+
+    // Expose port for iframe preview
+    console.log(`[agencySession] ${sid}: exposing port 4321`);
+    const preview = await sandbox.exposePort(4321, { hostname });
+    console.log(`[agencySession] ${sid}: preview URL → ${preview.url}`);
+
+    return { previewUrl: preview.url, sessionId };
+  }
+
   // Write query context to a temp file in the container (for the WS server to read)
   async writeContextFile(
     sessionId: string,
