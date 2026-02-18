@@ -7,7 +7,7 @@
 //
 // Env vars consumed:
 //   RELAY_TOKEN  — session-scoped Bearer token
-//   RELAY_URL    — base URL, e.g. https://vaporforge.jbcloud.app/api/mcp-relay/<sessionId>
+//   RELAY_URL    — base URL, e.g. https://vaporforge.dev/api/mcp-relay/<sessionId>
 
 const http = require('http');
 const https = require('https');

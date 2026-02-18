@@ -55,7 +55,6 @@ export function createRouter(env: Env) {
 
         const allowedOrigins = [
           'https://vaporforge.dev',
-          'https://vaporforge.jbcloud.app',
         ];
 
         // Allow localhost in development

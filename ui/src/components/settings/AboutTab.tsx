@@ -145,13 +145,13 @@ export function AboutTab() {
           GitHub
         </a>
         <a
-          href="https://vaporforge.jbcloud.app"
+          href="https://vaporforge.dev"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-2 text-sm text-primary hover:underline"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          vaporforge.jbcloud.app
+          vaporforge.dev
         </a>
       </div>
     </div>

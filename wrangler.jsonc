@@ -96,10 +96,6 @@
     {
       "pattern": "*.vaporforge.dev/*",
       "zone_name": "vaporforge.dev"
-    },
-    {
-      "pattern": "vaporforge.jbcloud.app/*",
-      "zone_name": "jbcloud.app"
     }
   ],
 
