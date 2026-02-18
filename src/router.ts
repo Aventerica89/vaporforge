@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { AuthService, extractAuth, requireAdmin, KV_USER_TTL } from './auth';
+import { AuthService, extractAuth, KV_USER_TTL } from './auth';
 import { SandboxManager } from './sandbox';
 import { chatRoutes } from './api/chat';
 import { fileRoutes } from './api/files';

@@ -11,6 +11,20 @@ export interface ChangelogEntry {
   readonly items: readonly string[];
 }
 
+// Dev changelog — updated on EVERY commit, always growing
+// Feature CHANGELOG (below) only updates when complete features ship
+export interface DevLogEntry {
+  readonly date: string;
+  readonly summary: string;
+}
+
+export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Fix agency dev server binding: pass --host 0.0.0.0 so container is reachable on 10.0.0.1' },
+  { date: '2026-02-18', summary: 'Fix agency preview URL hostname extraction (was stripping to just "dev")' },
+  { date: '2026-02-18', summary: 'Add two-changelog system: DEV_CHANGELOG (every commit) + CHANGELOG (feature releases)' },
+  { date: '2026-02-18', summary: 'Add brand logos to AboutTab, WelcomeScreen, AgencyLoadingScreen, Hero, TechStack' },
+];
+
 export const CHANGELOG: readonly ChangelogEntry[] = [
   {
     version: '0.25.0',

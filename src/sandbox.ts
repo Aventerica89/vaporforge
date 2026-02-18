@@ -638,7 +638,9 @@ export class SandboxManager {
     // Check if container is already running with a dev server
     const alreadyExposed = await sandbox.isPortExposed(4321);
     if (alreadyExposed) {
-      console.log(`[agencySession] ${sid}: port 4321 already exposed, reusing`);
+      console.log(`[agencySession] ${sid}: port 4321 already exposed, re-exposing`);
+      // Unexpose first to avoid PortAlreadyExposedError, then re-expose
+      await sandbox.unexposePort(4321);
       const result = await sandbox.exposePort(4321, { hostname });
       return { previewUrl: result.url, sessionId };
     }
@@ -672,6 +674,162 @@ export class SandboxManager {
     console.log(`[agencySession] ${sid}: preview URL → ${preview.url}`);
 
     return { previewUrl: preview.url, sessionId };
+  }
+
+  /**
+   * Fire-and-forget: clone repo (via SDK) then kick off install + dev server
+   * as a background script inside the container.
+   * Does NOT wait for npm install or dev server — returns immediately.
+   * The poll endpoint checks if the dev server is up via isAgencyDevServerUp().
+   */
+  async kickoffAgencySetup(
+    siteId: string,
+    repoUrl: string,
+    branch: string = 'main'
+  ): Promise<{ sessionId: string }> {
+    const sessionId = `agency-${siteId}`;
+    const sandbox = this.getSandboxInstance(sessionId);
+    const sid = sessionId.slice(0, 8);
+
+    // Check if dev server is already running
+    try {
+      const alreadyExposed = await sandbox.isPortExposed(4321);
+      if (alreadyExposed) {
+        console.log(`[agencySetup] ${sid}: port 4321 already exposed, skipping`);
+        return { sessionId };
+      }
+    } catch (e) {
+      console.log(`[agencySetup] ${sid}: isPortExposed check failed (container may not exist):`, e instanceof Error ? e.message : String(e));
+    }
+
+    // Check if setup script is already running (idempotency guard)
+    try {
+      const check = await sandbox.exec(
+        'test -f /tmp/agency-setup.pid && kill -0 $(cat /tmp/agency-setup.pid) 2>/dev/null && echo running || echo idle',
+        { timeout: 5_000 }
+      );
+      const checkResult = check.stdout?.trim();
+      console.log(`[agencySetup] ${sid}: idempotency check = "${checkResult}"`);
+      if (checkResult === 'running') {
+        return { sessionId };
+      }
+    } catch (e) {
+      console.log(`[agencySetup] ${sid}: idempotency check failed (container may not exist):`, e instanceof Error ? e.message : String(e));
+    }
+
+    // Step 1: Clone via SDK (fast, handles auth, creates container if needed)
+    console.log(`[agencySetup] ${sid}: step1 cloning ${repoUrl} (branch: ${branch})`);
+    await sandbox.gitCheckout(repoUrl, {
+      targetDir: WORKSPACE_PATH,
+      branch,
+    });
+    console.log(`[agencySetup] ${sid}: step1 clone done`);
+
+    // Step 2: Write setup script via base64 (avoids heredoc parsing issues in exec).
+    const setupScript = [
+      '#!/bin/bash',
+      'echo $$ > /tmp/agency-setup.pid',
+      'echo "stage:installing" > /tmp/agency-setup.status',
+      'cd /workspace && npm install > /tmp/agency-setup.log 2>&1',
+      'if [ $? -ne 0 ]; then',
+      '  echo "stage:install-failed" > /tmp/agency-setup.status',
+      '  exit 1',
+      'fi',
+      'echo "stage:starting" > /tmp/agency-setup.status',
+      // Detect port from package.json dev script or default to 4321
+      'DEV_PORT=$(node -e "const s=(require(\\"/workspace/package.json\\").scripts||{}).dev||\\"\\";const m=s.match(/--port\\s+(\\d+)/);console.log(m?m[1]:\\"4321\\")" 2>/dev/null || echo "4321")',
+      'echo "dev_port=$DEV_PORT" >> /tmp/agency-setup.log',
+      // Always pass --host 0.0.0.0 so the dev server is reachable from the container network
+      'cd /workspace && npm run dev -- --host 0.0.0.0 --port $DEV_PORT >> /tmp/agency-setup.log 2>&1 &',
+      'DEV_PID=$!',
+      'echo $DEV_PID > /tmp/agency-dev.pid',
+      // Use bash /dev/tcp for port detection (ss may not exist in container)
+      'for i in $(seq 1 120); do',
+      '  if (echo > /dev/tcp/localhost/$DEV_PORT) 2>/dev/null; then',
+      '    echo "stage:ready" > /tmp/agency-setup.status',
+      '    exit 0',
+      '  fi',
+      '  sleep 1',
+      'done',
+      // On timeout, capture last 20 lines of log for diagnostics
+      'echo "stage:timeout" > /tmp/agency-setup.status',
+      'tail -20 /tmp/agency-setup.log > /tmp/agency-setup-tail.log 2>/dev/null',
+    ].join('\n');
+
+    // Base64-encode and decode in container (avoids heredoc/newline issues)
+    const b64 = btoa(setupScript);
+    console.log(`[agencySetup] ${sid}: step2 writing setup script (${b64.length} chars b64)`);
+
+    try {
+      const writeResult = await sandbox.exec(
+        `echo '${b64}' | base64 -d > /tmp/agency-setup.sh && chmod +x /tmp/agency-setup.sh`,
+        { timeout: 10_000 }
+      );
+      console.log(`[agencySetup] ${sid}: step2 write done, exit=${writeResult.exitCode}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[agencySetup] ${sid}: step2 write FAILED:`, msg);
+      throw new Error(`Failed to write setup script: ${msg}`);
+    }
+
+    // Step 3: Launch in background — nohup ensures it survives after exec returns
+    console.log(`[agencySetup] ${sid}: step3 launching background script`);
+    try {
+      const launchResult = await sandbox.exec(
+        'nohup bash /tmp/agency-setup.sh > /tmp/agency-setup-run.log 2>&1 &',
+        { timeout: 5_000 }
+      );
+      console.log(`[agencySetup] ${sid}: step3 launch done, exit=${launchResult.exitCode}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[agencySetup] ${sid}: step3 launch FAILED:`, msg);
+      throw new Error(`Failed to launch setup script: ${msg}`);
+    }
+
+    console.log(`[agencySetup] ${sid}: all steps complete, background script running`);
+    return { sessionId };
+  }
+
+  /**
+   * Check if the agency dev server is up by reading the status file
+   * and checking if port 4321 is actually listening.
+   */
+  async isAgencyDevServerUp(
+    sessionId: string
+  ): Promise<{ ready: boolean; stage: string }> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    try {
+      const result = await sandbox.exec(
+        'cat /tmp/agency-setup.status 2>/dev/null || echo "stage:unknown"',
+        { timeout: 5_000 }
+      );
+      const stage = result.stdout?.trim() || 'unknown';
+
+      // Double-check with actual port probe (bash /dev/tcp, no ss dependency)
+      if (stage === 'stage:ready') {
+        const portCheck = await sandbox.exec(
+          '(echo > /dev/tcp/localhost/4321) 2>/dev/null && echo yes || echo no',
+          { timeout: 5_000 }
+        );
+        const isListening = portCheck.stdout?.trim() === 'yes';
+        return { ready: isListening, stage };
+      }
+
+      // On timeout, try to read diagnostic log tail
+      if (stage === 'stage:timeout') {
+        try {
+          const logTail = await sandbox.exec(
+            'cat /tmp/agency-setup-tail.log 2>/dev/null || tail -10 /tmp/agency-setup.log 2>/dev/null || echo "no log"',
+            { timeout: 5_000 }
+          );
+          console.log(`[agencyDevServer] timeout diagnostics:\n${logTail.stdout?.trim()}`);
+        } catch { /* ignore */ }
+      }
+
+      return { ready: false, stage };
+    } catch {
+      return { ready: false, stage: 'unreachable' };
+    }
   }
 
   // Write query context to a temp file in the container (for the WS server to read)

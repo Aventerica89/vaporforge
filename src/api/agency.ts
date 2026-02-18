@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { requireAdmin } from '../auth';
 import { validateComponentEdit } from '../services/agency-validator';
 import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
@@ -42,8 +41,7 @@ export const agencyRoutes = new Hono<{
   Variables: Variables;
 }>();
 
-// Admin gate on ALL agency routes
-agencyRoutes.use('*', requireAdmin);
+// Auth is handled by the parent protectedRoutes middleware
 
 // List all agency sites
 agencyRoutes.get('/sites', async (c) => {
@@ -148,12 +146,14 @@ agencyRoutes.delete('/sites/:id', async (c) => {
   return c.json({ success: true });
 });
 
-// Start editing session — clone repo, start dev server, expose preview URL
+// Start editing session — kicks off setup inside the container (no waitUntil)
 agencyRoutes.post('/sites/:id/edit', async (c) => {
   const id = c.req.param('id');
+  console.log(`[agency] POST /edit starting for site ${id}`);
+
   const site = await c.env.SESSIONS_KV.get<AgencySite>(
     `${KV_PREFIX}${id}`,
-    'json'
+    'json',
   );
 
   if (!site) {
@@ -161,39 +161,107 @@ agencyRoutes.post('/sites/:id/edit', async (c) => {
   }
 
   const sm = c.get('sandboxManager');
-  const hostname = new URL(c.req.url).hostname.replace(/^[^.]+\./, '');
+  const sessionId = `agency-${id}`;
 
+  // Kick off setup as a background process INSIDE the container.
+  // This avoids the waitUntil 30s wall-clock limit entirely.
   try {
-    const result = await sm.startAgencySession(
-      id,
-      site.repoUrl,
-      hostname
-    );
+    console.log(`[agency] POST /edit calling kickoffAgencySetup for ${id}`);
+    await sm.kickoffAgencySetup(id, site.repoUrl);
+    console.log(`[agency] POST /edit kickoffAgencySetup returned for ${id}`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[agency] kickoffAgencySetup failed for ${id}:`, msg);
+    return c.json({
+      success: false,
+      error: `Failed to start provisioning: ${msg}`,
+    }, 500);
+  }
 
-    // Update site status to staging
-    const updated: AgencySite = {
-      ...site,
-      status: 'staging',
-      lastEdited: new Date().toISOString(),
+  return c.json({
+    success: true,
+    data: { status: 'provisioning', sessionId },
+  });
+});
+
+// Poll editing session status — checks container dev server, exposes port when ready
+agencyRoutes.get('/sites/:id/edit/status', async (c) => {
+  const id = c.req.param('id');
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${id}`;
+  const parts = new URL(c.req.url).hostname.split('.');
+  const hostname = parts.slice(-2).join('.');
+
+  console.log(`[agency] poll /edit/status for site ${id}`);
+
+  // Check the in-container setup script status
+  try {
+    const { ready, stage } = await sm.isAgencyDevServerUp(sessionId);
+    console.log(`[agency] poll: stage="${stage}", ready=${ready}`);
+
+    if (ready) {
+      // Dev server is listening — expose port and return URL
+      console.log(`[agency] poll: dev server ready for ${id}, exposing port`);
+      const result = await sm.exposePort(sessionId, 4321, hostname);
+
+      // Update site status to staging
+      const site = await c.env.SESSIONS_KV.get<AgencySite>(
+        `${KV_PREFIX}${id}`,
+        'json',
+      );
+      if (site) {
+        const updated: AgencySite = {
+          ...site,
+          status: 'staging',
+          lastEdited: new Date().toISOString(),
+        };
+        await c.env.SESSIONS_KV.put(
+          `${KV_PREFIX}${id}`,
+          JSON.stringify(updated),
+        );
+      }
+
+      return c.json({
+        success: true,
+        data: { status: 'ready', previewUrl: result.url, sessionId },
+      });
+    }
+
+    if (stage === 'stage:timeout' || stage === 'stage:install-failed') {
+      return c.json({
+        success: true,
+        data: {
+          status: 'error',
+          error: stage === 'stage:install-failed'
+            ? 'npm install failed — check the repository'
+            : 'Dev server failed to start within 90 seconds',
+        },
+      });
+    }
+
+    // Map stage to a human-readable status
+    const stageMap: Record<string, string> = {
+      'stage:cloning': 'Cloning repository...',
+      'stage:installing': 'Installing dependencies...',
+      'stage:starting': 'Starting dev server...',
+      'stage:unknown': 'Provisioning...',
+      'unreachable': 'Starting container...',
     };
-    await c.env.SESSIONS_KV.put(
-      `${KV_PREFIX}${id}`,
-      JSON.stringify(updated)
-    );
 
     return c.json({
       success: true,
       data: {
-        previewUrl: result.previewUrl,
-        sessionId: result.sessionId,
+        status: 'provisioning',
+        message: stageMap[stage] ?? 'Provisioning...',
       },
     });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+  } catch (e) {
+    // Container not reachable yet
+    console.log(`[agency] poll: container unreachable:`, e instanceof Error ? e.message : String(e));
     return c.json({
-      success: false,
-      error: `Failed to start editing session: ${msg}`,
-    }, 500);
+      success: true,
+      data: { status: 'provisioning', message: 'Starting container...' },
+    });
   }
 });
 
@@ -346,8 +414,8 @@ agencyRoutes.get('/sites/:id/diff', async (c) => {
     return c.json({
       success: true,
       data: {
-        summary: statResult,
-        diff: fullResult,
+        summary: statResult.stdout,
+        diff: fullResult.stdout,
       },
     });
   } catch (err) {
