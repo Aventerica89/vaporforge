@@ -46,7 +46,7 @@ export function EditPanel({
       timestamp: Date.now(),
     };
     setEditHistory((prev) => [entry, ...prev]);
-    onSendEdit(trimmed, selectedComponent?.file ?? null);
+    onSendEdit(trimmed, selectedComponent?.file || null);
     setInstruction('');
   };
 

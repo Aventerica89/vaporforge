@@ -19,6 +19,10 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Fix agency dev server: liveness check after isPortExposed, restart without re-clone, use astro binary directly instead of npm run dev' },
+  { date: '2026-02-18', summary: 'Fix agency inspector: add is:inline to script tag, disable Astro Dev Toolbar, scale up loading screen for HIG accessibility' },
+  { date: '2026-02-18', summary: 'CLAUDE.md audit: remove 120 lines of global duplicates, add Agency Mode docs, update version to 0.25.0' },
+  { date: '2026-02-18', summary: 'Add agency inspector: click-to-select components, hover highlights, component tree discovery, auto-tagging of .astro files' },
   { date: '2026-02-18', summary: 'Fix agency dev server binding: pass --host 0.0.0.0 so container is reachable on 10.0.0.1' },
   { date: '2026-02-18', summary: 'Fix agency preview URL hostname extraction (was stripping to just "dev")' },
   { date: '2026-02-18', summary: 'Add two-changelog system: DEV_CHANGELOG (every commit) + CHANGELOG (feature releases)' },

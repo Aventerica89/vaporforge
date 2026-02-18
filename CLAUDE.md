@@ -5,7 +5,7 @@
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
 - **Live**: https://vaporforge.dev (app at /app/, landing at /)
-- **Version**: 0.23.2
+- **Version**: 0.25.0
 - **Repo**: Aventerica89/vaporforge
 
 ## MANDATORY RULES
@@ -77,14 +77,20 @@ npm run test         # Vitest tests
 |------|---------|
 | `src/router.ts` | All API route registration + health endpoint |
 | `src/auth.ts` | Setup-token validation, JWT, token refresh |
-| `src/sandbox.ts` | Container lifecycle, file/agent/credential injection, WS proxy |
+| `src/sandbox.ts` | Container lifecycle, file/agent/credential injection, WS proxy, agency setup |
 | `src/container.ts` | Sandbox DO class, WebSocket upgrade + proxy |
 | `src/config-assembly.ts` | Assembles SandboxConfig from KV (MCP, secrets, plugins, creds) |
 | `src/types.ts` | Shared TypeScript types + Zod schemas |
 | `src/services/ai-provider-factory.ts` | Multi-provider model creation (Claude + Gemini) |
 | `src/services/ai-schemas.ts` | Zod schemas for structured AI output |
+| `src/services/agency-inspector.ts` | Browser-side inspector + container-side injection scripts |
+| `src/services/agency-validator.ts` | Agency site validation |
+| `src/services/embeddings.ts` | Embedding generation service |
+| `src/services/files.ts` | File operations service |
 | `src/api/sdk.ts` | Main chat — WS proxy to container agent + persist endpoint |
 | `src/api/sessions.ts` | Session CRUD, sandbox create/resume |
+| `src/api/agency.ts` | Agency mode API (create site, poll status, preview proxy) |
+| `src/api/chat.ts` | Chat history endpoints |
 | `src/api/mcp.ts` | MCP server CRUD, ping, tool discovery, credential collection |
 | `src/api/secrets.ts` | Per-user secret management |
 | `src/api/quickchat.ts` | SSE streaming chat (AI SDK streamText) |
@@ -92,12 +98,18 @@ npm run test         # Vitest tests
 | `src/api/analyze.ts` | Structured code analysis (streamText + Output.object) |
 | `src/api/commit-msg.ts` | Smart commit message generation |
 | `src/api/plugins.ts` | Plugin discovery from GitHub repos |
+| `src/api/plugin-sources.ts` | Plugin source management |
 | `src/api/user.ts` | VF rules, CLAUDE.md, user config endpoints |
+| `src/api/config.ts` | App configuration endpoints |
 | `src/api/vaporfiles.ts` | R2 file management |
 | `src/api/issues.ts` | Issue tracker backend |
+| `src/api/issues-routes.ts` | Issue tracker route definitions |
 | `src/api/git.ts` | Git operations in container |
 | `src/api/github.ts` | GitHub repo operations |
-| `src/api/favorites.ts` | User favorites |
+| `src/api/github-routes.ts` | GitHub route definitions |
+| `src/api/favorites.ts` | User favorites logic |
+| `src/api/favorites-routes.ts` | Favorites route definitions |
+| `src/api/embeddings.ts` | Embedding API endpoints |
 | `src/api/mcp-relay.ts` | WebSocket relay for local MCP servers |
 
 ### Frontend (ui/src/)
@@ -116,6 +128,11 @@ npm run test         # Vitest tests
 | `components/XTerminal.tsx` | xterm.js terminal |
 | `components/IssueTracker.tsx` | Issue/task tracking panel |
 | `components/McpRelayProvider.tsx` | Frontend MCP relay WebSocket manager |
+| `components/agency/AgencyDashboard.tsx` | Agency mode site list + create flow |
+| `components/agency/AgencyEditor.tsx` | Visual editor: iframe preview + component tree + edit panel |
+| `components/agency/AgencyLoadingScreen.tsx` | Setup progress screen (clone, install, dev server) |
+| `components/agency/ComponentTree.tsx` | Discovered component hierarchy sidebar |
+| `components/agency/EditPanel.tsx` | Selected component edit instructions panel |
 | `hooks/useAuth.ts` | Auth state (Zustand) |
 | `hooks/useQuickChat.ts` | Quick chat state + SSE streaming |
 | `hooks/useSandbox.ts` | Sandbox session state |
@@ -124,6 +141,28 @@ npm run test         # Vitest tests
 | `hooks/useLayoutStore.ts` | Panel layout state (Zustand) |
 | `lib/api.ts` | API client with JWT auth |
 | `lib/types.ts` | Frontend TypeScript types |
+
+## Agency Mode (v0.25.0)
+
+Visual website editor — click components in a live Astro preview, describe edits in natural language, AI modifies the source.
+
+### How It Works
+
+1. User provides a GitHub repo URL containing an Astro site
+2. `kickoffAgencySetup()` in `sandbox.ts`: clones repo, injects VF inspector, installs deps, starts dev server
+3. Inspector injection (`agency-inspector.ts`):
+   - **Browser-side**: `vf-inspector.js` written to `/workspace/public/`, runs in iframe. Discovers `data-vf-component` elements, highlights on hover (cyan), selects on click (purple), posts `vf-select`/`vf-deselect`/`vf-tree` messages to parent.
+   - **Container-side**: Node script walks `.astro` files, adds `data-vf-component`/`data-vf-file` attributes to root elements, injects `<script is:inline src="/vf-inspector.js">` before `</head>`. Skips layout files (root `<html>`).
+4. `AgencyEditor.tsx` renders iframe + listens for postMessage events
+5. User clicks component in preview -> selects it -> types edit instruction -> sent to AI agent
+6. Astro Dev Toolbar disabled via `ASTRO_DISABLE_DEV_OVERLAY=true` env var
+
+### Agency Gotchas
+
+- **`is:inline` REQUIRED on script tag** — without it, Astro's Vite compiler tries to bundle the static file as a module and silently drops it
+- **Astro Dev Toolbar conflicts** — has its own Inspect mode + external links that break in sandboxed iframe. Disabled via env var.
+- **External links blocked** — inspector intercepts clicks on `<a>` with external URLs to prevent iframe navigation
+- **Auto-tagging fallback** — if no `data-vf-component` found, semantic elements (header, nav, main, section, etc.) are auto-tagged
 
 ## Critical Gotchas
 
@@ -170,165 +209,10 @@ npm run test         # Vitest tests
 
 ### UX
 
-- **Right-side controls rule**: All close/exit buttons and action controls go on the RIGHT side of headers. Title and info go on the LEFT. Pattern: `justify-between` with title-left, actions+close-right. Reference: IssueTracker.tsx header. This reduces mouse travel since nav icons are already on the right.
+- **Right-side controls rule**: All close/exit buttons and action controls go on the RIGHT side of headers. Title and info go on the LEFT. Pattern: `justify-between` with title-left, actions+close-right. Reference: IssueTracker.tsx header.
 
 ### Files / Upload
 
 - `sandbox.writeFile()` crashes on large payloads (>~500KB) — use 8KB chunked exec
 - Use `base64 -d` pipe for binary decode, never `node -e` (shell escaping breaks)
 - R2 `list()` needs explicit `include: ['customMetadata']` with compat_date >= 2022-08-04
-
----
-
-## Core Philosophy
-
-**Key Principles:**
-1. **Plan Before Execute**: Think through the approach before coding
-2. **Test-Driven**: Write tests before implementation when possible
-3. **Security-First**: Never compromise on security
-4. **Immutability**: Never mutate objects or arrays
-5. **Small Files**: Many small files over few large files
-
----
-
-## CLI-First Rule (CRITICAL)
-
-ALWAYS check available tools BEFORE asking the user for information. Your credentials are all stored in 1Password. Check there first.
-
-| Need | Check First |
-|------|-------------|
-| File contents | Just read the file |
-| Git info | Run `git` commands |
-| Dependencies | Read package.json |
-| Env vars needed | Grep for `process.env.*` in codebase |
-| Project structure | List directory, read config files |
-| Platform/framework | Check config files (tsconfig, vite.config, etc.) |
-| What changed | Run `git diff`, `git log` |
-
-**Decision tree:**
-1. Can I read a file for this? -> Read it
-2. Can I run a command for this? -> Run it
-3. Can I infer from context? -> Use inference
-4. ONLY THEN -> Ask the user
-
-**Rule**: If you can get information yourself, DO IT. Only ask for things that truly require user input.
-
----
-
-## Code Style
-
-- No emojis in code, comments, or documentation
-- Prefer immutability - always create new objects, NEVER mutate
-- 200-400 lines typical, 800 max per file
-- Functions under 50 lines
-- No deep nesting (max 4 levels)
-- Proper error handling everywhere
-- No console.log left in production code
-- No hardcoded values
-
-### Immutability (CRITICAL)
-
-```javascript
-// WRONG: Mutation
-function updateUser(user, name) {
-  user.name = name
-  return user
-}
-
-// CORRECT: Immutability
-function updateUser(user, name) {
-  return { ...user, name }
-}
-```
-
-### Input Validation
-
-Always validate user input with Zod when possible:
-
-```typescript
-import { z } from 'zod'
-
-const schema = z.object({
-  email: z.string().email(),
-  age: z.number().int().min(0).max(150)
-})
-```
-
----
-
-## Git
-
-- Conventional commits: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`, `perf:`
-- Always test locally before committing
-- Small, focused commits
-
----
-
-## Testing
-
-- TDD preferred: Write tests first (RED), implement (GREEN), refactor (IMPROVE)
-- 80% minimum coverage target
-- Unit + integration + E2E for critical flows
-
----
-
-## Security
-
-Before ANY commit:
-- No hardcoded secrets (API keys, passwords, tokens)
-- All user inputs validated
-- SQL injection prevention (parameterized queries)
-- XSS prevention (sanitized HTML)
-- Error messages don't leak sensitive data
-
-```javascript
-// NEVER: Hardcoded secrets
-const apiKey = "sk-xxxxx"
-
-// ALWAYS: Environment variables
-const apiKey = process.env.OPENAI_API_KEY
-```
-
----
-
-## API Response Pattern
-
-```typescript
-interface ApiResponse<T> {
-  success: boolean
-  data?: T
-  error?: string
-  meta?: { total: number; page: number; limit: number }
-}
-```
-
----
-
-## String Length Limits
-
-- Inline strings in code: 500 chars max
-- Template literals: 1000 chars max
-- Error messages: 200 chars max
-- Extract long content to constants or separate files
-- Break up large templates into composable parts
-
----
-
-## My Repositories (GitHub: Aventerica89 / JBMD-Creations)
-
-Key repos for reference:
-- `vaporforge` - This platform (CF Workers + Sandboxes + React)
-- `renvio-companion-app` - Renal patient companion (Next.js + Drizzle + Turso)
-- `jb-cloud-app-tracker` - App dashboard (Next.js + Supabase)
-- `claude-codex` - Claude Code config and rules (Astro + Turso)
-- `HDFlowsheet` / `HDFlowsheet-Cloud` - Hemodialysis flowsheet apps
-
----
-
-## Success Metrics
-
-You are successful when:
-- All tests pass (80%+ coverage)
-- No security vulnerabilities
-- Code is readable and maintainable
-- User requirements are met

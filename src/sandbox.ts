@@ -1,5 +1,9 @@
 import { getSandbox, type Sandbox } from '@cloudflare/sandbox';
 import type { Session, ExecResult, FileInfo } from './types';
+import {
+  getInspectorScript,
+  getInjectionScript,
+} from './services/agency-inspector';
 
 const WORKSPACE_PATH = '/workspace';
 const HEALTH_CHECK_TIMEOUT = 5000;
@@ -691,11 +695,45 @@ export class SandboxManager {
     const sandbox = this.getSandboxInstance(sessionId);
     const sid = sessionId.slice(0, 8);
 
-    // Check if dev server is already running
+    // Check if dev server is already running.
+    // NOTE: isPortExposed() is a CF routing rule — not a liveness check.
+    // Must TCP-probe to confirm the dev server process is actually alive.
     try {
       const alreadyExposed = await sandbox.isPortExposed(4321);
       if (alreadyExposed) {
-        console.log(`[agencySetup] ${sid}: port 4321 already exposed, skipping`);
+        const tcpCheck = await sandbox.exec(
+          '(echo > /dev/tcp/localhost/4321) 2>/dev/null && echo yes || echo no',
+          { timeout: 5_000 }
+        );
+        if (tcpCheck.stdout?.trim() === 'yes') {
+          console.log(`[agencySetup] ${sid}: port 4321 exposed AND listening, skipping`);
+          return { sessionId };
+        }
+        // Port exposed but dev server is dead — restart without re-cloning
+        console.log(`[agencySetup] ${sid}: port 4321 exposed but NOT listening, restarting dev server`);
+        const restartScript = [
+          '#!/bin/bash',
+          'kill $(cat /tmp/agency-dev.pid 2>/dev/null) 2>/dev/null || true',
+          'echo "stage:starting" > /tmp/agency-setup.status',
+          'export ASTRO_DISABLE_DEV_OVERLAY=true',
+          'export ASTRO_TELEMETRY_DISABLED=1',
+          'cd /workspace && node_modules/.bin/astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
+          'echo $! > /tmp/agency-dev.pid',
+          'for i in $(seq 1 60); do',
+          '  (echo > /dev/tcp/localhost/4321) 2>/dev/null && { echo "stage:ready" > /tmp/agency-setup.status; exit 0; }',
+          '  sleep 1',
+          'done',
+          'echo "stage:timeout" > /tmp/agency-setup.status',
+        ].join('\n');
+        const restartB64 = btoa(restartScript);
+        await sandbox.exec(
+          `echo '${restartB64}' | base64 -d > /tmp/agency-restart.sh && chmod +x /tmp/agency-restart.sh`,
+          { timeout: 10_000 }
+        );
+        await sandbox.exec(
+          'nohup bash /tmp/agency-restart.sh > /tmp/agency-restart-run.log 2>&1 &',
+          { timeout: 5_000 }
+        );
         return { sessionId };
       }
     } catch (e) {
@@ -725,6 +763,9 @@ export class SandboxManager {
     });
     console.log(`[agencySetup] ${sid}: step1 clone done`);
 
+    // Step 1.5: Inject VF inspector script + tag Astro components
+    await this.injectAgencyInspector(sandbox, sid);
+
     // Step 2: Write setup script via base64 (avoids heredoc parsing issues in exec).
     const setupScript = [
       '#!/bin/bash',
@@ -736,16 +777,15 @@ export class SandboxManager {
       '  exit 1',
       'fi',
       'echo "stage:starting" > /tmp/agency-setup.status',
-      // Detect port from package.json dev script or default to 4321
-      'DEV_PORT=$(node -e "const s=(require(\\"/workspace/package.json\\").scripts||{}).dev||\\"\\";const m=s.match(/--port\\s+(\\d+)/);console.log(m?m[1]:\\"4321\\")" 2>/dev/null || echo "4321")',
-      'echo "dev_port=$DEV_PORT" >> /tmp/agency-setup.log',
-      // Always pass --host 0.0.0.0 so the dev server is reachable from the container network
-      'cd /workspace && npm run dev -- --host 0.0.0.0 --port $DEV_PORT >> /tmp/agency-setup.log 2>&1 &',
-      'DEV_PID=$!',
-      'echo $DEV_PID > /tmp/agency-dev.pid',
+      // Disable Astro dev toolbar (conflicts with VF inspector in iframe) and telemetry
+      'export ASTRO_DISABLE_DEV_OVERLAY=true',
+      'export ASTRO_TELEMETRY_DISABLED=1',
+      // Use astro binary directly — reliable, avoids npm run dev arg-passing quirks
+      'cd /workspace && node_modules/.bin/astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
+      'echo $! > /tmp/agency-dev.pid',
       // Use bash /dev/tcp for port detection (ss may not exist in container)
       'for i in $(seq 1 120); do',
-      '  if (echo > /dev/tcp/localhost/$DEV_PORT) 2>/dev/null; then',
+      '  if (echo > /dev/tcp/localhost/4321) 2>/dev/null; then',
       '    echo "stage:ready" > /tmp/agency-setup.status',
       '    exit 0',
       '  fi',
@@ -829,6 +869,48 @@ export class SandboxManager {
       return { ready: false, stage };
     } catch {
       return { ready: false, stage: 'unreachable' };
+    }
+  }
+
+  /**
+   * Inject the VF inspector into an agency workspace:
+   * 1. Write /workspace/public/vf-inspector.js (browser-side)
+   * 2. Run a Node script that tags .astro components with data-vf-*
+   *    attributes and injects <script> before </head> in layout files.
+   */
+  private async injectAgencyInspector(
+    sandbox: Sandbox,
+    logPrefix: string,
+  ): Promise<void> {
+    try {
+      // Ensure public/ dir exists
+      await sandbox.exec('mkdir -p /workspace/public', { timeout: 5_000 });
+
+      // Write inspector script via base64
+      const inspectorB64 = btoa(getInspectorScript());
+      await sandbox.exec(
+        `echo '${inspectorB64}' | base64 -d > /workspace/public/vf-inspector.js`,
+        { timeout: 10_000 },
+      );
+
+      // Write and run the injection/tagging Node script
+      const injectionB64 = btoa(getInjectionScript());
+      await sandbox.exec(
+        `echo '${injectionB64}' | base64 -d > /tmp/vf-inject.js`,
+        { timeout: 10_000 },
+      );
+      const result = await sandbox.exec('node /tmp/vf-inject.js', {
+        timeout: 15_000,
+      });
+      console.log(
+        `[agencySetup] ${logPrefix}: inspector inject: ${result.stdout?.trim()}`,
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(
+        `[agencySetup] ${logPrefix}: inspector inject failed (non-fatal): ${msg}`,
+      );
+      // Non-fatal — the editor still works, just without inspector highlights
     }
   }
 

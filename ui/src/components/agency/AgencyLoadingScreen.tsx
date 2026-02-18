@@ -74,21 +74,21 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
       </div>
 
       {/* Center content */}
-      <div className="relative z-10 flex flex-col items-center gap-8">
+      <div className="relative z-10 flex flex-col items-center gap-10">
         {/* Logo + glow */}
         <div className="relative">
           {/* Outer glow ring */}
-          <div className="agency-logo-ring absolute -inset-6 rounded-full" />
+          <div className="agency-logo-ring absolute -inset-8 rounded-full" />
 
           {/* Logo */}
-          <div className="relative flex h-20 w-20 items-center justify-center">
+          <div className="relative flex h-28 w-28 items-center justify-center">
             <svg
-              width="64"
-              height="64"
+              width="96"
+              height="96"
               viewBox="0 0 512 512"
               className="agency-logo-breathe"
             >
-              {/* Background circle instead of square */}
+              {/* Background circle */}
               <circle cx="256" cy="256" r="240" fill="rgba(15,20,25,0.8)" />
               {/* Circuit pattern */}
               <g opacity="0.2">
@@ -131,17 +131,17 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
         </div>
 
         {/* Brand text */}
-        <div className="flex flex-col items-center gap-1">
-          <span className="agency-text-shimmer font-mono text-xs font-bold uppercase tracking-[0.3em] text-zinc-500">
+        <div className="flex flex-col items-center gap-2">
+          <span className="agency-text-shimmer font-mono text-sm font-bold uppercase tracking-[0.3em] text-zinc-400">
             Powered by
           </span>
-          <h1 className="agency-brand-text font-display text-2xl font-black tracking-wider">
+          <h1 className="agency-brand-text font-display text-4xl font-black tracking-wider">
             VaporForge
           </h1>
         </div>
 
         {/* Tech logos */}
-        <div className="flex items-center gap-5 opacity-30">
+        <div className="flex items-center gap-8 opacity-40">
           {[
             { Logo: CloudflareLogo, label: 'Cloudflare' },
             { Logo: AnthropicLogo, label: 'Anthropic' },
@@ -149,13 +149,13 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
             { Logo: GithubLogo, label: 'GitHub' },
           ].map(({ Logo, label }) => (
             <div key={label} title={label}>
-              <Logo className="h-4 w-4 text-zinc-500" />
+              <Logo className="h-7 w-7 text-zinc-400" />
             </div>
           ))}
         </div>
 
         {/* Progress stages */}
-        <div className="flex flex-col gap-2 pt-4">
+        <div className="flex flex-col gap-4 pt-2">
           {STAGES.map((stage, i) => {
             const isActive = i === activeStage;
             const isDone = i < activeStage;
@@ -163,27 +163,27 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
             return (
               <div
                 key={stage.label}
-                className="flex items-center gap-3"
+                className="flex items-center gap-4"
               >
                 {/* Status dot */}
-                <div className="flex h-5 w-5 items-center justify-center">
+                <div className="flex h-6 w-6 items-center justify-center">
                   {isDone ? (
-                    <div className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]" />
+                    <div className="h-3 w-3 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
                   ) : isActive ? (
-                    <div className="agency-dot-pulse h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(29,211,230,0.6)]" />
+                    <div className="agency-dot-pulse h-3.5 w-3.5 rounded-full bg-cyan-400 shadow-[0_0_14px_rgba(29,211,230,0.6)]" />
                   ) : (
-                    <div className="h-1.5 w-1.5 rounded-full bg-zinc-700" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-zinc-700" />
                   )}
                 </div>
 
                 {/* Label */}
                 <span
-                  className={`font-mono text-[11px] transition-all duration-500 ${
+                  className={`font-mono text-[15px] transition-all duration-500 ${
                     isDone
-                      ? 'text-zinc-600'
+                      ? 'text-zinc-500'
                       : isActive
-                        ? 'text-cyan-400'
-                        : 'text-zinc-700'
+                        ? 'font-medium text-cyan-300'
+                        : 'text-zinc-600'
                   }`}
                 >
                   {stage.label}
@@ -197,7 +197,7 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
         </div>
 
         {/* Bottom progress bar */}
-        <div className="mt-2 h-[2px] w-48 overflow-hidden rounded-full bg-zinc-800">
+        <div className="mt-1 h-1 w-64 overflow-hidden rounded-full bg-zinc-800">
           <div className="agency-progress-bar h-full rounded-full" />
         </div>
       </div>
