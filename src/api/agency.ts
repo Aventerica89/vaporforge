@@ -265,6 +265,23 @@ agencyRoutes.get('/sites/:id/edit/status', async (c) => {
   }
 });
 
+// Get dev server setup logs for diagnostics
+agencyRoutes.get('/sites/:id/edit/logs', async (c) => {
+  const id = c.req.param('id');
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${id}`;
+
+  try {
+    const logs = await sm.readAgencySetupLog(sessionId);
+    return c.json({ success: true, data: { logs } });
+  } catch (e) {
+    return c.json({
+      success: false,
+      error: e instanceof Error ? e.message : String(e),
+    }, 500);
+  }
+});
+
 // Edit a component via AI — writes scoped context for the WS agent
 const EditComponentSchema = z.object({
   componentFile: z.string().nullable(),

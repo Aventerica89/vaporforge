@@ -755,13 +755,30 @@ export class SandboxManager {
       console.log(`[agencySetup] ${sid}: idempotency check failed (container may not exist):`, e instanceof Error ? e.message : String(e));
     }
 
-    // Step 1: Clone via SDK (fast, handles auth, creates container if needed)
-    console.log(`[agencySetup] ${sid}: step1 cloning ${repoUrl} (branch: ${branch})`);
-    await sandbox.gitCheckout(repoUrl, {
-      targetDir: WORKSPACE_PATH,
-      branch,
-    });
-    console.log(`[agencySetup] ${sid}: step1 clone done`);
+    // Step 1: Clone via SDK — skip if workspace already exists (retry after timeout/failure)
+    // git clone fails on non-empty directories, so must check first.
+    let workspaceExists = false;
+    try {
+      const wsCheck = await sandbox.exec(
+        'test -f /workspace/package.json && echo yes || echo no',
+        { timeout: 5_000 }
+      );
+      workspaceExists = wsCheck.stdout?.trim() === 'yes';
+      console.log(`[agencySetup] ${sid}: workspace exists=${workspaceExists}`);
+    } catch {
+      // Container may not be up yet; proceed with clone (will create container)
+    }
+
+    if (!workspaceExists) {
+      console.log(`[agencySetup] ${sid}: step1 cloning ${repoUrl} (branch: ${branch})`);
+      await sandbox.gitCheckout(repoUrl, {
+        targetDir: WORKSPACE_PATH,
+        branch,
+      });
+      console.log(`[agencySetup] ${sid}: step1 clone done`);
+    } else {
+      console.log(`[agencySetup] ${sid}: step1 skipped — workspace already cloned`);
+    }
 
     // Step 1.5: Inject VF inspector script + tag Astro components
     await this.injectAgencyInspector(sandbox, sid);
@@ -770,18 +787,28 @@ export class SandboxManager {
     const setupScript = [
       '#!/bin/bash',
       'echo $$ > /tmp/agency-setup.pid',
-      'echo "stage:installing" > /tmp/agency-setup.status',
-      'cd /workspace && npm install > /tmp/agency-setup.log 2>&1',
-      'if [ $? -ne 0 ]; then',
-      '  echo "stage:install-failed" > /tmp/agency-setup.status',
-      '  exit 1',
+      // Skip npm install if node_modules already present (retry after timeout)
+      'if [ ! -d /workspace/node_modules ]; then',
+      '  echo "stage:installing" > /tmp/agency-setup.status',
+      '  cd /workspace && npm install >> /tmp/agency-setup.log 2>&1',
+      '  if [ $? -ne 0 ]; then',
+      '    echo "stage:install-failed" > /tmp/agency-setup.status',
+      '    exit 1',
+      '  fi',
+      'else',
+      '  echo "node_modules exists, skipping install" >> /tmp/agency-setup.log',
       'fi',
       'echo "stage:starting" > /tmp/agency-setup.status',
       // Disable Astro dev toolbar (conflicts with VF inspector in iframe) and telemetry
       'export ASTRO_DISABLE_DEV_OVERLAY=true',
       'export ASTRO_TELEMETRY_DISABLED=1',
-      // Use astro binary directly — reliable, avoids npm run dev arg-passing quirks
-      'cd /workspace && node_modules/.bin/astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
+      // Launch astro dev: try local binary first, fall back to npx
+      'if [ -f /workspace/node_modules/.bin/astro ]; then',
+      '  cd /workspace && node_modules/.bin/astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
+      'else',
+      '  echo "astro binary not found, falling back to npx" >> /tmp/agency-setup.log',
+      '  cd /workspace && npx --yes astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
+      'fi',
       'echo $! > /tmp/agency-dev.pid',
       // Use bash /dev/tcp for port detection (ss may not exist in container)
       'for i in $(seq 1 120); do',
@@ -869,6 +896,22 @@ export class SandboxManager {
       return { ready: false, stage };
     } catch {
       return { ready: false, stage: 'unreachable' };
+    }
+  }
+
+  /**
+   * Read the last N lines of the agency setup log for diagnostics.
+   */
+  async readAgencySetupLog(sessionId: string, lines = 50): Promise<string> {
+    const sandbox = this.getSandboxInstance(sessionId);
+    try {
+      const result = await sandbox.exec(
+        `tail -${lines} /tmp/agency-setup.log 2>/dev/null || echo "no log file"`,
+        { timeout: 5_000 }
+      );
+      return result.stdout?.trim() || 'empty';
+    } catch {
+      return 'container unreachable';
     }
   }
 
