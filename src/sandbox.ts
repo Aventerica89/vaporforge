@@ -783,6 +783,31 @@ export class SandboxManager {
     // Step 1.5: Inject VF inspector script + tag Astro components
     await this.injectAgencyInspector(sandbox, sid);
 
+    // Step 1.6: Patch astro.config.mjs to disable dev toolbar + HMR
+    // ASTRO_DISABLE_DEV_OVERLAY env var is unreliable (legacy Astro 3.x name).
+    // Patching the config file is the only definitive way to disable the toolbar.
+    const astroConfigPatcher = `const fs=require('fs');
+const p='/workspace/astro.config.mjs';
+if(fs.existsSync(p)){
+  let c=fs.readFileSync(p,'utf8');
+  if(!c.includes('vf-toolbar-disabled')){
+    c=c.replace(/defineConfig\\s*\\(\\s*\\{/,'defineConfig({devToolbar:{enabled:false},vite:{server:{hmr:false}},');
+    c+='\\n//vf-toolbar-disabled';
+    fs.writeFileSync(p,c);
+    console.log('[vf] patched astro.config.mjs: devToolbar+HMR disabled');
+  }else{console.log('[vf] astro.config.mjs already patched');}
+}else{console.log('[vf] astro.config.mjs not found, skipping patch');}`;
+    const patcherB64 = btoa(astroConfigPatcher);
+    try {
+      await sandbox.exec(
+        `echo '${patcherB64}' | base64 -d > /tmp/vf-config-patch.js && node /tmp/vf-config-patch.js >> /tmp/agency-setup.log 2>&1`,
+        { timeout: 15_000 }
+      );
+      console.log(`[agencySetup] ${sid}: step1.6 astro config patched`);
+    } catch (e) {
+      console.warn(`[agencySetup] ${sid}: step1.6 config patch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
+    }
+
     // Step 2: Write setup script via base64 (avoids heredoc parsing issues in exec).
     const setupScript = [
       '#!/bin/bash',

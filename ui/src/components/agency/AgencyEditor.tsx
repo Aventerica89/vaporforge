@@ -255,7 +255,12 @@ export function AgencyEditor() {
           }),
         });
 
-        // Auto-commit after edit
+        // The edit-component POST returns immediately after writing the context file.
+        // The WS agent picks it up asynchronously and typically takes 10-20s to edit.
+        // Wait before committing and reloading so the agent has time to finish.
+        await new Promise((r) => setTimeout(r, 18_000));
+
+        // Auto-commit after agent has had time to make changes
         await fetch(`/api/agency/sites/${editingSiteId}/commit`, {
           method: 'POST',
           headers: {
