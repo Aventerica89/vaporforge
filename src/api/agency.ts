@@ -432,6 +432,7 @@ export async function handleAgencyEditWs(
   const instruction = url.searchParams.get('instruction') || '';
   const componentFile = url.searchParams.get('componentFile') || null;
   const siteWide = url.searchParams.get('siteWide') === 'true';
+  const elementHTML = url.searchParams.get('elementHTML') || '';
 
   if (!siteId || !instruction) {
     return new Response('Missing siteId or instruction', { status: 400 });
@@ -442,6 +443,18 @@ export async function handleAgencyEditWs(
   }
 
   const sessionId = `agency-${siteId}`;
+
+  // Fetch the file source from the container so the AI knows the full context
+  let fileSource = '';
+  if (componentFile && !siteWide) {
+    try {
+      const safePath = componentFile.replace(/\.\./g, '');
+      const result = await sandboxManager.execInSandbox(sessionId, `cat "/workspace/${safePath}"`);
+      fileSource = (result.stdout || '').slice(0, 6000);
+    } catch {
+      // file source is optional — proceed without it
+    }
+  }
 
   // Build a self-contained prompt — claude-agent.js uses the claude_code preset and never
   // reads VF_SYSTEM_PROMPT, so the file path and rules must live inside the prompt itself.
@@ -458,15 +471,23 @@ export async function handleAgencyEditWs(
     : [
         `Edit the file: ${componentFile}`,
         '',
+        ...(elementHTML ? [
+          'Selected element:',
+          elementHTML,
+          '',
+        ] : []),
         `Task: ${instruction}`,
         '',
+        ...(fileSource ? [
+          'Current file source:',
+          fileSource,
+          '',
+        ] : []),
         'Rules:',
         `- Edit ONLY ${componentFile}`,
         '- Preserve data-vf-component and data-vf-file attributes on elements',
-        '- Prefer CSS custom properties (var(--*)) for colors, spacing, typography',
-        '- Do NOT add hardcoded hex colors, pixel values, or font names',
-        '- Preserve the Astro frontmatter (--- block) structure',
-        '- Keep the component functional and syntactically valid',
+        '- Keep the file syntactically valid Astro',
+        ...(elementHTML ? ['- Add/modify elements adjacent to the selected element above'] : []),
       ].join('\n');
 
   try {
