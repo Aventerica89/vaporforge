@@ -494,6 +494,15 @@ export async function handleAgencyEditWs(
     // Ensure WS agent server is running on port 8765
     await sandboxManager.startWsServer(sessionId);
 
+    // Always inject the Astro docs MCP server so the agent can look up correct
+    // Astro syntax (client directives, frontmatter, component imports) during edits.
+    const astroDocs: Record<string, Record<string, unknown>> = {
+      'astro-docs': {
+        type: 'http',
+        url: 'https://mcp.docs.astro.build/mcp',
+      },
+    };
+
     // Write context file — WS server reads + deletes it after connection
     await sandboxManager.writeContextFile(sessionId, {
       prompt: fullPrompt,
@@ -506,6 +515,7 @@ export async function handleAgencyEditWs(
         IS_SANDBOX: '1',
         ...collectProjectSecrets(env),
         VF_AGENCY_MODE: '1',
+        CLAUDE_MCP_SERVERS: JSON.stringify(astroDocs),
       },
     });
 
