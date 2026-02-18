@@ -60,6 +60,14 @@ export function EditPanel({
     }
   };
 
+  const elementLabel = selectedComponent
+    ? selectedComponent.elementTag
+      ? selectedComponent.elementText
+        ? `${selectedComponent.elementTag} "${selectedComponent.elementText}" in ${selectedComponent.component}`
+        : `${selectedComponent.elementTag} in ${selectedComponent.component}`
+      : selectedComponent.component
+    : null;
+
   return (
     <div className="flex w-[320px] shrink-0 flex-col border-l border-zinc-700 bg-zinc-900">
       {/* Header: selected component info */}
@@ -69,7 +77,7 @@ export function EditPanel({
             <FileCode className="h-3.5 w-3.5 text-purple-400" />
             <div className="min-w-0 flex-1">
               <span className="block truncate text-[11px] font-medium text-purple-300">
-                {selectedComponent.component}
+                {elementLabel}
               </span>
             </div>
           </>

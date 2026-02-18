@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'EditPanel header shows element tag and text snippet (e.g. "button \\"Get Started\\" in HeroCentered.astro")' },
   { date: '2026-02-18', summary: 'Agency types: add elementTag/elementHTML/elementText to ComponentInfo, SelectedComponent, and onSendEdit signature' },
   { date: '2026-02-18', summary: 'Agency inspector: handle vf-reload postMessage to trigger location.reload() in iframe' },
   { date: '2026-02-18', summary: 'Agency inspector: vf-select postMessage now includes elementTag, elementHTML (1000 char cap), elementText (100 char cap) for AI context' },
