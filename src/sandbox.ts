@@ -715,7 +715,6 @@ export class SandboxManager {
           '#!/bin/bash',
           'kill $(cat /tmp/agency-dev.pid 2>/dev/null) 2>/dev/null || true',
           'echo "stage:starting" > /tmp/agency-setup.status',
-          'export ASTRO_DISABLE_DEV_OVERLAY=true',
           'export ASTRO_TELEMETRY_DISABLED=1',
           'cd /workspace && node_modules/.bin/astro dev --host 0.0.0.0 --port 4321 >> /tmp/agency-setup.log 2>&1 &',
           'echo $! > /tmp/agency-dev.pid',
@@ -783,19 +782,24 @@ export class SandboxManager {
     // Step 1.5: Inject VF inspector script + tag Astro components
     await this.injectAgencyInspector(sandbox, sid);
 
-    // Step 1.6: Patch astro.config.mjs to disable dev toolbar + HMR
-    // ASTRO_DISABLE_DEV_OVERLAY env var is unreliable (legacy Astro 3.x name).
-    // Patching the config file is the only definitive way to disable the toolbar.
+    // Step 1.6: Patch astro.config.mjs — disable HMR only.
+    // HMR causes full page reloads during edits which clears component selection.
+    // Dev toolbar is intentionally re-enabled (old patches that disabled it are undone).
     const astroConfigPatcher = `const fs=require('fs');
 const p='/workspace/astro.config.mjs';
 if(fs.existsSync(p)){
   let c=fs.readFileSync(p,'utf8');
-  if(!c.includes('vf-toolbar-disabled')){
-    c=c.replace(/defineConfig\\s*\\(\\s*\\{/,'defineConfig({devToolbar:{enabled:false},vite:{server:{hmr:false}},');
-    c+='\\n//vf-toolbar-disabled';
+  if(c.includes('vf-toolbar-disabled')){
+    c=c.replace(/devToolbar:\\{enabled:false\\},/g,'');
+    c=c.replace('\\n//vf-toolbar-disabled','');
+    console.log('[vf] removed old toolbar-disabled patch');
+  }
+  if(!c.includes('vf-hmr-disabled')){
+    c=c.replace(/defineConfig\\s*\\(\\s*\\{/,'defineConfig({vite:{server:{hmr:false}},');
+    c+='\\n//vf-hmr-disabled';
     fs.writeFileSync(p,c);
-    console.log('[vf] patched astro.config.mjs: devToolbar+HMR disabled');
-  }else{console.log('[vf] astro.config.mjs already patched');}
+    console.log('[vf] patched astro.config.mjs: HMR disabled, toolbar enabled');
+  }else{console.log('[vf] astro.config.mjs already patched (v2)');}
 }else{console.log('[vf] astro.config.mjs not found, skipping patch');}`;
     const patcherB64 = btoa(astroConfigPatcher);
     try {
@@ -824,8 +828,7 @@ if(fs.existsSync(p)){
       '  echo "node_modules exists, skipping install" >> /tmp/agency-setup.log',
       'fi',
       'echo "stage:starting" > /tmp/agency-setup.status',
-      // Disable Astro dev toolbar (conflicts with VF inspector in iframe) and telemetry
-      'export ASTRO_DISABLE_DEV_OVERLAY=true',
+      // Disable telemetry only; dev toolbar is intentionally kept enabled
       'export ASTRO_TELEMETRY_DISABLED=1',
       // Launch astro dev: try local binary first, fall back to npx
       'if [ -f /workspace/node_modules/.bin/astro ]; then',

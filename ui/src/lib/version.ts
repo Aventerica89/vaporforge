@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Fix agency edits: embed file path + rules in prompt (VF_SYSTEM_PROMPT not read by claude-agent.js); re-enable Astro Dev Toolbar' },
   { date: '2026-02-18', summary: 'Fix Agency Mode edits: add WS endpoint /api/agency/edit-ws, remove 18s delay, agent now properly invoked via WS tunnel' },
   { date: '2026-02-18', summary: 'Fix Agency Mode: patch astro.config.mjs to disable devToolbar+HMR (env var unreliable), delay commit/reload 18s for agent to finish' },
   { date: '2026-02-18', summary: 'Fix agency setup: skip clone if workspace exists, skip install if node_modules present, astro binary fallback to npx, add /edit/logs endpoint' },

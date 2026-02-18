@@ -418,21 +418,30 @@ export async function handleAgencyEditWs(
 
   const sessionId = `agency-${siteId}`;
 
-  const systemPrompt = siteWide
+  // Build a self-contained prompt — claude-agent.js uses the claude_code preset and never
+  // reads VF_SYSTEM_PROMPT, so the file path and rules must live inside the prompt itself.
+  const fullPrompt = siteWide
     ? [
-        'You are editing a website theme.',
-        'Modify ONLY CSS custom properties in the styles directory.',
-        'Do not change component files.',
-      ].join(' ')
-    : [
-        `You are editing a single Astro component: ${componentFile}`,
+        'Edit the website theme styles.',
+        '',
+        `Task: ${instruction}`,
+        '',
         'Rules:',
-        '- Edit ONLY this file',
-        '- Preserve data-vf-component and data-vf-file attributes',
-        '- Use ONLY CSS custom properties (var(--*)) for colors, spacing, typography',
+        '- Modify ONLY CSS custom properties in the styles directory',
+        '- Do not change .astro component files',
+      ].join('\n')
+    : [
+        `Edit the file: ${componentFile}`,
+        '',
+        `Task: ${instruction}`,
+        '',
+        'Rules:',
+        `- Edit ONLY ${componentFile}`,
+        '- Preserve data-vf-component and data-vf-file attributes on elements',
+        '- Prefer CSS custom properties (var(--*)) for colors, spacing, typography',
         '- Do NOT add hardcoded hex colors, pixel values, or font names',
         '- Preserve the Astro frontmatter (--- block) structure',
-        '- Keep the component functional and valid',
+        '- Keep the component functional and syntactically valid',
       ].join('\n');
 
   try {
@@ -441,7 +450,7 @@ export async function handleAgencyEditWs(
 
     // Write context file — WS server reads + deletes it after connection
     await sandboxManager.writeContextFile(sessionId, {
-      prompt: instruction,
+      prompt: fullPrompt,
       sessionId: '',
       cwd: '/workspace',
       env: {
@@ -451,7 +460,6 @@ export async function handleAgencyEditWs(
         IS_SANDBOX: '1',
         ...collectProjectSecrets(env),
         VF_AGENCY_MODE: '1',
-        VF_SYSTEM_PROMPT: systemPrompt,
       },
     });
 
