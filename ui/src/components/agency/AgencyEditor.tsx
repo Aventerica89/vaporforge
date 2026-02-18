@@ -288,7 +288,8 @@ export function AgencyEditor() {
           }),
         });
 
-        // Reload iframe to show changes
+        // Reload iframe after Astro dev server has had time to rebuild (~3s)
+        await new Promise((r) => setTimeout(r, 3000));
         if (iframeRef.current) {
           iframeRef.current.src = iframeRef.current.src;
         }
