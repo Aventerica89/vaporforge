@@ -242,25 +242,31 @@ export function AgencyEditor() {
       setIsStreaming(true);
       try {
         const token = localStorage.getItem('session_token');
-        await fetch(`/api/agency/sites/${editingSiteId}/edit-component`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            componentFile,
-            instruction,
-            siteWide: !componentFile,
-          }),
+        const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const params = new URLSearchParams({
+          token: token || '',
+          siteId: editingSiteId,
+          instruction,
+          siteWide: componentFile ? 'false' : 'true',
+        });
+        if (componentFile) params.set('componentFile', componentFile);
+
+        // Connect WS — agent streams progress, closes when done
+        await new Promise<void>((resolve) => {
+          const ws = new WebSocket(
+            `${wsProtocol}//${location.host}/api/agency/edit-ws?${params}`,
+          );
+          ws.onmessage = (evt) => {
+            try {
+              const msg = JSON.parse(evt.data as string);
+              if (msg.type === 'process-exit') ws.close();
+            } catch {}
+          };
+          ws.onclose = () => resolve();
+          ws.onerror = () => resolve();
         });
 
-        // The edit-component POST returns immediately after writing the context file.
-        // The WS agent picks it up asynchronously and typically takes 10-20s to edit.
-        // Wait before committing and reloading so the agent has time to finish.
-        await new Promise((r) => setTimeout(r, 18_000));
-
-        // Auto-commit after agent has had time to make changes
+        // Auto-commit now that agent has finished
         await fetch(`/api/agency/sites/${editingSiteId}/commit`, {
           method: 'POST',
           headers: {
@@ -280,7 +286,7 @@ export function AgencyEditor() {
           iframeRef.current.src = iframeRef.current.src;
         }
       } catch {
-        // Edit errors shown via streaming response
+        // Errors surface via WS frames
       } finally {
         setIsStreaming(false);
       }

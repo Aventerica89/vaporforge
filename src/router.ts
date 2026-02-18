@@ -25,7 +25,7 @@ import { transformRoutes } from './api/transform';
 import { analyzeRoutes } from './api/analyze';
 import { commitMsgRoutes } from './api/commit-msg';
 import { embeddingsRoutes } from './api/embeddings';
-import { agencyRoutes } from './api/agency';
+import { agencyRoutes, handleAgencyEditWs } from './api/agency';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -304,6 +304,21 @@ export function createRouter(env: Env) {
     }
     const sandboxManager = c.get('sandboxManager');
     return handleSdkWs(c.env, c.req.raw, user, sandboxManager);
+  });
+
+  // Agency edit WebSocket — inline auth (WS can't use Authorization header)
+  app.get('/api/agency/edit-ws', async (c) => {
+    const token = new URL(c.req.url).searchParams.get('token');
+    if (!token) {
+      return new Response('Missing token', { status: 401 });
+    }
+    const authService = c.get('authService');
+    const user = await authService.getUserFromToken(token);
+    if (!user) {
+      return new Response('Unauthorized', { status: 401 });
+    }
+    const sandboxManager = c.get('sandboxManager');
+    return handleAgencyEditWs(c.env, c.req.raw, user, sandboxManager);
   });
 
   // Protected routes - require authentication

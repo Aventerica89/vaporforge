@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { validateComponentEdit } from '../services/agency-validator';
 import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
+import { collectProjectSecrets } from '../sandbox';
 
 type Variables = {
   user: User;
@@ -486,3 +487,71 @@ agencyRoutes.post('/sites/:id/push', async (c) => {
     }, 500);
   }
 });
+
+// WS endpoint for agency edits — exported for router.ts (needs inline WS auth)
+export async function handleAgencyEditWs(
+  env: Env,
+  request: Request,
+  user: User,
+  sandboxManager: SandboxManager,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const siteId = url.searchParams.get('siteId') || '';
+  const instruction = url.searchParams.get('instruction') || '';
+  const componentFile = url.searchParams.get('componentFile') || null;
+  const siteWide = url.searchParams.get('siteWide') === 'true';
+
+  if (!siteId || !instruction) {
+    return new Response('Missing siteId or instruction', { status: 400 });
+  }
+
+  if (!user.claudeToken?.startsWith('sk-ant-oat01-')) {
+    return new Response('Invalid OAuth token', { status: 401 });
+  }
+
+  const sessionId = `agency-${siteId}`;
+
+  const systemPrompt = siteWide
+    ? [
+        'You are editing a website theme.',
+        'Modify ONLY CSS custom properties in the styles directory.',
+        'Do not change component files.',
+      ].join(' ')
+    : [
+        `You are editing a single Astro component: ${componentFile}`,
+        'Rules:',
+        '- Edit ONLY this file',
+        '- Preserve data-vf-component and data-vf-file attributes',
+        '- Use ONLY CSS custom properties (var(--*)) for colors, spacing, typography',
+        '- Do NOT add hardcoded hex colors, pixel values, or font names',
+        '- Preserve the Astro frontmatter (--- block) structure',
+        '- Keep the component functional and valid',
+      ].join('\n');
+
+  try {
+    // Ensure WS agent server is running on port 8765
+    await sandboxManager.startWsServer(sessionId);
+
+    // Write context file — WS server reads + deletes it after connection
+    await sandboxManager.writeContextFile(sessionId, {
+      prompt: instruction,
+      sessionId: '',
+      cwd: '/workspace',
+      env: {
+        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+        NODE_PATH: '/usr/local/lib/node_modules',
+        CLAUDE_CONFIG_DIR: '/root/.claude',
+        IS_SANDBOX: '1',
+        ...collectProjectSecrets(env),
+        VF_AGENCY_MODE: '1',
+        VF_SYSTEM_PROMPT: systemPrompt,
+      },
+    });
+
+    // Proxy WebSocket connection to container's agent server
+    return sandboxManager.wsConnectToSandbox(sessionId, request);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return new Response(`Agency edit WS failed: ${msg}`, { status: 500 });
+  }
+}
