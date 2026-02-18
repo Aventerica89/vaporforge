@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Agency: GET /sites/:id/source reads Astro file from container via execInSandbox cat, 6000 char cap' },
   { date: '2026-02-18', summary: 'Agency: pass elementHTML as WS query param in handleSendEdit; force iframe reload after edit completes' },
   { date: '2026-02-18', summary: 'EditPanel header shows element tag and text snippet (e.g. "button \\"Get Started\\" in HeroCentered.astro")' },
   { date: '2026-02-18', summary: 'Agency types: add elementTag/elementHTML/elementText to ComponentInfo, SelectedComponent, and onSendEdit signature' },

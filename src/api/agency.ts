@@ -282,6 +282,31 @@ agencyRoutes.get('/sites/:id/edit/logs', async (c) => {
   }
 });
 
+// Read an Astro source file from the container
+// GET /api/agency/sites/:id/source?file=src/components/heroes/HeroCentered.astro
+agencyRoutes.get('/sites/:id/source', async (c) => {
+  const siteId = c.req.param('id');
+  const file = c.req.query('file') || '';
+
+  // Validate: must be a relative path, no traversal, must be .astro file
+  if (!file || file.includes('..') || !file.endsWith('.astro')) {
+    return c.json({ success: false, error: 'Invalid file path' }, 400);
+  }
+
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
+
+  try {
+    const result = await sm.execInSandbox(sessionId, `cat "/workspace/${file}"`, {
+      cwd: '/workspace',
+    });
+    // Cap at 6000 chars to keep prompt size reasonable
+    return c.json({ success: true, data: { content: result.stdout.slice(0, 6000) } });
+  } catch {
+    return c.json({ success: false, error: 'File not found' }, 404);
+  }
+});
+
 // Auto-commit changes in the agency container
 const CommitSchema = z.object({
   componentName: z.string().min(1).max(200),
