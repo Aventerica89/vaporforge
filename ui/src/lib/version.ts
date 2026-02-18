@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Agency inspector: handle vf-reload postMessage to trigger location.reload() in iframe' },
   { date: '2026-02-18', summary: 'Agency inspector: vf-select postMessage now includes elementTag, elementHTML (1000 char cap), elementText (100 char cap) for AI context' },
   { date: '2026-02-18', summary: 'Fix agency inspector: closest() now returns specific hovered/clicked element instead of component root; label shows tag+text context' },
   { date: '2026-02-18', summary: 'Fix agency edits: embed file path + rules in prompt (VF_SYSTEM_PROMPT not read by claude-agent.js); re-enable Astro Dev Toolbar' },
