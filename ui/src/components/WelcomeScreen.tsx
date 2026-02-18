@@ -406,11 +406,11 @@ export function WelcomeScreen() {
                       <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                     ) : (
                       <button
-                        onClick={() => removeFavorite(repo.url)}
-                        className="rounded p-1 text-yellow-500 opacity-0 group-hover:opacity-100 hover:bg-yellow-500/10 transition-all"
+                        onClick={(e) => { e.stopPropagation(); removeFavorite(repo.url); }}
+                        className="rounded p-1.5 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
                         title="Remove from favorites"
                       >
-                        <Star className="h-3 w-3 fill-current" />
+                        <Star className="h-3.5 w-3.5 fill-current" />
                       </button>
                     )}
                   </div>
