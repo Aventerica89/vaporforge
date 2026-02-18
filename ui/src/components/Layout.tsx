@@ -24,6 +24,7 @@ import { CommitMessageCard } from './CommitMessageCard';
 import { TestResultsOverlay } from './TestResultsOverlay';
 import { StackTraceOverlay } from './StackTraceOverlay';
 import { AgencyDashboard } from './agency/AgencyDashboard';
+import { AgencyEditor } from './agency/AgencyEditor';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
@@ -44,7 +45,8 @@ export function Layout() {
   const { isOpen: settingsOpen } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
   const { isAdmin } = useAuthStore();
-  const { dashboardOpen: agencyDashboardOpen } = useAgencyStore();
+  const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
+    useAgencyStore();
 
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
@@ -244,6 +246,16 @@ export function Layout() {
         <IssueTracker />
         <DevChangelog />
         <DevPlayground />
+        <DebugPanel />
+      </>
+    );
+  }
+
+  // Desktop-only: Full-screen agency visual editor (admin only)
+  if (isAdmin && agencyEditorOpen) {
+    return (
+      <>
+        <AgencyEditor />
         <DebugPanel />
       </>
     );
