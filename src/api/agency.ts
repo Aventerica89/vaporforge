@@ -325,3 +325,79 @@ agencyRoutes.post('/sites/:id/commit', async (c) => {
     }, 500);
   }
 });
+
+// Get diff of changes in the agency container
+agencyRoutes.get('/sites/:id/diff', async (c) => {
+  const siteId = c.req.param('id');
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
+
+  try {
+    // Stat summary of changes
+    const statResult = await sm.execInSandbox(sessionId, 'git diff --stat', {
+      cwd: '/workspace',
+    });
+
+    // Full diff
+    const fullResult = await sm.execInSandbox(sessionId, 'git diff', {
+      cwd: '/workspace',
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        summary: statResult,
+        diff: fullResult,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({
+      success: false,
+      error: `Diff failed: ${msg}`,
+    }, 500);
+  }
+});
+
+// Push changes to remote — triggers CF Pages or similar deploy
+agencyRoutes.post('/sites/:id/push', async (c) => {
+  const siteId = c.req.param('id');
+  const site = await c.env.SESSIONS_KV.get<AgencySite>(
+    `${KV_PREFIX}${siteId}`,
+    'json',
+  );
+
+  if (!site) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
+
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
+
+  try {
+    // Push current branch to remote (fixed commands, no user input)
+    await sm.execInSandbox(sessionId, 'git push origin HEAD', {
+      cwd: '/workspace',
+      timeout: 30_000,
+    });
+
+    // Update site status to building
+    const updated: AgencySite = {
+      ...site,
+      status: 'building',
+      lastEdited: new Date().toISOString(),
+    };
+    await c.env.SESSIONS_KV.put(
+      `${KV_PREFIX}${siteId}`,
+      JSON.stringify(updated),
+    );
+
+    return c.json({ success: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json({
+      success: false,
+      error: `Push failed: ${msg}`,
+    }, 500);
+  }
+});
