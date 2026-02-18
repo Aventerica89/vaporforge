@@ -1,6 +1,5 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { validateComponentEdit } from '../services/agency-validator';
 import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
 import { collectProjectSecrets } from '../sandbox';
@@ -281,98 +280,6 @@ agencyRoutes.get('/sites/:id/edit/logs', async (c) => {
       error: e instanceof Error ? e.message : String(e),
     }, 500);
   }
-});
-
-// Edit a component via AI — writes scoped context for the WS agent
-const EditComponentSchema = z.object({
-  componentFile: z.string().nullable(),
-  instruction: z.string().min(1).max(2000),
-  siteWide: z.boolean().optional(),
-});
-
-agencyRoutes.post('/sites/:id/edit-component', async (c) => {
-  const siteId = c.req.param('id');
-  const body = await c.req.json();
-  const parsed = EditComponentSchema.safeParse(body);
-  if (!parsed.success) {
-    return c.json({ success: false, error: parsed.error.message }, 400);
-  }
-
-  const { componentFile, instruction, siteWide } = parsed.data;
-  const sm = c.get('sandboxManager');
-  const sessionId = `agency-${siteId}`;
-
-  // Read original file for post-edit validation (if component-scoped)
-  let originalContent: string | null = null;
-  if (componentFile) {
-    originalContent = await sm.readFile(
-      sessionId,
-      `/workspace/${componentFile}`,
-    );
-  }
-
-  // Build scoped system prompt
-  const systemPrompt = siteWide
-    ? [
-        'You are editing a website theme.',
-        'Modify ONLY CSS custom properties in the styles directory.',
-        'Do not change component files.',
-      ].join(' ')
-    : [
-        `You are editing a single Astro component: ${componentFile}`,
-        'Rules:',
-        '- Edit ONLY this file',
-        '- Preserve data-vf-component and data-vf-file attributes',
-        '- Use ONLY CSS custom properties (var(--*)) for colors, spacing, typography',
-        '- Do NOT add hardcoded hex colors, pixel values, or font names',
-        '- Preserve the Astro frontmatter (--- block) structure',
-        '- Keep the component functional and valid',
-      ].join('\n');
-
-  // Write context file for WS agent to pick up
-  await sm.writeContextFile(sessionId, {
-    prompt: instruction,
-    sessionId,
-    cwd: '/workspace',
-    env: {
-      VF_AGENCY_MODE: '1',
-      VF_SYSTEM_PROMPT: systemPrompt,
-    },
-  });
-
-  // Post-edit validation: read the modified file and check invariants
-  // This runs after a short delay to let the agent finish
-  if (componentFile && originalContent) {
-    c.executionCtx.waitUntil(
-      (async () => {
-        // Wait for agent to finish editing (best-effort timing)
-        await new Promise((r) => setTimeout(r, 15_000));
-        const modified = await sm.readFile(
-          sessionId,
-          `/workspace/${componentFile}`,
-        );
-        if (modified) {
-          const componentName = componentFile
-            .split('/')
-            .pop()
-            ?.replace('.astro', '') ?? '';
-          const result = validateComponentEdit(
-            originalContent,
-            modified,
-            componentName,
-          );
-          if (!result.valid) {
-            console.warn(
-              `[agency] Validation failed for ${componentFile}:`,
-              result.errors,
-            );
-          }
-        }
-      })(),
-    );
-  }
-
-  return c.json({ success: true });
 });
 
 // Auto-commit changes in the agency container
