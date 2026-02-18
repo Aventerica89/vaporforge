@@ -256,6 +256,7 @@ export function AgencyEditor() {
           siteWide: componentFile ? 'false' : 'true',
         });
         if (componentFile) params.set('componentFile', componentFile);
+        if (elementHTML) params.set('elementHTML', elementHTML);
 
         // Connect WS — agent streams progress, closes when done
         await new Promise<void>((resolve) => {
