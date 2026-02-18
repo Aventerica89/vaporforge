@@ -7,6 +7,8 @@ import {
   Tablet,
   Smartphone,
   Loader2,
+  GitCompare,
+  Rocket,
 } from 'lucide-react';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { ComponentTree } from './ComponentTree';
@@ -36,6 +38,12 @@ export function AgencyEditor() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [diffData, setDiffData] = useState<{
+    summary: string;
+    diff: string;
+  } | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Start editing session on mount
@@ -120,6 +128,46 @@ export function AgencyEditor() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [closeEditor]);
+
+  const handleViewDiff = useCallback(async () => {
+    if (!editingSiteId) return;
+    try {
+      const token = localStorage.getItem('session_token');
+      const res = await fetch(
+        `/api/agency/sites/${editingSiteId}/diff`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (!res.ok) return;
+      const json = await res.json();
+      setDiffData(json.data);
+      setShowDiff(true);
+    } catch {
+      // silently fail
+    }
+  }, [editingSiteId]);
+
+  const handlePushLive = useCallback(async () => {
+    if (!editingSiteId || isPushing) return;
+    setIsPushing(true);
+    try {
+      const token = localStorage.getItem('session_token');
+      const res = await fetch(
+        `/api/agency/sites/${editingSiteId}/push`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error ?? 'Push failed');
+      }
+    } catch {
+      // error handling TBD
+    } finally {
+      setIsPushing(false);
+    }
+  }, [editingSiteId, isPushing]);
 
   const handleSendEdit = useCallback(
     async (instruction: string, componentFile: string | null) => {
@@ -227,8 +275,33 @@ export function AgencyEditor() {
             </span>
           )}
 
-          {/* Right side: close */}
+          {/* Right side: diff, push, close */}
           <div className="ml-auto flex items-center gap-1">
+            {previewUrl && (
+              <>
+                <button
+                  onClick={handleViewDiff}
+                  className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                  title="View changes"
+                >
+                  <GitCompare className="h-3.5 w-3.5" />
+                  <span>Changes</span>
+                </button>
+                <button
+                  onClick={handlePushLive}
+                  disabled={isPushing}
+                  className="flex items-center gap-1 rounded bg-emerald-600/80 px-2 py-1 text-[11px] text-white hover:bg-emerald-500 disabled:opacity-50"
+                  title="Push changes live"
+                >
+                  {isPushing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Rocket className="h-3.5 w-3.5" />
+                  )}
+                  <span>Push Live</span>
+                </button>
+              </>
+            )}
             <button
               onClick={closeEditor}
               className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -282,6 +355,37 @@ export function AgencyEditor() {
         onSendEdit={handleSendEdit}
         isStreaming={isStreaming}
       />
+
+      {/* Diff modal */}
+      {showDiff && diffData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+          <div className="flex max-h-[80vh] w-full max-w-2xl flex-col rounded-lg border border-zinc-700 bg-zinc-900">
+            <div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
+              <span className="text-sm font-medium text-zinc-200">
+                Changes
+              </span>
+              <button
+                onClick={() => setShowDiff(false)}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {diffData.summary && (
+              <div className="border-b border-zinc-800 px-4 py-2">
+                <pre className="whitespace-pre-wrap font-mono text-[11px] text-zinc-400">
+                  {diffData.summary}
+                </pre>
+              </div>
+            )}
+            <div className="flex-1 overflow-auto px-4 py-2">
+              <pre className="whitespace-pre-wrap font-mono text-[11px] text-zinc-300">
+                {diffData.diff || 'No changes'}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
