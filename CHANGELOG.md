@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.26.0] - 2026-02-18
+
+### Added
+- Agency Editor v2: Inspector now highlights specific child elements (buttons, headings, images) instead of only the parent component container
+- Agency Editor v2: AI edits now include selected element HTML and full file source for surgical precision
+- Agency Editor v2: Iframe auto-reloads after each AI edit so changes are immediately visible
+- Agency Editor v2: Astro documentation MCP injected into every agency edit session (client:load, islands, component syntax)
+
+
 ## [Unreleased](https://github.com/Aventerica89/vaporforge/tree/HEAD)
 
 [Full Changelog](https://github.com/Aventerica89/vaporforge/compare/62b07dc8df5f47612c8c6e28c13bd44d0c81a7f5...HEAD)

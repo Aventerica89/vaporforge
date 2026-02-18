@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Bump version to 0.26.0: Agency Editor v2 release (child element inspector, enriched AI context, iframe auto-reload, Astro docs MCP)' },
   { date: '2026-02-18', summary: 'Agency: inject Astro docs MCP (https://mcp.docs.astro.build/mcp) into every agency edit session via CLAUDE_MCP_SERVERS env var' },
   { date: '2026-02-18', summary: 'Agency: enrich AI prompt with elementHTML (selected element outerHTML) and full file source (6000 char cap) for precise edits' },
   { date: '2026-02-18', summary: 'Agency: GET /sites/:id/source reads Astro file from container via execInSandbox cat, 6000 char cap' },
