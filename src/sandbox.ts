@@ -468,14 +468,25 @@ export class SandboxManager {
       { timeout: 5000 }
     );
 
-    // Brief wait for Node process to bind port, then verify
-    await new Promise((r) => setTimeout(r, 300));
-    const verify = await sandbox.exec('pgrep -f ws-agent-server.js || true', { timeout: 3000 });
-    if (verify.stdout?.trim()) {
-      console.log(`[startWsServer] ${sid}: started (pid ${verify.stdout.trim().split('\n')[0]})`);
+    // Poll until port 8765 is actually bound (up to 10s).
+    // A running process doesn't mean the port is listening yet — wsConnect fails if not bound.
+    let bound = false;
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      const portCheck = await sandbox.exec(
+        '(echo > /dev/tcp/localhost/8765) 2>/dev/null && echo "BOUND" || echo "NOT_BOUND"',
+        { timeout: 3000 }
+      );
+      if (portCheck.stdout?.includes('BOUND')) {
+        bound = true;
+        break;
+      }
+    }
+    if (bound) {
+      console.log(`[startWsServer] ${sid}: port 8765 bound and ready`);
     } else {
-      console.error(`[startWsServer] ${sid}: failed to start`);
-      throw new Error('WebSocket agent server failed to start');
+      console.error(`[startWsServer] ${sid}: port 8765 never bound after 10s`);
+      throw new Error('WebSocket agent server failed to bind port 8765');
     }
   }
 

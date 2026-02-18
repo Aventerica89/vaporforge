@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Agency: fix WS edit-ws connection failure — replace 300ms fixed wait with port-bound poll (up to 10s); pre-start ws-agent-server when session becomes ready' },
   { date: '2026-02-18', summary: 'Fix v0.26.0: remove Astro MCP injection (was blocking SDK query); add 3s delay before iframe reload for Astro rebuild; fix APP_VERSION to 0.26.0' },
   { date: '2026-02-18', summary: 'Bump version to 0.26.0: Agency Editor v2 release (child element inspector, enriched AI context, iframe auto-reload, Astro docs MCP)' },
   { date: '2026-02-18', summary: 'Agency: inject Astro docs MCP (https://mcp.docs.astro.build/mcp) into every agency edit session via CLAUDE_MCP_SERVERS env var' },

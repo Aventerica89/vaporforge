@@ -204,6 +204,12 @@ agencyRoutes.get('/sites/:id/edit/status', async (c) => {
       console.log(`[agency] poll: dev server ready for ${id}, exposing port`);
       const result = await sm.exposePort(sessionId, 4321, hostname);
 
+      // Pre-start the WS agent server so it's warm before the first edit request.
+      // Fire-and-forget — don't block the status response.
+      sm.startWsServer(sessionId).catch((e: unknown) => {
+        console.warn(`[agency] pre-start ws-server for ${id}:`, e);
+      });
+
       // Update site status to staging
       const site = await c.env.SESSIONS_KV.get<AgencySite>(
         `${KV_PREFIX}${id}`,
