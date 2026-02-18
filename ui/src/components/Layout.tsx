@@ -31,7 +31,6 @@ import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
-import { useAuthStore } from '@/hooks/useAuth';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
@@ -44,7 +43,6 @@ export function Layout() {
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
-  const { isAdmin } = useAuthStore();
   const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
     useAgencyStore();
 
@@ -251,8 +249,8 @@ export function Layout() {
     );
   }
 
-  // Desktop-only: Full-screen agency visual editor (admin only)
-  if (isAdmin && agencyEditorOpen) {
+  // Desktop-only: Full-screen agency visual editor
+  if (agencyEditorOpen) {
     return (
       <>
         <AgencyEditor />
@@ -261,8 +259,8 @@ export function Layout() {
     );
   }
 
-  // Desktop-only: Full-page agency dashboard (admin only)
-  if (isAdmin && agencyDashboardOpen) {
+  // Desktop-only: Full-page agency dashboard
+  if (agencyDashboardOpen) {
     return (
       <>
         <AgencyDashboard />

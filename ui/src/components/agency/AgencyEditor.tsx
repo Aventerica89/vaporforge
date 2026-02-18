@@ -13,6 +13,7 @@ import {
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { ComponentTree } from './ComponentTree';
 import { EditPanel } from './EditPanel';
+import { AgencyLoadingScreen } from './AgencyLoadingScreen';
 
 interface ComponentInfo {
   component: string;
@@ -36,6 +37,7 @@ export function AgencyEditor() {
   const [treeVisible, setTreeVisible] = useState(true);
   const [viewport, setViewport] = useState<ViewportPreset>('desktop');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | undefined>();
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diffData, setDiffData] = useState<{
@@ -46,17 +48,20 @@ export function AgencyEditor() {
   const [isPushing, setIsPushing] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Start editing session on mount
+  // Start editing session on mount — fire POST then poll for readiness
   useEffect(() => {
     if (!editingSiteId) return;
 
     let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
     setIsLoading(true);
     setError(null);
 
+    const token = localStorage.getItem('session_token');
+
     const startSession = async () => {
       try {
-        const token = localStorage.getItem('session_token');
+        // Fire the start request
         const res = await fetch(`/api/agency/sites/${editingSiteId}/edit`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -72,19 +77,81 @@ export function AgencyEditor() {
         }
 
         const json = await res.json();
-        setPreviewUrl(json.data.previewUrl);
+
+        // If already ready (port was exposed), use immediately
+        if (json.data.status === 'ready' && json.data.previewUrl) {
+          setPreviewUrl(json.data.previewUrl);
+          setIsLoading(false);
+          return;
+        }
+
+        // POST succeeded — setup is in progress. Set initial message.
+        setLoadingMessage('Cloning repository...');
+
+        // Poll for readiness (timeout after 5 minutes)
+        const pollStart = Date.now();
+        const POLL_TIMEOUT = 5 * 60 * 1000;
+
+        pollTimer = setInterval(async () => {
+          if (cancelled) return;
+
+          if (Date.now() - pollStart > POLL_TIMEOUT) {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = null;
+            if (!cancelled) {
+              setError('Provisioning timed out. The container may still be starting — try again in a moment.');
+              setIsLoading(false);
+            }
+            return;
+          }
+
+          try {
+            const statusRes = await fetch(
+              `/api/agency/sites/${editingSiteId}/edit/status`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (!statusRes.ok || cancelled) return;
+
+            const statusJson = await statusRes.json();
+            const { status, previewUrl: url, error: errMsg, message } =
+              statusJson.data ?? {};
+
+            // Update loading screen with real stage
+            if (message && !cancelled) {
+              setLoadingMessage(message);
+            }
+
+            if (status === 'ready' && url) {
+              if (pollTimer) clearInterval(pollTimer);
+              pollTimer = null;
+              if (!cancelled) {
+                setPreviewUrl(url);
+                setIsLoading(false);
+              }
+            } else if (status === 'error') {
+              if (pollTimer) clearInterval(pollTimer);
+              pollTimer = null;
+              if (!cancelled) {
+                setError(errMsg ?? 'Provisioning failed');
+                setIsLoading(false);
+              }
+            }
+          } catch {
+            // Network hiccup — keep polling
+          }
+        }, 3000);
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Failed to start');
+          setIsLoading(false);
         }
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     };
 
     startSession();
     return () => {
       cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
     };
   }, [editingSiteId, setPreviewUrl]);
 
@@ -315,10 +382,7 @@ export function AgencyEditor() {
         {/* Iframe area */}
         <div className="flex flex-1 items-center justify-center overflow-hidden bg-zinc-950 p-2">
           {isLoading ? (
-            <div className="flex flex-col items-center gap-3 text-zinc-400">
-              <Loader2 className="h-6 w-6 animate-spin" />
-              <span className="text-sm">Starting preview server...</span>
-            </div>
+            <AgencyLoadingScreen statusMessage={loadingMessage} />
           ) : error ? (
             <div className="flex max-w-md flex-col items-center gap-3 text-center">
               <span className="text-sm text-red-400">{error}</span>

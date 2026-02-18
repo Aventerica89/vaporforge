@@ -8,6 +8,12 @@ import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
 import { APP_VERSION } from '@/lib/version';
+import {
+  CloudflareLogo,
+  AnthropicLogo,
+  ReactLogo,
+  GithubLogo,
+} from '@/components/logos';
 
 /** Format a date string as relative time (e.g. "2h ago", "3d ago") */
 function timeAgo(dateStr: string): string {
@@ -687,9 +693,26 @@ export function WelcomeScreen() {
         </div>
         <Changelog />
 
-        {/* Footer Info */}
-        <div className="text-center text-xs text-muted-foreground font-mono animate-fade-up stagger-4">
-          <p>Powered by Cloudflare Sandboxes</p>
+        {/* Powered by logos */}
+        <div className="flex items-center justify-center gap-6 animate-fade-up stagger-4">
+          <span className="text-[10px] tracking-widest uppercase text-muted-foreground/40 font-display">
+            Powered by
+          </span>
+          {[
+            { Logo: CloudflareLogo, label: 'Cloudflare' },
+            { Logo: AnthropicLogo, label: 'Anthropic' },
+            { Logo: ReactLogo, label: 'React' },
+            { Logo: GithubLogo, label: 'GitHub' },
+          ].map(({ Logo, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-1.5 opacity-40 hover:opacity-70 transition-opacity"
+              title={label}
+            >
+              <Logo className="h-4 w-4" />
+              <span className="text-[10px] text-muted-foreground font-mono">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 

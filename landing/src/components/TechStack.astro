@@ -1,8 +1,15 @@
 ---
+// Inline SVG logo paths for Astro (can't import React components)
+const logoSvgs: Record<string, string> = {
+  cloudflare: '<svg width="16" height="16" viewBox="0 0 24 24"><path fill="#F38020" d="M16.5088 16.8447c.1475-.5068.0908-.9707-.1553-1.3154-.2246-.3164-.6045-.499-1.0615-.5205l-8.6592-.1123a.1559.1559 0 0 1-.1333-.0713c-.0283-.042-.0351-.0986-.021-.1553.0278-.084.1123-.1484.2036-.1562l8.7359-.1123c1.0351-.0489 2.1601-.8868 2.5537-1.9136l.499-1.3013c.0215-.0561.0293-.1128.0147-.168-.5625-2.5463-2.835-4.4453-5.5499-4.4453-2.5039 0-4.6284 1.6177-5.3876 3.8614-.4927-.3658-1.1187-.5625-1.794-.499-1.2026.119-2.1665 1.083-2.2861 2.2856-.0283.31-.0069.6128.0635.894C1.5683 13.171 0 14.7754 0 16.752c0 .1748.0142.3515.0352.5273.0141.083.0844.1475.1689.1475h15.9814c.0909 0 .1758-.0645.2032-.1553l.12-.4268zm2.7568-5.5634c-.0771 0-.1611 0-.2383.0112-.0566 0-.1054.0415-.127.0976l-.3378 1.1744c-.1475.5068-.0918.9707.1543 1.3164.2256.3164.6055.498 1.0625.5195l1.8437.1133c.0557 0 .1055.0263.1329.0703.0283.043.0351.1074.0214.1562-.0283.084-.1132.1485-.204.1553l-1.921.1123c-1.041.0488-2.1582.8867-2.5527 1.914l-.1406.3585c-.0283.0713.0215.1416.0986.1416h6.5977c.0771 0 .1474-.0489.169-.126.1122-.4082.1757-.837.1757-1.2803 0-2.6025-2.125-4.727-4.7344-4.727"/></svg>',
+  claude: '<svg width="16" height="16" viewBox="0 0 24 24" fill="#D97757" fill-rule="evenodd"><path d="M13.827 3.52h3.603L24 20h-3.603l-6.57-16.48zm-7.258 0h3.767L16.906 20h-3.674l-1.343-3.461H5.017l-1.344 3.46H0L6.57 3.522zm4.132 9.959L8.453 7.687 6.205 13.48H10.7z"/></svg>',
+};
+
 const technologies = [
   {
     label: 'INFRASTRUCTURE',
     title: 'Cloudflare Edge Network',
+    logo: 'cloudflare' as const,
     description: 'Your sandbox runs on Cloudflare Workers + Containers, deployed across 300+ cities worldwide. Sub-50ms latency from almost anywhere. No cold start VMs — containers boot in seconds and stay warm between sessions.',
     color: 'accent',
     details: [
@@ -39,6 +46,7 @@ const technologies = [
   {
     label: 'AI ENGINE',
     title: 'Claude Code SDK',
+    logo: 'claude' as const,
     description: 'VaporForge wraps the official Claude Code SDK — the same engine that powers Claude Code CLI. Streaming AI responses, tool use, file editing, and multi-turn reasoning. Bring your own Claude Pro or Max subscription — zero API markup.',
     color: 'purple-dark',
     details: [
@@ -97,7 +105,7 @@ const colorMap: Record<string, { border: string; text: string; glow: string; bg:
     </div>
 
     <div class="space-y-8 lg:space-y-6">
-      {technologies.map(({ label, title, description, color, details }, i) => {
+      {technologies.map(({ label, title, logo, description, color, details }, i) => {
         const c = colorMap[color];
         const isEven = i % 2 === 0;
         return (
@@ -107,7 +115,8 @@ const colorMap: Record<string, { border: string; text: string; glow: string; bg:
                 <!-- Text content -->
                 <div class="flex-1 min-w-0">
                   <span class={`font-display text-[10px] tracking-[0.4em] uppercase ${c.text}`}>{label}</span>
-                  <h3 class="mt-3 font-display text-2xl font-bold tracking-wide text-white sm:text-3xl">
+                  <h3 class="mt-3 flex items-center gap-3 font-display text-2xl font-bold tracking-wide text-white sm:text-3xl">
+                    {logo && <span class="shrink-0" set:html={logoSvgs[logo]} />}
                     {title}
                   </h3>
                   <p class="mt-4 text-vapor-muted leading-relaxed">

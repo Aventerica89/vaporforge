@@ -39,7 +39,7 @@ export function SessionTabBar() {
     renameSession,
     gitStatus,
   } = useSandboxStore();
-  const { logout, isAdmin } = useAuthStore();
+  const { logout } = useAuthStore();
   const { isDark, toggleTheme } = useTheme();
   const { openSettings } = useSettingsStore();
 
@@ -275,16 +275,14 @@ export function SessionTabBar() {
           )}
         </button>
 
-        {/* Agency (admin only) */}
-        {isAdmin && (
-          <button
-            onClick={() => useAgencyStore.getState().openDashboard()}
-            className="rounded-md p-1.5 hover:bg-accent"
-            title="Agency Sites"
-          >
-            <Globe className="h-3.5 w-3.5" />
-          </button>
-        )}
+        {/* Agency */}
+        <button
+          onClick={() => useAgencyStore.getState().openDashboard()}
+          className="rounded-md p-1.5 hover:bg-accent"
+          title="Agency Sites"
+        >
+          <Globe className="h-3.5 w-3.5" />
+        </button>
 
         {/* Marketplace */}
         <button

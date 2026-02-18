@@ -1,5 +1,14 @@
 import { Terminal, ExternalLink, Zap } from 'lucide-react';
 import { APP_VERSION, CHANGELOG } from '@/lib/version';
+import {
+  CloudflareLogo,
+  ReactLogo,
+  AnthropicLogo,
+  ClaudeLogo,
+  GeminiLogo,
+  GithubLogo,
+  StripeLogo,
+} from '@/components/logos';
 
 function FeatureChip({ children }: { children: React.ReactNode }) {
   return (
@@ -89,21 +98,64 @@ export function AboutTab() {
         </h3>
         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
           <div className="text-muted-foreground">Backend</div>
-          <div className="text-foreground">Cloudflare Workers + Sandboxes</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <CloudflareLogo className="h-3.5 w-3.5 shrink-0" />
+            Cloudflare Workers + Sandboxes
+          </div>
           <div className="text-muted-foreground">Frontend</div>
-          <div className="text-foreground">React 18 + Vite + Tailwind</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <ReactLogo className="h-3.5 w-3.5 shrink-0" />
+            React 18 + Vite + Tailwind
+          </div>
           <div className="text-muted-foreground">AI</div>
-          <div className="text-foreground">Vercel AI SDK v6 + Agent SDK</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <AnthropicLogo className="h-3.5 w-3.5 shrink-0" />
+            Vercel AI SDK v6 + Agent SDK
+          </div>
           <div className="text-muted-foreground">Auth</div>
-          <div className="text-foreground">Claude OAuth (setup-token)</div>
-          <div className="text-muted-foreground">Secrets</div>
-          <div className="text-foreground">1Password Service Account</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <ClaudeLogo className="h-3.5 w-3.5 shrink-0" />
+            Claude OAuth (setup-token)
+          </div>
           <div className="text-muted-foreground">AI Providers</div>
-          <div className="text-foreground">Claude (primary) + Gemini (MCP)</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <GeminiLogo className="h-3.5 w-3.5 shrink-0" />
+            Claude (primary) + Gemini (MCP)
+          </div>
           <div className="text-muted-foreground">Storage</div>
-          <div className="text-foreground">Cloudflare KV + R2</div>
+          <div className="flex items-center gap-1.5 text-foreground">
+            <CloudflareLogo className="h-3.5 w-3.5 shrink-0" />
+            Cloudflare KV + R2
+          </div>
           <div className="text-muted-foreground">Container</div>
           <div className="text-foreground">standard-2 (1 vCPU, 6 GiB)</div>
+        </div>
+      </section>
+
+      {/* Built with logos */}
+      <section className="space-y-2">
+        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+          Built with
+        </h3>
+        <div className="flex flex-wrap items-center gap-4">
+          {[
+            { Logo: CloudflareLogo, label: 'Cloudflare' },
+            { Logo: AnthropicLogo, label: 'Anthropic' },
+            { Logo: ClaudeLogo, label: 'Claude' },
+            { Logo: ReactLogo, label: 'React' },
+            { Logo: GeminiLogo, label: 'Gemini' },
+            { Logo: GithubLogo, label: 'GitHub' },
+            { Logo: StripeLogo, label: 'Stripe' },
+          ].map(({ Logo, label }) => (
+            <div
+              key={label}
+              className="flex items-center gap-1.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+              title={label}
+            >
+              <Logo className="h-4 w-4" />
+              <span className="text-[10px] font-mono">{label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
