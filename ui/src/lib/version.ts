@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.24.0';
+export const APP_VERSION = '0.25.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -12,6 +12,22 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.25.0',
+    date: '2026-02-17',
+    tag: 'feature',
+    title: 'Agency Mode — Visual Editor for Client Sites',
+    items: [
+      'Admin-only Agency dashboard with site management (add, edit, delete)',
+      'Visual editor with live iframe preview and viewport presets (desktop, tablet, mobile)',
+      'Click-to-select inspector overlay — click any component to target it for AI editing',
+      'Component tree sidebar with category grouping',
+      'AI edit pipeline with scoped system prompts and post-edit validation',
+      'Auto-commit after every edit with descriptive messages',
+      'Staging workflow — view git diff and push changes live',
+      'Removed legacy vaporforge.jbcloud.app route (primary domain: vaporforge.dev)',
+    ],
+  },
   {
     version: '0.24.0',
     date: '2026-02-17',
