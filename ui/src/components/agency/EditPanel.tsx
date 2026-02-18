@@ -4,6 +4,9 @@ import { Send, Undo2, FileCode, Globe } from 'lucide-react';
 interface SelectedComponent {
   component: string;
   file: string;
+  elementTag?: string;
+  elementHTML?: string;
+  elementText?: string;
 }
 
 interface EditEntry {
@@ -16,7 +19,7 @@ interface EditEntry {
 interface Props {
   selectedComponent: SelectedComponent | null;
   siteId: string | null;
-  onSendEdit: (instruction: string, componentFile: string | null) => void;
+  onSendEdit: (instruction: string, componentFile: string | null, elementHTML: string | null) => void;
   isStreaming: boolean;
 }
 
@@ -46,7 +49,7 @@ export function EditPanel({
       timestamp: Date.now(),
     };
     setEditHistory((prev) => [entry, ...prev]);
-    onSendEdit(trimmed, selectedComponent?.file || null);
+    onSendEdit(trimmed, selectedComponent?.file || null, selectedComponent?.elementHTML ?? null);
     setInstruction('');
   };
 

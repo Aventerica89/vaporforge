@@ -18,6 +18,9 @@ import { AgencyLoadingScreen } from './AgencyLoadingScreen';
 interface ComponentInfo {
   component: string;
   file: string;
+  elementTag?: string;
+  elementHTML?: string;
+  elementText?: string;
 }
 
 type ViewportPreset = 'desktop' | 'tablet' | 'mobile';
@@ -175,6 +178,9 @@ export function AgencyEditor() {
         setSelectedComponent({
           component: data.component,
           file: data.file,
+          elementTag: data.elementTag,
+          elementHTML: data.elementHTML,
+          elementText: data.elementText,
         });
       } else if (data.type === 'vf-deselect') {
         setSelectedComponent(null);
@@ -237,7 +243,7 @@ export function AgencyEditor() {
   }, [editingSiteId, isPushing]);
 
   const handleSendEdit = useCallback(
-    async (instruction: string, componentFile: string | null) => {
+    async (instruction: string, componentFile: string | null, elementHTML: string | null) => {
       if (!editingSiteId) return;
       setIsStreaming(true);
       try {
