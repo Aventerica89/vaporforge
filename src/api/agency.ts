@@ -357,20 +357,29 @@ agencyRoutes.get('/sites/:id/diff', async (c) => {
   const sessionId = `agency-${siteId}`;
 
   try {
-    // Stat summary of changes
+    // Status summary (includes untracked new files the agent may have created)
+    const statusResult = await sm.execInSandbox(sessionId, 'git status --short', {
+      cwd: '/workspace',
+    });
+
+    // Stat summary of changes to tracked files
     const statResult = await sm.execInSandbox(sessionId, 'git diff --stat', {
       cwd: '/workspace',
     });
 
-    // Full diff
+    // Full diff (tracked files)
     const fullResult = await sm.execInSandbox(sessionId, 'git diff', {
       cwd: '/workspace',
     });
 
+    const summary = [statusResult.stdout?.trim(), statResult.stdout?.trim()]
+      .filter(Boolean)
+      .join('\n');
+
     return c.json({
       success: true,
       data: {
-        summary: statResult.stdout,
+        summary,
         diff: fullResult.stdout,
       },
     });
@@ -493,7 +502,7 @@ export async function handleAgencyEditWs(
         `- Edit ONLY ${componentFile}`,
         '- Preserve data-vf-component and data-vf-file attributes on elements',
         '- Keep the file syntactically valid Astro',
-        ...(elementHTML ? ['- Add/modify elements adjacent to the selected element above'] : []),
+        ...(elementHTML ? ['- Modify the selected element or its children to fulfill the task'] : []),
       ].join('\n');
 
   try {
@@ -512,6 +521,7 @@ export async function handleAgencyEditWs(
         IS_SANDBOX: '1',
         ...collectProjectSecrets(env),
         VF_AGENCY_MODE: '1',
+        VF_AUTO_CONTEXT: '0', // Skip auto-context in agency mode (irrelevant for file edits)
       },
     });
 

@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-18', summary: 'Agency: fix no-changes bug — disable continue:true in agency mode (fresh session per edit), fix adjacent→selected instruction, add VF_AUTO_CONTEXT:0, add git status to diff endpoint' },
   { date: '2026-02-18', summary: 'Agency: ready handshake (vf-ready postMessage), connection indicator dot, live streaming output in EditPanel, vf-reload postMessage instead of src reset' },
   { date: '2026-02-18', summary: 'Agency: fix WS edit-ws connection failure — replace 300ms fixed wait with port-bound poll (up to 10s); pre-start ws-agent-server when session becomes ready' },
   { date: '2026-02-18', summary: 'Fix v0.26.0: remove Astro MCP injection (was blocking SDK query); add 3s delay before iframe reload for Astro rebuild; fix APP_VERSION to 0.26.0' },

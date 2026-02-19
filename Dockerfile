@@ -187,7 +187,9 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const mode = process.env.VF_SESSION_MODE || 'agent';
   const isPlan = mode === 'plan';
+  const isAgency = process.env.VF_AGENCY_MODE === '1';
   if (isPlan) console.error('[claude-agent] Running in PLAN mode (read-only)');
+  if (isAgency) console.error('[claude-agent] Running in AGENCY mode (fresh session, no continue)');
   const agents = loadAgentsFromDisk();
 
   // Filter out keys the SDK's CLI child process shouldn't see
@@ -228,7 +230,8 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
         return true;
       },
     } : {}),
-    continue: true,
+    // Agency edits always start fresh — no accumulated conversation history from prior failed attempts
+    ...(isAgency ? {} : { continue: true }),
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
