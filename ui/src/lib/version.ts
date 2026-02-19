@@ -19,6 +19,8 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency Code Mode (Task 7): wire helpers + code editors into AgencyEditor — loadFilesForComponent, saveFile (1s debounce), handleAstroChange/CssChange, handleInlineAIInsert; PanelGroup vertical split preview+editors; AgencyInlineAI in right panel' },
+  { date: '2026-02-19', summary: 'Agency Code Mode: create AgencyCodePane (dual Monaco editors, horizontal PanelGroup) and AgencyInlineAI (SSE stream generate, apply button) components; add GET/PUT file + POST inline-ai backend endpoints' },
   { date: '2026-02-19', summary: 'Agency: add debug panel — paste/drop screenshot, stream AI vision analysis for CSS specificity issues; debug endpoint uses AI SDK streamText with Claude/Gemini API key' },
   { date: '2026-02-19', summary: 'Agency: update fullPrompt CSS specificity rules — agent now checks for explicit CSS class color declarations before adding Tailwind utilities, uses ! prefix for overrides; reads CSS files when instruction involves colors' },
   { date: '2026-02-19', summary: 'Agency: fix post-edit preview reload — switch from contentWindow.postMessage (silently dropped if inspector not listening) to iframe.src=iframe.src (always works); bump delay 3s→5s for Astro rebuild time' },

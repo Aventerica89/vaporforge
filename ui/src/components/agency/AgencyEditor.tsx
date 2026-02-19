@@ -10,12 +10,16 @@ import {
   GitCompare,
   Rocket,
   Bug,
+  Code2,
 } from 'lucide-react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { ComponentTree } from './ComponentTree';
 import { EditPanel } from './EditPanel';
 import { AgencyLoadingScreen } from './AgencyLoadingScreen';
 import { AgencyDebugPanel } from './AgencyDebugPanel';
+import { AgencyCodePane } from './AgencyCodePane';
+import { AgencyInlineAI } from './AgencyInlineAI';
 
 interface ComponentInfo {
   component: string;
@@ -54,7 +58,16 @@ export function AgencyEditor() {
   const [showDiff, setShowDiff] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [codeMode, setCodeMode] = useState(false);
+  const [codePaneCollapsed, setCodePaneCollapsed] = useState(false);
+  const [activePane, setActivePane] = useState<'astro' | 'css'>('astro');
+  const [astroContent, setAstroContent] = useState('');
+  const [cssContent, setCssContent] = useState('');
+  const [astroFile, setAstroFile] = useState('');
+  const [cssFile, setCssFile] = useState('src/styles/global.css');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const astroSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cssSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Start editing session on mount — fire POST then poll for readiness
   useEffect(() => {
@@ -200,10 +213,111 @@ export function AgencyEditor() {
     return () => window.removeEventListener('message', handleMessage);
   }, [previewUrl]);
 
-  // Escape key closes editor
+  // Load astro + CSS files for a component into the code editors
+  const loadFilesForComponent = useCallback(async (file: string) => {
+    if (!editingSiteId) return;
+    const token = localStorage.getItem('session_token');
+    setAstroFile(file);
+    try {
+      const res = await fetch(
+        `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(file)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setAstroContent(json.data?.content ?? '');
+      }
+    } catch {
+      setAstroContent('');
+    }
+    // Try scoped CSS first (same stem as the .astro file)
+    const stemPath = file.replace(/\.astro$/, '');
+    const cssPath = `${stemPath}.css`;
+    try {
+      const cssRes = await fetch(
+        `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(cssPath)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (cssRes.ok) {
+        const cssJson = await cssRes.json();
+        setCssFile(cssPath);
+        setCssContent(cssJson.data?.content ?? '');
+        return;
+      }
+    } catch {}
+    // Fallback: global.css
+    const globalCssPath = 'src/styles/global.css';
+    setCssFile(globalCssPath);
+    try {
+      const globalRes = await fetch(
+        `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(globalCssPath)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      if (globalRes.ok) {
+        const globalJson = await globalRes.json();
+        setCssContent(globalJson.data?.content ?? '');
+      }
+    } catch {
+      setCssContent('');
+    }
+  }, [editingSiteId]);
+
+  const saveFile = useCallback(async (path: string, content: string) => {
+    if (!editingSiteId) return;
+    const token = localStorage.getItem('session_token');
+    try {
+      await fetch(`/api/agency/sites/${editingSiteId}/file`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ path, content }),
+      });
+    } catch {}
+  }, [editingSiteId]);
+
+  const handleAstroChange = useCallback((value: string) => {
+    setAstroContent(value);
+    if (astroSaveTimer.current) clearTimeout(astroSaveTimer.current);
+    astroSaveTimer.current = setTimeout(() => saveFile(astroFile, value), 1000);
+  }, [saveFile, astroFile]);
+
+  const handleCssChange = useCallback((value: string) => {
+    setCssContent(value);
+    if (cssSaveTimer.current) clearTimeout(cssSaveTimer.current);
+    cssSaveTimer.current = setTimeout(() => saveFile(cssFile, value), 1000);
+  }, [saveFile, cssFile]);
+
+  const handleInlineAIInsert = useCallback((pane: 'astro' | 'css', text: string) => {
+    if (pane === 'astro') {
+      const next = astroContent + '\n' + text;
+      setAstroContent(next);
+      saveFile(astroFile, next);
+    } else {
+      const next = cssContent + '\n' + text;
+      setCssContent(next);
+      saveFile(cssFile, next);
+    }
+  }, [astroContent, cssContent, astroFile, cssFile, saveFile]);
+
+  // Load files when code mode activates and a component is selected
+  useEffect(() => {
+    if (codeMode && selectedComponent?.file) {
+      loadFilesForComponent(selectedComponent.file);
+    }
+  }, [codeMode, selectedComponent?.file, loadFilesForComponent]);
+
+  // Keyboard shortcuts: Escape closes editor, Cmd+Shift+E toggles Code Mode,
+  // Cmd+Shift+\ toggles code editors, Cmd+\ toggles tree
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeEditor();
+      if (e.key === 'Escape') { closeEditor(); return; }
+      if (e.metaKey || e.ctrlKey) {
+        if (e.shiftKey && e.key === 'E') { e.preventDefault(); setCodeMode((v) => !v); return; }
+        if (e.shiftKey && e.key === '\\') { e.preventDefault(); setCodePaneCollapsed((v) => !v); return; }
+        if (e.key === '\\') { e.preventDefault(); setTreeVisible((v) => !v); }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -417,10 +531,20 @@ export function AgencyEditor() {
             />
           )}
 
-          {/* Right side: debug, diff, push, close */}
+          {/* Right side: code mode, debug, diff, push, close */}
           <div className="ml-auto flex items-center gap-1">
             {previewUrl && (
               <>
+                <button
+                  onClick={() => setCodeMode((v) => !v)}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] hover:bg-zinc-800 ${
+                    codeMode ? 'bg-zinc-700 text-violet-400' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  title="Toggle Code Mode (Cmd+Shift+E)"
+                >
+                  <Code2 className="h-3.5 w-3.5" />
+                  <span>Code</span>
+                </button>
                 <button
                   onClick={() => setShowDebug(true)}
                   className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] hover:bg-zinc-800 ${
@@ -464,47 +588,109 @@ export function AgencyEditor() {
           </div>
         </div>
 
-        {/* Iframe area */}
-        <div className="flex flex-1 items-center justify-center overflow-hidden bg-zinc-950 p-2">
+        {/* Center: preview + optional code editors */}
+        <div className="flex flex-1 flex-col overflow-hidden">
           {isLoading ? (
-            <AgencyLoadingScreen statusMessage={loadingMessage} />
+            <div className="flex flex-1 items-center justify-center">
+              <AgencyLoadingScreen statusMessage={loadingMessage} />
+            </div>
           ) : error ? (
-            <div className="flex max-w-md flex-col items-center gap-3 text-center">
-              <span className="text-sm text-red-400">{error}</span>
-              <button
-                onClick={closeEditor}
-                className="rounded-md bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
-              >
-                Back to Dashboard
-              </button>
+            <div className="flex flex-1 items-center justify-center">
+              <div className="flex max-w-md flex-col items-center gap-3 text-center">
+                <span className="text-sm text-red-400">{error}</span>
+                <button
+                  onClick={closeEditor}
+                  className="rounded-md bg-zinc-800 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
             </div>
           ) : previewUrl ? (
-            <div
-              className="h-full transition-all duration-300"
-              style={{
-                width: VIEWPORT_WIDTHS[viewport],
-                maxWidth: '100%',
-              }}
-            >
-              <iframe
-                ref={iframeRef}
-                src={previewUrl}
-                className="h-full w-full rounded-md border border-zinc-800 bg-white"
-                sandbox="allow-scripts allow-same-origin"
-              />
-            </div>
+            codeMode ? (
+              <PanelGroup direction="vertical">
+                <Panel defaultSize={55} minSize={20}>
+                  <div className="flex h-full items-center justify-center overflow-hidden bg-zinc-950 p-2">
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{ width: VIEWPORT_WIDTHS[viewport], maxWidth: '100%' }}
+                    >
+                      <iframe
+                        ref={iframeRef}
+                        src={previewUrl}
+                        className="h-full w-full rounded-md border border-zinc-800 bg-white"
+                        sandbox="allow-scripts allow-same-origin"
+                      />
+                    </div>
+                  </div>
+                </Panel>
+                {!codePaneCollapsed && (
+                  <>
+                    <PanelResizeHandle className="h-1.5 bg-zinc-700 hover:bg-violet-500 cursor-row-resize transition-colors" />
+                    <Panel defaultSize={45} minSize={15}>
+                      <AgencyCodePane
+                        astroFile={astroFile}
+                        cssFile={cssFile}
+                        astroContent={astroContent}
+                        cssContent={cssContent}
+                        onAstroChange={handleAstroChange}
+                        onCssChange={handleCssChange}
+                        activePane={activePane}
+                        onActivePaneChange={setActivePane}
+                        onCollapse={() => setCodePaneCollapsed(true)}
+                      />
+                    </Panel>
+                  </>
+                )}
+                {codePaneCollapsed && (
+                  <button
+                    onClick={() => setCodePaneCollapsed(false)}
+                    className="flex h-6 w-full items-center justify-center border-t border-zinc-700 bg-zinc-900 text-[10px] text-zinc-500 hover:text-zinc-300"
+                  >
+                    Show editors
+                  </button>
+                )}
+              </PanelGroup>
+            ) : (
+              <div className="flex flex-1 items-center justify-center overflow-hidden bg-zinc-950 p-2">
+                <div
+                  className="h-full transition-all duration-300"
+                  style={{ width: VIEWPORT_WIDTHS[viewport], maxWidth: '100%' }}
+                >
+                  <iframe
+                    ref={iframeRef}
+                    src={previewUrl}
+                    className="h-full w-full rounded-md border border-zinc-800 bg-white"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                </div>
+              </div>
+            )
           ) : null}
         </div>
       </div>
 
-      {/* Edit Panel (right sidebar) */}
-      <EditPanel
-        selectedComponent={selectedComponent}
-        siteId={editingSiteId}
-        onSendEdit={handleSendEdit}
-        isStreaming={isStreaming}
-        streamingOutput={streamingOutput}
-      />
+      {/* Right panel: Edit (Chat Mode) or Inline AI (Code Mode) */}
+      {codeMode ? (
+        <div className="w-72 shrink-0">
+          <AgencyInlineAI
+            siteId={editingSiteId}
+            activePane={activePane}
+            cssContext={cssContent}
+            astroContext={astroContent}
+            elementContext={selectedComponent?.elementHTML ?? ''}
+            onInsert={handleInlineAIInsert}
+          />
+        </div>
+      ) : (
+        <EditPanel
+          selectedComponent={selectedComponent}
+          siteId={editingSiteId}
+          onSendEdit={handleSendEdit}
+          isStreaming={isStreaming}
+          streamingOutput={streamingOutput}
+        />
+      )}
 
       {/* Debug panel */}
       {showDebug && (
