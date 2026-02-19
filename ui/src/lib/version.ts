@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency: fix root cause of WebSocket connection failure — index.ts WS interceptor only routed /api/sdk/ws through Hono; /api/agency/edit-ws fell to DO branch and returned 400 Missing sessionId since agency WS uses siteId not sessionId' },
   { date: '2026-02-19', summary: 'Agency: WS debug — remove startWsServer from WS handler (pre-flight handles it), add console.log for wsConnect status to diagnose silent failures' },
   { date: '2026-02-19', summary: 'Agency: move all edit prep (token type check, WS warm-up, prompt build, context file write) to pre-flight; WS handler is now trivial proxy; fixes silent 401 when user has API key instead of OAuth token' },
   { date: '2026-02-19', summary: 'Agency: add HTTP pre-flight before WS connect — calls /api/agency/edit-preflight to warm WS server and get readable JSON error; OAuth token check improved with better error messages' },

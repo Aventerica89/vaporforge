@@ -25,8 +25,8 @@ export default {
     if (request.headers.get('Upgrade') === 'websocket') {
       const url = new URL(request.url);
 
-      // SDK WebSocket streaming — route through Hono (auth + sandbox proxy)
-      if (url.pathname === '/api/sdk/ws') {
+      // WS paths that need auth + sandbox proxy (routed through Hono)
+      if (url.pathname === '/api/sdk/ws' || url.pathname === '/api/agency/edit-ws') {
         const router = createRouter(env);
         return router.fetch(request, env, ctx);
       }
