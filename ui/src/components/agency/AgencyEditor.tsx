@@ -279,6 +279,15 @@ export function AgencyEditor() {
                     ? updated.slice(updated.length - 800)
                     : updated;
                 });
+              } else if (msg.type === 'error' && msg.error) {
+                // Surface agent errors — previously these were silently dropped
+                setStreamingOutput((prev) => prev + `\n[ERROR] ${msg.error}`);
+              } else if (msg.type === 'stderr' && msg.text) {
+                // Debug stderr lines forwarded from the container
+                setStreamingOutput((prev) => {
+                  const updated = prev + `\n[DBG] ${msg.text}`;
+                  return updated.length > 1200 ? updated.slice(updated.length - 1200) : updated;
+                });
               } else if (msg.type === 'process-exit') {
                 ws.close();
               }

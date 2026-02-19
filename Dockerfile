@@ -842,6 +842,10 @@ function startQuery(ws) {
     // Log agent debug output server-side
     if (text.startsWith('[claude-agent]')) {
       console.log(`[ws-agent-server] ${text.slice(0, 200)}`);
+      // Also forward as debug frame so the browser can show it in the streaming panel
+      if (ws.readyState === 1) {
+        sendJson(ws, { type: 'stderr', text: text.slice(0, 300) });
+      }
       return;
     }
     // Forward structured errors to the client
