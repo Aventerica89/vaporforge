@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.26.0';
+export const APP_VERSION = '0.27.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Bump version to 0.27.0: Agency Code Mode — dual Monaco editors + Inline AI in visual Astro editor' },
   { date: '2026-02-19', summary: 'Agency Code Mode (Task 7): wire helpers + code editors into AgencyEditor — loadFilesForComponent, saveFile (1s debounce), handleAstroChange/CssChange, handleInlineAIInsert; PanelGroup vertical split preview+editors; AgencyInlineAI in right panel' },
   { date: '2026-02-19', summary: 'Agency Code Mode: create AgencyCodePane (dual Monaco editors, horizontal PanelGroup) and AgencyInlineAI (SSE stream generate, apply button) components; add GET/PUT file + POST inline-ai backend endpoints' },
   { date: '2026-02-19', summary: 'Agency: add debug panel — paste/drop screenshot, stream AI vision analysis for CSS specificity issues; debug endpoint uses AI SDK streamText with Claude/Gemini API key' },
