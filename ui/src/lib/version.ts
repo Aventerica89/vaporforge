@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency inspector: fix Shadow DOM regression — use static getter syntax for observedAttributes (ES6 compatible vs ES2022 class fields); consolidate cssText multi-line concat to single string' },
   { date: '2026-02-19', summary: 'Agency inspector: Shadow DOM for overlays — vf-highlight + vf-tooltip custom elements with all:initial prevent user Astro CSS from overriding inspector styles' },
   { date: '2026-02-19', summary: 'Agency: fix closest() to prefer file-tagged ancestors (enables code editors to load on click); fire-and-forget inspector refresh on existing containers; useEffect tracks component name change; onSelect directly calls loadFilesForComponent in code mode' },
   { date: '2026-02-19', summary: 'Agency: preview refresh button (RotateCw); Debug panel global paste listener (Ctrl+V anywhere); description textarea for pasting HTML/CSS/errors; Analyze works with image OR text' },
