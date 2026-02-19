@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency: fix streaming panel UX — show working indicator whenever isStreaming (not just when output exists); persist output after stream ends; clear output at start of next edit only; add WS error message on onerror' },
   { date: '2026-02-19', summary: 'Agency: surface agent errors in streaming panel — handle error+stderr WS message types (were silently dropped); forward [claude-agent] stderr to client for visibility' },
   { date: '2026-02-19', summary: 'Agency: GitHub repo browser in New Site modal — browse/filter repos by username, Astro-only toggle, 1hr cache, auto-fills name+url on select' },
   { date: '2026-02-18', summary: 'Agency: fix no-changes bug — disable continue:true in agency mode (fresh session per edit), fix adjacent→selected instruction, add VF_AUTO_CONTEXT:0, add git status to diff endpoint' },

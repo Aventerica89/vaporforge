@@ -294,7 +294,10 @@ export function AgencyEditor() {
             } catch {}
           };
           ws.onclose = () => resolve();
-          ws.onerror = () => resolve();
+          ws.onerror = () => {
+            setStreamingOutput((prev) => prev + '\n[ERROR] WebSocket connection failed');
+            resolve();
+          };
         });
 
         // Auto-commit now that agent has finished
@@ -315,7 +318,6 @@ export function AgencyEditor() {
         // Tell iframe to reload after Astro dev server has had time to rebuild (~3s)
         await new Promise((r) => setTimeout(r, 3000));
         setIframeConnected(false);
-        setStreamingOutput('');
         iframeRef.current?.contentWindow?.postMessage({ type: 'vf-reload' }, '*');
       } catch {
         // Errors surface via WS frames

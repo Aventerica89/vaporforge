@@ -102,18 +102,25 @@ export function EditPanel({
         </div>
       )}
 
-      {/* Streaming output — shown while AI is working */}
-      {isStreaming && streamingOutput && (
+      {/* Streaming output — shown while AI is working or when there's output to show */}
+      {(isStreaming || streamingOutput) && (
         <div className="border-b border-zinc-800 bg-zinc-950 px-3 py-2">
           <div className="mb-1 flex items-center gap-1.5">
-            <Terminal className="h-3 w-3 text-cyan-500" />
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-cyan-600">
-              Agent working...
+            {isStreaming && (
+              <span className="block h-2 w-2 animate-spin rounded-full border border-cyan-500 border-t-transparent" />
+            )}
+            {!isStreaming && <Terminal className="h-3 w-3 text-zinc-500" />}
+            <span className={`text-[9px] font-semibold uppercase tracking-wider ${isStreaming ? 'text-cyan-600' : 'text-zinc-500'}`}>
+              {isStreaming ? 'Agent working...' : 'Last run output'}
             </span>
           </div>
-          <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-zinc-400">
-            {streamingOutput}
-          </pre>
+          {streamingOutput ? (
+            <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-zinc-400">
+              {streamingOutput}
+            </pre>
+          ) : (
+            <p className="text-[10px] text-zinc-600 italic">No output yet...</p>
+          )}
         </div>
       )}
 
