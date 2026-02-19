@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency: fix closest() to prefer file-tagged ancestors (enables code editors to load on click); fire-and-forget inspector refresh on existing containers; useEffect tracks component name change; onSelect directly calls loadFilesForComponent in code mode' },
   { date: '2026-02-19', summary: 'Agency: preview refresh button (RotateCw); Debug panel global paste listener (Ctrl+V anywhere); description textarea for pasting HTML/CSS/errors; Analyze works with image OR text' },
   { date: '2026-02-19', summary: 'Agency Code Mode: 3 bug fixes — CSS placeholder for Tailwind-only components; codeModeRef filters vf-select with empty file; inspector tagChildren() discovers semantic sections within Astro components; ComponentTree renders children indented under parent' },
   { date: '2026-02-19', summary: 'Agency Code Mode: fix iframe not updating after save — scheduleIframeReload (debounced src reset) fires after every debounced save + Inline AI apply; CSS editor now shows embedded <style> block instead of global.css; patchStyleBlock writes CSS edits back into .astro file' },

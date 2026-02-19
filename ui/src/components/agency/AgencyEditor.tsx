@@ -337,12 +337,14 @@ export function AgencyEditor() {
     }
   }, [cssContent, astroFile, cssFile, saveFile, scheduleIframeReload]);
 
-  // Load files when code mode activates and a component is selected
+  // Load files when code mode is active and the selected component changes.
+  // Tracks both .file and .component so that clicking different named components
+  // within the same file (e.g. two sections in one Astro file) still refreshes the editors.
   useEffect(() => {
     if (codeMode && selectedComponent?.file) {
       loadFilesForComponent(selectedComponent.file);
     }
-  }, [codeMode, selectedComponent?.file, loadFilesForComponent]);
+  }, [codeMode, selectedComponent?.file, selectedComponent?.component, loadFilesForComponent]);
 
   // Keyboard shortcuts: Escape closes editor, Cmd+Shift+E toggles Code Mode,
   // Cmd+Shift+\ toggles code editors, Cmd+\ toggles tree
@@ -507,7 +509,12 @@ export function AgencyEditor() {
         <ComponentTree
           components={componentTree}
           selectedComponent={selectedComponent?.component ?? null}
-          onSelect={(comp) => setSelectedComponent(comp)}
+          onSelect={(comp) => {
+            setSelectedComponent(comp);
+            // Directly load files on tree click — ensures editors update even when
+            // selectedComponent.file didn't change (e.g. same file, different component)
+            if (codeMode && comp.file) loadFilesForComponent(comp.file);
+          }}
         />
       )}
 

@@ -717,7 +717,10 @@ export class SandboxManager {
           { timeout: 5_000 }
         );
         if (tcpCheck.stdout?.trim() === 'yes') {
-          console.log(`[agencySetup] ${sid}: port 4321 exposed AND listening, skipping`);
+          console.log(`[agencySetup] ${sid}: port 4321 exposed AND listening, refreshing inspector`);
+          // Refresh inspector script so existing containers get the latest version.
+          // Fire-and-forget — the user can click Refresh in the preview toolbar after it lands.
+          void this.injectAgencyInspector(sandbox, sid);
           return { sessionId };
         }
         // Port exposed but dev server is dead — restart without re-cloning
