@@ -19,6 +19,8 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency: add debug panel — paste/drop screenshot, stream AI vision analysis for CSS specificity issues; debug endpoint uses AI SDK streamText with Claude/Gemini API key' },
+  { date: '2026-02-19', summary: 'Agency: update fullPrompt CSS specificity rules — agent now checks for explicit CSS class color declarations before adding Tailwind utilities, uses ! prefix for overrides; reads CSS files when instruction involves colors' },
   { date: '2026-02-19', summary: 'Agency: fix post-edit preview reload — switch from contentWindow.postMessage (silently dropped if inspector not listening) to iframe.src=iframe.src (always works); bump delay 3s→5s for Astro rebuild time' },
   { date: '2026-02-19', summary: 'Agency: fix root cause of WebSocket connection failure — index.ts WS interceptor only routed /api/sdk/ws through Hono; /api/agency/edit-ws fell to DO branch and returned 400 Missing sessionId since agency WS uses siteId not sessionId' },
   { date: '2026-02-19', summary: 'Agency: WS debug — remove startWsServer from WS handler (pre-flight handles it), add console.log for wsConnect status to diagnose silent failures' },

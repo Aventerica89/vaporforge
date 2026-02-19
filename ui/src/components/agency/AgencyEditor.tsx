@@ -9,11 +9,13 @@ import {
   Loader2,
   GitCompare,
   Rocket,
+  Bug,
 } from 'lucide-react';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { ComponentTree } from './ComponentTree';
 import { EditPanel } from './EditPanel';
 import { AgencyLoadingScreen } from './AgencyLoadingScreen';
+import { AgencyDebugPanel } from './AgencyDebugPanel';
 
 interface ComponentInfo {
   component: string;
@@ -51,6 +53,7 @@ export function AgencyEditor() {
   } | null>(null);
   const [showDiff, setShowDiff] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Start editing session on mount — fire POST then poll for readiness
@@ -414,10 +417,20 @@ export function AgencyEditor() {
             />
           )}
 
-          {/* Right side: diff, push, close */}
+          {/* Right side: debug, diff, push, close */}
           <div className="ml-auto flex items-center gap-1">
             {previewUrl && (
               <>
+                <button
+                  onClick={() => setShowDebug(true)}
+                  className={`flex items-center gap-1 rounded px-2 py-1 text-[11px] hover:bg-zinc-800 ${
+                    showDebug ? 'bg-zinc-700 text-violet-400' : 'text-zinc-400 hover:text-zinc-200'
+                  }`}
+                  title="Debug styling issues"
+                >
+                  <Bug className="h-3.5 w-3.5" />
+                  <span>Debug</span>
+                </button>
                 <button
                   onClick={handleViewDiff}
                   className="flex items-center gap-1 rounded px-2 py-1 text-[11px] text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
@@ -492,6 +505,15 @@ export function AgencyEditor() {
         isStreaming={isStreaming}
         streamingOutput={streamingOutput}
       />
+
+      {/* Debug panel */}
+      {showDebug && (
+        <AgencyDebugPanel
+          siteId={editingSiteId}
+          selectedComponent={selectedComponent}
+          onClose={() => setShowDebug(false)}
+        />
+      )}
 
       {/* Diff modal */}
       {showDiff && diffData && (

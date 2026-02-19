@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { streamText } from 'ai';
 import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
 import { collectProjectSecrets } from '../sandbox';
+import { createModel, getProviderCredentials } from '../services/ai-provider-factory';
 
 type Variables = {
   user: User;
@@ -435,6 +437,96 @@ agencyRoutes.post('/sites/:id/push', async (c) => {
   }
 });
 
+// Debug endpoint — analyze a screenshot with AI vision to diagnose styling issues.
+// Accepts JSON { image: base64string, mediaType: string, context: string }.
+// Uses Claude or Gemini via the AI SDK (requires an API key in Settings > AI Providers).
+agencyRoutes.post('/sites/:id/debug', async (c) => {
+  const user = c.get('user') as User;
+  const body = await c.req.json().catch(() => null);
+  if (!body?.image) {
+    return c.json({ success: false, error: 'image required' }, 400);
+  }
+
+  const { image, mediaType = 'image/png', context = '' } = body as {
+    image: string;
+    mediaType?: string;
+    context?: string;
+  };
+
+  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id);
+  const provider = creds.claude ? 'claude' : creds.gemini ? 'gemini' : null;
+
+  if (!provider) {
+    return c.json({
+      success: false,
+      error: 'Debug analysis requires a Claude or Gemini API key. Add one in Settings > AI Providers.',
+    }, 400);
+  }
+
+  let aiModel;
+  try {
+    aiModel = createModel(provider, creds, provider === 'claude' ? 'haiku' : 'flash');
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Model error';
+    return c.json({ success: false, error: msg }, 400);
+  }
+
+  const systemPrompt = [
+    'You are a CSS and frontend debugging expert.',
+    'Analyze the provided screenshot for styling issues.',
+    'Focus on: CSS specificity conflicts, Tailwind overrides, color inheritance, layout problems.',
+    'Be specific — name the CSS class or rule causing the issue.',
+    'Suggest the minimal fix: either use Tailwind !important prefix (e.g. !text-cyan-500)',
+    'or edit the conflicting CSS class directly.',
+    'Keep your response concise and actionable.',
+  ].join(' ');
+
+  const userContent: Array<{ type: 'image'; image: string; mimeType: string } | { type: 'text'; text: string }> = [
+    { type: 'image', image, mimeType: mediaType },
+  ];
+  if (context) {
+    userContent.push({ type: 'text', text: context });
+  } else {
+    userContent.push({ type: 'text', text: 'Analyze this screenshot for CSS/styling issues.' });
+  }
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+  const write = (data: Record<string, unknown>) =>
+    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+  const streamPromise = (async () => {
+    try {
+      await write({ type: 'connected' });
+      const result = streamText({
+        model: aiModel,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userContent }],
+      });
+      for await (const chunk of result.textStream) {
+        await write({ type: 'text', text: chunk });
+      }
+      await write({ type: 'done' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Analysis error';
+      await write({ type: 'error', error: msg });
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  c.executionCtx.waitUntil(streamPromise);
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+});
+
 // HTTP pre-flight endpoint — exported for router.ts (needs inline WS auth).
 // Validates the token, starts the WS server, builds the prompt, and writes the
 // context file so that the actual WS upgrade handler can be a trivial proxy.
@@ -481,6 +573,33 @@ export async function handleAgencyEditPreflight(
     }
   }
 
+  // When instruction involves colors/styles, read CSS files to catch specificity conflicts
+  let cssContext = '';
+  const colorKeywords = ['color', 'text-', 'bg-', 'background', 'gradient', 'fill', 'stroke'];
+  const isColorTask = colorKeywords.some(k => instruction.toLowerCase().includes(k));
+  if (isColorTask && !siteWide) {
+    try {
+      const cssCmd = [
+        'for f in $(find /workspace/src/styles /workspace/src/css /workspace/public',
+        '-name "*.css" 2>/dev/null | head -4);',
+        'do echo "=== $f ==="; cat "$f"; echo; done',
+      ].join(' ');
+      const cssResult = await sandboxManager.execInSandbox(sessionId, cssCmd);
+      cssContext = (cssResult.stdout || '').slice(0, 3000);
+    } catch {
+      // CSS context is optional
+    }
+  }
+
+  // CSS specificity rules — critical for Tailwind utilities vs explicit CSS class declarations
+  const CSS_SPECIFICITY_RULES = [
+    '- CSS specificity: Tailwind utilities can be overridden by explicit .class { color: ... } rules in stylesheets',
+    '- Before adding a color/style Tailwind class, check if the element has a CSS class with explicit color rules',
+    '- Use grep to check: grep -rn "class-name" /workspace/src/styles/',
+    '- When a Tailwind utility is overridden by specificity, use ! prefix: !text-cyan-500 (generates color:... !important)',
+    '- Prefer editing the existing CSS rule directly when it exists in a stylesheet (cleaner than fighting specificity)',
+  ];
+
   // Build the self-contained prompt (claude-agent.js uses claude_code preset, never reads env vars for prompts)
   const fullPrompt = siteWide
     ? [
@@ -491,6 +610,8 @@ export async function handleAgencyEditPreflight(
         'Rules:',
         '- Modify ONLY CSS custom properties in the styles directory',
         '- Do not change .astro component files',
+        ...CSS_SPECIFICITY_RULES,
+        ...(cssContext ? ['', 'CSS files:', cssContext] : []),
       ].join('\n')
     : [
         `Edit the file: ${componentFile}`,
@@ -504,6 +625,8 @@ export async function handleAgencyEditPreflight(
         '- Preserve data-vf-component and data-vf-file attributes on elements',
         '- Keep the file syntactically valid Astro',
         ...(elementHTML ? ['- Modify the selected element or its children to fulfill the task'] : []),
+        ...CSS_SPECIFICITY_RULES,
+        ...(cssContext ? ['', 'Relevant CSS files:', cssContext] : []),
       ].join('\n');
 
   // Start the WS agent server — surfaces error as readable JSON
