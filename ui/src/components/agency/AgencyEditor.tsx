@@ -330,10 +330,14 @@ export function AgencyEditor() {
           }),
         });
 
-        // Tell iframe to reload after Astro dev server has had time to rebuild (~3s)
-        await new Promise((r) => setTimeout(r, 3000));
+        // Tell iframe to reload after Astro dev server has had time to rebuild (~5s)
+        // Use direct src reset (always works) rather than postMessage (silently dropped
+        // if inspector isn't listening at the exact moment the message arrives)
+        await new Promise((r) => setTimeout(r, 5000));
         setIframeConnected(false);
-        iframeRef.current?.contentWindow?.postMessage({ type: 'vf-reload' }, '*');
+        if (iframeRef.current) {
+          iframeRef.current.src = iframeRef.current.src;
+        }
       } catch {
         // Errors surface via WS frames
       } finally {
