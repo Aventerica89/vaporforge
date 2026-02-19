@@ -552,22 +552,30 @@ export async function handleAgencyEditWs(
   const url = new URL(request.url);
   const siteId = url.searchParams.get('siteId') || '';
 
+  console.log(`[agency/ws] handler called: siteId=${siteId}, token=${user.claudeToken?.slice(0, 15)}...`);
+
   if (!siteId) {
+    console.log(`[agency/ws] missing siteId`);
     return new Response('Missing siteId', { status: 400 });
   }
   if (!user.claudeToken || !user.claudeToken.startsWith('sk-ant-oat01-')) {
+    console.log(`[agency/ws] invalid token type — not OAuth`);
     return new Response('Agency mode requires a Claude OAuth token', { status: 401 });
   }
 
   const sessionId = `agency-${siteId}`;
+  console.log(`[agency/ws] calling wsConnect for sessionId=${sessionId}`);
 
   try {
-    // WS server was already started by the pre-flight — this is a fast pgrep check
-    await sandboxManager.startWsServer(sessionId);
-    // Context file was already written by the pre-flight — just upgrade to WebSocket
-    return sandboxManager.wsConnectToSandbox(sessionId, request);
+    // Pre-flight already warmed the WS server and wrote the context file.
+    // Do NOT call startWsServer here — extra exec calls before wsConnect can interfere
+    // with the WS proxy. Just proxy the upgrade directly.
+    const wsResp = await sandboxManager.wsConnectToSandbox(sessionId, request);
+    console.log(`[agency/ws] wsConnect returned status=${wsResp.status}`);
+    return wsResp;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[agency/ws] wsConnect THREW: ${msg}`);
     return new Response(`Agency WS failed: ${msg}`, { status: 500 });
   }
 }
