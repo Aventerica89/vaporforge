@@ -26,7 +26,9 @@ export function AgencyCodePane({
   onCollapse,
 }: AgencyCodePaneProps) {
   const astroFileName = astroFile.split('/').pop() ?? 'component.astro';
-  const cssFileName = cssFile.split('/').pop() ?? 'styles.css';
+  const cssFileName = cssFile.endsWith('#style')
+    ? (cssFile.replace('#style', '').split('/').pop() ?? 'component') + ' (styles)'
+    : (cssFile.split('/').pop() ?? 'styles.css');
 
   return (
     <div className="flex h-full flex-col bg-zinc-950">

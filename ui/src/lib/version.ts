@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency Code Mode: fix iframe not updating after save — scheduleIframeReload (debounced src reset) fires after every debounced save + Inline AI apply; CSS editor now shows embedded <style> block instead of global.css; patchStyleBlock writes CSS edits back into .astro file' },
   { date: '2026-02-19', summary: 'Bump version to 0.27.0: Agency Code Mode — dual Monaco editors + Inline AI in visual Astro editor' },
   { date: '2026-02-19', summary: 'Agency Code Mode (Task 7): wire helpers + code editors into AgencyEditor — loadFilesForComponent, saveFile (1s debounce), handleAstroChange/CssChange, handleInlineAIInsert; PanelGroup vertical split preview+editors; AgencyInlineAI in right panel' },
   { date: '2026-02-19', summary: 'Agency Code Mode: create AgencyCodePane (dual Monaco editors, horizontal PanelGroup) and AgencyInlineAI (SSE stream generate, apply button) components; add GET/PUT file + POST inline-ai backend endpoints' },

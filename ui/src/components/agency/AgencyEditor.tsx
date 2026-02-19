@@ -68,6 +68,8 @@ export function AgencyEditor() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const astroSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cssSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const astroContentRef = useRef('');
 
   // Start editing session on mount — fire POST then poll for readiness
   useEffect(() => {
@@ -213,53 +215,48 @@ export function AgencyEditor() {
     return () => window.removeEventListener('message', handleMessage);
   }, [previewUrl]);
 
-  // Load astro + CSS files for a component into the code editors
+  // Keep ref in sync so async handlers can read latest astroContent without stale closure
+  // (cannot add astroContent to useCallback deps without causing re-creation loops)
+  useEffect(() => { astroContentRef.current = astroContent; }, [astroContent]);
+
+  // Schedule iframe reload after Astro rebuilds — debounced, cancels pending reload
+  const scheduleIframeReload = useCallback((delayMs = 2500) => {
+    if (reloadTimer.current) clearTimeout(reloadTimer.current);
+    reloadTimer.current = setTimeout(() => {
+      setIframeConnected(false);
+      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+    }, delayMs);
+  }, []);
+
+  // Patch the <style> block in an Astro file with new CSS content
+  const patchStyleBlock = (astroSource: string, newCss: string) =>
+    astroSource.includes('<style')
+      ? astroSource.replace(/<style[^>]*>[\s\S]*?<\/style>/i, `<style>\n${newCss}\n</style>`)
+      : `${astroSource}\n\n<style>\n${newCss}\n</style>`;
+
+  // Load astro file + extract its <style> block into the CSS editor
   const loadFilesForComponent = useCallback(async (file: string) => {
     if (!editingSiteId) return;
     const token = localStorage.getItem('session_token');
     setAstroFile(file);
+    let content = '';
     try {
       const res = await fetch(
         `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(file)}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (res.ok) {
-        const json = await res.json();
-        setAstroContent(json.data?.content ?? '');
+        content = (await res.json()).data?.content ?? '';
+        setAstroContent(content);
       }
     } catch {
       setAstroContent('');
     }
-    // Try scoped CSS first (same stem as the .astro file)
-    const stemPath = file.replace(/\.astro$/, '');
-    const cssPath = `${stemPath}.css`;
-    try {
-      const cssRes = await fetch(
-        `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(cssPath)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (cssRes.ok) {
-        const cssJson = await cssRes.json();
-        setCssFile(cssPath);
-        setCssContent(cssJson.data?.content ?? '');
-        return;
-      }
-    } catch {}
-    // Fallback: global.css
-    const globalCssPath = 'src/styles/global.css';
-    setCssFile(globalCssPath);
-    try {
-      const globalRes = await fetch(
-        `/api/agency/sites/${editingSiteId}/file?path=${encodeURIComponent(globalCssPath)}`,
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (globalRes.ok) {
-        const globalJson = await globalRes.json();
-        setCssContent(globalJson.data?.content ?? '');
-      }
-    } catch {
-      setCssContent('');
-    }
+    // CSS pane shows the <style> block from this .astro file
+    // cssFile uses a "#style" suffix to signal it's an embedded block (not a standalone file)
+    setCssFile(`${file}#style`);
+    const styleMatch = content.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    setCssContent(styleMatch?.[1]?.trim() ?? '');
   }, [editingSiteId]);
 
   const saveFile = useCallback(async (path: string, content: string) => {
@@ -280,26 +277,47 @@ export function AgencyEditor() {
   const handleAstroChange = useCallback((value: string) => {
     setAstroContent(value);
     if (astroSaveTimer.current) clearTimeout(astroSaveTimer.current);
-    astroSaveTimer.current = setTimeout(() => saveFile(astroFile, value), 1000);
-  }, [saveFile, astroFile]);
+    astroSaveTimer.current = setTimeout(async () => {
+      await saveFile(astroFile, value);
+      scheduleIframeReload();
+    }, 1000);
+  }, [saveFile, astroFile, scheduleIframeReload]);
 
   const handleCssChange = useCallback((value: string) => {
     setCssContent(value);
     if (cssSaveTimer.current) clearTimeout(cssSaveTimer.current);
-    cssSaveTimer.current = setTimeout(() => saveFile(cssFile, value), 1000);
-  }, [saveFile, cssFile]);
+    cssSaveTimer.current = setTimeout(async () => {
+      if (cssFile.endsWith('#style')) {
+        // CSS pane edits the <style> block — patch it back into the .astro file
+        const astroPath = cssFile.replace('#style', '');
+        const updated = patchStyleBlock(astroContentRef.current, value);
+        setAstroContent(updated);
+        await saveFile(astroPath, updated);
+      } else {
+        await saveFile(cssFile, value);
+      }
+      scheduleIframeReload();
+    }, 1000);
+  }, [saveFile, cssFile, scheduleIframeReload]);
 
   const handleInlineAIInsert = useCallback((pane: 'astro' | 'css', text: string) => {
     if (pane === 'astro') {
-      const next = astroContent + '\n' + text;
+      const next = astroContentRef.current + '\n' + text;
       setAstroContent(next);
-      saveFile(astroFile, next);
+      void saveFile(astroFile, next).then(() => scheduleIframeReload(3000));
     } else {
-      const next = cssContent + '\n' + text;
-      setCssContent(next);
-      saveFile(cssFile, next);
+      const newCss = cssContent + '\n' + text;
+      setCssContent(newCss);
+      if (cssFile.endsWith('#style')) {
+        const astroPath = cssFile.replace('#style', '');
+        const updated = patchStyleBlock(astroContentRef.current, newCss);
+        setAstroContent(updated);
+        void saveFile(astroPath, updated).then(() => scheduleIframeReload(3000));
+      } else {
+        void saveFile(cssFile, newCss).then(() => scheduleIframeReload(3000));
+      }
     }
-  }, [astroContent, cssContent, astroFile, cssFile, saveFile]);
+  }, [cssContent, astroFile, cssFile, saveFile, scheduleIframeReload]);
 
   // Load files when code mode activates and a component is selected
   useEffect(() => {
