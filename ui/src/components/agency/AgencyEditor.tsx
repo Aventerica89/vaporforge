@@ -42,6 +42,8 @@ export function AgencyEditor() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState<string | undefined>();
   const [isStreaming, setIsStreaming] = useState(false);
+  const [streamingOutput, setStreamingOutput] = useState<string>('');
+  const [iframeConnected, setIframeConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [diffData, setDiffData] = useState<{
     summary: string;
@@ -174,7 +176,9 @@ export function AgencyEditor() {
       const data = event.data;
       if (!data || typeof data !== 'object') return;
 
-      if (data.type === 'vf-select') {
+      if (data.type === 'vf-ready') {
+        setIframeConnected(true);
+      } else if (data.type === 'vf-select') {
         setSelectedComponent({
           component: data.component,
           file: data.file,
@@ -246,6 +250,7 @@ export function AgencyEditor() {
     async (instruction: string, componentFile: string | null, elementHTML: string | null) => {
       if (!editingSiteId) return;
       setIsStreaming(true);
+    setStreamingOutput('');
       try {
         const token = localStorage.getItem('session_token');
         const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -266,7 +271,17 @@ export function AgencyEditor() {
           ws.onmessage = (evt) => {
             try {
               const msg = JSON.parse(evt.data as string);
-              if (msg.type === 'process-exit') ws.close();
+              if (msg.type === 'text-delta' && msg.text) {
+                setStreamingOutput((prev) => {
+                  const updated = prev + msg.text;
+                  // Keep last 800 chars to avoid unbounded growth
+                  return updated.length > 800
+                    ? updated.slice(updated.length - 800)
+                    : updated;
+                });
+              } else if (msg.type === 'process-exit') {
+                ws.close();
+              }
             } catch {}
           };
           ws.onclose = () => resolve();
@@ -288,11 +303,11 @@ export function AgencyEditor() {
           }),
         });
 
-        // Reload iframe after Astro dev server has had time to rebuild (~3s)
+        // Tell iframe to reload after Astro dev server has had time to rebuild (~3s)
         await new Promise((r) => setTimeout(r, 3000));
-        if (iframeRef.current) {
-          iframeRef.current.src = iframeRef.current.src;
-        }
+        setIframeConnected(false);
+        setStreamingOutput('');
+        iframeRef.current?.contentWindow?.postMessage({ type: 'vf-reload' }, '*');
       } catch {
         // Errors surface via WS frames
       } finally {
@@ -354,11 +369,19 @@ export function AgencyEditor() {
             ))}
           </div>
 
-          {/* Preview URL */}
+          {/* Preview URL + connection status */}
           {previewUrl && (
             <span className="ml-2 truncate font-mono text-[10px] text-zinc-500">
               {previewUrl}
             </span>
+          )}
+          {previewUrl && (
+            <span
+              className={`ml-1 h-1.5 w-1.5 shrink-0 rounded-full ${
+                iframeConnected ? 'bg-emerald-400' : 'bg-zinc-600'
+              }`}
+              title={iframeConnected ? 'Inspector connected' : 'Connecting...'}
+            />
           )}
 
           {/* Right side: diff, push, close */}
@@ -437,6 +460,7 @@ export function AgencyEditor() {
         siteId={editingSiteId}
         onSendEdit={handleSendEdit}
         isStreaming={isStreaming}
+        streamingOutput={streamingOutput}
       />
 
       {/* Diff modal */}

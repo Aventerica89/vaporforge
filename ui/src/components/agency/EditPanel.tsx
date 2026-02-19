@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Undo2, FileCode, Globe } from 'lucide-react';
+import { Send, Undo2, FileCode, Globe, Terminal } from 'lucide-react';
 
 interface SelectedComponent {
   component: string;
@@ -21,6 +21,7 @@ interface Props {
   siteId: string | null;
   onSendEdit: (instruction: string, componentFile: string | null, elementHTML: string | null) => void;
   isStreaming: boolean;
+  streamingOutput: string;
 }
 
 export function EditPanel({
@@ -28,6 +29,7 @@ export function EditPanel({
   siteId,
   onSendEdit,
   isStreaming,
+  streamingOutput,
 }: Props) {
   const [instruction, setInstruction] = useState('');
   const [editHistory, setEditHistory] = useState<EditEntry[]>([]);
@@ -97,6 +99,21 @@ export function EditPanel({
           <span className="font-mono text-[10px] text-zinc-500">
             {selectedComponent.file}
           </span>
+        </div>
+      )}
+
+      {/* Streaming output — shown while AI is working */}
+      {isStreaming && streamingOutput && (
+        <div className="border-b border-zinc-800 bg-zinc-950 px-3 py-2">
+          <div className="mb-1 flex items-center gap-1.5">
+            <Terminal className="h-3 w-3 text-cyan-500" />
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-cyan-600">
+              Agent working...
+            </span>
+          </div>
+          <pre className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[10px] leading-relaxed text-zinc-400">
+            {streamingOutput}
+          </pre>
         </div>
       )}
 
