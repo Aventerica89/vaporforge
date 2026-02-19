@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { X, Upload, Loader2 } from 'lucide-react';
 
 interface ComponentInfo {
@@ -21,10 +21,12 @@ export function AgencyDebugPanel({
 }: AgencyDebugPanelProps) {
   const [image, setImage] = useState<{ base64: string; mimeType: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [description, setDescription] = useState('');
   const [analysisText, setAnalysisText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const loadImageFile = useCallback((file: File) => {
     const reader = new FileReader();
@@ -39,6 +41,23 @@ export function AgencyDebugPanel({
     };
     reader.readAsDataURL(file);
   }, []);
+
+  // Global paste listener — works even if the drop zone isn't focused
+  useEffect(() => {
+    const onGlobalPaste = (e: ClipboardEvent) => {
+      // Don't hijack paste when user is typing in the description textarea
+      if (document.activeElement === textareaRef.current) return;
+      const item = Array.from(e.clipboardData?.items ?? []).find((it) =>
+        it.type.startsWith('image/'),
+      );
+      if (item) {
+        const file = item.getAsFile();
+        if (file) loadImageFile(file);
+      }
+    };
+    document.addEventListener('paste', onGlobalPaste);
+    return () => document.removeEventListener('paste', onGlobalPaste);
+  }, [loadImageFile]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -63,7 +82,14 @@ export function AgencyDebugPanel({
   );
 
   const buildContext = () => {
-    const parts: string[] = ['Analyze this screenshot for CSS/styling issues.'];
+    const parts: string[] = [
+      image
+        ? 'Analyze this screenshot for CSS/styling issues.'
+        : 'Analyze this code/error for CSS/styling issues.',
+    ];
+    if (description.trim()) {
+      parts.push('', 'Additional context:', description.trim());
+    }
     if (selectedComponent) {
       parts.push('', `Selected component: ${selectedComponent.component}`);
       parts.push(`File: ${selectedComponent.file}`);
@@ -86,7 +112,7 @@ export function AgencyDebugPanel({
   };
 
   const handleAnalyze = async () => {
-    if (!image || !siteId) return;
+    if ((!image && !description.trim()) || !siteId) return;
     setIsAnalyzing(true);
     setAnalysisText('');
     setError(null);
@@ -100,8 +126,8 @@ export function AgencyDebugPanel({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          image: image.base64,
-          mediaType: image.mimeType,
+          image: image?.base64 ?? null,
+          mediaType: image?.mimeType ?? null,
           context: buildContext(),
         }),
       });
@@ -214,9 +240,17 @@ export function AgencyDebugPanel({
               </div>
             )}
 
+            <textarea
+              ref={textareaRef}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Paste HTML, CSS, error messages, or describe the issue..."
+              className="h-20 w-full resize-none rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 focus:border-zinc-500 focus:outline-none"
+            />
+
             <button
               onClick={handleAnalyze}
-              disabled={!image || isAnalyzing}
+              disabled={(!image && !description.trim()) || isAnalyzing}
               className="flex items-center justify-center gap-1.5 rounded-md bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-500 disabled:opacity-40"
             >
               {isAnalyzing ? (

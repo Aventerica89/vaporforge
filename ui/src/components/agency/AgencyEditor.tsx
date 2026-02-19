@@ -11,6 +11,7 @@ import {
   Rocket,
   Bug,
   Code2,
+  RotateCw,
 } from 'lucide-react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
@@ -564,6 +565,20 @@ export function AgencyEditor() {
               }`}
               title={iframeConnected ? 'Inspector connected' : 'Connecting...'}
             />
+          )}
+          {previewUrl && (
+            <button
+              onClick={() => {
+                if (iframeRef.current) {
+                  setIframeConnected(false);
+                  iframeRef.current.src = iframeRef.current.src;
+                }
+              }}
+              className="ml-1 rounded p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+              title="Refresh preview"
+            >
+              <RotateCw className="h-3 w-3" />
+            </button>
           )}
 
           {/* Right side: code mode, debug, diff, push, close */}
