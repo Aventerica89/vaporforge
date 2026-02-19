@@ -435,40 +435,12 @@ agencyRoutes.post('/sites/:id/push', async (c) => {
   }
 });
 
-// HTTP pre-flight endpoint — exported for router.ts (needs inline WS auth)
-// Starts the WS agent server and returns a JSON status. The frontend calls
-// this before opening the WebSocket so any error is readable as JSON.
+// HTTP pre-flight endpoint — exported for router.ts (needs inline WS auth).
+// Validates the token, starts the WS server, builds the prompt, and writes the
+// context file so that the actual WS upgrade handler can be a trivial proxy.
+// All operations that can fail with a readable error happen HERE, not in the WS
+// handler (where errors are opaque — ws.onerror gives no body information).
 export async function handleAgencyEditPreflight(
-  env: Env,
-  request: Request,
-  user: User,
-  sandboxManager: SandboxManager,
-): Promise<Response> {
-  const url = new URL(request.url);
-  const siteId = url.searchParams.get('siteId') || '';
-
-  if (!siteId) {
-    return Response.json({ success: false, error: 'Missing siteId' }, { status: 400 });
-  }
-
-  if (!user.claudeToken) {
-    return Response.json({ success: false, error: 'No Claude token configured. Please re-authenticate.' }, { status: 401 });
-  }
-
-  const sessionId = `agency-${siteId}`;
-
-  try {
-    await sandboxManager.startWsServer(sessionId);
-    return Response.json({ success: true });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[agency] preflight failed for ${siteId}:`, msg);
-    return Response.json({ success: false, error: `Container not ready: ${msg}` }, { status: 503 });
-  }
-}
-
-// WS endpoint for agency edits — exported for router.ts (needs inline WS auth)
-export async function handleAgencyEditWs(
   env: Env,
   request: Request,
   user: User,
@@ -482,20 +454,22 @@ export async function handleAgencyEditWs(
   const elementHTML = url.searchParams.get('elementHTML') || '';
 
   if (!siteId || !instruction) {
-    return new Response('Missing siteId or instruction', { status: 400 });
+    return Response.json({ success: false, error: 'Missing siteId or instruction' }, { status: 400 });
   }
 
   if (!user.claudeToken) {
-    return new Response('No Claude token configured', { status: 401 });
+    return Response.json({ success: false, error: 'No Claude token configured. Please re-authenticate.' }, { status: 401 });
   }
-  // Agency edits require an OAuth token — API keys won't work with the Claude Code SDK preset
   if (!user.claudeToken.startsWith('sk-ant-oat01-')) {
-    return new Response('Agency mode requires a Claude OAuth token (sk-ant-oat01-*). Please re-authenticate with your Claude Pro/Max account.', { status: 401 });
+    return Response.json({
+      success: false,
+      error: 'Agency mode requires a Claude OAuth token (sk-ant-oat01-*). Re-authenticate using `claude setup-token` on your Mac, then paste the token at /app.',
+    }, { status: 401 });
   }
 
   const sessionId = `agency-${siteId}`;
 
-  // Fetch the file source from the container so the AI knows the full context
+  // Fetch the file source so the AI has full context (optional — proceed without it if missing)
   let fileSource = '';
   if (componentFile && !siteWide) {
     try {
@@ -503,12 +477,11 @@ export async function handleAgencyEditWs(
       const result = await sandboxManager.execInSandbox(sessionId, `cat "/workspace/${safePath}"`);
       fileSource = (result.stdout || '').slice(0, 6000);
     } catch {
-      // file source is optional — proceed without it
+      // File source is optional
     }
   }
 
-  // Build a self-contained prompt — claude-agent.js uses the claude_code preset and never
-  // reads VF_SYSTEM_PROMPT, so the file path and rules must live inside the prompt itself.
+  // Build the self-contained prompt (claude-agent.js uses claude_code preset, never reads env vars for prompts)
   const fullPrompt = siteWide
     ? [
         'Edit the website theme styles.',
@@ -522,18 +495,10 @@ export async function handleAgencyEditWs(
     : [
         `Edit the file: ${componentFile}`,
         '',
-        ...(elementHTML ? [
-          'Selected element:',
-          elementHTML,
-          '',
-        ] : []),
+        ...(elementHTML ? ['Selected element:', elementHTML, ''] : []),
         `Task: ${instruction}`,
         '',
-        ...(fileSource ? [
-          'Current file source:',
-          fileSource,
-          '',
-        ] : []),
+        ...(fileSource ? ['Current file source:', fileSource, ''] : []),
         'Rules:',
         `- Edit ONLY ${componentFile}`,
         '- Preserve data-vf-component and data-vf-file attributes on elements',
@@ -541,30 +506,68 @@ export async function handleAgencyEditWs(
         ...(elementHTML ? ['- Modify the selected element or its children to fulfill the task'] : []),
       ].join('\n');
 
+  // Start the WS agent server — surfaces error as readable JSON
   try {
-    // Ensure WS agent server is running on port 8765
     await sandboxManager.startWsServer(sessionId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[agency] preflight startWsServer failed for ${siteId}:`, msg);
+    return Response.json({ success: false, error: `Container not ready: ${msg}` }, { status: 503 });
+  }
 
-    // Write context file — WS server reads + deletes it after connection
+  // Write the context file — ws-agent-server.js reads this when the WS connection opens
+  try {
     await sandboxManager.writeContextFile(sessionId, {
       prompt: fullPrompt,
       sessionId: '',
       cwd: '/workspace',
       env: {
-        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken!,
+        CLAUDE_CODE_OAUTH_TOKEN: user.claudeToken,
         NODE_PATH: '/usr/local/lib/node_modules',
         CLAUDE_CONFIG_DIR: '/root/.claude',
         IS_SANDBOX: '1',
         ...collectProjectSecrets(env),
         VF_AGENCY_MODE: '1',
-        VF_AUTO_CONTEXT: '0', // Skip auto-context in agency mode (irrelevant for file edits)
+        VF_AUTO_CONTEXT: '0',
       },
     });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[agency] preflight writeContextFile failed for ${siteId}:`, msg);
+    return Response.json({ success: false, error: `Failed to prepare edit context: ${msg}` }, { status: 500 });
+  }
 
-    // Proxy WebSocket connection to container's agent server
+  return Response.json({ success: true });
+}
+
+// WS endpoint for agency edits — exported for router.ts (needs inline WS auth).
+// The pre-flight endpoint does all the heavy lifting (token validation, WS server
+// warm-up, context file write). This handler only needs to proxy the WS upgrade.
+export async function handleAgencyEditWs(
+  env: Env,
+  request: Request,
+  user: User,
+  sandboxManager: SandboxManager,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const siteId = url.searchParams.get('siteId') || '';
+
+  if (!siteId) {
+    return new Response('Missing siteId', { status: 400 });
+  }
+  if (!user.claudeToken || !user.claudeToken.startsWith('sk-ant-oat01-')) {
+    return new Response('Agency mode requires a Claude OAuth token', { status: 401 });
+  }
+
+  const sessionId = `agency-${siteId}`;
+
+  try {
+    // WS server was already started by the pre-flight — this is a fast pgrep check
+    await sandboxManager.startWsServer(sessionId);
+    // Context file was already written by the pre-flight — just upgrade to WebSocket
     return sandboxManager.wsConnectToSandbox(sessionId, request);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return new Response(`Agency edit WS failed: ${msg}`, { status: 500 });
+    return new Response(`Agency WS failed: ${msg}`, { status: 500 });
   }
 }

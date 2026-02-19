@@ -255,10 +255,19 @@ export function AgencyEditor() {
         const token = localStorage.getItem('session_token');
         const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 
-        // Pre-flight: warm the WS server and surface any container errors as readable text
-        const preflightRes = await fetch(
-          `/api/agency/edit-preflight?token=${encodeURIComponent(token || '')}&siteId=${encodeURIComponent(editingSiteId)}`,
-        );
+        // Pre-flight: validate token, warm WS server, build prompt, write context file.
+        // All operations that can fail with a readable error happen here — the WS
+        // upgrade handler is a trivial proxy and ws.onerror gives no body information.
+        const preflightParams = new URLSearchParams({
+          token: token || '',
+          siteId: editingSiteId,
+          instruction,
+          siteWide: componentFile ? 'false' : 'true',
+        });
+        if (componentFile) preflightParams.set('componentFile', componentFile);
+        if (elementHTML) preflightParams.set('elementHTML', elementHTML);
+
+        const preflightRes = await fetch(`/api/agency/edit-preflight?${preflightParams}`);
         if (!preflightRes.ok) {
           const body = await preflightRes.json().catch(() => null);
           const msg = body?.error ?? `Pre-flight failed (${preflightRes.status})`;
@@ -266,19 +275,13 @@ export function AgencyEditor() {
           return;
         }
 
-        const params = new URLSearchParams({
-          token: token || '',
-          siteId: editingSiteId,
-          instruction,
-          siteWide: componentFile ? 'false' : 'true',
-        });
-        if (componentFile) params.set('componentFile', componentFile);
-        if (elementHTML) params.set('elementHTML', elementHTML);
+        // WS upgrade — context already prepared by pre-flight, only needs siteId
+        const wsParams = new URLSearchParams({ token: token || '', siteId: editingSiteId });
 
         // Connect WS — agent streams progress, closes when done
         await new Promise<void>((resolve) => {
           const ws = new WebSocket(
-            `${wsProtocol}//${location.host}/api/agency/edit-ws?${params}`,
+            `${wsProtocol}//${location.host}/api/agency/edit-ws?${wsParams}`,
           );
           ws.onmessage = (evt) => {
             try {

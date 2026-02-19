@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Agency: move all edit prep (token type check, WS warm-up, prompt build, context file write) to pre-flight; WS handler is now trivial proxy; fixes silent 401 when user has API key instead of OAuth token' },
   { date: '2026-02-19', summary: 'Agency: add HTTP pre-flight before WS connect — calls /api/agency/edit-preflight to warm WS server and get readable JSON error; OAuth token check improved with better error messages' },
   { date: '2026-02-19', summary: 'Agency: fix streaming panel UX — show working indicator whenever isStreaming (not just when output exists); persist output after stream ends; clear output at start of next edit only; add WS error message on onerror' },
   { date: '2026-02-19', summary: 'Agency: surface agent errors in streaming panel — handle error+stderr WS message types (were silently dropped); forward [claude-agent] stderr to client for visibility' },
