@@ -421,6 +421,36 @@ agencyRoutes.get('/sites/:id/file', async (c) => {
   return c.json({ success: true, data: { content, path: safePath } });
 });
 
+// Write a file to the agency sandbox
+agencyRoutes.put('/sites/:id/file', async (c) => {
+  const siteId = c.req.param('id');
+
+  const body = await c.req.json().catch(() => null);
+  const filePath: string = body?.path;
+  const content: string = body?.content;
+
+  if (!filePath || content === undefined) {
+    return c.json({ success: false, error: 'path and content are required' }, 400);
+  }
+
+  const safePath = filePath.startsWith('/') ? filePath : `/workspace/${filePath}`;
+
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
+
+  const site = await c.env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  if (!site) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
+
+  const ok = await sm.writeFile(sessionId, safePath, content);
+  if (!ok) {
+    return c.json({ success: false, error: 'Write failed' }, 500);
+  }
+
+  return c.json({ success: true, data: { path: safePath } });
+});
+
 // Push changes to remote — triggers CF Pages or similar deploy
 agencyRoutes.post('/sites/:id/push', async (c) => {
   const siteId = c.req.param('id');
