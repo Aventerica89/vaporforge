@@ -250,10 +250,22 @@ export function AgencyEditor() {
     async (instruction: string, componentFile: string | null, elementHTML: string | null) => {
       if (!editingSiteId) return;
       setIsStreaming(true);
-    setStreamingOutput('');
+      setStreamingOutput('');
       try {
         const token = localStorage.getItem('session_token');
         const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+        // Pre-flight: warm the WS server and surface any container errors as readable text
+        const preflightRes = await fetch(
+          `/api/agency/edit-preflight?token=${encodeURIComponent(token || '')}&siteId=${encodeURIComponent(editingSiteId)}`,
+        );
+        if (!preflightRes.ok) {
+          const body = await preflightRes.json().catch(() => null);
+          const msg = body?.error ?? `Pre-flight failed (${preflightRes.status})`;
+          setStreamingOutput(`[ERROR] ${msg}`);
+          return;
+        }
+
         const params = new URLSearchParams({
           token: token || '',
           siteId: editingSiteId,

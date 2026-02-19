@@ -435,6 +435,38 @@ agencyRoutes.post('/sites/:id/push', async (c) => {
   }
 });
 
+// HTTP pre-flight endpoint — exported for router.ts (needs inline WS auth)
+// Starts the WS agent server and returns a JSON status. The frontend calls
+// this before opening the WebSocket so any error is readable as JSON.
+export async function handleAgencyEditPreflight(
+  env: Env,
+  request: Request,
+  user: User,
+  sandboxManager: SandboxManager,
+): Promise<Response> {
+  const url = new URL(request.url);
+  const siteId = url.searchParams.get('siteId') || '';
+
+  if (!siteId) {
+    return Response.json({ success: false, error: 'Missing siteId' }, { status: 400 });
+  }
+
+  if (!user.claudeToken) {
+    return Response.json({ success: false, error: 'No Claude token configured. Please re-authenticate.' }, { status: 401 });
+  }
+
+  const sessionId = `agency-${siteId}`;
+
+  try {
+    await sandboxManager.startWsServer(sessionId);
+    return Response.json({ success: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error(`[agency] preflight failed for ${siteId}:`, msg);
+    return Response.json({ success: false, error: `Container not ready: ${msg}` }, { status: 503 });
+  }
+}
+
 // WS endpoint for agency edits — exported for router.ts (needs inline WS auth)
 export async function handleAgencyEditWs(
   env: Env,
@@ -453,8 +485,12 @@ export async function handleAgencyEditWs(
     return new Response('Missing siteId or instruction', { status: 400 });
   }
 
-  if (!user.claudeToken?.startsWith('sk-ant-oat01-')) {
-    return new Response('Invalid OAuth token', { status: 401 });
+  if (!user.claudeToken) {
+    return new Response('No Claude token configured', { status: 401 });
+  }
+  // Agency edits require an OAuth token — API keys won't work with the Claude Code SDK preset
+  if (!user.claudeToken.startsWith('sk-ant-oat01-')) {
+    return new Response('Agency mode requires a Claude OAuth token (sk-ant-oat01-*). Please re-authenticate with your Claude Pro/Max account.', { status: 401 });
   }
 
   const sessionId = `agency-${siteId}`;
