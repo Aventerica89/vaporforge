@@ -24,10 +24,14 @@ import { AgencyInlineAI } from './AgencyInlineAI';
 interface ComponentInfo {
   component: string;
   file: string;
+  parent?: string;
   elementTag?: string;
   elementHTML?: string;
   elementText?: string;
 }
+
+const CSS_PLACEHOLDER =
+  '/* No <style> block found — CSS typed here will be scoped to this component */';
 
 type ViewportPreset = 'desktop' | 'tablet' | 'mobile';
 
@@ -70,6 +74,9 @@ export function AgencyEditor() {
   const cssSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reloadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const astroContentRef = useRef('');
+  // Ref so the postMessage handler (registered once) can read latest codeMode value
+  const codeModeRef = useRef(codeMode);
+  useEffect(() => { codeModeRef.current = codeMode; }, [codeMode]);
 
   // Start editing session on mount — fire POST then poll for readiness
   useEffect(() => {
@@ -197,9 +204,13 @@ export function AgencyEditor() {
       if (data.type === 'vf-ready') {
         setIframeConnected(true);
       } else if (data.type === 'vf-select') {
+        // In Code Mode, ignore selections with no file — editors can't load without a path.
+        // This prevents auto-tagged elements (no data-vf-file) from clearing the code pane.
+        if (codeModeRef.current && !data.file) return;
         setSelectedComponent({
           component: data.component,
           file: data.file,
+          parent: data.parent,
           elementTag: data.elementTag,
           elementHTML: data.elementHTML,
           elementText: data.elementText,
@@ -252,11 +263,13 @@ export function AgencyEditor() {
     } catch {
       setAstroContent('');
     }
-    // CSS pane shows the <style> block from this .astro file
-    // cssFile uses a "#style" suffix to signal it's an embedded block (not a standalone file)
+    // CSS pane shows the <style> block from this .astro file.
+    // cssFile uses a "#style" suffix to signal it's an embedded block (not a standalone file).
+    // For Tailwind-only files with no <style> block, show a placeholder comment.
     setCssFile(`${file}#style`);
     const styleMatch = content.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-    setCssContent(styleMatch?.[1]?.trim() ?? '');
+    const extractedCss = styleMatch?.[1]?.trim() ?? '';
+    setCssContent(extractedCss || CSS_PLACEHOLDER);
   }, [editingSiteId]);
 
   const saveFile = useCallback(async (path: string, content: string) => {
@@ -287,6 +300,8 @@ export function AgencyEditor() {
     setCssContent(value);
     if (cssSaveTimer.current) clearTimeout(cssSaveTimer.current);
     cssSaveTimer.current = setTimeout(async () => {
+      // Don't save the placeholder comment — only save real CSS
+      if (value.trim() === CSS_PLACEHOLDER.trim()) return;
       if (cssFile.endsWith('#style')) {
         // CSS pane edits the <style> block — patch it back into the .astro file
         const astroPath = cssFile.replace('#style', '');
@@ -306,7 +321,9 @@ export function AgencyEditor() {
       setAstroContent(next);
       void saveFile(astroFile, next).then(() => scheduleIframeReload(3000));
     } else {
-      const newCss = cssContent + '\n' + text;
+      // Clear placeholder before appending AI-generated CSS
+      const baseCss = cssContent.trim() === CSS_PLACEHOLDER.trim() ? '' : cssContent;
+      const newCss = baseCss + '\n' + text;
       setCssContent(newCss);
       if (cssFile.endsWith('#style')) {
         const astroPath = cssFile.replace('#style', '');
