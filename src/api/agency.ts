@@ -584,6 +584,99 @@ agencyRoutes.post('/sites/:id/debug', async (c) => {
   });
 });
 
+// Inline AI — streams CSS/HTML generation directly into the editor (no agent, no tools)
+agencyRoutes.post('/sites/:id/inline-ai', async (c) => {
+  const user = c.get('user') as User;
+  const siteId = c.req.param('id');
+
+  const body = await c.req.json().catch(() => null);
+  const prompt: string = body?.prompt;
+  const cssContext: string = body?.cssContext ?? '';
+  const astroContext: string = body?.astroContext ?? '';
+  const targetPane: 'css' | 'astro' = body?.targetPane ?? 'css';
+  const elementContext: string = body?.elementContext ?? '';
+
+  if (!prompt) {
+    return c.json({ success: false, error: 'prompt is required' }, 400);
+  }
+
+  const site = await c.env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  if (!site) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
+
+  const creds = await getProviderCredentials(c.env.SESSIONS_KV, user.id);
+
+  let aiModel;
+  try {
+    if (creds.gemini) {
+      aiModel = createModel('gemini', creds, 'flash');
+    } else if (creds.claude) {
+      aiModel = createModel('claude', creds, 'haiku');
+    } else {
+      return c.json(
+        { success: false, error: 'No AI provider configured. Add a Gemini or Claude API key in Settings > AI Providers.' },
+        400,
+      );
+    }
+  } catch {
+    return c.json({ success: false, error: 'Failed to initialize AI model' }, 500);
+  }
+
+  const systemPrompt = targetPane === 'css'
+    ? [
+        'You are a CSS expert. Generate clean, minimal CSS for the user\'s request.',
+        'Return ONLY the CSS code — no explanation, no markdown fences, no comments unless asked.',
+        'Prefer modern CSS: custom properties, flexbox, grid, transitions.',
+        elementContext ? `Target element context: ${elementContext}` : '',
+      ].filter(Boolean).join('\n')
+    : [
+        'You are an Astro/HTML expert. Generate clean Astro/HTML markup for the user\'s request.',
+        'Return ONLY the HTML/Astro code — no explanation, no markdown fences.',
+        elementContext ? `Target element context: ${elementContext}` : '',
+      ].filter(Boolean).join('\n');
+
+  const userMessage = [
+    prompt,
+    cssContext ? `\n\nCurrent CSS:\n${cssContext.slice(0, 4000)}` : '',
+    astroContext ? `\n\nCurrent Astro file:\n${astroContext.slice(0, 2000)}` : '',
+  ].filter(Boolean).join('');
+
+  const { readable, writable } = new TransformStream();
+  const writer = writable.getWriter();
+  const encoder = new TextEncoder();
+  const write = (data: Record<string, unknown>) =>
+    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+
+  const streamPromise = (async () => {
+    try {
+      const result = streamText({
+        model: aiModel,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      });
+      for await (const chunk of result.textStream) {
+        await write({ type: 'text', text: chunk });
+      }
+      await write({ type: 'done' });
+    } catch (err) {
+      await write({ type: 'error', error: err instanceof Error ? err.message : 'Generation failed' });
+    } finally {
+      await writer.close();
+    }
+  })();
+
+  c.executionCtx.waitUntil(streamPromise);
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+});
+
 // HTTP pre-flight endpoint — exported for router.ts (needs inline WS auth).
 // Validates the token, starts the WS server, builds the prompt, and writes the
 // context file so that the actual WS upgrade handler can be a trivial proxy.
