@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.28.0';
+export const APP_VERSION = '0.29.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Compaction indicator: claude-agent.js forwards system compacting events → isCompacting state → CompactionBanner in ChatPanel; PlanCard ai-element + create_plan tool in QuickChat; version bump 0.28→0.29' },
   { date: '2026-02-20', summary: 'QuestionFlow: ask_user_questions tool + QuestionFlow component — AI can present structured forms (text, select, multiselect, confirm) in QuickChat; answers submitted as next user message; version bump 0.27→0.28' },
   { date: '2026-02-20', summary: 'Tool UI components: CitationCard for WebFetch results (favicon, title, snippet, always-visible); upgraded Confirmation to ApprovalCard with destructive detection (red theme for rm/delete/drop); Globe icon for WebFetch, Search for Grep in ToolCallBlock' },
   { date: '2026-02-20', summary: 'Fix CLAUDE.md sync bug: syncConfigFromContainer now strips injected credential section before saving to KV; GET /user/claude-md returns empty instead of corrupt credential content' },

@@ -224,6 +224,21 @@ function createSandboxTools(
         return `Presenting ${questions.length} question(s) to user${title ? `: "${title}"` : ''}. Waiting for answers.`;
       },
     }),
+    create_plan: tool({
+      description: 'Display a structured execution plan before starting a multi-step task. Call this to show your approach so the user understands what you are about to do.',
+      parameters: z.object({
+        title: z.string().describe('Plan title, e.g. "Refactoring Plan" or "Migration Steps"'),
+        steps: z.array(z.object({
+          id: z.string().describe('Step identifier, e.g. "1", "2a"'),
+          label: z.string().describe('Short step label, e.g. "Analyze dependencies"'),
+          detail: z.string().optional().describe('Optional one-sentence explanation of the step'),
+        })).describe('Ordered steps in the plan'),
+        estimatedSteps: z.number().optional().describe('Rough estimate of total tool calls needed'),
+      }),
+      execute: async ({ title, steps }) => {
+        return `Plan ready: "${title}" — ${steps.length} step${steps.length === 1 ? '' : 's'}. Proceeding with execution.`;
+      },
+    }),
     runCommand: tool({
       description: 'Execute a shell command in the sandbox',
       parameters: z.object({

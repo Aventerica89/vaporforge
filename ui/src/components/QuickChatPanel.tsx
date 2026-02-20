@@ -29,6 +29,7 @@ import { Shimmer } from './ai-elements/Shimmer';
 import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
+import { PlanCard } from './ai-elements/PlanCard';
 import { Sources, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
 import {
@@ -681,6 +682,25 @@ function QuickChatMessage({
                 approvalId={toolPart.approval.id}
                 onApprove={onApprove}
                 onDeny={onDeny}
+              />
+            );
+          }
+
+          if (
+            toolPart.toolName === 'create_plan' &&
+            (toolPart.state === 'output-available' || toolPart.state === 'input-available')
+          ) {
+            const planInput = toolPart.input as {
+              title: string;
+              steps: Array<{ id: string; label: string; detail?: string }>;
+              estimatedSteps?: number;
+            };
+            return (
+              <PlanCard
+                key={toolPart.toolCallId}
+                title={planInput.title}
+                steps={planInput.steps}
+                estimatedSteps={planInput.estimatedSteps}
               />
             );
           }

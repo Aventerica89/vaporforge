@@ -43,6 +43,7 @@ interface SandboxState {
   sdkMode: 'agent' | 'plan';
   selectedModel: 'sonnet' | 'haiku' | 'opus';
   autonomyMode: 'conservative' | 'standard' | 'autonomous';
+  isCompacting: boolean;
 
   // Git state
   gitStatus: GitStatus | null;
@@ -129,6 +130,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   sdkMode: 'agent' as const,
   selectedModel: 'sonnet' as const,
   autonomyMode: 'autonomous' as const,
+  isCompacting: false,
   streamAbortController: null,
 
   gitStatus: null,
@@ -563,6 +565,12 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           continue;
         }
 
+        // SDK is auto-compacting context (emitted during the long silence)
+        if (chunk.type === 'system-status' && (chunk as Record<string, unknown>).status === 'compacting') {
+          set({ isCompacting: true });
+          continue;
+        }
+
         // Count buffered frames only (stdout from claude-agent.js, 1:1 with JSONL buffer lines).
         // Protocol frames (connected, heartbeat, config-restored, ws-exit) are sent via
         // sendJson() in ws-agent-server.js and are NOT written to the buffer file.
@@ -572,6 +580,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
         if (chunk.type === 'text' && chunk.content) {
           resetTimeout();
+          // Clear compaction banner once Claude starts responding again
+          if (get().isCompacting) set({ isCompacting: false });
           useStreamDebug.getState().recordEvent('text', chunk.content);
           content += chunk.content;
           currentReasoningPart = null;
@@ -673,6 +683,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           doneReceived = true;
           // Stream completed normally
           resetTimeout();
+          set({ isCompacting: false });
           useStreamDebug.getState().endStream();
           // Persist assistant message to KV (WS can't use waitUntil)
           const doneChunk = chunk as Record<string, unknown>;
@@ -831,6 +842,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messagesById: { ...state.messagesById, [stoppedMessage.id]: stoppedMessage },
           messageIds: [...state.messageIds, stoppedMessage.id],
           isStreaming: false,
+          isCompacting: false,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,
@@ -848,6 +860,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messagesById: { ...state.messagesById, [errorMessage.id]: errorMessage },
           messageIds: [...state.messageIds, errorMessage.id],
           isStreaming: false,
+          isCompacting: false,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,

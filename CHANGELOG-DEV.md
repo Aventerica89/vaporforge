@@ -4,6 +4,15 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-20 · v0.29.0
+FEAT    container — claude-agent.js forwards system compacting events as {type:'system-status',status:'compacting'}
+FEAT    sandbox — isCompacting boolean state in Zustand, reset on text/done/error
+FEAT    ui — CompactionBanner in ChatPanel (amber, pulsing BrainCircuit icon, hides when text arrives)
+FEAT    quickchat — create_plan tool: auto-executes, returns confirmation string, no needsApproval
+FEAT    ui — PlanCard component: numbered steps, optional detail lines, estimatedSteps count
+FEAT    ui — QuickChatMessage renders PlanCard for create_plan tool (output-available state)
+CHORE   version — bump 0.28.0 → 0.29.0 (package.json + version.ts + CLAUDE.md)
+
 ### 2026-02-20 · 11117ee · v0.28.0
 FEAT    quickchat — ask_user_questions tool: auto-executes, returns ack string, no needsApproval
 FEAT    ui — QuestionFlow component: text/select/multiselect/confirm types, required validation, submitted receipt

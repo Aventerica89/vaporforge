@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { cn } from '@/lib/cn';
-import { Trash2, Loader2, ArrowDown, Paperclip, Code, Bug, TestTube, Lightbulb } from 'lucide-react';
+import { Trash2, Loader2, ArrowDown, Paperclip, Code, Bug, TestTube, Lightbulb, BrainCircuit } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
 import { TokenCounter } from '@/components/elements/TokenCounter';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -80,6 +80,22 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
 // StreamingMessage — isolated component that subscribes ONLY to streaming state.
 // Prevents the message list from re-rendering on every streaming chunk.
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// CompactionBanner — shown while Claude auto-compacts its context window
+// ---------------------------------------------------------------------------
+
+function CompactionBanner() {
+  const isCompacting = useSandboxStore((s) => s.isCompacting);
+  if (!isCompacting) return null;
+
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400/80">
+      <BrainCircuit className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+      <span>Compacting context — Claude is condensing the conversation to free up memory...</span>
+    </div>
+  );
+}
 
 function StreamingMessage() {
   const isStreaming = useSandboxStore((s) => s.isStreaming);
@@ -456,6 +472,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
               {messageIds.map((id) => (
                 <MemoizedMessageItem key={id} id={id} />
               ))}
+              <CompactionBanner />
               <StreamingMessage />
               <div ref={messagesEndRef} />
             </div>

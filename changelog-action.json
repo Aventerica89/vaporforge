@@ -2,3 +2,4 @@
 { "v": "0.27.0", "ts": "2026-02-20T19:30:00Z", "msg": "Fix: CLAUDE.md no longer overwritten by credential section", "hash": "eae501c" }
 { "v": "0.27.0", "ts": "2026-02-20T22:00:00Z", "msg": "CitationCard for WebFetch + ApprovalCard upgrade", "hash": "2c77c81" }
 { "v": "0.28.0", "ts": "2026-02-20T23:30:00Z", "msg": "QuestionFlow: AI-driven form collection in QuickChat", "hash": "11117ee" }
+{ "v": "0.29.0", "ts": "2026-02-21T00:30:00Z", "msg": "Compaction indicator + PlanCard tool UI", "hash": "pending" }

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.29.0 — February 20, 2026
+
++ Added   Execution Plan cards — Claude can now lay out a step-by-step plan before starting complex tasks
++ Added   Compaction indicator — a banner appears when Claude is condensing its context window (previously a silent pause)
+
 ## v0.28.0 — February 20, 2026
 
 + Added   Question Flow — Claude can now ask you structured questions before starting a task (text, options, multi-select, yes/no)

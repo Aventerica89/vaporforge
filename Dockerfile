@@ -290,6 +290,15 @@ async function runStream(prompt, sessionId, cwd, useResume) {
       emit({ type: 'session-init', sessionId: newSessionId });
     }
 
+    // Forward compaction status so the frontend can show a banner.
+    // The SDK emits system events when auto-compacting context (~119s silence).
+    if (msg.type === 'system' && msg.subtype !== 'init') {
+      const raw = JSON.stringify(msg).toLowerCase();
+      if (raw.includes('compact')) {
+        emit({ type: 'system-status', status: 'compacting' });
+      }
+    }
+
     // Track parent_tool_use_id for nested agent tools
     if (msg.parent_tool_use_id !== undefined) {
       currentParentToolUseId = msg.parent_tool_use_id;
