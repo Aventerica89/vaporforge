@@ -87,7 +87,7 @@ npm run test         # Vitest tests
 | `src/services/agency-validator.ts` | Agency site validation |
 | `src/services/embeddings.ts` | Embedding generation service |
 | `src/services/files.ts` | File operations service |
-| `src/api/sdk.ts` | Main chat — WS proxy to container agent + persist endpoint |
+| `src/api/sdk.ts` | Main chat — WS proxy to container agent + persist endpoint + replay (stream reconnect) |
 | `src/api/sessions.ts` | Session CRUD, sandbox create/resume |
 | `src/api/agency.ts` | Agency mode API (create site, poll status, preview proxy) |
 | `src/api/chat.ts` | Chat history endpoints |
@@ -163,7 +163,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Astro Dev Toolbar conflicts** — has its own Inspect mode + external links that break in sandboxed iframe. Disabled via env var.
 - **External links blocked** — inspector intercepts clicks on `<a>` with external URLs to prevent iframe navigation
 - **Auto-tagging fallback** — if no `data-vf-component` found, semantic elements (header, nav, main, section, etc.) are auto-tagged
-- **Shadow DOM inspector regression (v0.27.0)** — `vf-highlight`/`vf-tooltip` custom elements (`static get observedAttributes` syntax fix in 46b7db4) may still not load. If inspector hover/click is broken, revert overlays to plain divs with `all:unset` + `!important` CSS overrides instead of Shadow DOM Web Components.
+- **Shadow DOM inspector regression (v0.27.0)** — `vf-highlight`/`vf-tooltip` custom elements. Fix `46b7db4` applied (static getter syntax + single-string cssText) but not verified in production. If inspector hover/click is broken, revert overlays in `agency-inspector.ts` to plain divs with `all:unset` + `!important` CSS overrides instead of Shadow DOM Web Components.
 
 ## Critical Gotchas
 
@@ -186,6 +186,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **`POST /api/sdk/persist`**: Browser saves full assistant text after stream completes (WS doesn't persist).
 - **WS auth via query param** `?token=JWT` (WS upgrade requests can't carry custom headers from browser).
 - **`emit()` helper in claude-agent.js**: `fs.writeSync(1, ...)` bypasses Node's block-buffered stdout.
+- **Stream reconnect/replay**: Frontend generates `?msgId=UUID` per WS connection. Container buffers every chunk to `/tmp/vf-stream-{msgId}.jsonl` alongside sending it as a WS frame. On unexpected close (no prior `process-exit` frame), frontend calls `GET /api/sdk/replay/:sessionId?msgId=&offset=N` to recover the partial response. Buffer deleted on clean exit. `msgId` sanitized to `[a-zA-Z0-9-]{1,64}` before use in shell command.
 
 ### MCP Servers
 
@@ -207,6 +208,16 @@ Visual website editor — click components in a live Astro preview, describe edi
 - Always use `visualViewport.height` (not `dvh` or `100%`) for mobile sizing
 - No `scrollIntoView()` — causes iOS keyboard push-up
 - `window.scrollTo(0,0)` on every viewport resize as safety net
+
+### Custom Tool UI
+
+Tools added to the main chat session use a two-layer pattern:
+
+1. **Dockerfile `buildOptions()`**: Add tool definition to `vfTools` object (description + `inputSchema` + `execute` that returns an ack string). Both `create_plan` and `ask_user_questions` live here.
+2. **`MessageContent.tsx` `renderPart()`**: Intercept `case 'tool-start':` by `part.name` before falling through to `<ToolCallBlock>`. Suppress matching `case 'tool-result':` (return `null`) — UI is already rendered.
+3. **Hook access in `renderPart`**: `renderPart` is a free function — it cannot call hooks. If the tool's UI component needs store access (e.g., `sendMessage`), create a wrapper React component that calls the hook internally, then render the wrapper from `renderPart`. Example: `AskQuestionsBlock` wraps `QuestionFlow` and reads `sendMessage` from `useSandboxStore`.
+
+QuickChat tools (AI SDK `tool()` in `src/api/quickchat.ts`) follow the same naming convention but are rendered in `QuickChatPanel.tsx` instead.
 
 ### UX
 
