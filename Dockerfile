@@ -292,7 +292,8 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   }
 
   return {
-    model: process.env.VF_MODEL || 'claude-sonnet-4-5',
+    model: process.env.VF_MODEL || 'claude-sonnet-4-6',
+    betas: ['context-1m-2025-08-07'],
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
     agents,
