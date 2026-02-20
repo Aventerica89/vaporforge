@@ -1287,9 +1287,24 @@ if(fs.existsSync(p)){
         // Strip VF rules prefix — only persist the user portion
         const separator = '\n\n---\n\n';
         const sepIndex = containerClaudeMd.indexOf(separator);
-        const userPortion = sepIndex >= 0
+        let userPortion = sepIndex >= 0
           ? containerClaudeMd.slice(sepIndex + separator.length)
           : containerClaudeMd;
+
+        // Strip injected credential files section — it's transient, not user content.
+        // The credential section uses the same separator format, so without this strip,
+        // the credential section body gets saved to KV as the user's CLAUDE.md.
+        const credMarker = '## Injected Credential Files';
+        const credIdx = userPortion.indexOf(credMarker);
+        if (credIdx >= 0) {
+          // Walk back to trim the preceding separator line too
+          userPortion = userPortion.slice(0, credIdx).replace(/\n*---\n*$/, '').trimEnd();
+        }
+
+        // Guard: if userPortion is just credential noise (no real user content), skip save.
+        if (userPortion.trim().startsWith('## Injected Credential Files')) {
+          return { synced: false, claudeMdChanged: false };
+        }
 
         const kvClaudeMd = await kv.get(`user-config:${userId}:claude-md`);
         if (userPortion.trim() !== (kvClaudeMd || '').trim()) {

@@ -88,9 +88,15 @@ userRoutes.get('/claude-md', async (c) => {
     `user-config:${user.id}:claude-md`
   );
 
+  // Guard against legacy corruption: if KV holds the injected credential section
+  // (from the sync bug fixed in this version), return empty so settings UI is clean.
+  const cleaned = content?.trim().startsWith('## Injected Credential Files')
+    ? ''
+    : (content || '');
+
   return c.json<ApiResponse<{ content: string }>>({
     success: true,
-    data: { content: content || '' },
+    data: { content: cleaned },
   });
 });
 
