@@ -11,6 +11,19 @@ export const userRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 /** Max size for user CLAUDE.md content (50KB — generous but bounded) */
 const MAX_CLAUDE_MD_SIZE = 50_000;
 
+/** Default user CLAUDE.md — shown when user has not set custom content */
+const DEFAULT_CLAUDE_MD = `## My Preferences
+
+Add your personal coding preferences and rules here. This content is injected
+into every Claude session alongside the VaporForge container rules above.
+
+## Credential Files
+
+MCP credential files are automatically injected at session start.
+Their paths are listed under "Injected Credential Files" in this file —
+check there before asking the user to re-provide credentials.
+`;
+
 /** Max size for VF internal rules (20KB) */
 const MAX_VF_RULES_SIZE = 20_000;
 
@@ -89,14 +102,13 @@ userRoutes.get('/claude-md', async (c) => {
   );
 
   // Guard against legacy corruption: if KV holds the injected credential section
-  // (from the sync bug fixed in this version), return empty so settings UI is clean.
-  const cleaned = content?.trim().startsWith('## Injected Credential Files')
-    ? ''
-    : (content || '');
+  // (from the sync bug fixed in this version), treat as empty so settings UI is clean.
+  const isCorrupt = content?.trim().startsWith('## Injected Credential Files');
+  const cleaned = isCorrupt ? null : content;
 
   return c.json<ApiResponse<{ content: string }>>({
     success: true,
-    data: { content: cleaned },
+    data: { content: cleaned ?? DEFAULT_CLAUDE_MD },
   });
 });
 
