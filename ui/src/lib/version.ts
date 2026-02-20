@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Changelog sync: add missing public CHANGELOG entries for v0.26.0–v0.29.0 (What\'s New panel was stuck on v0.25.0)' },
   { date: '2026-02-20', summary: 'Dev Playground: personal component registry — user components stored in KV, add/delete UI, "My Components" filter pill, App Components category with Issue Tracker install guide (multi-file with tab viewer)' },
   { date: '2026-02-20', summary: 'Chore: add 3 SDK roadmap items to Notion (promptSuggestion, supportsAdaptiveThinking, supportedEffortLevels); restructure MEMORY.md 514→149 lines into vaporforge-history.md + vaporforge-patterns.md topic files' },
   { date: '2026-02-20', summary: 'UX: Auto model button (4th pill, new default) — sends no model param, always uses server default; explicit S/H/O lock to specific model' },
@@ -91,6 +92,62 @@ export const DEV_CHANGELOG: readonly DevLogEntry[] = [
 ];
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.29.0',
+    date: '2026-02-20',
+    tag: 'feature',
+    title: 'Model Control, Cost Tracking, and Budget Limits',
+    items: [
+      'Model selector: choose Sonnet (S), Haiku (H), Opus (O), or Auto (default) per message',
+      'Autonomy selector: Conservative, Standard, or Autonomous permission mode per session',
+      'Cost meter: see input/output token counts and estimated USD cost per message and session total',
+      'Budget control: set a per-session USD spend ceiling in Command Center',
+      'Compaction indicator: banner appears when Claude is compacting context mid-session',
+      'Structured plan creation: Claude uses create_plan tool to present plans as interactive cards',
+      'Upgrade to Claude Sonnet 4.6 with 1M token context window beta enabled',
+    ],
+  },
+  {
+    version: '0.28.0',
+    date: '2026-02-20',
+    tag: 'feature',
+    title: 'Structured AI Forms + Stream Reconnect',
+    items: [
+      'QuestionFlow: Claude can ask structured questions (text, select, multiselect, confirm) in Quick Chat',
+      'Stream reconnect: if your connection drops mid-response, the stream auto-resumes from where it left off',
+      'Citation cards for web search results: favicon, title, snippet, and source URL always visible',
+      'Approval cards detect destructive operations (rm, delete, drop) and display a red warning theme',
+      'Chat welcome state: suggestion chips appear on an empty chat to help you get started',
+      'Chat input glows cyan by default and transitions to purple when you start typing',
+    ],
+  },
+  {
+    version: '0.27.0',
+    date: '2026-02-19',
+    tag: 'feature',
+    title: 'Agency Code Mode — Edit Astro Sites Directly',
+    items: [
+      'Dual Monaco editors in Agency: edit component code and CSS side by side',
+      'Inline AI: describe a change in plain English and apply it directly to the selected file',
+      'Shadow DOM inspector overlays — highlight and tooltip elements no longer affected by site CSS',
+      'GitHub repo browser in the New Site modal: search and filter your repos, Astro-only toggle',
+      'Debug panel: paste or drop a screenshot and get AI analysis of CSS specificity issues',
+      'Pre-flight check: readable error messages before WebSocket connection (was silent failure)',
+    ],
+  },
+  {
+    version: '0.26.0',
+    date: '2026-02-18',
+    tag: 'feature',
+    title: 'Agency Editor v2 — Richer Context for AI Edits',
+    items: [
+      'Click-to-select now captures element tag, visible text, and full HTML for the AI',
+      'AI reads the full Astro source file before making edits (6000 char cap)',
+      'Edit panel header shows exactly which element you have selected',
+      'iframe auto-reloads after every AI edit — see changes without manual refresh',
+      'Astro docs injected as MCP context so the AI understands Astro-specific syntax',
+    ],
+  },
   {
     version: '0.25.0',
     date: '2026-02-17',
