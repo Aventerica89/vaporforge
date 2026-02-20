@@ -4,6 +4,11 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-20 · 2c77c81 · v0.27.0
+FEAT    ui — CitationCard: WebFetch results show always-visible card (favicon, title, domain, snippet)
+FEAT    ui — Confirmation → ApprovalCard: destructive detection (rm/delete/drop → red theme + AlertTriangle)
+FEAT    ui — ToolCallBlock: Globe icon for WebFetch, Search for Grep; URL formatted as hostname+path
+
 ### 2026-02-20 12:30 · eae501c · v0.27.0
 FIX     sandbox — syncConfigFromContainer strips credential section before saving to KV
 FIX     user-api — GET /user/claude-md returns empty instead of corrupt credential content

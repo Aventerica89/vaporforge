@@ -1,2 +1,3 @@
 { "v": "0.27.0", "ts": "2026-02-20T11:18:24Z", "msg": "Stream reconnect: auto-recover dropped WS mid-response", "hash": "de304f8" }
 { "v": "0.27.0", "ts": "2026-02-20T19:30:00Z", "msg": "Fix: CLAUDE.md no longer overwritten by credential section", "hash": "eae501c" }
+{ "v": "0.27.0", "ts": "2026-02-20T22:00:00Z", "msg": "CitationCard for WebFetch + ApprovalCard upgrade", "hash": "2c77c81" }
