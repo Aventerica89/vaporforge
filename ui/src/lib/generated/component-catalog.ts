@@ -1,15 +1,418 @@
 // Static shadcn/ui component catalog for the Dev Playground
 // Reference-only — these are copy-paste snippets, not runtime dependencies
 
+export interface ComponentFile {
+  path: string;
+  content: string;
+}
+
 export interface ComponentEntry {
   id: string;
   name: string;
-  category: 'Form' | 'Layout' | 'Data Display' | 'Feedback' | 'Navigation' | 'Overlay';
+  category: string;
   description: string;
   code: string;
   dependencies: string[];
   tailwindClasses: string[];
+  type?: 'snippet' | 'app';
+  files?: ComponentFile[];
 }
+
+// ─── Issue Tracker standalone file contents ───
+
+const IT_HOOK = `import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+export interface Issue {
+  id: string;
+  title: string;
+  description: string;
+  type: 'bug' | 'error' | 'feature' | 'suggestion';
+  size: 'S' | 'M' | 'L';
+  screenshots: Array<{ id: string; dataUrl: string }>;
+  claudeNote?: string;
+  resolved: boolean;
+  createdAt: string;
+}
+
+export type IssueFilter = 'all' | 'bug' | 'error' | 'feature' | 'suggestion' | 'resolved';
+
+interface IssueTrackerState {
+  issues: Issue[];
+  suggestions: string;
+  isOpen: boolean;
+  filter: IssueFilter;
+  openTracker: () => void;
+  closeTracker: () => void;
+  setFilter: (filter: IssueFilter) => void;
+  addIssue: (partial: Omit<Issue, 'id' | 'createdAt' | 'resolved' | 'screenshots'>) => void;
+  updateIssue: (id: string, updates: Partial<Pick<Issue, 'title' | 'description' | 'type' | 'size'>>) => void;
+  removeIssue: (id: string) => void;
+  toggleResolved: (id: string) => void;
+  reorderIssues: (fromIndex: number, toIndex: number) => void;
+  addScreenshot: (issueId: string, screenshot: { id: string; dataUrl: string }) => void;
+  removeScreenshot: (issueId: string, screenshotId: string) => void;
+  setClaudeNote: (issueId: string, note: string) => void;
+  setSuggestions: (text: string) => void;
+}
+
+export function buildMarkdown(issues: Issue[], suggestions: string): string {
+  const lines = ['# Issue Tracker', '', 'Exported: ' + new Date().toISOString().slice(0, 10), ''];
+  const open = issues.filter((i) => !i.resolved);
+  const done = issues.filter((i) => i.resolved);
+  if (open.length > 0) { lines.push('## Open', ''); open.forEach((i) => lines.push(formatIssue(i))); }
+  if (done.length > 0) { lines.push('## Resolved', ''); done.forEach((i) => lines.push(formatIssue(i))); }
+  if (suggestions.trim()) { lines.push('## Notes', '', suggestions.trim(), ''); }
+  return lines.join('\\n');
+}
+
+export function formatIssue(issue: Issue): string {
+  const check = issue.resolved ? 'x' : ' ';
+  const lines = ['- [' + check + '] **[' + issue.type.toUpperCase() + '] [' + issue.size + ']** ' + issue.title];
+  if (issue.description.trim()) lines.push('  > ' + issue.description.trim());
+  if (issue.claudeNote?.trim()) lines.push('  - Note: ' + issue.claudeNote.trim());
+  lines.push('');
+  return lines.join('\\n');
+}
+
+export const useIssueTracker = create<IssueTrackerState>()(
+  persist(
+    (set) => ({
+      issues: [],
+      suggestions: '',
+      isOpen: false,
+      filter: 'all' as IssueFilter,
+      openTracker: () => set({ isOpen: true }),
+      closeTracker: () => set({ isOpen: false }),
+      setFilter: (filter) => set({ filter }),
+      addIssue: (partial) => {
+        const issue: Issue = {
+          ...partial,
+          id: crypto.randomUUID(),
+          screenshots: [],
+          resolved: false,
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({ issues: [issue, ...state.issues] }));
+      },
+      updateIssue: (id, updates) =>
+        set((state) => ({ issues: state.issues.map((i) => (i.id === id ? { ...i, ...updates } : i)) })),
+      removeIssue: (id) =>
+        set((state) => ({ issues: state.issues.filter((i) => i.id !== id) })),
+      toggleResolved: (id) =>
+        set((state) => ({ issues: state.issues.map((i) => (i.id === id ? { ...i, resolved: !i.resolved } : i)) })),
+      reorderIssues: (fromIndex, toIndex) =>
+        set((state) => {
+          const next = [...state.issues];
+          const [moved] = next.splice(fromIndex, 1);
+          next.splice(toIndex, 0, moved);
+          return { issues: next };
+        }),
+      addScreenshot: (issueId, screenshot) =>
+        set((state) => ({
+          issues: state.issues.map((i) =>
+            i.id === issueId ? { ...i, screenshots: [...i.screenshots, screenshot] } : i
+          ),
+        })),
+      removeScreenshot: (issueId, screenshotId) =>
+        set((state) => ({
+          issues: state.issues.map((i) =>
+            i.id === issueId
+              ? { ...i, screenshots: i.screenshots.filter((s) => s.id !== screenshotId) }
+              : i
+          ),
+        })),
+      setClaudeNote: (issueId, note) =>
+        set((state) => ({ issues: state.issues.map((i) => (i.id === issueId ? { ...i, claudeNote: note } : i)) })),
+      setSuggestions: (text) => set({ suggestions: text }),
+    }),
+    {
+      name: 'issue-tracker',
+      partialize: (state) => ({ issues: state.issues, suggestions: state.suggestions, filter: state.filter }),
+    }
+  )
+);
+`;
+
+const IT_CARD = `import { useState, useCallback, useRef } from 'react';
+import { GripVertical, ChevronDown, X, Trash2 } from 'lucide-react';
+import { useIssueTracker } from '../hooks/useIssueTracker';
+import type { Issue } from '../hooks/useIssueTracker';
+
+const TYPE_COLORS: Record<Issue['type'], string> = {
+  bug: 'bg-red-500/15 text-red-400 border-red-500/30',
+  error: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  feature: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+  suggestion: 'bg-violet-500/15 text-violet-400 border-violet-500/30',
+};
+const SIZE_COLORS: Record<Issue['size'], string> = {
+  S: 'bg-green-500/15 text-green-400',
+  M: 'bg-yellow-500/15 text-yellow-400',
+  L: 'bg-red-500/15 text-red-400',
+};
+
+interface IssueCardProps {
+  issue: Issue;
+  index: number;
+  onDragStart: (index: number) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDrop: (index: number) => void;
+}
+
+export function IssueCard({ issue, index, onDragStart, onDragOver, onDrop }: IssueCardProps) {
+  const [expanded, setExpanded] = useState(false);
+  const [editingType, setEditingType] = useState(false);
+  const [editingSize, setEditingSize] = useState(false);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+  const { updateIssue, removeIssue, toggleResolved, addScreenshot, removeScreenshot, setClaudeNote } = useIssueTracker();
+
+  const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+  const handleImageFile = useCallback((file: File) => {
+    if (!ALLOWED_TYPES.includes(file.type) || issue.screenshots.length >= 10) return;
+    const reader = new FileReader();
+    reader.onload = () => addScreenshot(issue.id, { id: crypto.randomUUID(), dataUrl: reader.result as string });
+    reader.readAsDataURL(file);
+  }, [issue.id, issue.screenshots.length, addScreenshot]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const files = e.clipboardData?.files;
+    if (!files?.length) return;
+    for (const file of Array.from(files)) {
+      if (ALLOWED_TYPES.includes(file.type)) { e.preventDefault(); handleImageFile(file); }
+    }
+  }, [handleImageFile]);
+
+  const handleDropImage = useCallback((e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const files = e.dataTransfer?.files;
+    if (!files?.length) return;
+    for (const file of Array.from(files)) handleImageFile(file);
+  }, [handleImageFile]);
+
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(index)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDrop={() => onDrop(index)}
+      className={'group rounded-lg border border-border bg-card/50 ' + (issue.resolved ? 'opacity-60' : '')}
+    >
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <button className="flex h-6 w-6 cursor-grab items-center justify-center text-muted-foreground/40 hover:text-muted-foreground">
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={() => toggleResolved(issue.id)}
+          className={'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ' + (issue.resolved ? 'border-primary bg-primary text-primary-foreground' : 'border-muted-foreground/40 hover:border-primary')}
+          title={issue.resolved ? 'Mark unresolved' : 'Mark resolved'}
+        />
+        {editingType ? (
+          <select value={issue.type} onChange={(e) => { updateIssue(issue.id, { type: e.target.value as Issue['type'] }); setEditingType(false); }} onBlur={() => setEditingType(false)} autoFocus className="shrink-0 rounded border border-primary bg-card px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+            <option value="bug">BUG</option><option value="error">ERROR</option><option value="feature">FEATURE</option><option value="suggestion">IDEA</option>
+          </select>
+        ) : (
+          <button onClick={() => setEditingType(true)} className={'shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ' + TYPE_COLORS[issue.type]}>{issue.type}</button>
+        )}
+        {editingSize ? (
+          <select value={issue.size} onChange={(e) => { updateIssue(issue.id, { size: e.target.value as Issue['size'] }); setEditingSize(false); }} onBlur={() => setEditingSize(false)} autoFocus className="shrink-0 rounded border border-primary bg-card px-1.5 py-0.5 text-[10px] font-bold text-primary">
+            <option>S</option><option>M</option><option>L</option>
+          </select>
+        ) : (
+          <button onClick={() => setEditingSize(true)} className={'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold ' + SIZE_COLORS[issue.size]}>{issue.size}</button>
+        )}
+        <button onClick={() => setExpanded(!expanded)} className={'flex-1 truncate text-left text-sm ' + (issue.resolved ? 'line-through text-muted-foreground' : 'text-foreground')}>{issue.title}</button>
+        <button onClick={() => setExpanded(!expanded)} className="shrink-0 text-muted-foreground hover:text-foreground">
+          <ChevronDown className={'h-3.5 w-3.5 transition-transform ' + (expanded ? 'rotate-180' : '')} />
+        </button>
+        <button onClick={() => removeIssue(issue.id)} className="shrink-0 p-0.5 text-muted-foreground/40 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100" title="Delete">
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
+      {expanded && (
+        <div className="space-y-3 border-t border-border/50 px-3 py-3" onPaste={handlePaste}>
+          <textarea
+            value={issue.description}
+            onChange={(e) => updateIssue(issue.id, { description: e.target.value })}
+            placeholder="Describe the issue..."
+            rows={4}
+            className="w-full resize-y rounded border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <div ref={dropZoneRef} onDragOver={(e) => e.preventDefault()} onDrop={handleDropImage} className="rounded border-2 border-dashed border-border/50 px-3 py-2 text-center text-xs text-muted-foreground/60">
+            Drop or paste images here
+          </div>
+          {issue.screenshots.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {issue.screenshots.map((ss) => (
+                <div key={ss.id} className="group/thumb relative">
+                  <img src={ss.dataUrl} alt="Screenshot" className="h-16 w-16 rounded border border-border object-cover" />
+                  <button onClick={() => removeScreenshot(issue.id, ss.id)} className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white opacity-0 group-hover/thumb:opacity-100">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Note</label>
+            <textarea value={issue.claudeNote || ''} onChange={(e) => setClaudeNote(issue.id, e.target.value)} placeholder="Notes or AI-suggested fix..." rows={2} className="w-full resize-none rounded border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+          </div>
+          <div className="text-[10px] text-muted-foreground/50">Created {new Date(issue.createdAt).toLocaleDateString()}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+`;
+
+const IT_MAIN = `import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Plus, ClipboardCopy, Search } from 'lucide-react';
+import { useIssueTracker, buildMarkdown, formatIssue } from '../hooks/useIssueTracker';
+import { IssueCard } from './IssueCard';
+import type { Issue, IssueFilter } from '../hooks/useIssueTracker';
+
+const FILTER_TABS: { id: IssueFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'bug', label: 'Bugs' },
+  { id: 'error', label: 'Errors' },
+  { id: 'feature', label: 'Features' },
+  { id: 'suggestion', label: 'Ideas' },
+  { id: 'resolved', label: 'Resolved' },
+];
+const ISSUE_TYPES: Issue['type'][] = ['bug', 'error', 'feature', 'suggestion'];
+const ISSUE_SIZES: Issue['size'][] = ['S', 'M', 'L'];
+
+export function IssueTracker() {
+  const { issues, suggestions, isOpen, filter, closeTracker, setFilter, addIssue, reorderIssues, setSuggestions } = useIssueTracker();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState('');
+  const [type, setType] = useState<Issue['type']>('bug');
+  const [size, setSize] = useState<Issue['size']>('M');
+  const [copied, setCopied] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const dragIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeTracker(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [isOpen, closeTracker]);
+
+  useEffect(() => { if (showForm) setTimeout(() => titleRef.current?.focus(), 50); }, [showForm]);
+
+  const handleAddIssue = useCallback(() => {
+    const trimmed = title.trim();
+    if (!trimmed) return;
+    addIssue({ title: trimmed, description: '', type, size });
+    setTitle('');
+    setShowForm(false);
+  }, [title, type, size, addIssue]);
+
+  const handleDragStart = useCallback((index: number) => { dragIndex.current = index; }, []);
+  const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); }, []);
+  const handleDrop = useCallback((toIndex: number) => {
+    const fromIndex = dragIndex.current;
+    if (fromIndex === null || fromIndex === toIndex) return;
+    reorderIssues(fromIndex, toIndex);
+    dragIndex.current = null;
+  }, [reorderIssues]);
+
+  const handleCopyMarkdown = useCallback(async () => {
+    const toExport = filtered.length > 0 ? filtered : issues;
+    const md = buildMarkdown(toExport, suggestions);
+    await navigator.clipboard.writeText(md);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [issues, suggestions]);
+
+  if (!isOpen) return null;
+
+  const query = searchQuery.toLowerCase().trim();
+  const matchesSearch = (i: Issue) => !query || i.title.toLowerCase().includes(query) || i.description.toLowerCase().includes(query);
+  const filtered = filter === 'resolved'
+    ? issues.filter((i) => i.resolved && matchesSearch(i))
+    : filter === 'all'
+      ? issues.filter((i) => !i.resolved && matchesSearch(i))
+      : issues.filter((i) => i.type === filter && !i.resolved && matchesSearch(i));
+  const openCount = issues.filter((i) => !i.resolved).length;
+  const resolvedCount = issues.filter((i) => i.resolved).length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div className="flex h-full w-full flex-col">
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-base font-bold uppercase tracking-wider text-primary">Issue Tracker</h2>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">{openCount} open / {resolvedCount} done</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={handleCopyMarkdown} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <ClipboardCopy className="h-3.5 w-3.5" />
+              {copied ? 'Copied!' : 'Copy MD'}
+            </button>
+            <button onClick={() => setShowForm(!showForm)} className="flex items-center gap-1 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs text-primary hover:bg-primary/20 transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+              Add
+            </button>
+            <button onClick={closeTracker} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2">
+          <div className="flex flex-wrap gap-1">
+            {FILTER_TABS.map((tab) => (
+              <button key={tab.id} onClick={() => setFilter(tab.id)} className={'min-h-0 rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider transition-colors ' + (filter === tab.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground')}>
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative ml-auto">
+            <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="w-36 rounded border border-border bg-muted pl-7 pr-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none" />
+          </div>
+        </div>
+        {showForm && (
+          <div className="shrink-0 space-y-3 border-b border-border bg-muted/30 px-4 py-4">
+            <input ref={titleRef} type="text" value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') handleAddIssue(); if (e.key === 'Escape') setShowForm(false); }} placeholder="Issue title..." className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+            <div className="flex items-center gap-3">
+              <select value={type} onChange={(e) => setType(e.target.value as Issue['type'])} className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground focus:border-primary focus:outline-none">
+                {ISSUE_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+              </select>
+              <div className="flex gap-1">
+                {ISSUE_SIZES.map((s) => (
+                  <button key={s} onClick={() => setSize(s)} className={'rounded px-2 py-0.5 text-xs font-bold transition-colors ' + (size === s ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}>{s}</button>
+                ))}
+              </div>
+              <div className="flex-1" />
+              <button onClick={handleAddIssue} disabled={!title.trim()} className="rounded-md bg-primary px-3 py-1 text-xs font-bold text-primary-foreground disabled:opacity-50">Create</button>
+            </div>
+          </div>
+        )}
+        <div className="flex-1 overflow-y-auto px-4 py-3" style={{ overscrollBehavior: 'contain' }}>
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <p className="text-sm text-muted-foreground/60">{issues.length === 0 ? 'No issues yet. Click "Add" to create one.' : 'No issues match this filter.'}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((issue, idx) => (
+                <IssueCard key={issue.id} issue={issue} index={idx} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} />
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="shrink-0 border-t border-border px-4 py-3">
+          <label className="mb-1.5 block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Notes / Claude Suggestions</label>
+          <textarea value={suggestions} onChange={(e) => setSuggestions(e.target.value)} placeholder="Paste Claude recommendations here..." rows={2} className="w-full resize-none rounded border border-border bg-muted px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" />
+        </div>
+      </div>
+    </div>
+  );
+}
+`;
 
 export const componentCatalog: ComponentEntry[] = [
   // ─── Form ───
@@ -479,6 +882,23 @@ export const componentCatalog: ComponentEntry[] = [
     dependencies: [],
     tailwindClasses: ['fixed', 'z-50', 'bg-background', 'shadow-lg'],
   },
+
+  // ─── App Components ───
+  {
+    id: 'issue-tracker-app',
+    name: 'Issue Tracker',
+    category: 'App Components',
+    type: 'app' as const,
+    description: 'Full issue tracker with bug/feature tracking, drag reorder, screenshots, and localStorage persistence via Zustand.',
+    code: '',
+    dependencies: ['zustand', 'lucide-react'],
+    tailwindClasses: [],
+    files: [
+      { path: 'hooks/useIssueTracker.ts', content: IT_HOOK },
+      { path: 'components/IssueCard.tsx', content: IT_CARD },
+      { path: 'components/IssueTracker.tsx', content: IT_MAIN },
+    ],
+  },
 ];
 
 export const componentCategories = [
@@ -488,4 +908,5 @@ export const componentCategories = [
   'Feedback',
   'Navigation',
   'Overlay',
+  'App Components',
 ] as const;

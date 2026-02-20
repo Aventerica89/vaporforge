@@ -26,6 +26,7 @@ import { analyzeRoutes } from './api/analyze';
 import { commitMsgRoutes } from './api/commit-msg';
 import { embeddingsRoutes } from './api/embeddings';
 import { agencyRoutes, handleAgencyEditWs, handleAgencyEditPreflight } from './api/agency';
+import { userComponentsRoutes } from './api/user-components';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -370,6 +371,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/commit-msg', commitMsgRoutes);
   protectedRoutes.route('/embeddings', embeddingsRoutes);
   protectedRoutes.route('/agency', agencyRoutes);
+  protectedRoutes.route('/user-components', userComponentsRoutes);
 
   // Temporary: exposePort validation endpoint (remove after Agency Mode ships)
   protectedRoutes.post('/agency/test-expose', async (c) => {

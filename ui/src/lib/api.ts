@@ -1093,6 +1093,42 @@ export const filesApi = {
     ),
 };
 
+// User Component Registry API
+export interface UserComponentFile {
+  path: string;
+  content: string;
+}
+
+export interface UserComponentEntry {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  code: string;
+  dependencies: string[];
+  tailwindClasses: string[];
+  type?: 'snippet' | 'app';
+  files?: UserComponentFile[];
+  isCustom: true;
+  createdAt: string;
+}
+
+export const userComponentsApi = {
+  list: () =>
+    request<UserComponentEntry[]>('/user-components'),
+
+  save: (entry: Omit<UserComponentEntry, 'id' | 'isCustom' | 'createdAt'>) =>
+    request<UserComponentEntry>('/user-components', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    }),
+
+  delete: (id: string) =>
+    request<{ id: string }>(`/user-components/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+};
+
 // Git API
 export const gitApi = {
   status: (sessionId: string) =>
