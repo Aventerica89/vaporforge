@@ -678,7 +678,15 @@ sessionRoutes.post('/:sessionId/clone', async (c) => {
     }, 400);
   }
 
-  const targetPath = body.path || '/workspace';
+  // Validate clone target — must be /workspace or a subdirectory of it
+  const rawPath = body.path || '/workspace';
+  if (!rawPath.startsWith('/workspace') || rawPath.includes('..')) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'Clone path must be within /workspace',
+    }, 400);
+  }
+  const targetPath = rawPath;
 
   // Clone repository
   const cloneResult = await sandboxManager.execInSandbox(

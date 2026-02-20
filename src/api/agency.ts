@@ -27,6 +27,7 @@ const UpdateSiteSchema = CreateSiteSchema.partial().extend({
 
 export interface AgencySite {
   id: string;
+  userId: string;
   name: string;
   repoUrl: string;
   pagesUrl?: string;
@@ -38,6 +39,17 @@ export interface AgencySite {
 
 const KV_PREFIX = 'agency-site:';
 
+/** Returns the site only if it belongs to the given userId, otherwise null. */
+async function getOwnedSite(
+  kv: KVNamespace,
+  siteId: string,
+  userId: string,
+): Promise<AgencySite | null> {
+  const site = await kv.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  if (!site || site.userId !== userId) return null;
+  return site;
+}
+
 export const agencyRoutes = new Hono<{
   Bindings: Env;
   Variables: Variables;
@@ -45,15 +57,16 @@ export const agencyRoutes = new Hono<{
 
 // Auth is handled by the parent protectedRoutes middleware
 
-// List all agency sites
+// List agency sites for the authenticated user
 agencyRoutes.get('/sites', async (c) => {
+  const user = c.get('user') as User;
   const kv = c.env.SESSIONS_KV;
   const list = await kv.list({ prefix: KV_PREFIX });
   const sites: AgencySite[] = [];
 
   for (const key of list.keys) {
     const value = await kv.get<AgencySite>(key.name, 'json');
-    if (value) sites.push(value);
+    if (value && value.userId === user.id) sites.push(value);
   }
 
   // Sort by lastEdited descending
@@ -66,10 +79,8 @@ agencyRoutes.get('/sites', async (c) => {
 
 // Get single site
 agencyRoutes.get('/sites/:id', async (c) => {
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(
-    `${KV_PREFIX}${c.req.param('id')}`,
-    'json'
-  );
+  const user = c.get('user') as User;
+  const site = await getOwnedSite(c.env.SESSIONS_KV, c.req.param('id'), user.id);
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
   }
@@ -78,6 +89,7 @@ agencyRoutes.get('/sites/:id', async (c) => {
 
 // Create site
 agencyRoutes.post('/sites', async (c) => {
+  const user = c.get('user') as User;
   const body = await c.req.json();
   const parsed = CreateSiteSchema.safeParse(body);
   if (!parsed.success) {
@@ -87,6 +99,7 @@ agencyRoutes.post('/sites', async (c) => {
   const id = crypto.randomUUID().slice(0, 8);
   const site: AgencySite = {
     id,
+    userId: user.id,
     name: parsed.data.name,
     repoUrl: parsed.data.repoUrl,
     pagesUrl: parsed.data.pagesUrl,
@@ -105,11 +118,9 @@ agencyRoutes.post('/sites', async (c) => {
 
 // Update site
 agencyRoutes.put('/sites/:id', async (c) => {
+  const user = c.get('user') as User;
   const id = c.req.param('id');
-  const existing = await c.env.SESSIONS_KV.get<AgencySite>(
-    `${KV_PREFIX}${id}`,
-    'json'
-  );
+  const existing = await getOwnedSite(c.env.SESSIONS_KV, id, user.id);
 
   if (!existing) {
     return c.json({ success: false, error: 'Site not found' }, 404);
@@ -138,8 +149,9 @@ agencyRoutes.put('/sites/:id', async (c) => {
 
 // Delete site
 agencyRoutes.delete('/sites/:id', async (c) => {
+  const user = c.get('user') as User;
   const id = c.req.param('id');
-  const existing = await c.env.SESSIONS_KV.get(`${KV_PREFIX}${id}`);
+  const existing = await getOwnedSite(c.env.SESSIONS_KV, id, user.id);
   if (!existing) {
     return c.json({ success: false, error: 'Site not found' }, 404);
   }
@@ -150,13 +162,11 @@ agencyRoutes.delete('/sites/:id', async (c) => {
 
 // Start editing session — kicks off setup inside the container (no waitUntil)
 agencyRoutes.post('/sites/:id/edit', async (c) => {
+  const user = c.get('user') as User;
   const id = c.req.param('id');
   console.log(`[agency] POST /edit starting for site ${id}`);
 
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(
-    `${KV_PREFIX}${id}`,
-    'json',
-  );
+  const site = await getOwnedSite(c.env.SESSIONS_KV, id, user.id);
 
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
@@ -188,7 +198,11 @@ agencyRoutes.post('/sites/:id/edit', async (c) => {
 
 // Poll editing session status — checks container dev server, exposes port when ready
 agencyRoutes.get('/sites/:id/edit/status', async (c) => {
+  const user = c.get('user') as User;
   const id = c.req.param('id');
+  if (!await getOwnedSite(c.env.SESSIONS_KV, id, user.id)) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
   const sm = c.get('sandboxManager');
   const sessionId = `agency-${id}`;
   const parts = new URL(c.req.url).hostname.split('.');
@@ -275,7 +289,11 @@ agencyRoutes.get('/sites/:id/edit/status', async (c) => {
 
 // Get dev server setup logs for diagnostics
 agencyRoutes.get('/sites/:id/edit/logs', async (c) => {
+  const user = c.get('user') as User;
   const id = c.req.param('id');
+  if (!await getOwnedSite(c.env.SESSIONS_KV, id, user.id)) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
   const sm = c.get('sandboxManager');
   const sessionId = `agency-${id}`;
 
@@ -293,19 +311,31 @@ agencyRoutes.get('/sites/:id/edit/logs', async (c) => {
 // Read an Astro source file from the container
 // GET /api/agency/sites/:id/source?file=src/components/heroes/HeroCentered.astro
 agencyRoutes.get('/sites/:id/source', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
   const file = c.req.query('file') || '';
 
-  // Validate: must be a relative path, no traversal, must be .astro file
-  if (!file || file.includes('..') || !file.endsWith('.astro')) {
+  // Validate: relative path only, no traversal, .astro extension only, safe chars
+  if (
+    !file ||
+    file.startsWith('/') ||
+    file.includes('..') ||
+    !file.endsWith('.astro') ||
+    !/^[a-zA-Z0-9_\-./]+$/.test(file)
+  ) {
     return c.json({ success: false, error: 'Invalid file path' }, 400);
+  }
+
+  if (!await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id)) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
   }
 
   const sm = c.get('sandboxManager');
   const sessionId = `agency-${siteId}`;
 
   try {
-    const result = await sm.execInSandbox(sessionId, `cat "/workspace/${file}"`, {
+    // Array form — no shell involved, safe against metacharacter injection
+    const result = await sm.execInSandbox(sessionId, ['cat', `/workspace/${file}`], {
       cwd: '/workspace',
     });
     // Cap at 6000 chars to keep prompt size reasonable
@@ -322,11 +352,16 @@ const CommitSchema = z.object({
 });
 
 agencyRoutes.post('/sites/:id/commit', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
   const body = await c.req.json();
   const parsed = CommitSchema.safeParse(body);
   if (!parsed.success) {
     return c.json({ success: false, error: parsed.error.message }, 400);
+  }
+
+  if (!await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id)) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
   }
 
   const sm = c.get('sandboxManager');
@@ -354,7 +389,11 @@ agencyRoutes.post('/sites/:id/commit', async (c) => {
 
 // Get diff of changes in the agency container
 agencyRoutes.get('/sites/:id/diff', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
+  if (!await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id)) {
+    return c.json({ success: false, error: 'Site not found' }, 404);
+  }
   const sm = c.get('sandboxManager');
   const sessionId = `agency-${siteId}`;
 
@@ -396,6 +435,7 @@ agencyRoutes.get('/sites/:id/diff', async (c) => {
 
 // Read a file from the agency sandbox
 agencyRoutes.get('/sites/:id/file', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
   const filePath = c.req.query('path');
 
@@ -403,15 +443,19 @@ agencyRoutes.get('/sites/:id/file', async (c) => {
     return c.json({ success: false, error: 'path is required' }, 400);
   }
 
-  const safePath = filePath.startsWith('/') ? filePath : `/workspace/${filePath}`;
+  // Reject absolute paths and traversal — always serve from /workspace
+  if (filePath.startsWith('/') || filePath.includes('..')) {
+    return c.json({ success: false, error: 'Invalid path' }, 400);
+  }
+  const safePath = `/workspace/${filePath}`;
 
-  const sm = c.get('sandboxManager');
-  const sessionId = `agency-${siteId}`;
-
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  const site = await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id);
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
   }
+
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
 
   const content = await sm.readFile(sessionId, safePath);
   if (content === null) {
@@ -423,6 +467,7 @@ agencyRoutes.get('/sites/:id/file', async (c) => {
 
 // Write a file to the agency sandbox
 agencyRoutes.put('/sites/:id/file', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
 
   const body = await c.req.json().catch(() => null);
@@ -433,15 +478,19 @@ agencyRoutes.put('/sites/:id/file', async (c) => {
     return c.json({ success: false, error: 'path and content are required' }, 400);
   }
 
-  const safePath = filePath.startsWith('/') ? filePath : `/workspace/${filePath}`;
+  // Reject absolute paths and traversal — always write into /workspace
+  if (filePath.startsWith('/') || filePath.includes('..')) {
+    return c.json({ success: false, error: 'Invalid path' }, 400);
+  }
+  const safePath = `/workspace/${filePath}`;
 
-  const sm = c.get('sandboxManager');
-  const sessionId = `agency-${siteId}`;
-
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  const site = await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id);
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
   }
+
+  const sm = c.get('sandboxManager');
+  const sessionId = `agency-${siteId}`;
 
   const ok = await sm.writeFile(sessionId, safePath, content);
   if (!ok) {
@@ -453,11 +502,9 @@ agencyRoutes.put('/sites/:id/file', async (c) => {
 
 // Push changes to remote — triggers CF Pages or similar deploy
 agencyRoutes.post('/sites/:id/push', async (c) => {
+  const user = c.get('user') as User;
   const siteId = c.req.param('id');
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(
-    `${KV_PREFIX}${siteId}`,
-    'json',
-  );
+  const site = await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id);
 
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
@@ -600,7 +647,7 @@ agencyRoutes.post('/sites/:id/inline-ai', async (c) => {
     return c.json({ success: false, error: 'prompt is required' }, 400);
   }
 
-  const site = await c.env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  const site = await getOwnedSite(c.env.SESSIONS_KV, siteId, user.id);
   if (!site) {
     return c.json({ success: false, error: 'Site not found' }, 404);
   }
@@ -699,6 +746,12 @@ export async function handleAgencyEditPreflight(
     return Response.json({ success: false, error: 'Missing siteId or instruction' }, { status: 400 });
   }
 
+  // Ownership check — only the site owner can trigger edits
+  const site = await env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  if (!site || site.userId !== user.id) {
+    return Response.json({ success: false, error: 'Site not found' }, { status: 404 });
+  }
+
   if (!user.claudeToken) {
     return Response.json({ success: false, error: 'No Claude token configured. Please re-authenticate.' }, { status: 401 });
   }
@@ -714,12 +767,22 @@ export async function handleAgencyEditPreflight(
   // Fetch the file source so the AI has full context (optional — proceed without it if missing)
   let fileSource = '';
   if (componentFile && !siteWide) {
-    try {
-      const safePath = componentFile.replace(/\.\./g, '');
-      const result = await sandboxManager.execInSandbox(sessionId, `cat "/workspace/${safePath}"`);
-      fileSource = (result.stdout || '').slice(0, 6000);
-    } catch {
-      // File source is optional
+    // Sanitize: reject absolute paths, traversal, and shell metacharacters
+    const safeComponentFile = componentFile.replace(/\.\./g, '');
+    if (
+      !safeComponentFile.startsWith('/') &&
+      /^[a-zA-Z0-9_\-./]+$/.test(safeComponentFile)
+    ) {
+      try {
+        // Array form — no shell, safe against metacharacter injection
+        const result = await sandboxManager.execInSandbox(
+          sessionId,
+          ['cat', `/workspace/${safeComponentFile}`],
+        );
+        fileSource = (result.stdout || '').slice(0, 6000);
+      } catch {
+        // File source is optional
+      }
     }
   }
 
@@ -834,6 +897,13 @@ export async function handleAgencyEditWs(
   if (!user.claudeToken || !user.claudeToken.startsWith('sk-ant-oat01-')) {
     console.log(`[agency/ws] invalid token type — not OAuth`);
     return new Response('Agency mode requires a Claude OAuth token', { status: 401 });
+  }
+
+  // Ownership check — only the site owner can connect
+  const site = await env.SESSIONS_KV.get<AgencySite>(`${KV_PREFIX}${siteId}`, 'json');
+  if (!site || site.userId !== user.id) {
+    console.log(`[agency/ws] ownership check failed for siteId=${siteId}`);
+    return new Response('Site not found', { status: 404 });
   }
 
   const sessionId = `agency-${siteId}`;
