@@ -13,7 +13,7 @@ interface ChatMarkdownProps {
 const components: Components = {
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className || '');
-    const code = String(children).replace(/\n$/, '');
+    const codeStr = String(children).replace(/\n$/, '');
 
     // Fenced code blocks get language-* className from remark
     if (match) {
@@ -25,7 +25,17 @@ const components: Components = {
         filename = titleMatch ? titleMatch[1] : undefined;
       }
 
-      return <CodeBlock code={code} language={match[1]} filename={filename} />;
+      return <CodeBlock code={codeStr} language={match[1]} filename={filename} />;
+    }
+
+    // No-language fenced block (tree diagrams, file listings, etc.) — multiline
+    // detection distinguishes block-level from inline code. Preserves whitespace.
+    if (codeStr.includes('\n')) {
+      return (
+        <pre className="my-3 overflow-x-auto rounded-lg border border-border/60 bg-muted/20 p-3 text-xs font-mono leading-relaxed text-foreground/85 whitespace-pre">
+          {codeStr}
+        </pre>
+      );
     }
 
     // Inline code
