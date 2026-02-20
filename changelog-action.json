@@ -7,3 +7,5 @@
 { "v": "0.29.0", "ts": "2026-02-21T03:30:00Z", "msg": "Fix: ask_user_questions now shows panel (not text)", "hash": "d16f5f5d" }
 { "v": "0.29.0", "ts": "2026-02-20T19:29:18Z", "msg": "Cost meter: per-message USD + session total", "hash": "243255f" }
 { "v": "0.29.0", "ts": "2026-02-20T19:50:00Z", "msg": "Fix: tree/file hierarchy blocks now render with whitespace-pre", "hash": "1a9b4f4" }
+{ "v": "0.29.0", "ts": "2026-02-20T22:10:00Z", "msg": "Personal component registry in Dev Playground", "hash": "23199a4" }
+{ "v": "0.29.0", "ts": "2026-02-20T22:20:00Z", "msg": "Sync public CHANGELOG: add v0.26-0.29 What's New entries", "hash": "cfe455d" }

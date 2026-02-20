@@ -1,0 +1,55 @@
+[
+  {
+    "version": "0.29.0",
+    "date": "2026-02-20",
+    "entries": [
+      { "type": "added", "text": "Model selector (S/H/O/Auto) — lock Claude to a specific model or let it auto-select per message" },
+      { "type": "added", "text": "Autonomy selector — choose how freely Claude acts without approval (Conservative / Standard / Autonomous)" },
+      { "type": "added", "text": "Cost meter — see per-message and session-total USD spend in real time" },
+      { "type": "added", "text": "Budget ceiling — set a max spend per session in Command Center to prevent runaway usage" },
+      { "type": "added", "text": "Execution Plan cards — Claude lays out a step-by-step plan before starting complex tasks" },
+      { "type": "added", "text": "Compaction indicator — banner appears when Claude is condensing its context window" },
+      { "type": "added", "text": "Upgrade to Claude Sonnet 4.6 with 1M token context window beta" }
+    ]
+  },
+  {
+    "version": "0.28.0",
+    "date": "2026-02-20",
+    "entries": [
+      { "type": "added", "text": "Question Flow — Claude can ask structured questions before starting a task" },
+      { "type": "added", "text": "Stream reconnect — dropped connections auto-resume from where they left off" },
+      { "type": "added", "text": "Citation cards — web search results show favicon, title, source, and preview snippet" },
+      { "type": "added", "text": "Chat welcome state — suggestion chips on an empty chat" },
+      { "type": "changed", "text": "Tool approval cards highlight destructive actions (delete, drop, rm) in red" }
+    ]
+  },
+  {
+    "version": "0.27.0",
+    "date": "2026-02-19",
+    "entries": [
+      { "type": "added", "text": "Agency Code Mode — dual Monaco editors with Inline AI for Astro components" },
+      { "type": "added", "text": "Shadow DOM inspector overlays — hover/click indicators isolated from site styles" },
+      { "type": "added", "text": "GitHub repo browser in New Site modal" },
+      { "type": "added", "text": "Debug panel — paste screenshot for AI CSS analysis" }
+    ]
+  },
+  {
+    "version": "0.26.0",
+    "date": "2026-02-18",
+    "entries": [
+      { "type": "added", "text": "Agency Editor v2 — inspector highlights specific child elements" },
+      { "type": "changed", "text": "AI edits include selected element HTML and full Astro source" },
+      { "type": "changed", "text": "Astro docs MCP injected into every agency session" },
+      { "type": "fixed", "text": "iframe auto-reloads after each AI edit" }
+    ]
+  },
+  {
+    "version": "0.25.0",
+    "date": "2026-02-17",
+    "entries": [
+      { "type": "added", "text": "Agency Mode — click any component on your Astro site and describe edits in plain language" },
+      { "type": "added", "text": "Component tree sidebar with visual inspector overlay" },
+      { "type": "added", "text": "Staging workflow — view git diff and push changes live" }
+    ]
+  }
+]

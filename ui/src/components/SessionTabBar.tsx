@@ -26,7 +26,17 @@ import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { McpRelayStatus } from '@/components/McpRelayStatus';
 import { APP_VERSION } from '@/lib/version';
-import { BUILD_HASH } from '@/lib/generated/build-info';
+import { BUILD_HASH, BUILD_TIMESTAMP } from '@/lib/generated/build-info';
+
+function deployedAgo(isoTs: string): string {
+  const seconds = Math.floor((Date.now() - new Date(isoTs).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
 
 export function SessionTabBar() {
   const {
@@ -216,9 +226,13 @@ export function SessionTabBar() {
 
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-1 px-2">
-        {/* Version badge */}
-        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-mono text-amber-400/80">
-          v{APP_VERSION} <span className="text-amber-400/50">#{BUILD_HASH}</span>
+        {/* Deploy badge — updates every build */}
+        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[9px] font-mono text-cyan-400/90">
+          v{APP_VERSION} · {deployedAgo(BUILD_TIMESTAMP)}
+        </span>
+        {/* Dev version badge */}
+        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-mono text-amber-400/80">
+          #{BUILD_HASH}
         </span>
         {/* Git branch + AI commit button */}
         {currentSession && gitStatus && (
