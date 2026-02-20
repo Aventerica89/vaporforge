@@ -79,6 +79,7 @@ export const DEV_CHANGELOG: readonly DevLogEntry[] = [
   { date: '2026-02-18', summary: 'Add brand logos to AboutTab, WelcomeScreen, AgencyLoadingScreen, Hero, TechStack' },
   { date: '2026-02-20', summary: 'Add autonomy selector (Conservative/Standard/Autonomous) — maps to SDK permissionMode, threaded through WS stack' },
   { date: '2026-02-20', summary: 'Add cost meter — captures token usage from SDK result event, shown as input/output counts below assistant messages' },
+  { date: '2026-02-20', summary: 'Fix cost meter pipeline: capture total_cost_usd from SDK result, pass through done frame, fix api.ts usage passthrough bug, show cost per-message and session total' },
 ];
 
 export const CHANGELOG: readonly ChangelogEntry[] = [

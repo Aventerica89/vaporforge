@@ -227,6 +227,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
   let newSessionId = sessionId || '';
   let responseText = '';
   let resultUsage = null;
+  let resultCostUsd = null;
 
   // Dedup: track emitted tool IDs to skip duplicates
   // (tools can arrive via streaming AND in the final assistant message)
@@ -309,7 +310,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
       });
     }
 
-    // Result message with final session_id and token usage
+    // Result message with final session_id, token usage, and cost
     if (msg.type === 'result') {
       if (msg.session_id) newSessionId = msg.session_id;
       if (msg.usage) {
@@ -317,6 +318,9 @@ async function runStream(prompt, sessionId, cwd, useResume) {
           inputTokens: msg.usage.input_tokens ?? 0,
           outputTokens: msg.usage.output_tokens ?? 0,
         };
+      }
+      if (typeof msg.total_cost_usd === 'number') {
+        resultCostUsd = msg.total_cost_usd;
       }
     }
 
@@ -330,7 +334,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     }
   }
 
-  return { newSessionId, responseText, usage: resultUsage };
+  return { newSessionId, responseText, usage: resultUsage, costUsd: resultCostUsd };
 }
 
 async function handleQuery(prompt, sessionId, cwd) {
@@ -373,6 +377,7 @@ async function handleQuery(prompt, sessionId, cwd) {
     sessionId: result.newSessionId,
     fullText: result.responseText,
     ...(result.usage ? { usage: result.usage } : {}),
+    ...(result.costUsd !== null ? { costUsd: result.costUsd } : {}),
   });
 }
 

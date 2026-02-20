@@ -532,7 +532,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Dedup: track emitted tool IDs to prevent duplicate renders
       const emittedToolIds = new Set<string>();
 
-      let streamUsage: { inputTokens: number; outputTokens: number } | undefined;
+      let streamUsage: { inputTokens: number; outputTokens: number; costUsd?: number } | undefined;
 
       // Reconnect replay tracking
       let streamMsgId = '';       // captured from synthetic 'msg-id' event
@@ -689,7 +689,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           const doneChunk = chunk as Record<string, unknown>;
           if (doneChunk.usage) {
             const u = doneChunk.usage as { inputTokens: number; outputTokens: number };
-            streamUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+            streamUsage = {
+              inputTokens: u.inputTokens,
+              outputTokens: u.outputTokens,
+              ...(typeof doneChunk.costUsd === 'number' ? { costUsd: doneChunk.costUsd as number } : {}),
+            };
           }
           sdkApi.persistMessage(
             session.id,
@@ -731,7 +735,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
               } else if (rType === 'done') {
                 if (rc.usage) {
                   const u = rc.usage as { inputTokens: number; outputTokens: number };
-                  streamUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+                  streamUsage = {
+                    inputTokens: u.inputTokens,
+                    outputTokens: u.outputTokens,
+                    ...(typeof rc.costUsd === 'number' ? { costUsd: rc.costUsd as number } : {}),
+                  };
                 }
                 if (typeof rc.fullText === 'string' && rc.fullText) content = rc.fullText;
               }

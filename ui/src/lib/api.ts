@@ -465,7 +465,16 @@ export const sdkApi = {
             push({ value: { type: 'tool-result', id: msg.id, name: msg.name, output: msg.output }, done: false });
             break;
           case 'done':
-            push({ value: { type: 'done', sessionId: msg.sessionId, fullText: msg.fullText }, done: false });
+            push({
+              value: {
+                type: 'done',
+                sessionId: msg.sessionId,
+                fullText: msg.fullText,
+                ...(msg.usage ? { usage: msg.usage } : {}),
+                ...(typeof msg.costUsd === 'number' ? { costUsd: msg.costUsd } : {}),
+              },
+              done: false,
+            });
             break;
           case 'error':
             push({ value: { type: 'error', content: msg.error }, done: false });

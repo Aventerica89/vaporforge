@@ -53,7 +53,7 @@ export interface Message {
   /** Pasted image attachments with preview data URLs */
   images?: ImageAttachment[];
   /** Token usage for this message (assistant only) */
-  usage?: { inputTokens: number; outputTokens: number };
+  usage?: { inputTokens: number; outputTokens: number; costUsd?: number };
 }
 
 export interface ToolCall {

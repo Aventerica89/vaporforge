@@ -67,6 +67,9 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
             {message.usage && (
               <span className="ml-auto text-[9px] tabular-nums text-muted-foreground/50" title="Token usage: input / output">
                 {message.usage.inputTokens.toLocaleString()}↑ {message.usage.outputTokens.toLocaleString()}↓
+                {message.usage.costUsd !== undefined && (
+                  <> · ${message.usage.costUsd < 0.001 ? message.usage.costUsd.toFixed(5) : message.usage.costUsd.toFixed(4)}</>
+                )}
               </span>
             )}
           </MessageFooter>
@@ -244,6 +247,19 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
     }
     return Math.floor(chars / 4);
   }, [messagesById]);
+
+  // Session cost total — sum of costUsd across all assistant messages
+  const sessionCostUsd = useMemo(() => {
+    let total = 0;
+    let hasAny = false;
+    for (const msg of Object.values(messagesById)) {
+      if (msg.usage?.costUsd !== undefined) {
+        total += msg.usage.costUsd;
+        hasAny = true;
+      }
+    }
+    return hasAny ? total : undefined;
+  }, [messagesById]);
   // For auto-scroll: subscribe to streamingContent length, not full content
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
 
@@ -384,6 +400,14 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
             {currentFile && (
               <span className="text-xs text-primary/60">
                 — {currentFile.name}
+              </span>
+            )}
+            {sessionCostUsd !== undefined && (
+              <span
+                className="text-[10px] tabular-nums text-muted-foreground/50"
+                title="Session cost (your Anthropic account)"
+              >
+                ${sessionCostUsd < 0.01 ? sessionCostUsd.toFixed(4) : sessionCostUsd.toFixed(3)} session
               </span>
             )}
           </div>
