@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Chore: add 3 SDK roadmap items to Notion (promptSuggestion, supportsAdaptiveThinking, supportedEffortLevels); restructure MEMORY.md 514→149 lines into vaporforge-history.md + vaporforge-patterns.md topic files' },
   { date: '2026-02-20', summary: 'UX: Auto model button (4th pill, new default) — sends no model param, always uses server default; explicit S/H/O lock to specific model' },
   { date: '2026-02-20', summary: 'Upgrade: default model claude-sonnet-4-5→4-6 + enable 1M context beta (betas: context-1m-2025-08-07) in buildOptions(); MODEL_MAP sonnet entry updated in sdk.ts' },
   { date: '2026-02-20', summary: 'Fix: create_plan tool description now prescriptive (ALWAYS call, NEVER use text) — prevents Claude from describing plans in plain text; remove tacky purple left border from MessageBody chat bubbles' },
