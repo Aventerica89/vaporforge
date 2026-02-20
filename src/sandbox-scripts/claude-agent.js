@@ -9,7 +9,7 @@
 //   { type: "text-delta", text: "..." }
 //   { type: "tool-start", name: "...", input: {...} }
 //   { type: "tool-result", name: "...", output: "..." }
-//   { type: "done", sessionId: "...", fullText: "..." }
+//   { type: "done", sessionId: "...", fullText: "...", usage?: {inputTokens, outputTokens} }
 //   { type: "error", error: "..." }
 
 let query;
@@ -38,6 +38,7 @@ const STRIP_FROM_SDK_ENV = new Set([
   'CLAUDE_MCP_SERVERS',        // VF internal transport (parsed separately into options.mcpServers)
   'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
   'VF_AUTO_CONTEXT',           // VF internal (read in buildOptions to control auto-context injection)
+  'VF_AUTONOMY_MODE',          // VF internal (read in buildOptions to set permissionMode)
 ]);
 
 // Tools blocked in plan mode (read-only research mode).
@@ -150,6 +151,17 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   const mode = process.env.VF_SESSION_MODE || 'agent';
   const isPlan = mode === 'plan';
   if (isPlan) console.error('[claude-agent] Running in PLAN mode (read-only)');
+
+  // Autonomy mode: conservative=ask, standard=auto-accept edits, autonomous=bypass all
+  // Plan mode always wins regardless of autonomy setting.
+  const autonomy = process.env.VF_AUTONOMY_MODE || 'autonomous';
+  const permissionMode = isPlan ? 'plan'
+    : autonomy === 'conservative' ? 'default'
+    : autonomy === 'standard' ? 'acceptEdits'
+    : 'bypassPermissions';
+  const allowDangerouslySkipPermissions = !isPlan && autonomy === 'autonomous';
+  if (!isPlan) console.error(`[claude-agent] Autonomy: ${autonomy} -> permissionMode: ${permissionMode}`);
+
   const agents = loadAgentsFromDisk();
 
   // Filter out keys the SDK's CLI child process shouldn't see
@@ -179,8 +191,8 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     agents,
     ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
-    permissionMode: isPlan ? 'plan' : 'bypassPermissions',
-    allowDangerouslySkipPermissions: !isPlan,
+    permissionMode,
+    allowDangerouslySkipPermissions,
     ...(isPlan ? {
       canUseTool: async (toolName) => {
         if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
@@ -214,6 +226,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
 
   let newSessionId = sessionId || '';
   let responseText = '';
+  let resultUsage = null;
 
   // Dedup: track emitted tool IDs to skip duplicates
   // (tools can arrive via streaming AND in the final assistant message)
@@ -296,9 +309,15 @@ async function runStream(prompt, sessionId, cwd, useResume) {
       });
     }
 
-    // Result message with final session_id
-    if (msg.type === 'result' && msg.session_id) {
-      newSessionId = msg.session_id;
+    // Result message with final session_id and token usage
+    if (msg.type === 'result') {
+      if (msg.session_id) newSessionId = msg.session_id;
+      if (msg.usage) {
+        resultUsage = {
+          inputTokens: msg.usage.input_tokens ?? 0,
+          outputTokens: msg.usage.output_tokens ?? 0,
+        };
+      }
     }
 
     // Handle errors from SDK — report but don't exit
@@ -311,7 +330,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     }
   }
 
-  return { newSessionId, responseText };
+  return { newSessionId, responseText, usage: resultUsage };
 }
 
 async function handleQuery(prompt, sessionId, cwd) {
@@ -353,6 +372,7 @@ async function handleQuery(prompt, sessionId, cwd) {
     type: 'done',
     sessionId: result.newSessionId,
     fullText: result.responseText,
+    ...(result.usage ? { usage: result.usage } : {}),
   });
 }
 

@@ -385,7 +385,8 @@ export const sdkApi = {
     cwd?: string,
     signal?: AbortSignal,
     mode?: 'agent' | 'plan',
-    model?: 'sonnet' | 'haiku' | 'opus'
+    model?: 'sonnet' | 'haiku' | 'opus',
+    autonomy?: 'conservative' | 'standard' | 'autonomous'
   ): AsyncGenerator<{
     type: string;
     id?: string;
@@ -396,6 +397,7 @@ export const sdkApi = {
     input?: Record<string, unknown>;
     output?: string;
     restoredAt?: string;
+    usage?: { inputTokens: number; outputTokens: number };
   }> {
     const token = localStorage.getItem('session_token');
     if (!token) throw new Error('Not authenticated');
@@ -408,6 +410,7 @@ export const sdkApi = {
       mode: mode || 'agent',
       token,
       ...(model ? { model } : {}),
+      ...(autonomy ? { autonomy } : {}),
     });
     const wsUrl = `${proto}//${location.host}/api/sdk/ws?${params}`;
 

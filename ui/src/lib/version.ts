@@ -19,6 +19,8 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'ChatPanel: prompt input box always shows cyan glow by default; transitions to purple shadow when typing' },
+  { date: '2026-02-20', summary: 'ChatPanel: centered welcome state with headline + suggestion chips when no messages; input pops to bottom once chat starts' },
   { date: '2026-02-19', summary: 'UI elements: fix Claude icon ring/size in MessageAvatar; add AgentStatusBadge to StreamingIndicator; SchemaViewer for tool input; HandoffChain in MessageContent; TokenCounter in PromptInputTools' },
   { date: '2026-02-19', summary: 'Replace Claude + Gemini icons with official SVGs; save mobile-ios-design + prompt-lookup skills to claude-codex' },
   { date: '2026-02-19', summary: 'vapor-sync: CLAUDE.md version 0.26.0→0.27.0 + Shadow DOM agency gotcha; MEMORY.md version fix; landing Features.astro adds Agency Mode card + layout SVG icon; FAQ.astro removes beta-phase language from billing question' },
@@ -68,6 +70,8 @@ export const DEV_CHANGELOG: readonly DevLogEntry[] = [
   { date: '2026-02-18', summary: 'Fix agency preview URL hostname extraction (was stripping to just "dev")' },
   { date: '2026-02-18', summary: 'Add two-changelog system: DEV_CHANGELOG (every commit) + CHANGELOG (feature releases)' },
   { date: '2026-02-18', summary: 'Add brand logos to AboutTab, WelcomeScreen, AgencyLoadingScreen, Hero, TechStack' },
+  { date: '2026-02-20', summary: 'Add autonomy selector (Conservative/Standard/Autonomous) — maps to SDK permissionMode, threaded through WS stack' },
+  { date: '2026-02-20', summary: 'Add cost meter — captures token usage from SDK result event, shown as input/output counts below assistant messages' },
 ];
 
 export const CHANGELOG: readonly ChangelogEntry[] = [

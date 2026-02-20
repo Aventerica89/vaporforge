@@ -52,6 +52,8 @@ export interface Message {
   parts?: MessagePart[];
   /** Pasted image attachments with preview data URLs */
   images?: ImageAttachment[];
+  /** Token usage for this message (assistant only) */
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 export interface ToolCall {

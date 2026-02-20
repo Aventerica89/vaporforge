@@ -502,6 +502,7 @@ export async function handleSdkWs(
   const cwd = url.searchParams.get('cwd') || '/workspace';
   const mode = url.searchParams.get('mode') || 'agent';
   const modelParam = url.searchParams.get('model') || '';
+  const autonomyParam = url.searchParams.get('autonomy') || 'autonomous';
 
   const MODEL_MAP: Record<string, string> = {
     sonnet: 'claude-sonnet-4-5',
@@ -609,6 +610,7 @@ export async function handleSdkWs(
         VF_SESSION_MODE: mode,
         VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
         ...(resolvedModel ? { VF_MODEL: resolvedModel } : {}),
+        VF_AUTONOMY_MODE: autonomyParam,
       },
     });
 

@@ -42,6 +42,7 @@ interface SandboxState {
   streamingParts: MessagePart[];
   sdkMode: 'agent' | 'plan';
   selectedModel: 'sonnet' | 'haiku' | 'opus';
+  autonomyMode: 'conservative' | 'standard' | 'autonomous';
 
   // Git state
   gitStatus: GitStatus | null;
@@ -77,6 +78,7 @@ interface SandboxState {
   clearMessages: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
   setModel: (model: 'sonnet' | 'haiku' | 'opus') => void;
+  setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
 
   // Derived helper — returns messages array from normalized state.
   // Use messageIds + messagesById selectors in components instead for perf.
@@ -126,6 +128,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingParts: [],
   sdkMode: 'agent' as const,
   selectedModel: 'sonnet' as const,
+  autonomyMode: 'autonomous' as const,
   streamAbortController: null,
 
   gitStatus: null,
@@ -527,8 +530,10 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Dedup: track emitted tool IDs to prevent duplicate renders
       const emittedToolIds = new Set<string>();
 
+      let streamUsage: { inputTokens: number; outputTokens: number } | undefined;
+
       for await (const chunk of sdkApi.streamWs(
-        session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel
+        session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel, get().autonomyMode
       )) {
         // Skip connection and heartbeat events — just reset the timeout
         if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
@@ -651,6 +656,10 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           useStreamDebug.getState().endStream();
           // Persist assistant message to KV (WS can't use waitUntil)
           const doneChunk = chunk as Record<string, unknown>;
+          if (doneChunk.usage) {
+            const u = doneChunk.usage as { inputTokens: number; outputTokens: number };
+            streamUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+          }
           sdkApi.persistMessage(
             session.id,
             (doneChunk.fullText as string) || content,
@@ -711,6 +720,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         content: content || (parts.length > 0 ? '' : 'No response'),
         timestamp: new Date().toISOString(),
         parts: parts.length > 0 ? parts : [{ type: 'text', content }],
+        ...(streamUsage ? { usage: streamUsage } : {}),
       };
 
       set((state) => ({
@@ -838,6 +848,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
 
   setModel: (model: 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
+
+  setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => set({ autonomyMode: mode }),
 
   getMessages: () => {
     const { messageIds, messagesById } = get();
