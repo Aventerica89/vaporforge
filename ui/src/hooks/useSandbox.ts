@@ -41,6 +41,7 @@ interface SandboxState {
   streamingContent: string;
   streamingParts: MessagePart[];
   sdkMode: 'agent' | 'plan';
+  selectedModel: 'sonnet' | 'haiku' | 'opus';
 
   // Git state
   gitStatus: GitStatus | null;
@@ -75,6 +76,7 @@ interface SandboxState {
   stopStreaming: () => void;
   clearMessages: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
+  setModel: (model: 'sonnet' | 'haiku' | 'opus') => void;
 
   // Derived helper — returns messages array from normalized state.
   // Use messageIds + messagesById selectors in components instead for perf.
@@ -123,6 +125,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingContent: '',
   streamingParts: [],
   sdkMode: 'agent' as const,
+  selectedModel: 'sonnet' as const,
   streamAbortController: null,
 
   gitStatus: null,
@@ -525,7 +528,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       const emittedToolIds = new Set<string>();
 
       for await (const chunk of sdkApi.streamWs(
-        session.id, message, undefined, controller.signal, get().sdkMode
+        session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel
       )) {
         // Skip connection and heartbeat events — just reset the timeout
         if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
@@ -833,6 +836,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   clearMessages: () => set({ messagesById: {}, messageIds: [] }),
 
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
+
+  setModel: (model: 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
 
   getMessages: () => {
     const { messageIds, messagesById } = get();

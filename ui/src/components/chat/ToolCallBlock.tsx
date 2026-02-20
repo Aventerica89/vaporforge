@@ -1,22 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Loader2, Check, X, File, Terminal, Pencil, Eye } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
+import { GeminiIcon } from '@/components/icons/GeminiIcon';
 
 interface ToolCallBlockProps {
   part: MessagePart;
   isRunning?: boolean;
 }
 
+const GEMINI_LABELS: Record<string, string> = {
+  gemini_quick_query: 'Gemini Query',
+  gemini_analyze_code: 'Gemini Analyze',
+  gemini_codebase_analysis: 'Gemini Codebase',
+};
+
 /** Map tool names to a display-friendly icon + label */
 function getToolMeta(name: string) {
   const lower = name.toLowerCase();
+  if (lower.startsWith('gemini_'))
+    return { icon: null as null, label: GEMINI_LABELS[lower] || name, isGemini: true };
   if (lower === 'bash' || lower === 'execute' || lower.includes('exec'))
-    return { icon: Terminal, label: name };
+    return { icon: Terminal, label: name, isGemini: false };
   if (lower === 'read' || lower === 'glob' || lower === 'grep')
-    return { icon: Eye, label: name };
+    return { icon: Eye, label: name, isGemini: false };
   if (lower === 'write' || lower === 'edit')
-    return { icon: Pencil, label: name };
-  return { icon: File, label: name };
+    return { icon: Pencil, label: name, isGemini: false };
+  return { icon: File, label: name, isGemini: false };
 }
 
 /** Extract a displayable file path or command from tool input */
@@ -56,7 +65,7 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
 
   const isError = part.type === 'error';
   const toolName = part.name || 'Unknown tool';
-  const { icon: ToolIcon, label } = getToolMeta(toolName);
+  const { icon: ToolIcon, label, isGemini } = getToolMeta(toolName);
   const summary = getToolSummary(toolName, part.input);
 
   // Live duration counter while running
@@ -82,11 +91,17 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
   return (
     <div
       className={`my-2 overflow-hidden rounded-lg border transition-all duration-200 ${
-        isRunning
-          ? 'border-primary/50 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)]'
-          : isError
-            ? 'border-error/30'
-            : 'border-border/60'
+        isGemini
+          ? isRunning
+            ? 'border-blue-500/40 shadow-[0_0_12px_-2px_rgba(66,133,244,0.25)]'
+            : isError
+              ? 'border-error/30'
+              : 'border-blue-400/20'
+          : isRunning
+            ? 'border-primary/50 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)]'
+            : isError
+              ? 'border-error/30'
+              : 'border-border/60'
       }`}
     >
       {/* Header */}
@@ -102,16 +117,20 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
 
         {/* Status icon */}
         {isRunning ? (
-          <Loader2 className="h-3.5 w-3.5 flex-shrink-0 animate-spin text-primary" />
+          <Loader2 className={`h-3.5 w-3.5 flex-shrink-0 animate-spin ${isGemini ? 'text-blue-400' : 'text-primary'}`} />
         ) : isError ? (
           <X className="h-3.5 w-3.5 flex-shrink-0 text-error" />
         ) : (
-          <Check className="h-3.5 w-3.5 flex-shrink-0 text-success" />
+          <Check className={`h-3.5 w-3.5 flex-shrink-0 ${isGemini ? 'text-blue-400' : 'text-success'}`} />
         )}
 
         {/* Tool icon + name */}
-        <ToolIcon className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
-        <span className="font-mono font-medium text-foreground">{label}</span>
+        {isGemini ? (
+          <GeminiIcon className="h-3.5 w-3.5 flex-shrink-0" />
+        ) : ToolIcon ? (
+          <ToolIcon className="h-3 w-3 flex-shrink-0 text-muted-foreground" />
+        ) : null}
+        <span className={`font-mono font-medium ${isGemini ? 'text-blue-300' : 'text-foreground'}`}>{label}</span>
 
         {/* Summary (file path or command) */}
         {summary && (

@@ -102,6 +102,43 @@ function StreamingMessage() {
 }
 
 // ---------------------------------------------------------------------------
+// ModelSelector — three pills for Sonnet / Haiku / Opus selection
+// ---------------------------------------------------------------------------
+
+const MODEL_OPTIONS = [
+  { key: 'sonnet', label: 'S', title: 'Claude Sonnet (default)' },
+  { key: 'haiku', label: 'H', title: 'Claude Haiku (fast, lightweight)' },
+  { key: 'opus', label: 'O', title: 'Claude Opus (most capable)' },
+] as const;
+
+function ModelSelector({
+  selected,
+  onSelect,
+}: {
+  selected: 'sonnet' | 'haiku' | 'opus';
+  onSelect: (m: 'sonnet' | 'haiku' | 'opus') => void;
+}) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-md border border-border/40 bg-muted/20 p-0.5">
+      {MODEL_OPTIONS.map(({ key, label, title }) => (
+        <button
+          key={key}
+          onClick={() => onSelect(key)}
+          title={title}
+          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold font-mono transition-colors ${
+            selected === key
+              ? 'bg-primary text-primary-foreground'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ChatPanel
 // ---------------------------------------------------------------------------
 
@@ -123,6 +160,8 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
   const currentFile = useSandboxStore((s) => s.currentFile);
   const sdkMode = useSandboxStore((s) => s.sdkMode);
   const setMode = useSandboxStore((s) => s.setMode);
+  const selectedModel = useSandboxStore((s) => s.selectedModel);
+  const setModel = useSandboxStore((s) => s.setModel);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
   // For auto-scroll: subscribe to streamingContent length, not full content
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
@@ -300,6 +339,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
           )}
           <PromptInputReforge />
           <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />
+          <ModelSelector selected={selectedModel} onSelect={setModel} />
         </PromptInputTools>
         <PromptInputSlashMenu />
         <div className="relative rounded-xl border border-border/40 bg-muted/30 shadow-sm transition-all duration-200 focus-within:border-primary/60 focus-within:bg-background focus-within:shadow-[0_0_16px_-4px_hsl(var(--primary)/0.3)] hover:border-border/60 hover:bg-muted/20">

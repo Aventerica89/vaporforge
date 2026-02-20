@@ -1,4 +1,5 @@
-import { Bot, User } from 'lucide-react';
+import { User } from 'lucide-react';
+import { ClaudeIcon } from '@/components/icons/ClaudeIcon';
 
 interface MessageAvatarProps {
   role: 'user' | 'assistant' | 'system';
@@ -17,11 +18,11 @@ export function MessageAvatar({ role, isStreaming = false }: MessageAvatarProps)
   return (
     <div
       className={[
-        'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-secondary/10',
-        isStreaming ? 'ring-1 ring-secondary/40 animate-pulse' : '',
+        'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden',
+        isStreaming ? 'ring-1 ring-[#D97757]/40 animate-pulse' : '',
       ].join(' ')}
     >
-      <Bot className="h-3.5 w-3.5 text-secondary" />
+      <ClaudeIcon className="h-6 w-6" />
     </div>
   );
 }

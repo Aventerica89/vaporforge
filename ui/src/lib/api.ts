@@ -384,7 +384,8 @@ export const sdkApi = {
     prompt: string,
     cwd?: string,
     signal?: AbortSignal,
-    mode?: 'agent' | 'plan'
+    mode?: 'agent' | 'plan',
+    model?: 'sonnet' | 'haiku' | 'opus'
   ): AsyncGenerator<{
     type: string;
     id?: string;
@@ -406,6 +407,7 @@ export const sdkApi = {
       cwd: cwd || '/workspace',
       mode: mode || 'agent',
       token,
+      ...(model ? { model } : {}),
     });
     const wsUrl = `${proto}//${location.host}/api/sdk/ws?${params}`;
 
