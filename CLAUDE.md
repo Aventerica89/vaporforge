@@ -5,7 +5,7 @@
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
 - **Live**: https://vaporforge.dev (app at /app/, landing at /)
-- **Version**: 0.26.0
+- **Version**: 0.27.0
 - **Repo**: Aventerica89/vaporforge
 
 ## MANDATORY RULES
@@ -163,6 +163,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Astro Dev Toolbar conflicts** — has its own Inspect mode + external links that break in sandboxed iframe. Disabled via env var.
 - **External links blocked** — inspector intercepts clicks on `<a>` with external URLs to prevent iframe navigation
 - **Auto-tagging fallback** — if no `data-vf-component` found, semantic elements (header, nav, main, section, etc.) are auto-tagged
+- **Shadow DOM inspector regression (v0.27.0)** — `vf-highlight`/`vf-tooltip` custom elements (`static get observedAttributes` syntax fix in 46b7db4) may still not load. If inspector hover/click is broken, revert overlays to plain divs with `all:unset` + `!important` CSS overrides instead of Shadow DOM Web Components.
 
 ## Critical Gotchas
 
