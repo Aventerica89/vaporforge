@@ -385,7 +385,7 @@ export const sdkApi = {
     cwd?: string,
     signal?: AbortSignal,
     mode?: 'agent' | 'plan',
-    model?: 'sonnet' | 'haiku' | 'opus',
+    model?: 'auto' | 'sonnet' | 'haiku' | 'opus',
     autonomy?: 'conservative' | 'standard' | 'autonomous'
   ): AsyncGenerator<{
     type: string;
@@ -414,7 +414,7 @@ export const sdkApi = {
       mode: mode || 'agent',
       token,
       msgId,
-      ...(model ? { model } : {}),
+      ...(model && model !== 'auto' ? { model } : {}),
       ...(autonomy ? { autonomy } : {}),
     });
     const wsUrl = `${proto}//${location.host}/api/sdk/ws?${params}`;

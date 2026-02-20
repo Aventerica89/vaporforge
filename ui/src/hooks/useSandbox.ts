@@ -41,7 +41,7 @@ interface SandboxState {
   streamingContent: string;
   streamingParts: MessagePart[];
   sdkMode: 'agent' | 'plan';
-  selectedModel: 'sonnet' | 'haiku' | 'opus';
+  selectedModel: 'auto' | 'sonnet' | 'haiku' | 'opus';
   autonomyMode: 'conservative' | 'standard' | 'autonomous';
   isCompacting: boolean;
 
@@ -78,7 +78,7 @@ interface SandboxState {
   stopStreaming: () => void;
   clearMessages: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
-  setModel: (model: 'sonnet' | 'haiku' | 'opus') => void;
+  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
 
   // Derived helper — returns messages array from normalized state.
@@ -128,7 +128,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingContent: '',
   streamingParts: [],
   sdkMode: 'agent' as const,
-  selectedModel: 'sonnet' as const,
+  selectedModel: 'auto' as const,
   autonomyMode: 'autonomous' as const,
   isCompacting: false,
   streamAbortController: null,
@@ -926,7 +926,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
 
-  setModel: (model: 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
+  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
 
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => set({ autonomyMode: mode }),
 

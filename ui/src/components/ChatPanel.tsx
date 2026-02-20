@@ -142,17 +142,18 @@ function StreamingMessage() {
 // ---------------------------------------------------------------------------
 
 const MODEL_OPTIONS = [
-  { key: 'sonnet', label: 'S', title: 'Claude Sonnet (default)' },
-  { key: 'haiku', label: 'H', title: 'Claude Haiku (fast, lightweight)' },
-  { key: 'opus', label: 'O', title: 'Claude Opus (most capable)' },
+  { key: 'auto',   label: 'A', title: 'Auto — best model for the task (default)' },
+  { key: 'sonnet', label: 'S', title: 'Claude Sonnet 4.6' },
+  { key: 'haiku',  label: 'H', title: 'Claude Haiku (fast, lightweight)' },
+  { key: 'opus',   label: 'O', title: 'Claude Opus (most capable)' },
 ] as const;
 
 function ModelSelector({
   selected,
   onSelect,
 }: {
-  selected: 'sonnet' | 'haiku' | 'opus';
-  onSelect: (m: 'sonnet' | 'haiku' | 'opus') => void;
+  selected: 'auto' | 'sonnet' | 'haiku' | 'opus';
+  onSelect: (m: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
 }) {
   return (
     <div className="flex items-center gap-0.5 rounded-md border border-border/40 bg-muted/20 p-0.5">
