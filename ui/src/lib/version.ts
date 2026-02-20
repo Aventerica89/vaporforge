@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Fix: create_plan tool description now prescriptive (ALWAYS call, NEVER use text) — prevents Claude from describing plans in plain text; remove tacky purple left border from MessageBody chat bubbles' },
   { date: '2026-02-20', summary: 'Security: fix IDOR on all 15+ agency site endpoints (userId ownership check via getOwnedSite()); fix shell injection in /source + preflight (array form exec); fix absolute path bypass in /file read+write; fix unrestricted git clone path in sessions' },
   { date: '2026-02-20', summary: 'maxBudgetUsd: per-session USD spend ceiling — KV storage, API endpoint, SandboxConfig field, VF_MAX_BUDGET_USD env var, buildOptions() pass-through + budget error detection; Settings → Command Center number input; Dockerfile mirrored' },
   { date: '2026-02-20', summary: 'Fix: no-language code blocks (tree diagrams, file listings) now render as pre-formatted blocks instead of wrapping inline code — whitespace-pre preserves tree structure' },

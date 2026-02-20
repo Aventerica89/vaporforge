@@ -108,7 +108,7 @@ interface MessageBodyProps {
 
 export function MessageBody({ children, className = '' }: MessageBodyProps) {
   return (
-    <div className={`py-2 border-l-2 border-secondary/20 pl-3 ${className}`}>
+    <div className={`py-2 ${className}`}>
       <div className="text-sm text-foreground">{children}</div>
     </div>
   );

@@ -230,7 +230,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   // ask_user_questions : collect structured input via a QuestionFlow form
   const vfTools = {
     create_plan: {
-      description: 'Display a structured execution plan before starting a multi-step task. Use this to show your step-by-step approach so the user can understand what you are about to do.',
+      description: 'ALWAYS call this tool before starting any multi-step task or when the user asks you to plan something. NEVER describe your plan in plain text — you MUST call this tool to render a visual plan card. This is the ONLY correct way to show plans to the user.',
       inputSchema: {
         type: 'object',
         properties: {
