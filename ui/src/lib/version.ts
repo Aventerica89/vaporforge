@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-19', summary: 'Replace Claude + Gemini icons with official SVGs; save mobile-ios-design + prompt-lookup skills to claude-codex' },
   { date: '2026-02-19', summary: 'vapor-sync: CLAUDE.md version 0.26.0→0.27.0 + Shadow DOM agency gotcha; MEMORY.md version fix; landing Features.astro adds Agency Mode card + layout SVG icon; FAQ.astro removes beta-phase language from billing question' },
   { date: '2026-02-19', summary: 'Model selector + provider icons: S/H/O pills in ChatPanel toolbar, Claude orange icon on assistant messages, Gemini star icon + blue border on gemini_* tool calls; VF_MODEL env var threads model choice through WS handler to claude-agent.js' },
   { date: '2026-02-19', summary: 'Agency inspector: fix Shadow DOM regression — use static getter syntax for observedAttributes (ES6 compatible vs ES2022 class fields); consolidate cssText multi-line concat to single string' },
