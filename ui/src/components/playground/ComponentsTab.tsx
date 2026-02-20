@@ -192,6 +192,7 @@ function AddForm({ allCategories, onSaved, onClose }: AddFormProps) {
   const [code, setCode] = useState('');
   const [instructions, setInstructions] = useState('');
   const [setupScript, setSetupScript] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -213,6 +214,7 @@ function AddForm({ allCategories, onSaved, onClose }: AddFormProps) {
         type: 'snippet',
         ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
         ...(setupScript.trim() ? { setupScript: setupScript.trim() } : {}),
+        ...(sourceUrl.trim() ? { sourceUrl: sourceUrl.trim() } : {}),
       });
       if (res.success && res.data) {
         onSaved(res.data);
@@ -259,6 +261,13 @@ function AddForm({ allCategories, onSaved, onClose }: AddFormProps) {
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Description (optional)"
+        className="h-8 w-full rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+      />
+      <input
+        value={sourceUrl}
+        onChange={(e) => setSourceUrl(e.target.value)}
+        placeholder="Source URL (optional) — where you got this component"
+        type="url"
         className="h-8 w-full rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
       />
       <textarea
@@ -708,6 +717,21 @@ function ComponentCard({
             </div>
           )}
 
+          {/* Source URL */}
+          {(entry as UserComponentEntry).sourceUrl && (
+            <div className="border-t border-border/50 px-3 py-2">
+              <span className="text-[10px] text-muted-foreground">Source: </span>
+              <a
+                href={(entry as UserComponentEntry).sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-primary/70 hover:text-primary underline underline-offset-2 break-all"
+              >
+                {(entry as UserComponentEntry).sourceUrl}
+              </a>
+            </div>
+          )}
+
           {/* Mobile actions */}
           <div className="flex items-center justify-end gap-2 border-t border-border/60 px-3 py-2 sm:hidden">
             <button
@@ -780,6 +804,21 @@ function ComponentCard({
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Source URL (app type) */}
+          {(entry as UserComponentEntry).sourceUrl && (
+            <div className="border-b border-border/50 px-3 py-2">
+              <span className="text-[10px] text-muted-foreground">Source: </span>
+              <a
+                href={(entry as UserComponentEntry).sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-primary/70 hover:text-primary underline underline-offset-2 break-all"
+              >
+                {(entry as UserComponentEntry).sourceUrl}
+              </a>
             </div>
           )}
 

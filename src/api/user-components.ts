@@ -22,6 +22,7 @@ export interface UserComponentEntry {
   instructions?: string;
   setupScript?: string;
   agents?: string[];
+  sourceUrl?: string;
   isCustom: true;
   createdAt: string;
 }
@@ -96,6 +97,7 @@ userComponentsRoutes.post('/', async (c) => {
     ...(body.instructions ? { instructions: body.instructions } : {}),
     ...(body.setupScript ? { setupScript: body.setupScript } : {}),
     ...(Array.isArray(body.agents) && body.agents.length > 0 ? { agents: body.agents } : {}),
+    ...(typeof body.sourceUrl === 'string' && body.sourceUrl.trim() ? { sourceUrl: body.sourceUrl.trim() } : {}),
     isCustom: true,
     createdAt: new Date().toISOString(),
   };

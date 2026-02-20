@@ -1112,6 +1112,7 @@ export interface UserComponentEntry {
   instructions?: string;
   setupScript?: string;
   agents?: string[];
+  sourceUrl?: string;
   isCustom: true;
   createdAt: string;
 }
