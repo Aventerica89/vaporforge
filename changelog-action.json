@@ -3,3 +3,4 @@
 { "v": "0.27.0", "ts": "2026-02-20T22:00:00Z", "msg": "CitationCard for WebFetch + ApprovalCard upgrade", "hash": "2c77c81" }
 { "v": "0.28.0", "ts": "2026-02-20T23:30:00Z", "msg": "QuestionFlow: AI-driven form collection in QuickChat", "hash": "11117ee" }
 { "v": "0.29.0", "ts": "2026-02-21T00:30:00Z", "msg": "Compaction indicator + PlanCard tool UI", "hash": "877aa34" }
+{ "v": "0.29.0", "ts": "2026-02-21T02:00:00Z", "msg": "PlanCard + QuestionFlow wired to main sessions", "hash": "fb6bb5c5" }

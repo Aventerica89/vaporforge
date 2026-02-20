@@ -224,11 +224,72 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     console.error(`[claude-agent] Failed to parse CLAUDE_MCP_SERVERS: ${err.message}`);
   }
 
+  // Custom VaporForge tools — displayed as rich UI cards in the frontend.
+  // create_plan  : show a numbered plan before a multi-step task
+  // ask_user_questions : collect structured input via a QuestionFlow form
+  const vfTools = {
+    create_plan: {
+      description: 'Display a structured execution plan before starting a multi-step task. Use this to show your step-by-step approach so the user can understand what you are about to do.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short plan title, e.g. "Migration Plan"' },
+          steps: {
+            type: 'array',
+            description: 'Ordered list of steps',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                label: { type: 'string', description: 'Step name, e.g. "Update dependencies"' },
+                detail: { type: 'string', description: 'Optional one-sentence explanation' },
+              },
+              required: ['id', 'label'],
+            },
+          },
+          estimatedSteps: { type: 'number', description: 'Rough estimate of total tool calls' },
+        },
+        required: ['title', 'steps'],
+      },
+      execute: async ({ title, steps }) =>
+        `Plan "${title}" (${steps.length} step${steps.length === 1 ? '' : 's'}) displayed. Proceeding.`,
+    },
+    ask_user_questions: {
+      description: 'Present a structured form to collect user input before proceeding. Use when you need the user\'s preferences or choices before starting a task.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short heading shown above the form' },
+          questions: {
+            type: 'array',
+            description: 'Questions to present',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                question: { type: 'string' },
+                type: { type: 'string', enum: ['text', 'select', 'multiselect', 'confirm'] },
+                options: { type: 'array', items: { type: 'string' } },
+                placeholder: { type: 'string' },
+                required: { type: 'boolean' },
+              },
+              required: ['id', 'question', 'type'],
+            },
+          },
+        },
+        required: ['questions'],
+      },
+      execute: async ({ title, questions }) =>
+        `Presenting ${questions.length} question(s)${title ? ` — "${title}"` : ''}. Waiting for user answers.`,
+    },
+  };
+
   return {
     model: process.env.VF_MODEL || 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
     agents,
+    tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
     includePartialMessages: true,
     permissionMode,

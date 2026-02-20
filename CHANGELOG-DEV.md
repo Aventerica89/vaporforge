@@ -4,6 +4,13 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-20 · v0.29.0 (patch)
+FEAT    main-sessions — Dockerfile: vfTools object with create_plan + ask_user_questions in buildOptions()
+FEAT    ui — MessageContent.tsx: tool-start intercepts create_plan → PlanCard, ask_user_questions → AskQuestionsBlock
+FEAT    ui — AskQuestionsBlock wrapper reads sendMessage from useSandboxStore, threads to QuestionFlow.onSubmit
+FEAT    ui — tool-result for create_plan/ask_user_questions suppressed (rendered on tool-start instead)
+CHORE   docker — rebuilt container image fb6bb5c5 (Dockerfile changed)
+
 ### 2026-02-20 · v0.29.0
 FEAT    container — claude-agent.js forwards system compacting events as {type:'system-status',status:'compacting'}
 FEAT    sandbox — isCompacting boolean state in Zustand, reset on text/done/error

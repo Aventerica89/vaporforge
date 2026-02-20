@@ -7,8 +7,11 @@ import { ArtifactBlock } from './ArtifactBlock';
 import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
+import { PlanCard } from '@/components/ai-elements/PlanCard';
+import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSmoothText } from '@/hooks/useSmoothText';
+import { useSandboxStore } from '@/hooks/useSandbox';
 
 interface MessageContentProps {
   message: Message;
@@ -22,6 +25,29 @@ interface StreamingContentProps {
 function SmoothTextPart({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   const smoothed = useSmoothText(content, isStreaming);
   return <ChatMarkdown content={smoothed} isStreaming={isStreaming} />;
+}
+
+function AskQuestionsBlock({ part }: { part: MessagePart }) {
+  const sendMessage = useSandboxStore((s) => s.sendMessage);
+  const input = part.input as {
+    title?: string;
+    questions: Array<{
+      id: string;
+      question: string;
+      type: 'text' | 'select' | 'multiselect' | 'confirm';
+      options?: string[];
+      placeholder?: string;
+      required?: boolean;
+    }>;
+  };
+  if (!input?.questions?.length) return null;
+  return (
+    <QuestionFlow
+      title={input.title}
+      questions={input.questions}
+      onSubmit={(formatted) => void sendMessage(formatted)}
+    />
+  );
 }
 
 function renderPart(part: MessagePart, index: number, isStreaming = false) {
@@ -43,12 +69,21 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
         />
       );
 
-    case 'tool-start':
-      return (
-        <ToolCallBlock key={index} part={part} isRunning={isStreaming} />
-      );
+    case 'tool-start': {
+      if (part.name === 'create_plan' && part.input) {
+        const pi = part.input as { title: string; steps: Array<{ id: string; label: string; detail?: string }>; estimatedSteps?: number };
+        return <PlanCard key={index} title={pi.title} steps={pi.steps ?? []} estimatedSteps={pi.estimatedSteps} />;
+      }
+      if (part.name === 'ask_user_questions') {
+        return <AskQuestionsBlock key={index} part={part} />;
+      }
+      return <ToolCallBlock key={index} part={part} isRunning={isStreaming} />;
+    }
 
     case 'tool-result':
+      if (part.name === 'create_plan' || part.name === 'ask_user_questions') {
+        return null;
+      }
       return <ToolCallBlock key={index} part={part} />;
 
     case 'artifact':
