@@ -4,6 +4,12 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-20 · 11117ee · v0.28.0
+FEAT    quickchat — ask_user_questions tool: auto-executes, returns ack string, no needsApproval
+FEAT    ui — QuestionFlow component: text/select/multiselect/confirm types, required validation, submitted receipt
+FEAT    ui — QuickChatMessage renders QuestionFlow on ask_user_questions (input-available + output-available states)
+CHORE   version — bump 0.27.0 → 0.28.0 (package.json + version.ts + CLAUDE.md)
+
 ### 2026-02-20 · 2c77c81 · v0.27.0
 FEAT    ui — CitationCard: WebFetch results show always-visible card (favicon, title, domain, snippet)
 FEAT    ui — Confirmation → ApprovalCard: destructive detection (rm/delete/drop → red theme + AlertTriangle)

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.28.0 — February 20, 2026
+
++ Added   Question Flow — Claude can now ask you structured questions before starting a task (text, options, multi-select, yes/no)
++ Added   Citation cards on web search results (favicon, title, source domain, preview snippet)
+* Fixed   Tool approval cards now highlight destructive actions (delete, drop, wipe) in red
+
 ## [0.26.0] - 2026-02-18
 
 ### Added
