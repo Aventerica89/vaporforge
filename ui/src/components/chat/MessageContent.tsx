@@ -6,6 +6,7 @@ import { ReasoningBlock } from './ReasoningBlock';
 import { ArtifactBlock } from './ArtifactBlock';
 import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
+import { HandoffChain } from '@/components/elements/HandoffChain';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSmoothText } from '@/hooks/useSmoothText';
 
@@ -94,6 +95,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
     return (
       <>
         {taskPlan && <TaskPlanBlock plan={taskPlan} />}
+        <HandoffChain parts={message.parts} />
         {message.parts.map((part, i) => renderPart(part, i))}
       </>
     );

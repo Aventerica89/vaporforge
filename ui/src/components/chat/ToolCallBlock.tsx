@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, Loader2, Check, X, File, Terminal, Pencil, Eye } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
 import { GeminiIcon } from '@/components/icons/GeminiIcon';
+import { SchemaViewer } from '@/components/elements/SchemaViewer';
 
 interface ToolCallBlockProps {
   part: MessagePart;
@@ -169,9 +170,7 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
           {part.input && Object.keys(part.input).length > 0 && (
             <div className="mb-2">
               <span className="font-medium text-muted-foreground">Input</span>
-              <pre className="mt-1 overflow-x-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
-                {JSON.stringify(part.input, null, 2)}
-              </pre>
+              <SchemaViewer data={part.input} className="mt-1" />
             </div>
           )}
 

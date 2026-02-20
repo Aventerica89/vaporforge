@@ -16,13 +16,14 @@ export function MessageAvatar({ role, isStreaming = false }: MessageAvatarProps)
   }
 
   return (
-    <div
-      className={[
-        'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg overflow-hidden',
-        isStreaming ? 'ring-1 ring-[#D97757]/40 animate-pulse' : '',
-      ].join(' ')}
-    >
-      <ClaudeIcon className="h-6 w-6" />
+    <div className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center">
+      <ClaudeIcon className="h-5 w-5" />
+      {isStreaming && (
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#D97757] opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-[#D97757]" />
+        </span>
+      )}
     </div>
   );
 }
