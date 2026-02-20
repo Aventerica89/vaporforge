@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Loader2, Check, X, File, Terminal, Pencil, Eye } from 'lucide-react';
+import { ChevronRight, Loader2, Check, X, File, Terminal, Pencil, Eye, Globe, Search } from 'lucide-react';
 import type { MessagePart } from '@/lib/types';
 import { GeminiIcon } from '@/components/icons/GeminiIcon';
 import { SchemaViewer } from '@/components/elements/SchemaViewer';
+import { CitationCard } from '@/components/ai-elements/CitationCard';
 
 interface ToolCallBlockProps {
   part: MessagePart;
@@ -19,14 +20,20 @@ const GEMINI_LABELS: Record<string, string> = {
 function getToolMeta(name: string) {
   const lower = name.toLowerCase();
   if (lower.startsWith('gemini_'))
-    return { icon: null as null, label: GEMINI_LABELS[lower] || name, isGemini: true };
+    return { icon: null as null, label: GEMINI_LABELS[lower] || name, isGemini: true, isCitation: false };
   if (lower === 'bash' || lower === 'execute' || lower.includes('exec'))
-    return { icon: Terminal, label: name, isGemini: false };
-  if (lower === 'read' || lower === 'glob' || lower === 'grep')
-    return { icon: Eye, label: name, isGemini: false };
+    return { icon: Terminal, label: name, isGemini: false, isCitation: false };
+  if (lower === 'read' || lower === 'glob')
+    return { icon: Eye, label: name, isGemini: false, isCitation: false };
+  if (lower === 'grep')
+    return { icon: Search, label: name, isGemini: false, isCitation: false };
   if (lower === 'write' || lower === 'edit')
-    return { icon: Pencil, label: name, isGemini: false };
-  return { icon: File, label: name, isGemini: false };
+    return { icon: Pencil, label: name, isGemini: false, isCitation: false };
+  if (lower === 'webfetch' || lower === 'web_fetch')
+    return { icon: Globe, label: 'Web Fetch', isGemini: false, isCitation: true };
+  if (lower === 'websearch' || lower === 'web_search')
+    return { icon: Search, label: 'Web Search', isGemini: false, isCitation: false };
+  return { icon: File, label: name, isGemini: false, isCitation: false };
 }
 
 /** Extract a displayable file path or command from tool input */
@@ -39,6 +46,20 @@ function getToolSummary(name: string, input?: Record<string, unknown>): string |
     const cmd = input.command || input.cmd;
     if (typeof cmd === 'string') {
       return cmd.length > 80 ? `${cmd.slice(0, 77)}...` : cmd;
+    }
+  }
+
+  // Web fetch: show abbreviated URL
+  if (lower === 'webfetch' || lower === 'web_fetch') {
+    const url = input.url;
+    if (typeof url === 'string') {
+      try {
+        const { hostname, pathname } = new URL(url);
+        const path = pathname === '/' ? '' : (pathname.length > 40 ? `${pathname.slice(0, 37)}...` : pathname);
+        return `${hostname}${path}`;
+      } catch {
+        return url.slice(0, 60);
+      }
     }
   }
 
@@ -66,8 +87,10 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
 
   const isError = part.type === 'error';
   const toolName = part.name || 'Unknown tool';
-  const { icon: ToolIcon, label, isGemini } = getToolMeta(toolName);
+  const { icon: ToolIcon, label, isGemini, isCitation } = getToolMeta(toolName);
   const summary = getToolSummary(toolName, part.input);
+  const inputUrl = typeof part.input?.url === 'string' ? part.input.url : null;
+  const showCitation = isCitation && part.type === 'tool-result' && !!inputUrl;
 
   // Live duration counter while running
   useEffect(() => {
@@ -154,6 +177,13 @@ export function ToolCallBlock({ part, isRunning = false }: ToolCallBlockProps) {
           <span className="flex-shrink-0 text-muted-foreground">Running...</span>
         )}
       </button>
+
+      {/* Citation preview — always visible for completed WebFetch results */}
+      {showCitation && (
+        <div className="px-2 pb-2 pt-0">
+          <CitationCard url={inputUrl!} content={part.output} />
+        </div>
+      )}
 
       {/* Expandable details with CSS transition */}
       <div

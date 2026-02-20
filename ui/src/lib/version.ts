@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Tool UI components: CitationCard for WebFetch results (favicon, title, snippet, always-visible); upgraded Confirmation to ApprovalCard with destructive detection (red theme for rm/delete/drop); Globe icon for WebFetch, Search for Grep in ToolCallBlock' },
   { date: '2026-02-20', summary: 'Fix CLAUDE.md sync bug: syncConfigFromContainer now strips injected credential section before saving to KV; GET /user/claude-md returns empty instead of corrupt credential content' },
   { date: '2026-02-20', summary: 'Stream reconnect: WS drops mid-response now auto-recover via /api/sdk/replay — container buffers JSONL chunks per msgId, frontend replays missed frames on unexpected close' },
   { date: '2026-02-20', summary: 'ChatPanel: prompt input box always shows cyan glow by default; transitions to purple shadow when typing' },
