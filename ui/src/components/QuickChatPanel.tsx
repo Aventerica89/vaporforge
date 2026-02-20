@@ -28,6 +28,7 @@ import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
 import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
+import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { Sources, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
 import {
@@ -447,6 +448,7 @@ export function QuickChatPanel() {
                   provider={selectedProvider}
                   onApprove={handleApprove}
                   onDeny={handleDeny}
+                  onSendMessage={handleSend}
                 />
               ))}
 
@@ -587,6 +589,7 @@ function QuickChatMessage({
   provider,
   onApprove,
   onDeny,
+  onSendMessage,
 }: {
   msg: UIMessage;
   isLastAssistant: boolean;
@@ -594,6 +597,7 @@ function QuickChatMessage({
   provider: ProviderName;
   onApprove: (id: string) => void;
   onDeny: (id: string) => void;
+  onSendMessage: (text: string) => void;
 }) {
   if (msg.role === 'user') {
     return (
@@ -677,6 +681,31 @@ function QuickChatMessage({
                 approvalId={toolPart.approval.id}
                 onApprove={onApprove}
                 onDeny={onDeny}
+              />
+            );
+          }
+
+          if (
+            toolPart.toolName === 'ask_user_questions' &&
+            (toolPart.state === 'output-available' || toolPart.state === 'input-available')
+          ) {
+            const input = toolPart.input as {
+              title?: string;
+              questions: Array<{
+                id: string;
+                question: string;
+                type: 'text' | 'select' | 'multiselect' | 'confirm';
+                options?: string[];
+                placeholder?: string;
+                required?: boolean;
+              }>;
+            };
+            return (
+              <QuestionFlow
+                key={toolPart.toolCallId}
+                title={input.title}
+                questions={input.questions}
+                onSubmit={onSendMessage}
               />
             );
           }

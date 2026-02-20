@@ -207,6 +207,23 @@ function createSandboxTools(
         return result.stdout || result.stderr || 'No matches found';
       },
     }),
+    ask_user_questions: tool({
+      description: 'Present a structured form to collect user input before proceeding. Use when you need preferences, choices, or details from the user before starting a task.',
+      parameters: z.object({
+        title: z.string().optional().describe('Brief title shown above the questions'),
+        questions: z.array(z.object({
+          id: z.string().describe('Unique identifier for this question'),
+          question: z.string().describe('The question text shown to the user'),
+          type: z.enum(['text', 'select', 'multiselect', 'confirm']).describe('Input type'),
+          options: z.array(z.string()).optional().describe('Choices for select/multiselect types'),
+          placeholder: z.string().optional().describe('Placeholder text for text inputs'),
+          required: z.boolean().default(true).describe('Whether an answer is required'),
+        })).describe('List of questions to present'),
+      }),
+      execute: async ({ title, questions }) => {
+        return `Presenting ${questions.length} question(s) to user${title ? `: "${title}"` : ''}. Waiting for answers.`;
+      },
+    }),
     runCommand: tool({
       description: 'Execute a shell command in the sandbox',
       parameters: z.object({
