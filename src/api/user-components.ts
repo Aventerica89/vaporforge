@@ -1,5 +1,8 @@
 import { Hono } from 'hono';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 import type { User, ApiResponse } from '../types';
+import { createModel, getProviderCredentials } from '../services/ai-provider-factory';
 
 export interface UserComponentFile {
   path: string;
@@ -16,6 +19,9 @@ export interface UserComponentEntry {
   tailwindClasses: string[];
   type?: 'snippet' | 'app';
   files?: UserComponentFile[];
+  instructions?: string;
+  setupScript?: string;
+  agents?: string[];
   isCustom: true;
   createdAt: string;
 }
@@ -87,6 +93,9 @@ userComponentsRoutes.post('/', async (c) => {
     tailwindClasses: Array.isArray(body.tailwindClasses) ? body.tailwindClasses : [],
     type,
     ...(type === 'app' && body.files ? { files: body.files } : {}),
+    ...(body.instructions ? { instructions: body.instructions } : {}),
+    ...(body.setupScript ? { setupScript: body.setupScript } : {}),
+    ...(Array.isArray(body.agents) && body.agents.length > 0 ? { agents: body.agents } : {}),
     isCustom: true,
     createdAt: new Date().toISOString(),
   };
@@ -107,4 +116,76 @@ userComponentsRoutes.delete('/:id', async (c) => {
   await c.env.SESSIONS_KV.put(KV_KEY(user.id), JSON.stringify(updated));
 
   return c.json<ApiResponse<{ id: string }>>({ success: true, data: { id } });
+});
+
+// POST /api/user-components/generate
+// AI-powered component generation — returns a draft, does NOT save
+const GenerateRequestSchema = z.object({
+  prompt: z.string().min(1).max(8000),
+});
+
+const GeneratedComponentSchema = z.object({
+  name: z.string().describe('Short display name for the component'),
+  category: z.string().describe('Category: Form, Layout, Data Display, Feedback, Navigation, Overlay, App Components, or Custom'),
+  description: z.string().describe('One sentence describing what the component does'),
+  type: z.enum(['snippet', 'app']).describe('snippet = single file; app = multi-file component'),
+  code: z.string().describe('For snippet type: the full component code. For app type: leave empty string.'),
+  files: z.array(z.object({
+    path: z.string().describe('Relative path e.g. components/MyWidget.tsx'),
+    content: z.string().describe('Full file content'),
+  })).describe('For app type: array of files. For snippet type: empty array.'),
+  dependencies: z.array(z.string()).describe('npm package names required (e.g. ["zustand", "lucide-react"])'),
+  tailwindClasses: z.array(z.string()).describe('Notable Tailwind classes used'),
+  instructions: z.string().describe('Optional: setup notes, usage guide, or caveats in plain text. Empty string if none.'),
+  setupScript: z.string().describe('Optional: shell/npm command to run after copying files (e.g. "npm install && npx shadcn add button"). Empty string if none.'),
+  agents: z.array(z.string()).describe('Optional: related agent slugs. Empty array if none.'),
+});
+
+userComponentsRoutes.post('/generate', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  const parsed = GenerateRequestSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'prompt is required' }, 400);
+  }
+
+  const creds = await getProviderCredentials(c.env.AUTH_KV, user.id);
+  const model = createModel('claude', 'claude-haiku-4-5-20251001', creds);
+
+  const systemPrompt = [
+    'You are a component registry assistant for a React + Tailwind v3 codebase.',
+    'Given a description or code, generate a structured component registry entry.',
+    'For single-file components or snippets, use type "snippet" and put all code in the `code` field.',
+    'For multi-file components (stores, hooks, subcomponents), use type "app" and list each file in `files`.',
+    'If the user pastes existing code, clean it up: remove platform-specific imports, ensure it is self-contained.',
+    'Return real, working code. Do not use placeholder comments.',
+    'tailwindClasses should list 3-8 notable classes used, not all classes.',
+    'instructions should describe usage, props, and any gotchas — or be empty string.',
+    'setupScript should be a single shell command string, or empty string.',
+  ].join(' ');
+
+  try {
+    const result = await generateObject({
+      model,
+      schema: GeneratedComponentSchema,
+      system: systemPrompt,
+      prompt: parsed.data.prompt,
+    });
+
+    const draft = {
+      ...result.object,
+      // Normalize: app type should have empty code, snippet should have empty files
+      code: result.object.type === 'app' ? '' : result.object.code,
+      files: result.object.type === 'snippet' ? [] : result.object.files,
+      instructions: result.object.instructions || undefined,
+      setupScript: result.object.setupScript || undefined,
+      agents: result.object.agents.length > 0 ? result.object.agents : undefined,
+    };
+
+    return c.json<ApiResponse<typeof draft>>({ success: true, data: draft });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Generation failed';
+    return c.json<ApiResponse<never>>({ success: false, error: msg }, 500);
+  }
 });

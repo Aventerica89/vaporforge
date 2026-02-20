@@ -21,6 +21,7 @@ export interface DevLogEntry {
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
   { date: '2026-02-20', summary: 'Changelog init: rewrite CHANGELOG.md (clean 3-tier format), create changelog.json + update changelog-action.json; header teal deploy badge (v{version} · Xm ago) using BUILD_TIMESTAMP' },
   { date: '2026-02-20', summary: 'Changelog sync: add missing public CHANGELOG entries for v0.26.0–v0.29.0 (What\'s New panel was stuck on v0.25.0)' },
+  { date: '2026-02-20', summary: 'Component registry: Generate with AI (Haiku structured output) + manual Add form; instructions/setupScript/agents fields on all entries; docs+agents badges on cards; Files/Instructions tab in App Install Guide' },
   { date: '2026-02-20', summary: 'Dev Playground: personal component registry — user components stored in KV, add/delete UI, "My Components" filter pill, App Components category with Issue Tracker install guide (multi-file with tab viewer)' },
   { date: '2026-02-20', summary: 'Chore: add 3 SDK roadmap items to Notion (promptSuggestion, supportsAdaptiveThinking, supportedEffortLevels); restructure MEMORY.md 514→149 lines into vaporforge-history.md + vaporforge-patterns.md topic files' },
   { date: '2026-02-20', summary: 'UX: Auto model button (4th pill, new default) — sends no model param, always uses server default; explicit S/H/O lock to specific model' },

@@ -1,17 +1,300 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Search, Copy, Check, Code2, ChevronDown, ChevronRight, Plus, Trash2, Package } from 'lucide-react';
+import {
+  Search, Copy, Check, Code2, ChevronDown, ChevronRight,
+  Plus, Trash2, Package, Sparkles, Terminal, BookOpen, Bot,
+} from 'lucide-react';
 import { componentCatalog, componentCategories } from '@/lib/generated/component-catalog';
 import { usePlayground } from '@/hooks/usePlayground';
 import { userComponentsApi } from '@/lib/api';
 import { toast } from '@/hooks/useToast';
 import type { ComponentEntry } from '@/lib/generated/component-catalog';
-import type { UserComponentEntry } from '@/lib/api';
+import type { UserComponentEntry, ComponentDraft } from '@/lib/api';
 
 type DisplayEntry = ComponentEntry | UserComponentEntry;
 
 function isUserEntry(entry: DisplayEntry): entry is UserComponentEntry {
   return (entry as UserComponentEntry).isCustom === true;
 }
+
+// ─── Generate Form ───────────────────────────────────────────────────────────
+
+interface GenerateFormProps {
+  allCategories: string[];
+  onSaved: (entry: UserComponentEntry) => void;
+  onClose: () => void;
+}
+
+function GenerateForm({ allCategories, onSaved, onClose }: GenerateFormProps) {
+  const [prompt, setPrompt] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [draft, setDraft] = useState<ComponentDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  // Editable draft fields
+  const [draftName, setDraftName] = useState('');
+  const [draftCategory, setDraftCategory] = useState('');
+  const [draftDescription, setDraftDescription] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => textareaRef.current?.focus(), 50);
+  }, []);
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    setLoading(true);
+    setDraft(null);
+    try {
+      const res = await userComponentsApi.generate(prompt.trim());
+      if (res.success && res.data) {
+        setDraft(res.data);
+        setDraftName(res.data.name);
+        setDraftCategory(res.data.category);
+        setDraftDescription(res.data.description);
+      } else {
+        toast.error(res.error ?? 'Generation failed');
+      }
+    } catch {
+      toast.error('Generation failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!draft) return;
+    setSaving(true);
+    try {
+      const payload: Omit<UserComponentEntry, 'id' | 'isCustom' | 'createdAt'> = {
+        ...draft,
+        name: draftName.trim() || draft.name,
+        category: draftCategory.trim() || draft.category,
+        description: draftDescription.trim() || draft.description,
+      };
+      const res = await userComponentsApi.save(payload);
+      if (res.success && res.data) {
+        onSaved(res.data);
+        toast.success(`Saved "${draftName || draft.name}"`);
+        onClose();
+      }
+    } catch {
+      toast.error('Failed to save component');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="shrink-0 space-y-2 border-b border-border bg-muted/20 px-3 py-3 sm:px-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Sparkles className="h-3.5 w-3.5 text-primary" />
+        <span className="text-xs font-medium text-foreground">Generate with AI</span>
+        <button onClick={onClose} className="ml-auto text-[10px] text-muted-foreground hover:text-foreground">
+          Cancel
+        </button>
+      </div>
+
+      <textarea
+        ref={textareaRef}
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Describe what you want, or paste existing code to package it into the registry..."
+        rows={4}
+        className="w-full resize-y rounded border border-border bg-background px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate();
+        }}
+      />
+
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">Cmd+Enter to generate</span>
+        <button
+          onClick={handleGenerate}
+          disabled={!prompt.trim() || loading}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {loading ? (
+            <><span className="h-3 w-3 animate-spin rounded-full border border-primary-foreground border-t-transparent" /> Generating…</>
+          ) : (
+            <><Sparkles className="h-3 w-3" /> Generate</>
+          )}
+        </button>
+      </div>
+
+      {/* Draft preview */}
+      {draft && (
+        <div className="mt-2 space-y-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-primary/70">
+            Generated — review and save
+          </p>
+          <div className="flex gap-2">
+            <input
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              className="h-7 flex-1 rounded border border-border bg-background px-2 text-xs focus:border-primary focus:outline-none"
+              placeholder="Name"
+            />
+            <input
+              value={draftCategory}
+              onChange={(e) => setDraftCategory(e.target.value)}
+              list="gen-category-suggestions"
+              className="h-7 w-28 rounded border border-border bg-background px-2 text-xs focus:border-primary focus:outline-none"
+              placeholder="Category"
+            />
+            <datalist id="gen-category-suggestions">
+              {allCategories.map((cat) => <option key={cat} value={cat} />)}
+            </datalist>
+          </div>
+          <input
+            value={draftDescription}
+            onChange={(e) => setDraftDescription(e.target.value)}
+            className="h-7 w-full rounded border border-border bg-background px-2 text-xs focus:border-primary focus:outline-none"
+            placeholder="Description"
+          />
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="rounded bg-muted px-1.5 py-0.5">{draft.type}</span>
+            {draft.type === 'app' && draft.files && (
+              <span>{draft.files.length} file{draft.files.length !== 1 ? 's' : ''}</span>
+            )}
+            {draft.dependencies.length > 0 && (
+              <span className="font-mono">{draft.dependencies.join(', ')}</span>
+            )}
+          </div>
+          {draft.instructions && (
+            <p className="text-[10px] text-muted-foreground line-clamp-2">{draft.instructions}</p>
+          )}
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save to My Components'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Add Form ────────────────────────────────────────────────────────────────
+
+interface AddFormProps {
+  allCategories: string[];
+  onSaved: (entry: UserComponentEntry) => void;
+  onClose: () => void;
+}
+
+function AddForm({ allCategories, onSaved, onClose }: AddFormProps) {
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
+  const [code, setCode] = useState('');
+  const [instructions, setInstructions] = useState('');
+  const [setupScript, setSetupScript] = useState('');
+  const [saving, setSaving] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => nameRef.current?.focus(), 50);
+  }, []);
+
+  const handleSave = async () => {
+    if (!name.trim() || !code.trim()) return;
+    setSaving(true);
+    try {
+      const res = await userComponentsApi.save({
+        name: name.trim(),
+        category: category.trim() || 'Custom',
+        description: description.trim(),
+        code: code.trim(),
+        dependencies: [],
+        tailwindClasses: [],
+        type: 'snippet',
+        ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+        ...(setupScript.trim() ? { setupScript: setupScript.trim() } : {}),
+      });
+      if (res.success && res.data) {
+        onSaved(res.data);
+        toast.success('Component saved');
+        onClose();
+      }
+    } catch {
+      toast.error('Failed to save component');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="shrink-0 space-y-2 border-b border-border bg-muted/30 px-3 py-3 sm:px-4">
+      <div className="flex items-center gap-2 mb-1">
+        <Plus className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-xs font-medium text-foreground">Add Component</span>
+        <button onClick={onClose} className="ml-auto text-[10px] text-muted-foreground hover:text-foreground">
+          Cancel
+        </button>
+      </div>
+      <div className="flex gap-2">
+        <input
+          ref={nameRef}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Component name *"
+          maxLength={80}
+          className="h-8 flex-1 rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="Category"
+          list="add-category-suggestions"
+          className="h-8 w-28 rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
+        <datalist id="add-category-suggestions">
+          {allCategories.map((cat) => <option key={cat} value={cat} />)}
+        </datalist>
+      </div>
+      <input
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description (optional)"
+        className="h-8 w-full rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+      />
+      <textarea
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        placeholder="Component code *"
+        rows={5}
+        className="w-full resize-y rounded border border-border bg-background px-2 py-1.5 font-mono text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+      />
+      <input
+        value={setupScript}
+        onChange={(e) => setSetupScript(e.target.value)}
+        placeholder="Setup script (optional) — e.g. npm install zustand"
+        className="h-8 w-full rounded border border-border bg-background px-2 font-mono text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+      />
+      <textarea
+        value={instructions}
+        onChange={(e) => setInstructions(e.target.value)}
+        placeholder="Usage instructions (optional) — props, gotchas, setup notes"
+        rows={2}
+        className="w-full resize-y rounded border border-border bg-background px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+      />
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={handleSave}
+          disabled={!name.trim() || !code.trim() || saving}
+          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+        >
+          {saving ? 'Saving…' : 'Save Component'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Tab ────────────────────────────────────────────────────────────────
 
 export function ComponentsTab() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,30 +304,16 @@ export function ComponentsTab() {
   const [installTarget, setInstallTarget] = useState<string | null>(null);
   const [installFileIndex, setInstallFileIndex] = useState(0);
   const [installCopiedFile, setInstallCopiedFile] = useState<number | null>(null);
-
-  // User component state
+  const [activePanel, setActivePanel] = useState<'none' | 'add' | 'generate'>('none');
   const [userComponents, setUserComponents] = useState<UserComponentEntry[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addName, setAddName] = useState('');
-  const [addCategory, setAddCategory] = useState('');
-  const [addDescription, setAddDescription] = useState('');
-  const [addCode, setAddCode] = useState('');
-  const [addSaving, setAddSaving] = useState(false);
 
   const { insertCode } = usePlayground();
-  const nameInputRef = useRef<HTMLInputElement>(null);
 
-  // Load user components on mount
   useEffect(() => {
     userComponentsApi.list()
       .then((res) => { if (res.success && res.data) setUserComponents(res.data); })
       .catch(() => {});
   }, []);
-
-  // Focus name input when form opens
-  useEffect(() => {
-    if (showAddForm) setTimeout(() => nameInputRef.current?.focus(), 50);
-  }, [showAddForm]);
 
   const allComponents: DisplayEntry[] = useMemo(
     () => [...componentCatalog, ...userComponents],
@@ -59,14 +328,12 @@ export function ComponentsTab() {
   }, [userComponents]);
 
   const filtered = useMemo(() => {
-    let items: DisplayEntry[];
-    if (activeCategory === 'My Components') {
-      items = userComponents;
-    } else {
-      items = activeCategory
-        ? allComponents.filter((c) => c.category === activeCategory)
-        : allComponents;
-    }
+    let items: DisplayEntry[] =
+      activeCategory === 'My Components'
+        ? userComponents
+        : activeCategory
+          ? allComponents.filter((c) => c.category === activeCategory)
+          : allComponents;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       items = items.filter(
@@ -79,25 +346,18 @@ export function ComponentsTab() {
     return items;
   }, [searchQuery, activeCategory, allComponents, userComponents]);
 
-  const handleCopy = useCallback(
-    (entry: DisplayEntry) => {
-      const text = entry.code || entry.name;
-      navigator.clipboard.writeText(text).catch(() => {});
-      setCopiedId(entry.id);
-      setTimeout(() => setCopiedId(null), 2000);
-      toast.success(`Copied ${entry.name} to clipboard`);
-    },
-    []
-  );
+  const handleCopy = useCallback((entry: DisplayEntry) => {
+    navigator.clipboard.writeText(entry.code || entry.name).catch(() => {});
+    setCopiedId(entry.id);
+    setTimeout(() => setCopiedId(null), 2000);
+    toast.success(`Copied ${entry.name} to clipboard`);
+  }, []);
 
-  const handleInsert = useCallback(
-    (entry: DisplayEntry) => {
-      if (!entry.code) return;
-      insertCode(entry.code);
-      toast.success(`Inserted ${entry.name} into active panel`);
-    },
-    [insertCode]
-  );
+  const handleInsert = useCallback((entry: DisplayEntry) => {
+    if (!entry.code) return;
+    insertCode(entry.code);
+    toast.success(`Inserted ${entry.name} into active panel`);
+  }, [insertCode]);
 
   const handleInstallCopyFile = useCallback((content: string, index: number) => {
     navigator.clipboard.writeText(content).catch(() => {});
@@ -116,39 +376,14 @@ export function ComponentsTab() {
     }
   }, []);
 
-  const handleSave = useCallback(async () => {
-    if (!addName.trim() || !addCode.trim()) return;
-    setAddSaving(true);
-    try {
-      const res = await userComponentsApi.save({
-        name: addName.trim(),
-        category: addCategory.trim() || 'Custom',
-        description: addDescription.trim(),
-        code: addCode.trim(),
-        dependencies: [],
-        tailwindClasses: [],
-        type: 'snippet',
-      });
-      if (res.success && res.data) {
-        setUserComponents((prev) => [res.data!, ...prev]);
-        setShowAddForm(false);
-        setAddName('');
-        setAddCategory('');
-        setAddDescription('');
-        setAddCode('');
-        toast.success('Component saved');
-      }
-    } catch {
-      toast.error('Failed to save component');
-    } finally {
-      setAddSaving(false);
-    }
-  }, [addName, addCategory, addDescription, addCode]);
-
   const handleToggleInstall = useCallback((id: string) => {
     setInstallTarget((prev) => (prev === id ? null : id));
     setInstallFileIndex(0);
     setInstallCopiedFile(null);
+  }, []);
+
+  const handleComponentSaved = useCallback((entry: UserComponentEntry) => {
+    setUserComponents((prev) => [entry, ...prev]);
   }, []);
 
   return (
@@ -168,12 +403,8 @@ export function ComponentsTab() {
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => setActiveCategory(null)}
-            className={
-              'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
-              (!activeCategory
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted')
-            }
+            className={'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
+              (!activeCategory ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
           >
             All
           </button>
@@ -181,124 +412,89 @@ export function ComponentsTab() {
             <button
               key={cat}
               onClick={() => setActiveCategory(activeCategory === cat ? null : cat)}
-              className={
-                'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
-                (activeCategory === cat
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted')
-              }
+              className={'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
+                (activeCategory === cat ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
             >
               {cat}
             </button>
           ))}
-          {/* My Components shortcut */}
           <button
             onClick={() => setActiveCategory(activeCategory === 'My Components' ? null : 'My Components')}
-            className={
-              'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
-              (activeCategory === 'My Components'
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted')
-            }
+            className={'rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors sm:py-1 ' +
+              (activeCategory === 'My Components' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
           >
             My Components
           </button>
         </div>
       </div>
 
-      {/* Add Component button */}
+      {/* Toolbar */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-1.5 sm:px-4">
         <span className="text-[11px] text-muted-foreground">
           {filtered.length} component{filtered.length !== 1 ? 's' : ''}
           {userComponents.length > 0 && ` · ${userComponents.length} custom`}
         </span>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className={
-            'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ' +
-            (showAddForm
-              ? 'bg-primary/10 text-primary'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground')
-          }
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Add Component
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setActivePanel(activePanel === 'generate' ? 'none' : 'generate')}
+            className={'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ' +
+              (activePanel === 'generate'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Generate</span>
+          </button>
+          <button
+            onClick={() => setActivePanel(activePanel === 'add' ? 'none' : 'add')}
+            className={'flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ' +
+              (activePanel === 'add'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Add</span>
+          </button>
+        </div>
       </div>
 
-      {/* Add Component form */}
-      {showAddForm && (
-        <div className="shrink-0 space-y-2 border-b border-border bg-muted/30 px-3 py-3 sm:px-4">
-          <div className="flex gap-2">
-            <input
-              ref={nameInputRef}
-              type="text"
-              value={addName}
-              onChange={(e) => setAddName(e.target.value)}
-              placeholder="Component name *"
-              maxLength={80}
-              className="h-8 flex-1 rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-            />
-            <input
-              type="text"
-              value={addCategory}
-              onChange={(e) => setAddCategory(e.target.value)}
-              placeholder="Category"
-              list="category-suggestions"
-              className="h-8 w-28 rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-            />
-            <datalist id="category-suggestions">
-              {allCategories.map((cat) => <option key={cat} value={cat} />)}
-            </datalist>
-          </div>
-          <input
-            type="text"
-            value={addDescription}
-            onChange={(e) => setAddDescription(e.target.value)}
-            placeholder="Description (optional)"
-            className="h-8 w-full rounded border border-border bg-background px-2 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          />
-          <textarea
-            value={addCode}
-            onChange={(e) => setAddCode(e.target.value)}
-            placeholder="Paste your component code here *"
-            rows={5}
-            className="w-full resize-y rounded border border-border bg-background px-2 py-1.5 font-mono text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-          />
-          <div className="flex items-center justify-end gap-2">
-            <button
-              onClick={() => { setShowAddForm(false); setAddName(''); setAddCategory(''); setAddDescription(''); setAddCode(''); }}
-              className="rounded px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!addName.trim() || !addCode.trim() || addSaving}
-              className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
-            >
-              {addSaving ? 'Saving…' : 'Save Component'}
-            </button>
-          </div>
-        </div>
+      {/* Forms */}
+      {activePanel === 'generate' && (
+        <GenerateForm
+          allCategories={allCategories}
+          onSaved={handleComponentSaved}
+          onClose={() => setActivePanel('none')}
+        />
+      )}
+      {activePanel === 'add' && (
+        <AddForm
+          allCategories={allCategories}
+          onSaved={handleComponentSaved}
+          onClose={() => setActivePanel('none')}
+        />
       )}
 
       {/* Component list */}
-      <div
-        className="flex-1 overflow-y-auto px-3 py-2 sm:px-4"
-        style={{ overscrollBehavior: 'contain' }}
-      >
+      <div className="flex-1 overflow-y-auto px-3 py-2 sm:px-4" style={{ overscrollBehavior: 'contain' }}>
         {filtered.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 py-12 text-center">
             <Code2 className="h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">No components match your search.</p>
             {activeCategory === 'My Components' && userComponents.length === 0 && (
-              <button
-                onClick={() => setShowAddForm(true)}
-                className="mt-2 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-              >
-                Add your first component
-              </button>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => setActivePanel('generate')}
+                  className="flex items-center gap-1.5 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Generate one
+                </button>
+                <button
+                  onClick={() => setActivePanel('add')}
+                  className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add manually
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -328,6 +524,8 @@ export function ComponentsTab() {
   );
 }
 
+// ─── ComponentCard ────────────────────────────────────────────────────────────
+
 interface ComponentCardProps {
   entry: DisplayEntry;
   expanded: boolean;
@@ -343,6 +541,8 @@ interface ComponentCardProps {
   onInstallFileSelect: (index: number) => void;
   onInstallFileCopy: (content: string, index: number) => void;
 }
+
+type InstallTab = 'files' | 'instructions';
 
 function ComponentCard({
   entry,
@@ -361,6 +561,9 @@ function ComponentCard({
 }: ComponentCardProps) {
   const isApp = entry.type === 'app';
   const isCustom = isUserEntry(entry);
+  const [installTab, setInstallTab] = useState<InstallTab>('files');
+  const hasInstructions = Boolean(entry.instructions);
+  const hasAgents = Array.isArray(entry.agents) && entry.agents.length > 0;
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -377,6 +580,7 @@ function ComponentCard({
         ) : (
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
+
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-foreground">{entry.name}</span>
@@ -386,6 +590,16 @@ function ComponentCard({
             {isCustom && (
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                 Custom
+              </span>
+            )}
+            {hasInstructions && (
+              <span className="rounded-full bg-amber-500/10 px-1.5 py-0.5 text-[9px] text-amber-400/80" title="Has instructions">
+                docs
+              </span>
+            )}
+            {hasAgents && (
+              <span className="rounded-full bg-violet-500/10 px-1.5 py-0.5 text-[9px] text-violet-400/80" title="Includes agents">
+                agents
               </span>
             )}
           </div>
@@ -401,11 +615,9 @@ function ComponentCard({
                 className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors sm:h-7 sm:w-7"
                 title="Copy code"
               >
-                {copied ? (
-                  <Check className="h-3.5 w-3.5 text-green-400" />
-                ) : (
-                  <Copy className="h-3.5 w-3.5" />
-                )}
+                {copied
+                  ? <Check className="h-3.5 w-3.5 text-green-400" />
+                  : <Copy className="h-3.5 w-3.5" />}
               </button>
               <button
                 onClick={onInsert}
@@ -418,10 +630,10 @@ function ComponentCard({
           {isApp && (
             <button
               onClick={onToggleInstall}
-              className={
-                'hidden rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:block ' +
-                (showInstall ? 'bg-primary text-primary-foreground' : 'bg-primary/10 text-primary hover:bg-primary/20')
-              }
+              className={'hidden rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:block ' +
+                (showInstall
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20')}
             >
               Install Guide
             </button>
@@ -438,16 +650,65 @@ function ComponentCard({
         </div>
       </button>
 
-      {/* Snippet code preview */}
+      {/* Snippet: code + optional extras */}
       {!isApp && expanded && (
         <div className="border-t border-border bg-muted/20">
+          {/* Setup script bar */}
+          {entry.setupScript && (
+            <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
+              <Terminal className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <code className="flex-1 rounded bg-muted px-2 py-0.5 text-[11px] font-mono text-foreground">
+                {entry.setupScript}
+              </code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(entry.setupScript!).catch(() => {});
+                  toast.success('Script copied');
+                }}
+                className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Copy className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
+          {/* Code */}
           <pre
             className="overflow-x-auto p-3 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all sm:p-4"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
             {entry.code}
           </pre>
-          {/* Mobile-only insert */}
+
+          {/* Instructions */}
+          {entry.instructions && (
+            <div className="border-t border-border/50 px-3 py-2.5">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <BookOpen className="h-3 w-3 text-amber-400/70" />
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Instructions</span>
+              </div>
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{entry.instructions}</p>
+            </div>
+          )}
+
+          {/* Agents */}
+          {hasAgents && (
+            <div className="border-t border-border/50 px-3 py-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Bot className="h-3 w-3 text-violet-400/70" />
+                <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Related Agents</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {entry.agents!.map((agent) => (
+                  <span key={agent} className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-mono text-violet-400">
+                    {agent}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile actions */}
           <div className="flex items-center justify-end gap-2 border-t border-border/60 px-3 py-2 sm:hidden">
             <button
               onClick={onCopy}
@@ -466,15 +727,13 @@ function ComponentCard({
         </div>
       )}
 
-      {/* App Install Guide */}
-      {isApp && showInstall && entry.files && entry.files.length > 0 && (
+      {/* App: Install Guide */}
+      {isApp && showInstall && (
         <div className="border-t border-border bg-muted/10">
           {/* Dependencies */}
           {entry.dependencies.length > 0 && (
             <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                Install:
-              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Install:</span>
               <code className="rounded bg-muted px-2 py-0.5 text-[11px] font-mono text-foreground">
                 npm install {entry.dependencies.join(' ')}
               </code>
@@ -484,43 +743,104 @@ function ComponentCard({
                   toast.success('Install command copied');
                 }}
                 className="ml-auto rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
-                title="Copy install command"
               >
                 <Copy className="h-3 w-3" />
               </button>
             </div>
           )}
 
-          {/* File tabs */}
-          <div className="flex gap-0 border-b border-border/50 overflow-x-auto">
-            {entry.files.map((file, i) => (
+          {/* Setup script */}
+          {entry.setupScript && (
+            <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
+              <Terminal className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <code className="flex-1 rounded bg-muted px-2 py-0.5 text-[11px] font-mono text-foreground">
+                {entry.setupScript}
+              </code>
               <button
-                key={file.path}
-                onClick={() => onInstallFileSelect(i)}
-                className={
-                  'shrink-0 px-3 py-1.5 text-xs font-mono transition-colors ' +
-                  (installFileIndex === i
-                    ? 'border-b-2 border-primary text-primary bg-primary/5'
-                    : 'text-muted-foreground hover:text-foreground')
-                }
+                onClick={() => {
+                  navigator.clipboard.writeText(entry.setupScript!).catch(() => {});
+                  toast.success('Script copied');
+                }}
+                className="rounded p-1 text-muted-foreground hover:text-foreground transition-colors"
               >
-                {file.path}
+                <Copy className="h-3 w-3" />
               </button>
-            ))}
-          </div>
+            </div>
+          )}
 
-          {/* Active file content */}
-          {entry.files[installFileIndex] && (
+          {/* Agents */}
+          {hasAgents && (
+            <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
+              <Bot className="h-3 w-3 shrink-0 text-violet-400/70" />
+              <span className="text-[10px] text-muted-foreground">Related agents:</span>
+              <div className="flex flex-wrap gap-1">
+                {entry.agents!.map((agent) => (
+                  <span key={agent} className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-mono text-violet-400">
+                    {agent}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Tab bar: Files | Instructions */}
+          {(entry.files?.length || entry.instructions) && (
+            <div className="flex border-b border-border/50">
+              {entry.files && entry.files.length > 0 && (
+                <button
+                  onClick={() => setInstallTab('files')}
+                  className={'px-3 py-1.5 text-xs font-medium transition-colors ' +
+                    (installTab === 'files'
+                      ? 'border-b-2 border-primary text-primary'
+                      : 'text-muted-foreground hover:text-foreground')}
+                >
+                  Files
+                </button>
+              )}
+              {entry.instructions && (
+                <button
+                  onClick={() => setInstallTab('instructions')}
+                  className={'flex items-center gap-1 px-3 py-1.5 text-xs font-medium transition-colors ' +
+                    (installTab === 'instructions'
+                      ? 'border-b-2 border-primary text-primary'
+                      : 'text-muted-foreground hover:text-foreground')}
+                >
+                  <BookOpen className="h-3 w-3" /> Instructions
+                </button>
+              )}
+              {/* File sub-tabs when on files tab */}
+              {installTab === 'files' && entry.files && entry.files.map((file, i) => (
+                <button
+                  key={file.path}
+                  onClick={() => onInstallFileSelect(i)}
+                  className={'shrink-0 px-3 py-1.5 text-xs font-mono transition-colors ' +
+                    (installFileIndex === i
+                      ? 'border-b-2 border-primary text-primary bg-primary/5'
+                      : 'text-muted-foreground hover:text-foreground')}
+                >
+                  {file.path}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Instructions panel */}
+          {installTab === 'instructions' && entry.instructions && (
+            <div className="p-3">
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{entry.instructions}</p>
+            </div>
+          )}
+
+          {/* File content panel */}
+          {installTab === 'files' && entry.files && entry.files[installFileIndex] && (
             <div className="relative">
               <button
                 onClick={() => onInstallFileCopy(entry.files![installFileIndex].content, installFileIndex)}
                 className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded bg-muted px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
-                {installCopiedFile === installFileIndex ? (
-                  <><Check className="h-3 w-3 text-green-400" /> Copied</>
-                ) : (
-                  <><Copy className="h-3 w-3" /> Copy</>
-                )}
+                {installCopiedFile === installFileIndex
+                  ? <><Check className="h-3 w-3 text-green-400" /> Copied</>
+                  : <><Copy className="h-3 w-3" /> Copy</>}
               </button>
               <pre
                 className="max-h-64 overflow-auto p-3 pt-8 text-xs font-mono text-muted-foreground whitespace-pre"

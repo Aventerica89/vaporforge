@@ -1109,9 +1109,14 @@ export interface UserComponentEntry {
   tailwindClasses: string[];
   type?: 'snippet' | 'app';
   files?: UserComponentFile[];
+  instructions?: string;
+  setupScript?: string;
+  agents?: string[];
   isCustom: true;
   createdAt: string;
 }
+
+export type ComponentDraft = Omit<UserComponentEntry, 'id' | 'isCustom' | 'createdAt'>;
 
 export const userComponentsApi = {
   list: () =>
@@ -1126,6 +1131,12 @@ export const userComponentsApi = {
   delete: (id: string) =>
     request<{ id: string }>(`/user-components/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    }),
+
+  generate: (prompt: string) =>
+    request<ComponentDraft>('/user-components/generate', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
     }),
 };
 

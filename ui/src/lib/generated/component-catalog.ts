@@ -16,6 +16,9 @@ export interface ComponentEntry {
   tailwindClasses: string[];
   type?: 'snippet' | 'app';
   files?: ComponentFile[];
+  instructions?: string;
+  setupScript?: string;
+  agents?: string[];
 }
 
 // ─── Issue Tracker standalone file contents ───
