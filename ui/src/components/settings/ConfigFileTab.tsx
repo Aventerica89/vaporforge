@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Loader2, Save, X, ToggleLeft, ToggleRight, Puzzle, Search } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Plus, Trash2, Loader2, Save, X, ToggleLeft, ToggleRight, Puzzle, Search, Pencil, Upload } from 'lucide-react';
 import { configApi, pluginsApi } from '@/lib/api';
 import type { ConfigFile, ConfigCategory, PluginItem } from '@/lib/types';
 
@@ -49,6 +49,8 @@ export function ConfigFileTab({
   const [isNew, setIsNew] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = useCallback(async () => {
     setIsLoading(true);
@@ -130,6 +132,30 @@ export function ConfigFileTab({
     setIsNew(true);
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []).filter(f => f.name.endsWith('.md'));
+    if (!selected.length) return;
+    e.target.value = '';
+
+    setUploadStatus(`Uploading ${selected.length} file${selected.length > 1 ? 's' : ''}…`);
+    let added = 0;
+    let skipped = 0;
+
+    for (const file of selected) {
+      const content = await file.text();
+      const result = await configApi.add(category, { filename: file.name, content }).catch(() => null);
+      if (result?.success) added++;
+      else skipped++;
+    }
+
+    await loadFiles();
+    const msg = skipped > 0
+      ? `Uploaded ${added}, skipped ${skipped} (already exist)`
+      : `Uploaded ${added} file${added > 1 ? 's' : ''}`;
+    setUploadStatus(msg);
+    setTimeout(() => setUploadStatus(null), 4000);
+  };
+
   const handleEdit = (file: ConfigFile) => {
     setEditing({ filename: file.filename, content: file.content });
     setIsNew(false);
@@ -205,15 +231,37 @@ export function ConfigFileTab({
           {icon}
           {title}
         </h3>
-        <button
-          onClick={handleNew}
-          className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-          style={{ minHeight: '36px' }}
-        >
-          <Plus className="h-4 w-4 text-primary" />
-          {addLabel}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            style={{ minHeight: '36px' }}
+            title="Upload .md files"
+          >
+            <Upload className="h-3.5 w-3.5 text-muted-foreground" />
+            Upload
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".md"
+            multiple
+            className="hidden"
+            onChange={handleUpload}
+          />
+          <button
+            onClick={handleNew}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            style={{ minHeight: '36px' }}
+          >
+            <Plus className="h-4 w-4 text-primary" />
+            {addLabel}
+          </button>
+        </div>
       </div>
+      {uploadStatus && (
+        <p className="text-xs text-emerald-400">{uploadStatus}</p>
+      )}
 
       <p className="text-xs text-muted-foreground leading-relaxed">
         {description}
@@ -264,6 +312,13 @@ export function ConfigFileTab({
                     </span>
                   </button>
                   <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleEdit(file)}
+                      className="rounded p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-all"
+                      title="Edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       onClick={() => handleToggle(file)}
                       className="rounded p-1.5 text-muted-foreground hover:text-foreground transition-colors"
