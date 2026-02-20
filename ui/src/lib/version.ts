@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Fix ask_user_questions: tool description now prescriptive (ALWAYS call, NEVER use text), execute ack tells Claude to STOP and wait; new container image d16f5f5d' },
   { date: '2026-02-20', summary: 'Wire create_plan + ask_user_questions to main sessions: vfTools in buildOptions() + MessageContent.tsx intercepts by tool name → PlanCard / AskQuestionsBlock; Dockerfile rebuilt with new container image fb6bb5c5' },
   { date: '2026-02-20', summary: 'Compaction indicator: claude-agent.js forwards system compacting events → isCompacting state → CompactionBanner in ChatPanel; PlanCard ai-element + create_plan tool in QuickChat; version bump 0.28→0.29' },
   { date: '2026-02-20', summary: 'QuestionFlow: ask_user_questions tool + QuestionFlow component — AI can present structured forms (text, select, multiselect, confirm) in QuickChat; answers submitted as next user message; version bump 0.27→0.28' },

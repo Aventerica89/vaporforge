@@ -255,7 +255,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
         `Plan "${title}" (${steps.length} step${steps.length === 1 ? '' : 's'}) displayed. Proceeding.`,
     },
     ask_user_questions: {
-      description: 'Present a structured form to collect user input before proceeding. Use when you need the user\'s preferences or choices before starting a task.',
+      description: 'ALWAYS call this tool whenever you need to ask the user any questions, collect preferences, or get choices before proceeding. NEVER list questions in plain text — you MUST call this tool instead. After calling it, stop and wait for the user to answer.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -280,7 +280,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
         required: ['questions'],
       },
       execute: async ({ title, questions }) =>
-        `Presenting ${questions.length} question(s)${title ? ` — "${title}"` : ''}. Waiting for user answers.`,
+        `Questions presented to user${title ? ` — "${title}"` : ''} (${questions.length} question${questions.length === 1 ? '' : 's'}). STOP HERE. Do not proceed, do not make assumptions, do not answer on the user's behalf. Wait for the user to submit their answers.`,
     },
   };
 

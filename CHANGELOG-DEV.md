@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-20 · 4553aca · v0.29.0
+FIX     docker — ask_user_questions tool description: prescriptive (ALWAYS/NEVER), execute ack tells Claude to stop+wait; new container image d16f5f5d
+
 ### 2026-02-20 · v0.29.0 (patch)
 FEAT    main-sessions — Dockerfile: vfTools object with create_plan + ask_user_questions in buildOptions()
 FEAT    ui — MessageContent.tsx: tool-start intercepts create_plan → PlanCard, ask_user_questions → AskQuestionsBlock
