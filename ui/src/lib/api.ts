@@ -398,9 +398,13 @@ export const sdkApi = {
     output?: string;
     restoredAt?: string;
     usage?: { inputTokens: number; outputTokens: number };
+    msgId?: string;
   }> {
     const token = localStorage.getItem('session_token');
     if (!token) throw new Error('Not authenticated');
+
+    // Generate msgId before WS connects so caller can capture it immediately
+    const msgId = crypto.randomUUID();
 
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const params = new URLSearchParams({
@@ -409,10 +413,14 @@ export const sdkApi = {
       cwd: cwd || '/workspace',
       mode: mode || 'agent',
       token,
+      msgId,
       ...(model ? { model } : {}),
       ...(autonomy ? { autonomy } : {}),
     });
     const wsUrl = `${proto}//${location.host}/api/sdk/ws?${params}`;
+
+    // Yield msg-id first so the caller can capture it before any WS traffic
+    yield { type: 'msg-id', msgId };
 
     const ws = new WebSocket(wsUrl);
 
@@ -534,6 +542,29 @@ export const sdkApi = {
     }
 
     if (wsError) throw wsError;
+  },
+
+  // Fetch buffered chunks from /tmp/vf-stream-{msgId}.jsonl for reconnect replay
+  fetchReplay: async (
+    sessionId: string,
+    msgId: string,
+    offset: number
+  ): Promise<{ chunks: string[]; total: number } | null> => {
+    try {
+      const token = localStorage.getItem('session_token');
+      const res = await fetch(
+        `${API_BASE}/sdk/replay/${encodeURIComponent(sessionId)}?msgId=${encodeURIComponent(msgId)}&offset=${offset}`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
   },
 
   // Persist assistant message to KV after WS stream completes

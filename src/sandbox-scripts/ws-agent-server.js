@@ -55,8 +55,23 @@ wss.on('connection', (ws) => {
     activeChild = null;
   }
 
-  // Wait briefly for context file to be written by the Worker
-  setTimeout(() => startQuery(ws), 150);
+  // Poll for context file (50ms intervals, 3s max) instead of hardcoded 150ms wait
+  const POLL_INTERVAL = 50;
+  const POLL_MAX = 3000;
+  let elapsed = 0;
+  const pollTimer = setInterval(() => {
+    elapsed += POLL_INTERVAL;
+    if (fs.existsSync(CONTEXT_FILE)) {
+      clearInterval(pollTimer);
+      startQuery(ws);
+    } else if (elapsed >= POLL_MAX) {
+      clearInterval(pollTimer);
+      console.log('[ws-agent-server] context file not found after 3s');
+      sendJson(ws, { type: 'error', error: 'Context file timeout' });
+      sendJson(ws, { type: 'process-exit', exitCode: 1 });
+      ws.close();
+    }
+  }, POLL_INTERVAL);
 });
 
 function startQuery(ws) {
@@ -77,6 +92,13 @@ function startQuery(ws) {
 
   const { prompt, sessionId, cwd, env: extraEnv, mode } = context;
 
+  // Stream replay: buffer every chunk to JSONL so client can reconnect
+  const msgId = (extraEnv && extraEnv.VF_MSG_ID) || '';
+  const bufferPath = msgId ? `/tmp/vf-stream-${msgId}.jsonl` : '';
+  // Flag set to true when client disconnects before agent finishes.
+  // Prevents buffer deletion on close so the replay endpoint can serve it.
+  let clientDisconnectedEarly = false;
+
   if (!prompt) {
     sendJson(ws, { type: 'error', error: 'No prompt in context file' });
     sendJson(ws, { type: 'process-exit', exitCode: 1 });
@@ -89,7 +111,7 @@ function startQuery(ws) {
 
   // Spawn claude-agent.js with the same args the SSE path uses
   const args = [AGENT_SCRIPT, prompt, sessionId || '', cwd || '/workspace'];
-  console.log(`[ws-agent-server] spawning agent, sessionId=${(sessionId || '').slice(0, 8)}`);
+  console.log(`[ws-agent-server] spawning agent, sessionId=${(sessionId || '').slice(0, 8)}${msgId ? ` msgId=${msgId.slice(0, 8)}` : ''}`);
 
   const child = spawn('node', args, {
     cwd: cwd || '/workspace',
@@ -101,14 +123,19 @@ function startQuery(ws) {
   let stdoutBuf = '';
 
   child.stdout.on('data', (chunk) => {
-    if (ws.readyState !== 1) return; // WS not open
     stdoutBuf += chunk.toString();
     const lines = stdoutBuf.split('\n');
     stdoutBuf = lines.pop() || '';
     for (const line of lines) {
       if (!line.trim()) continue;
       // Forward raw JSON lines as WS frames
-      ws.send(line);
+      if (ws.readyState === 1) {
+        ws.send(line);
+      }
+      // Buffer every chunk for replay (even if WS dropped mid-stream)
+      if (bufferPath) {
+        try { fs.appendFileSync(bufferPath, line + '\n'); } catch {}
+      }
     }
   });
 
@@ -118,6 +145,10 @@ function startQuery(ws) {
     // Log agent debug output server-side
     if (text.startsWith('[claude-agent]')) {
       console.log(`[ws-agent-server] ${text.slice(0, 200)}`);
+      // Also forward as debug frame so the browser can show it in the streaming panel
+      if (ws.readyState === 1) {
+        sendJson(ws, { type: 'stderr', text: text.slice(0, 300) });
+      }
       return;
     }
     // Forward structured errors to the client
@@ -140,9 +171,16 @@ function startQuery(ws) {
     // Flush any remaining stdout
     if (stdoutBuf.trim() && ws.readyState === 1) {
       ws.send(stdoutBuf.trim());
+      if (bufferPath) {
+        try { fs.appendFileSync(bufferPath, stdoutBuf.trim() + '\n'); } catch {}
+      }
     }
     sendJson(ws, { type: 'process-exit', exitCode: code || 0 });
     console.log(`[ws-agent-server] agent exited with code ${code}`);
+    // Clean up buffer file on normal completion — client got everything
+    if (bufferPath && !clientDisconnectedEarly) {
+      try { fs.unlinkSync(bufferPath); } catch {}
+    }
     // Don't close the WS — let the client close it
   });
 
@@ -150,12 +188,17 @@ function startQuery(ws) {
     activeChild = null;
     sendJson(ws, { type: 'error', error: `Spawn failed: ${err.message}` });
     sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    if (bufferPath && !clientDisconnectedEarly) {
+      try { fs.unlinkSync(bufferPath); } catch {}
+    }
   });
 
-  // If client disconnects, kill the child process
+  // If client disconnects while agent is still running, mark dirty disconnect.
+  // The buffer file is left intact so the replay endpoint can serve it.
   ws.on('close', () => {
     console.log('[ws-agent-server] client disconnected');
     if (child && !child.killed) {
+      clientDisconnectedEarly = true;
       try { child.kill('SIGTERM'); } catch {}
       activeChild = null;
     }

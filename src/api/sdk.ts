@@ -489,6 +489,55 @@ sdkRoutes.post('/persist', async (c) => {
   return c.json({ success: true });
 });
 
+// GET /api/sdk/replay/:sessionId?msgId=&offset= — serve buffered chunks for reconnect
+sdkRoutes.get('/replay/:sessionId', async (c) => {
+  const user = c.get('user');
+  const sandboxManager = c.get('sandboxManager');
+  const sessionId = c.req.param('sessionId');
+  const msgId = c.req.query('msgId') || '';
+  const offset = parseInt(c.req.query('offset') || '0', 10);
+
+  if (!msgId) {
+    return c.json({ error: 'Missing msgId' }, 400);
+  }
+
+  // Validate msgId — only alphanumeric + hyphens, max 64 chars (UUIDs always match)
+  if (!/^[a-zA-Z0-9-]{1,64}$/.test(msgId)) {
+    return c.json({ error: 'Invalid msgId' }, 400);
+  }
+
+  // Verify session exists and belongs to this user
+  const raw = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
+  if (!raw) {
+    return c.json({ error: 'Session not found' }, 404);
+  }
+  const session = JSON.parse(raw);
+  if (session.userId !== user.id) {
+    return c.json({ error: 'Unauthorized' }, 403);
+  }
+
+  if (!session.sandboxId) {
+    return c.json({ error: 'Sandbox not active' }, 400);
+  }
+
+  const filePath = `/tmp/vf-stream-${msgId}.jsonl`;
+  const result = await sandboxManager.execInSandbox(
+    session.sandboxId,
+    `[ -f "${filePath}" ] && cat "${filePath}" || echo '__NOT_FOUND__'`,
+    { timeout: 5000 }
+  );
+
+  if (!result.stdout || result.stdout.trim() === '__NOT_FOUND__') {
+    console.log(`[sdk/replay] buffer not found for msgId=${msgId.slice(0, 8)}`);
+    return c.json({ error: 'Stream buffer not found' }, 404);
+  }
+
+  const lines = result.stdout.split('\n').filter((l) => l.trim());
+  const safeOffset = Math.max(0, Math.min(offset, lines.length));
+  console.log(`[sdk/replay] msgId=${msgId.slice(0, 8)} total=${lines.length} offset=${safeOffset} returning=${lines.length - safeOffset}`);
+  return c.json({ chunks: lines.slice(safeOffset), total: lines.length });
+});
+
 // Standalone WS handler — called from router.ts with inline auth (no middleware)
 export async function handleSdkWs(
   env: Env,
@@ -503,6 +552,7 @@ export async function handleSdkWs(
   const mode = url.searchParams.get('mode') || 'agent';
   const modelParam = url.searchParams.get('model') || '';
   const autonomyParam = url.searchParams.get('autonomy') || 'autonomous';
+  const msgId = url.searchParams.get('msgId') || '';
 
   const MODEL_MAP: Record<string, string> = {
     sonnet: 'claude-sonnet-4-5',
@@ -611,6 +661,7 @@ export async function handleSdkWs(
         VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
         ...(resolvedModel ? { VF_MODEL: resolvedModel } : {}),
         VF_AUTONOMY_MODE: autonomyParam,
+        ...(msgId ? { VF_MSG_ID: msgId } : {}),
       },
     });
 

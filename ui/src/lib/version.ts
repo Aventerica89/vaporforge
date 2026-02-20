@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Stream reconnect: WS drops mid-response now auto-recover via /api/sdk/replay — container buffers JSONL chunks per msgId, frontend replays missed frames on unexpected close' },
   { date: '2026-02-20', summary: 'ChatPanel: prompt input box always shows cyan glow by default; transitions to purple shadow when typing' },
   { date: '2026-02-20', summary: 'ChatPanel: centered welcome state with headline + suggestion chips when no messages; input pops to bottom once chat starts' },
   { date: '2026-02-19', summary: 'UI elements: fix Claude icon ring/size in MessageAvatar; add AgentStatusBadge to StreamingIndicator; SchemaViewer for tool input; HandoffChain in MessageContent; TokenCounter in PromptInputTools' },

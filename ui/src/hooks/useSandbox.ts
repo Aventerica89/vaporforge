@@ -532,9 +532,21 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
       let streamUsage: { inputTokens: number; outputTokens: number } | undefined;
 
+      // Reconnect replay tracking
+      let streamMsgId = '';       // captured from synthetic 'msg-id' event
+      let wsChunkCount = 0;       // WS frames received (maps 1:1 to JSONL buffer lines)
+      let doneReceived = false;   // 'done' frame received = agent finished normally
+      let processExitReceived = false; // 'ws-exit' frame received = process exited
+
       for await (const chunk of sdkApi.streamWs(
         session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel, get().autonomyMode
       )) {
+        // Capture msgId from synthetic first event (not a real WS frame)
+        if (chunk.type === 'msg-id') {
+          streamMsgId = chunk.msgId || '';
+          continue;
+        }
+
         // Skip connection and heartbeat events — just reset the timeout
         if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
           resetTimeout();
@@ -549,6 +561,13 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
             })
           );
           continue;
+        }
+
+        // Count buffered frames only (stdout from claude-agent.js, 1:1 with JSONL buffer lines).
+        // Protocol frames (connected, heartbeat, config-restored, ws-exit) are sent via
+        // sendJson() in ws-agent-server.js and are NOT written to the buffer file.
+        if (chunk.type !== 'ws-exit') {
+          wsChunkCount++;
         }
 
         if (chunk.type === 'text' && chunk.content) {
@@ -651,6 +670,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           // Agent script signals stale session — persist will clear it
           continue;
         } else if (chunk.type === 'done') {
+          doneReceived = true;
           // Stream completed normally
           resetTimeout();
           useStreamDebug.getState().endStream();
@@ -666,6 +686,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
             (doneChunk.sessionId as string) || ''
           );
         } else if (chunk.type === 'ws-exit') {
+          processExitReceived = true;
           // WebSocket agent process exited
           resetTimeout();
           useStreamDebug.getState().endStream();
@@ -673,6 +694,43 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       }
 
       clearTimeout(timeoutId);
+
+      // Replay: if the WS closed without a 'done' or 'ws-exit' frame, the connection
+      // dropped mid-response. Try to recover missed chunks from the container buffer.
+      if (!doneReceived && !processExitReceived && streamMsgId && !controller.signal.aborted) {
+        try {
+          const replay = await sdkApi.fetchReplay(session.id, streamMsgId, wsChunkCount);
+          if (replay && replay.chunks.length > 0) {
+            for (const rawLine of replay.chunks) {
+              let rc: Record<string, unknown>;
+              try { rc = JSON.parse(rawLine) as Record<string, unknown>; } catch { continue; }
+              const rType = rc.type as string;
+              if (rType === 'text' && rc.content) {
+                const rText = rc.content as string;
+                content += rText;
+                currentReasoningPart = null;
+                if (!currentTextPart) {
+                  currentTextPart = { type: 'text', content: rText };
+                  parts.push(currentTextPart);
+                } else {
+                  const merged: MessagePart = { type: 'text', content: (currentTextPart.content || '') + rText };
+                  currentTextPart = merged;
+                  parts[parts.length - 1] = merged;
+                }
+              } else if (rType === 'done') {
+                if (rc.usage) {
+                  const u = rc.usage as { inputTokens: number; outputTokens: number };
+                  streamUsage = { inputTokens: u.inputTokens, outputTokens: u.outputTokens };
+                }
+                if (typeof rc.fullText === 'string' && rc.fullText) content = rc.fullText;
+              }
+            }
+            set({ streamingContent: content, streamingParts: [...parts] });
+          } else if (!content && parts.length === 0) {
+            parts.push({ type: 'error', content: 'Stream interrupted. Could not reconnect.' });
+          }
+        } catch { /* replay is best-effort — failures fall through to normal completion */ }
+      }
 
       // Post-stream: promote Write/Edit tool-starts to artifact blocks
       const artifactParts: MessagePart[] = [];
