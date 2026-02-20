@@ -662,6 +662,7 @@ export async function handleSdkWs(
         ...(resolvedModel ? { VF_MODEL: resolvedModel } : {}),
         VF_AUTONOMY_MODE: autonomyParam,
         ...(msgId ? { VF_MSG_ID: msgId } : {}),
+        ...(sandboxConfig.maxBudgetUsd ? { VF_MAX_BUDGET_USD: String(sandboxConfig.maxBudgetUsd) } : {}),
       },
     });
 

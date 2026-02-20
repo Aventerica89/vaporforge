@@ -622,6 +622,18 @@ export const autoContextApi = {
     }),
 };
 
+// Per-session budget ceiling API
+export const maxBudgetApi = {
+  get: () =>
+    request<{ maxBudgetUsd: number | null }>('/user/max-budget'),
+
+  set: (maxBudgetUsd: number | null) =>
+    request<{ maxBudgetUsd: number | null }>('/user/max-budget', {
+      method: 'PUT',
+      body: JSON.stringify({ maxBudgetUsd }),
+    }),
+};
+
 // VF Internal Rules API
 export const vfRulesApi = {
   get: () =>

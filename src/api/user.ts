@@ -74,6 +74,17 @@ Access them via \`$SECRET_NAME\` in the terminal or \`process.env.SECRET_NAME\` 
 Your responses stream to the user's browser in real-time via WebSocket. Keep responses focused and avoid unnecessarily long output — the user sees every character as it arrives.
 `;
 
+/** Fetch per-session budget ceiling for a user. Returns undefined (no limit) when not set. */
+export async function getMaxBudgetUsd(
+  kv: KVNamespace,
+  userId: string
+): Promise<number | undefined> {
+  const raw = await kv.get(`user-config:${userId}:max-budget-usd`);
+  if (raw === null) return undefined;
+  const n = parseFloat(raw);
+  return isFinite(n) && n > 0 ? n : undefined;
+}
+
 /** Fetch auto-context preference for a user. Default: true (enabled). */
 export async function getAutoContextPref(
   kv: KVNamespace,
@@ -203,6 +214,46 @@ userRoutes.put('/auto-context', async (c) => {
   return c.json<ApiResponse<{ enabled: boolean }>>({
     success: true,
     data: { enabled: body.enabled },
+  });
+});
+
+// Get per-session budget ceiling
+userRoutes.get('/max-budget', async (c) => {
+  const user = c.get('user');
+  const value = await getMaxBudgetUsd(c.env.SESSIONS_KV, user.id);
+  return c.json<ApiResponse<{ maxBudgetUsd: number | null }>>({
+    success: true,
+    data: { maxBudgetUsd: value ?? null },
+  });
+});
+
+// Set per-session budget ceiling (null or 0 = no limit)
+userRoutes.put('/max-budget', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json<{ maxBudgetUsd: number | null }>();
+
+  if (body.maxBudgetUsd !== null && (typeof body.maxBudgetUsd !== 'number' || body.maxBudgetUsd < 0)) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: 'maxBudgetUsd must be a positive number or null',
+    }, 400);
+  }
+
+  const kv = c.env.SESSIONS_KV;
+  const key = `user-config:${user.id}:max-budget-usd`;
+
+  if (!body.maxBudgetUsd || body.maxBudgetUsd <= 0) {
+    await kv.delete(key);
+    return c.json<ApiResponse<{ maxBudgetUsd: null }>>({
+      success: true,
+      data: { maxBudgetUsd: null },
+    });
+  }
+
+  await kv.put(key, String(body.maxBudgetUsd));
+  return c.json<ApiResponse<{ maxBudgetUsd: number }>>({
+    success: true,
+    data: { maxBudgetUsd: body.maxBudgetUsd },
   });
 });
 

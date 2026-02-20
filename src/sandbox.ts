@@ -105,6 +105,8 @@ export interface SandboxConfig {
   credentialFiles?: Array<{ path: string; content: string }>;
   /** Enable auto-context injection (git state, TODOs, code metrics). Default: true. */
   autoContext?: boolean;
+  /** Per-session USD spend ceiling passed to the SDK as maxBudgetUsd. Undefined = no limit. */
+  maxBudgetUsd?: number;
 }
 
 export class SandboxManager {

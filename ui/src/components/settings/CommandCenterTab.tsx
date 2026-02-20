@@ -13,8 +13,9 @@ import {
   CheckSquare,
   BarChart3,
   FileText,
+  DollarSign,
 } from 'lucide-react';
-import { vfRulesApi, autoContextApi } from '@/lib/api';
+import { vfRulesApi, autoContextApi, maxBudgetApi } from '@/lib/api';
 
 const SYSTEM_PROMPT =
   'You are working in a cloud sandbox. Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.';
@@ -29,6 +30,10 @@ export function CommandCenterTab() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [autoContextEnabled, setAutoContextEnabled] = useState(true);
   const [autoContextLoading, setAutoContextLoading] = useState(true);
+  const [maxBudget, setMaxBudget] = useState<string>('');
+  const [maxBudgetLoading, setMaxBudgetLoading] = useState(true);
+  const [maxBudgetSaving, setMaxBudgetSaving] = useState(false);
+  const [maxBudgetResult, setMaxBudgetResult] = useState<string | null>(null);
 
   const loadAutoContext = useCallback(async () => {
     setAutoContextLoading(true);
@@ -43,6 +48,42 @@ export function CommandCenterTab() {
       setAutoContextLoading(false);
     }
   }, []);
+
+  const loadMaxBudget = useCallback(async () => {
+    setMaxBudgetLoading(true);
+    try {
+      const result = await maxBudgetApi.get();
+      if (result.success && result.data) {
+        setMaxBudget(result.data.maxBudgetUsd !== null ? String(result.data.maxBudgetUsd) : '');
+      }
+    } catch {
+      // Ignore — leave empty (no limit)
+    } finally {
+      setMaxBudgetLoading(false);
+    }
+  }, []);
+
+  const handleMaxBudgetSave = async () => {
+    setMaxBudgetSaving(true);
+    setMaxBudgetResult(null);
+    try {
+      const parsed = maxBudget.trim() === '' ? null : parseFloat(maxBudget);
+      if (parsed !== null && (isNaN(parsed) || parsed < 0)) {
+        setMaxBudgetResult('Enter a positive number or leave blank for no limit');
+        return;
+      }
+      const result = await maxBudgetApi.set(parsed);
+      if (result.success) {
+        setMaxBudgetResult(parsed ? `Limit set to $${parsed} per session` : 'Limit cleared — no cap');
+        setTimeout(() => setMaxBudgetResult(null), 4000);
+      }
+    } catch {
+      setMaxBudgetResult('Save failed');
+      setTimeout(() => setMaxBudgetResult(null), 4000);
+    } finally {
+      setMaxBudgetSaving(false);
+    }
+  };
 
   const handleAutoContextToggle = async () => {
     const newValue = !autoContextEnabled;
@@ -76,7 +117,8 @@ export function CommandCenterTab() {
   useEffect(() => {
     loadRules();
     loadAutoContext();
-  }, [loadRules, loadAutoContext]);
+    loadMaxBudget();
+  }, [loadRules, loadAutoContext, loadMaxBudget]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -262,6 +304,61 @@ export function CommandCenterTab() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Budget Ceiling Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
+            <DollarSign className="h-4 w-4 text-primary" />
+            Budget Ceiling
+          </h3>
+          <button
+            onClick={handleMaxBudgetSave}
+            disabled={maxBudgetSaving || maxBudgetLoading}
+            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-50"
+          >
+            {maxBudgetSaving ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Save className="h-3 w-3" />
+            )}
+            Save
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Set a per-session USD spend limit. Claude stops when this amount is reached.
+          Leave blank for no cap. Changes apply to <strong>new sessions only</strong>.
+        </p>
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">$</span>
+          {maxBudgetLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          ) : (
+            <input
+              type="number"
+              min="0"
+              step="0.10"
+              value={maxBudget}
+              onChange={(e) => setMaxBudget(e.target.value)}
+              placeholder="No limit"
+              className="w-32 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+            />
+          )}
+          <span className="text-xs text-muted-foreground">USD per session</span>
+        </div>
+
+        {maxBudgetResult && (
+          <p className={`text-xs ${
+            maxBudgetResult.includes('fail') || maxBudgetResult.includes('Enter')
+              ? 'text-red-400'
+              : 'text-emerald-400'
+          }`}>
+            {maxBudgetResult}
+          </p>
+        )}
       </div>
 
       {/* System Prompt Section (read-only) */}

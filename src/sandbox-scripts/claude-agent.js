@@ -39,6 +39,7 @@ const STRIP_FROM_SDK_ENV = new Set([
   'VF_SESSION_MODE',           // VF internal (read in buildOptions, not needed by CLI)
   'VF_AUTO_CONTEXT',           // VF internal (read in buildOptions to control auto-context injection)
   'VF_AUTONOMY_MODE',          // VF internal (read in buildOptions to set permissionMode)
+  'VF_MAX_BUDGET_USD',         // VF internal (read in buildOptions to set maxBudgetUsd)
 ]);
 
 // Tools blocked in plan mode (read-only research mode).
@@ -184,12 +185,19 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     console.error(`[claude-agent] Failed to parse CLAUDE_MCP_SERVERS: ${err.message}`);
   }
 
+  const maxBudgetRaw = process.env.VF_MAX_BUDGET_USD;
+  const maxBudgetUsd = maxBudgetRaw ? parseFloat(maxBudgetRaw) : undefined;
+  if (maxBudgetUsd && maxBudgetUsd > 0) {
+    console.error(`[claude-agent] Budget ceiling: $${maxBudgetUsd}`);
+  }
+
   return {
     model: process.env.VF_MODEL || 'claude-sonnet-4-5',
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
     agents,
     ...(mcpServers ? { mcpServers } : {}),
+    ...(maxBudgetUsd && maxBudgetUsd > 0 ? { maxBudgetUsd } : {}),
     includePartialMessages: true,
     permissionMode,
     allowDangerouslySkipPermissions,
@@ -329,8 +337,26 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
-      emit({ type: 'error', error: errorMsg });
+      const isBudgetError = typeof errorMsg === 'string' &&
+        (errorMsg.toLowerCase().includes('max_budget') || errorMsg.toLowerCase().includes('budget'));
+      emit({
+        type: 'error',
+        error: isBudgetError
+          ? 'Budget ceiling reached. Your per-session spend limit was hit. Increase or clear it in Settings → Command Center.'
+          : errorMsg,
+      });
       // Let the for-await loop complete — 'done' will be sent at the end
+    }
+
+    // Budget exceeded can also arrive as a result with is_error flag
+    if (msg.type === 'result' && msg.is_error) {
+      const errStr = typeof msg.error === 'string' ? msg.error : JSON.stringify(msg.error || '');
+      if (errStr.toLowerCase().includes('max_budget') || errStr.toLowerCase().includes('budget')) {
+        emit({
+          type: 'error',
+          error: 'Budget ceiling reached. Your per-session spend limit was hit. Increase or clear it in Settings → Command Center.',
+        });
+      }
     }
   }
 

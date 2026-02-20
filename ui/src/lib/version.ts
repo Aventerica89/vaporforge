@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'maxBudgetUsd: per-session USD spend ceiling — KV storage, API endpoint, SandboxConfig field, VF_MAX_BUDGET_USD env var, buildOptions() pass-through + budget error detection; Settings → Command Center number input; Dockerfile mirrored' },
   { date: '2026-02-20', summary: 'Fix: no-language code blocks (tree diagrams, file listings) now render as pre-formatted blocks instead of wrapping inline code — whitespace-pre preserves tree structure' },
   { date: '2026-02-20', summary: 'Fix ask_user_questions: tool description now prescriptive (ALWAYS call, NEVER use text), execute ack tells Claude to STOP and wait; new container image d16f5f5d' },
   { date: '2026-02-20', summary: 'Wire create_plan + ask_user_questions to main sessions: vfTools in buildOptions() + MessageContent.tsx intercepts by tool name → PlanCard / AskQuestionsBlock; Dockerfile rebuilt with new container image fb6bb5c5' },

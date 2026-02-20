@@ -7,7 +7,7 @@ import type { SandboxConfig } from './sandbox';
 import { collectMcpConfig, hasRelayServers, collectCredentialFiles } from './api/mcp';
 import { collectPluginConfigs } from './api/plugins';
 import { collectUserConfigs } from './api/config';
-import { getVfRules, getAutoContextPref } from './api/user';
+import { getVfRules, getAutoContextPref, getMaxBudgetUsd } from './api/user';
 import { collectGeminiMcpConfig } from './api/ai-providers';
 import { configHash } from './lib/config-hash';
 
@@ -20,7 +20,7 @@ export async function assembleSandboxConfig(
   kv: KVNamespace,
   userId: string
 ): Promise<SandboxConfig> {
-  const [claudeMd, mcpServers, pluginConfigs, userConfigs, vfRules, geminiMcp, credentialFiles, autoContext] =
+  const [claudeMd, mcpServers, pluginConfigs, userConfigs, vfRules, geminiMcp, credentialFiles, autoContext, maxBudgetUsd] =
     await Promise.all([
       kv.get(`user-config:${userId}:claude-md`),
       collectMcpConfig(kv, userId),
@@ -30,6 +30,7 @@ export async function assembleSandboxConfig(
       collectGeminiMcpConfig(kv, userId),
       collectCredentialFiles(kv, userId),
       getAutoContextPref(kv, userId),
+      getMaxBudgetUsd(kv, userId),
     ]);
 
   return {
@@ -43,6 +44,7 @@ export async function assembleSandboxConfig(
     startRelayProxy: await hasRelayServers(kv, userId),
     credentialFiles,
     autoContext,
+    maxBudgetUsd,
   };
 }
 
