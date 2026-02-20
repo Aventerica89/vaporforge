@@ -1,5 +1,5 @@
 import type { MessagePart } from '@/lib/types';
-import { Shimmer } from '../ai-elements/Shimmer';
+import { AgentStatusBadge } from '@/components/elements/AgentStatusBadge';
 
 interface StreamingIndicatorProps {
   parts: MessagePart[];
@@ -11,29 +11,27 @@ export function StreamingIndicator({ parts, hasContent }: StreamingIndicatorProp
   const isToolRunning = lastPart?.type === 'tool-start';
   const isReasoning = lastPart?.type === 'reasoning';
 
-  let label = 'Thinking...';
+  let status: 'thinking' | 'acting' | 'waiting' = 'thinking';
+  let label = 'Thinking';
+
   if (isToolRunning && lastPart.name) {
-    label = `Running ${lastPart.name}...`;
+    status = 'acting';
+    label = lastPart.name;
   } else if (isReasoning) {
-    label = 'Reasoning...';
+    status = 'thinking';
+    label = 'Reasoning';
   } else if (hasContent) {
-    label = 'Writing...';
+    status = 'acting';
+    label = 'Writing';
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Status label with pulse */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex h-4 w-4 items-center justify-center">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-        </div>
-        <Shimmer className="text-xs font-medium">{label}</Shimmer>
-      </div>
+      <AgentStatusBadge status={status} label={label} />
 
-      {/* Shimmer skeleton lines */}
+      {/* Shimmer skeleton lines while waiting for first content */}
       {!hasContent && !isToolRunning && (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 pl-1">
           <div className="skeleton h-3 w-3/4" />
           <div className="skeleton h-3 w-1/2" />
           <div className="skeleton h-3 w-5/6" />

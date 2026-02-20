@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { Trash2, Loader2, ArrowDown, Paperclip } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
+import { TokenCounter } from '@/components/elements/TokenCounter';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { chatApi, filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
@@ -163,6 +164,16 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
   const selectedModel = useSandboxStore((s) => s.selectedModel);
   const setModel = useSandboxStore((s) => s.setModel);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
+  const messagesById = useSandboxStore((s) => s.messagesById);
+
+  // Rough token estimate: total chars ÷ 4 (industry standard approximation)
+  const estimatedTokens = useMemo(() => {
+    let chars = 0;
+    for (const msg of Object.values(messagesById)) {
+      chars += msg.content?.length ?? 0;
+    }
+    return Math.floor(chars / 4);
+  }, [messagesById]);
   // For auto-scroll: subscribe to streamingContent length, not full content
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
 
@@ -340,6 +351,9 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
           <PromptInputReforge />
           <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />
           <ModelSelector selected={selectedModel} onSelect={setModel} />
+          {estimatedTokens > 0 && (
+            <TokenCounter tokens={estimatedTokens} />
+          )}
         </PromptInputTools>
         <PromptInputSlashMenu />
         <div className="relative rounded-xl border border-border/40 bg-muted/30 shadow-sm transition-all duration-200 focus-within:border-primary/60 focus-within:bg-background focus-within:shadow-[0_0_16px_-4px_hsl(var(--primary)/0.3)] hover:border-border/60 hover:bg-muted/20">
