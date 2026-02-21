@@ -4,6 +4,7 @@ import { billingApi } from '@/lib/api';
 import stripeLogo from '@/assets/logos/stripe-logo.svg';
 import { InvoiceHistory, type InvoiceItem } from '@/components/billingsdk/invoice-history';
 import { UpdatePlanCard } from '@/components/billingsdk/update-plan-card';
+import { UsageAlertsCard } from '@/components/billingsdk/usage-alerts-card';
 import type { Plan } from '@/lib/billingsdk-config';
 
 interface BillingStatus {
@@ -236,6 +237,11 @@ export function BillingTab() {
           )}
 
           {error && <p className="text-xs text-red-400">{error}</p>}
+
+          {/* Usage alerts */}
+          <div className="border-t border-border pt-6">
+            <UsageAlertsCard />
+          </div>
 
           {/* Invoice history */}
           {(invoicesLoading || invoices.length > 0 || hasHistory) && (

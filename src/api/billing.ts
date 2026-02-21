@@ -149,6 +149,96 @@ billingRoutes.post('/portal', async (c) => {
   return c.json({ success: true, data: { url: session.url } });
 });
 
+// ─── Usage Alerts ────────────────────────────────────────────────────────────
+
+export interface AlertConfig {
+  id: string;
+  label: string;
+  thresholdPct: number; // 0-100
+  enabled: boolean;
+  channels: Array<'in-app'>;
+  triggeredAt: string | null;
+  triggeredCount: number;
+  createdAt: string;
+}
+
+function alertsKey(userId: string): string {
+  return `billing-alerts:${userId}`;
+}
+
+async function getAlerts(kv: KVNamespace, userId: string): Promise<AlertConfig[]> {
+  const raw = await kv.get(alertsKey(userId));
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as AlertConfig[];
+  } catch {
+    return [];
+  }
+}
+
+async function saveAlerts(kv: KVNamespace, userId: string, alerts: AlertConfig[]): Promise<void> {
+  await kv.put(alertsKey(userId), JSON.stringify(alerts));
+}
+
+// GET /api/billing/alerts
+billingRoutes.get('/alerts', async (c) => {
+  const user = c.get('user');
+  const alerts = await getAlerts(c.env.AUTH_KV, user.id);
+  return c.json({ success: true, data: { alerts } });
+});
+
+// POST /api/billing/alerts
+billingRoutes.post('/alerts', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json<{ label?: string; thresholdPct: number; channels?: Array<'in-app'> }>();
+
+  if (typeof body.thresholdPct !== 'number' || body.thresholdPct < 1 || body.thresholdPct > 99) {
+    return c.json({ success: false, error: 'thresholdPct must be between 1 and 99' }, 400);
+  }
+
+  const alerts = await getAlerts(c.env.AUTH_KV, user.id);
+  const newAlert: AlertConfig = {
+    id: crypto.randomUUID(),
+    label: body.label?.trim() || `Alert at ${body.thresholdPct}%`,
+    thresholdPct: body.thresholdPct,
+    enabled: true,
+    channels: body.channels ?? ['in-app'],
+    triggeredAt: null,
+    triggeredCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+
+  alerts.push(newAlert);
+  await saveAlerts(c.env.AUTH_KV, user.id, alerts);
+  return c.json({ success: true, data: { alert: newAlert } });
+});
+
+// PATCH /api/billing/alerts/:id/toggle
+billingRoutes.patch('/alerts/:id/toggle', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const alerts = await getAlerts(c.env.AUTH_KV, user.id);
+  const idx = alerts.findIndex((a) => a.id === id);
+  if (idx === -1) return c.json({ success: false, error: 'Alert not found' }, 404);
+
+  alerts[idx] = { ...alerts[idx], enabled: !alerts[idx].enabled };
+  await saveAlerts(c.env.AUTH_KV, user.id, alerts);
+  return c.json({ success: true, data: { alert: alerts[idx] } });
+});
+
+// DELETE /api/billing/alerts/:id
+billingRoutes.delete('/alerts/:id', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const alerts = await getAlerts(c.env.AUTH_KV, user.id);
+  const filtered = alerts.filter((a) => a.id !== id);
+  if (filtered.length === alerts.length) {
+    return c.json({ success: false, error: 'Alert not found' }, 404);
+  }
+  await saveAlerts(c.env.AUTH_KV, user.id, filtered);
+  return c.json({ success: true });
+});
+
 // Public webhook handler — registered directly on app (no JWT auth)
 export async function handleBillingWebhook(c: { req: Request; env: Env }) {
   const stripe = getStripe(c.env);

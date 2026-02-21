@@ -1242,4 +1242,32 @@ export const billingApi = {
         hostedUrl: string | null;
       }>;
     }>('/billing/invoices'),
+
+  alerts: {
+    list: () =>
+      request<{ alerts: AlertConfig[] }>('/billing/alerts'),
+
+    create: (data: { label?: string; thresholdPct: number; channels?: Array<'in-app'> }) =>
+      request<{ alert: AlertConfig }>('/billing/alerts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+
+    toggle: (id: string) =>
+      request<{ alert: AlertConfig }>(`/billing/alerts/${id}/toggle`, { method: 'PATCH' }),
+
+    delete: (id: string) =>
+      request<Record<string, never>>(`/billing/alerts/${id}`, { method: 'DELETE' }),
+  },
 };
+
+export interface AlertConfig {
+  id: string;
+  label: string;
+  thresholdPct: number;
+  enabled: boolean;
+  channels: Array<'in-app'>;
+  triggeredAt: string | null;
+  triggeredCount: number;
+  createdAt: string;
+}
