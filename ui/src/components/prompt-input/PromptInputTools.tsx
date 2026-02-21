@@ -8,7 +8,7 @@ interface PromptInputToolsProps {
 
 export function PromptInputTools({ children, className }: PromptInputToolsProps) {
   return (
-    <div className={cn('mb-3 flex items-center gap-2', className)}>
+    <div className={cn('mb-3 flex items-center gap-2 overflow-x-auto scrollbar-none', className)}>
       {children}
     </div>
   );

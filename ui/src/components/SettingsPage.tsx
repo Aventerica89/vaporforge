@@ -173,18 +173,20 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
 
       {/* ─── Mobile/subview: horizontal tab bar (44pt touch targets per HIG) ─── */}
       {(isMobile || inMobileSubView) && (
-        <div className="flex shrink-0 overflow-x-auto border-b border-border/60 px-2 scrollbar-none">
+        <div className="flex shrink-0 overflow-x-auto border-b border-border/60 scrollbar-none">
           {ALL_TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 whitespace-nowrap px-3 font-medium transition-all border-b-2 -mb-px ${
+              className={`relative flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap px-3 text-[13px] font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'border-primary text-primary shadow-[0_2px_8px_-2px_hsl(var(--primary)/0.3)]'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                  ? 'text-primary'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
-              style={{ minHeight: '44px', fontSize: '13px' }}
             >
+              {activeTab === tab.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+              )}
               {tab.icon}
               {tab.label}
             </button>

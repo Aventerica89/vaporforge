@@ -262,41 +262,38 @@ export function IssueTracker() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Copy MD — respects selection when active */}
+            {/* Copy MD — hidden on mobile to keep close button visible */}
             <button
               onClick={handleExportMarkdown}
-              className={`flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5 ${
+              className={`hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
                 selectedIds.size > 0
                   ? 'text-primary hover:bg-primary/10'
                   : 'text-muted-foreground hover:bg-accent hover:text-foreground'
               }`}
               title={selectedIds.size > 0 ? `Copy ${selectedIds.size} selected as Markdown` : 'Copy all as Markdown'}
             >
-              <ClipboardCopy className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">
-                {copied ? 'Copied!' : selectedIds.size > 0 ? `Copy ${selectedIds.size}` : 'Copy MD'}
-              </span>
-              <span className="sm:hidden">{copied ? '✓' : 'MD'}</span>
+              <ClipboardCopy className="h-3.5 w-3.5" />
+              <span>{copied ? 'Copied!' : selectedIds.size > 0 ? `Copy ${selectedIds.size}` : 'Copy MD'}</span>
             </button>
 
-            {/* Export JSON */}
+            {/* Export JSON — hidden on mobile */}
             <button
               onClick={handleExportJSON}
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
+              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               title="Export as JSON"
             >
-              <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">Export</span>
+              <Download className="h-3.5 w-3.5" />
+              <span>Export</span>
             </button>
 
-            {/* Import JSON */}
+            {/* Import JSON — hidden on mobile */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
+              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               title="Import from JSON"
             >
-              <Upload className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-              <span className="hidden sm:inline">Import</span>
+              <Upload className="h-3.5 w-3.5" />
+              <span>Import</span>
             </button>
             <input
               ref={fileInputRef}
@@ -327,13 +324,14 @@ export function IssueTracker() {
         </div>
 
         {/* Filter tabs + search */}
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-5 sm:py-2">
-          <div className="flex flex-wrap gap-2 sm:gap-1">
+        <div className="shrink-0 border-b border-border">
+          {/* Chips row: horizontal scroll on mobile prevents multi-row wrap */}
+          <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 scrollbar-none sm:px-5">
             {FILTER_TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
-                className={`min-h-[44px] rounded-md px-3 py-2.5 text-xs font-display font-bold uppercase tracking-wider transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px] ${
+                className={`shrink-0 min-h-[44px] rounded-md px-3 py-2.5 text-xs font-display font-bold uppercase tracking-wider transition-colors sm:min-h-0 sm:px-2.5 sm:py-1 sm:text-[11px] ${
                   filter === tab.id
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:text-foreground'
@@ -342,16 +340,30 @@ export function IssueTracker() {
                 {tab.label}
               </button>
             ))}
+            {/* Search — inline on sm+, hidden on mobile */}
+            <div className="relative ml-auto hidden shrink-0 sm:block">
+              <Search className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search..."
+                className="w-36 rounded border border-border bg-muted pl-7 pr-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
           </div>
-          <div className="relative ml-auto">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground sm:left-2 sm:h-3 sm:w-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="min-h-[44px] w-40 rounded border border-border bg-muted pl-9 pr-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:min-h-0 sm:w-36 sm:pl-7 sm:pr-2 sm:py-1 sm:text-xs"
-            />
+          {/* Mobile-only search row */}
+          <div className="px-4 pb-3 sm:hidden">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search issues..."
+                className="min-h-[44px] w-full rounded border border-border bg-muted pl-9 pr-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
           </div>
         </div>
 
