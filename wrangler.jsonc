@@ -76,7 +76,7 @@
   //                 wrangler secret put STRIPE_WEBHOOK_SECRET
   "vars": {
     "ENVIRONMENT": "production",
-    "STRIPE_PRO_PRICE_ID": "price_placeholder_set_this"
+    "STRIPE_PRO_PRICE_ID": "price_1T3Dr7H6aZ92e8Tx0GsEMHP0"
   },
 
   // Static assets for UI
