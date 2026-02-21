@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { cn } from '@/lib/cn';
-import { Trash2, Loader2, ArrowDown, Paperclip, Code, Bug, TestTube, Lightbulb, BrainCircuit } from 'lucide-react';
+import { Trash2, Loader2, ArrowDown, Paperclip, Code, Bug, TestTube, Lightbulb, BrainCircuit, X } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
 import { TokenCounter } from '@/components/elements/TokenCounter';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
@@ -266,6 +266,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
 
   const [input, setInput] = useState('');
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
 
@@ -411,13 +412,31 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
               </span>
             )}
           </div>
-          <button
-            onClick={clearMessages}
-            className="rounded p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-            title="Clear chat"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {confirmingClear ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => { clearMessages(); setConfirmingClear(false); }}
+                className="rounded px-2 py-1 text-xs font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setConfirmingClear(false)}
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-accent transition-colors"
+                title="Cancel"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmingClear(true)}
+              className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+              title="Clear chat"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       )}
 

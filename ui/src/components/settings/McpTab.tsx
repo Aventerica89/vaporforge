@@ -170,7 +170,8 @@ function KeyValueEditor({
           <button
             type="button"
             onClick={() => handleRemove(i)}
-            className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+            className="rounded p-2 text-muted-foreground hover:bg-red-500/10 hover:text-red-500"
+            title="Remove"
           >
             <X className="h-3 w-3" />
           </button>
@@ -363,6 +364,7 @@ export function McpTab() {
   const [editError, setEditError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showJson, setShowJson] = useState<string | null>(null);
+  const [confirmingServer, setConfirmingServer] = useState<string | null>(null);
 
   const toggleExpanded = (name: string) => {
     setExpandedServers((prev) => {
@@ -743,7 +745,7 @@ export function McpTab() {
           <button
             onClick={() => { setShowPaste(true); setShowAdd(false); }}
             className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 text-xs font-semibold bg-secondary/10 text-secondary-foreground hover:bg-secondary/20 transition-colors border border-border"
-            style={{ height: '36px' }}
+            style={{ height: '44px' }}
             title="Paste config JSON"
           >
             <ClipboardPaste className="h-4 w-4 shrink-0" />
@@ -752,7 +754,7 @@ export function McpTab() {
           <button
             onClick={() => { setShowAdd(!showAdd); setShowPaste(false); setError(''); setNameError(''); }}
             className="flex items-center gap-1.5 rounded-lg px-2 sm:px-3 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
-            style={{ height: '36px' }}
+            style={{ height: '44px' }}
             title={showAdd ? 'Cancel' : 'Add MCP server'}
           >
             {showAdd ? <X className="h-4 w-4 shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
@@ -1213,7 +1215,7 @@ export function McpTab() {
                       <button
                         onClick={() => handlePingOne(server.name)}
                         disabled={isPinging}
-                        className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-all disabled:opacity-50"
+                        className="rounded p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-all disabled:opacity-50"
                         title="Check connection"
                       >
                         <RefreshCw className={`h-3.5 w-3.5 ${isPinging ? 'animate-spin' : ''}`} />
@@ -1223,7 +1225,7 @@ export function McpTab() {
                     {/* JSON view button */}
                     <button
                       onClick={() => setShowJson(isShowingJson ? null : server.name)}
-                      className={`rounded p-1 transition-all ${
+                      className={`rounded p-2 transition-all ${
                         isShowingJson
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -1236,7 +1238,7 @@ export function McpTab() {
                     {/* Edit button */}
                     <button
                       onClick={() => isEditing ? cancelEdit() : startEdit(server)}
-                      className={`rounded p-1 transition-all ${
+                      className={`rounded p-2 transition-all ${
                         isEditing
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -1261,13 +1263,32 @@ export function McpTab() {
                       />
                     </button>
 
-                    {/* Delete button */}
-                    <button
-                      onClick={() => handleRemove(server.name)}
-                      className="flex-shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {/* Delete button — inline confirm pattern */}
+                    {confirmingServer === server.name ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => { handleRemove(server.name); setConfirmingServer(null); }}
+                          className="rounded px-2 py-1 text-xs font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmingServer(null)}
+                          className="rounded p-2 text-muted-foreground hover:bg-accent transition-colors"
+                          title="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingServer(server.name)}
+                        className="flex-shrink-0 rounded p-2 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-all"
+                        title="Delete server"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

@@ -50,6 +50,7 @@ export function ConfigFileTab({
   const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [confirmingFilename, setConfirmingFilename] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadFiles = useCallback(async () => {
@@ -235,7 +236,7 @@ export function ConfigFileTab({
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            style={{ height: '36px' }}
+            style={{ height: '44px' }}
             title="Upload .md files"
           >
             <Upload className="h-3.5 w-3.5 text-muted-foreground" />
@@ -252,7 +253,7 @@ export function ConfigFileTab({
           <button
             onClick={handleNew}
             className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            style={{ height: '36px' }}
+            style={{ height: '44px' }}
           >
             <Plus className="h-4 w-4 text-primary" />
             {addLabel}
@@ -314,14 +315,14 @@ export function ConfigFileTab({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEdit(file)}
-                      className="rounded p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-all"
+                      className="rounded p-2.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground transition-all"
                       title="Edit"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => handleToggle(file)}
-                      className="rounded p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                      className="rounded p-2.5 text-muted-foreground hover:text-foreground transition-colors"
                       title={file.enabled ? 'Disable' : 'Enable'}
                     >
                       {file.enabled
@@ -329,12 +330,31 @@ export function ConfigFileTab({
                         : <ToggleLeft className="h-4 w-4" />
                       }
                     </button>
-                    <button
-                      onClick={() => handleDelete(file.filename)}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {confirmingFilename === file.filename ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => { handleDelete(file.filename); setConfirmingFilename(null); }}
+                          className="rounded px-2 py-1 text-xs font-semibold text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-colors"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmingFilename(null)}
+                          className="rounded p-2.5 text-muted-foreground hover:bg-accent transition-colors"
+                          title="Cancel"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmingFilename(file.filename)}
+                        className="rounded p-2.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

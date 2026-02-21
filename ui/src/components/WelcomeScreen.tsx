@@ -494,7 +494,7 @@ export function WelcomeScreen() {
                         />
                         <button
                           type="submit"
-                          className="rounded p-1 text-success hover:bg-success/10"
+                          className="flex h-11 w-11 items-center justify-center rounded text-success hover:bg-success/10"
                           title="Save"
                         >
                           <Check className="h-4 w-4" />
@@ -502,7 +502,7 @@ export function WelcomeScreen() {
                         <button
                           type="button"
                           onClick={cancelRename}
-                          className="rounded p-1 text-muted-foreground hover:bg-accent"
+                          className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-accent"
                           title="Cancel"
                         >
                           <X className="h-4 w-4" />
@@ -559,7 +559,7 @@ export function WelcomeScreen() {
                               e.stopPropagation();
                               startRename(session.id, getSessionName(session) || getSessionLabel(session));
                             }}
-                            className="rounded p-1.5 opacity-0 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-opacity"
+                            className="rounded p-2.5 opacity-0 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-opacity"
                             title="Rename session"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -573,7 +573,7 @@ export function WelcomeScreen() {
                               setDeletingId(null);
                             }}
                             disabled={deletingId === session.id}
-                            className="rounded p-1.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-opacity"
+                            className="rounded p-2.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-opacity"
                             title="Delete session"
                           >
                             {deletingId === session.id ? (

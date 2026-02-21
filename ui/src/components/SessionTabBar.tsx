@@ -358,7 +358,7 @@ export function SessionTabBar() {
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
           >
             U
           </button>

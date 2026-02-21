@@ -185,6 +185,7 @@ export function TabletLayout() {
           WebkitBackdropFilter: 'blur(12px)',
           borderRight: '0.5px solid rgba(255, 255, 255, 0.1)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
       >
         {/* Logo */}
