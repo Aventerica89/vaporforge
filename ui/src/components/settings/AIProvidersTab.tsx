@@ -669,14 +669,15 @@ function ModelButton({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition-all ${
+      className={`flex flex-col items-center justify-center gap-1.5 rounded-lg border p-3 transition-all ${
         selected
           ? 'border-primary bg-primary/5 text-primary'
           : 'border-border text-muted-foreground hover:border-primary/30'
       }`}
+      style={{ minHeight: '60px' }}
     >
       {icon}
-      <div>
+      <div className="text-center">
         <div className="text-xs font-medium">{label}</div>
         <div className="text-[10px] opacity-70">{sublabel}</div>
       </div>

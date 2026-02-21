@@ -226,16 +226,16 @@ export function ConfigFileTab({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex min-h-[44px] items-center justify-between">
         <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
           {icon}
           {title}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            style={{ minHeight: '36px' }}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            style={{ height: '36px' }}
             title="Upload .md files"
           >
             <Upload className="h-3.5 w-3.5 text-muted-foreground" />
@@ -251,8 +251,8 @@ export function ConfigFileTab({
           />
           <button
             onClick={handleNew}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            style={{ minHeight: '36px' }}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            style={{ height: '36px' }}
           >
             <Plus className="h-4 w-4 text-primary" />
             {addLabel}

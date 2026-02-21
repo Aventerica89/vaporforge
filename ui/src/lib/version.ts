@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'HIG UX Audit phase 2: stable 44px header rows — McpTab count badge + Paste Config/Add Server buttons (min-h-[44px] wrapper, height:36px buttons, py-0.5 badge); ConfigFileTab Upload/Add buttons same pattern (Agents/Commands/Rules tabs); AIProvidersTab ModelButton vertical tile layout (flex-col, min-h:60px) replacing cramped horizontal layout' },
   { date: '2026-02-21', summary: 'HIG UX Audit (hig-ux-audit branch): touch targets 44px (PromptInputSubmit, SessionTabBar, suggestion chips); useFocusTrap hook + applied to 6 overlays; live swipe animation (contentRef DOM transform); edge swipe back (H8); tablet M7 Settings/Marketplace as full-screen overlay sheets; M8 Cmd+1/2/3 keyboard shortcuts; dead MobileDrawer.tsx deleted' },
   { date: '2026-02-21', summary: 'Session Remote: floating panel above prompt input with 4 lifecycle buttons (New/Checkpoint/Restore/Wrap Up); checkpoints stored in SESSIONS_KV; SessionRemote component + checkpoints API (GET/POST/DELETE /api/checkpoints)' },
   { date: '2026-02-21', summary: 'Component preview: add per-card Generate/Regenerate button — calls AI to produce CSS-variable-free example (bg-gray-* instead of bg-muted/bg-background), shows spinner during generation; generatedExample state in ComponentCard; iframe now white (#f8fafc) bg by default' },

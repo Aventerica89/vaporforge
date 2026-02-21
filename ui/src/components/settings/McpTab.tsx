@@ -729,27 +729,29 @@ export function McpTab() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex min-h-[44px] items-center justify-between">
         <h3 className="flex items-center gap-2.5 font-display text-sm font-bold uppercase tracking-wider text-foreground">
           <Server className="h-5 w-5 text-primary" />
           MCP Servers
           {servers.length > 0 && (
-            <span className="ml-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary border border-primary/20">
+            <span className="ml-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
               {servers.length}
             </span>
           )}
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => { setShowPaste(true); setShowAdd(false); }}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-secondary/10 text-secondary-foreground hover:bg-secondary/20 transition-colors border border-border"
+            className="flex items-center gap-2 rounded-lg px-3 text-xs font-semibold bg-secondary/10 text-secondary-foreground hover:bg-secondary/20 transition-colors border border-border"
+            style={{ height: '36px' }}
           >
             <ClipboardPaste className="h-4 w-4" />
             Paste Config
           </button>
           <button
             onClick={() => { setShowAdd(!showAdd); setShowPaste(false); setError(''); setNameError(''); }}
-            className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+            className="flex items-center gap-2 rounded-lg px-3 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20"
+            style={{ height: '36px' }}
           >
             {showAdd ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             {showAdd ? 'Cancel' : 'Add Server'}
