@@ -1,15 +1,10 @@
 import { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Zap,
-  CheckCircle,
-  ExternalLink,
-  Loader2,
-  Receipt,
-  Download,
-} from 'lucide-react';
+import { Zap, ExternalLink, Loader2, CreditCard } from 'lucide-react';
 import { billingApi } from '@/lib/api';
 import stripeLogo from '@/assets/logos/stripe-logo.svg';
+import { InvoiceHistory, type InvoiceItem } from '@/components/billingsdk/invoice-history';
+import { UpdatePlanCard } from '@/components/billingsdk/update-plan-card';
+import type { Plan } from '@/lib/billingsdk-config';
 
 interface BillingStatus {
   plan: 'free' | 'pro';
@@ -17,7 +12,7 @@ interface BillingStatus {
   currentPeriodEnd?: string;
 }
 
-interface Invoice {
+interface StripeInvoice {
   id: string;
   date: number;
   amount: number;
@@ -27,43 +22,68 @@ interface Invoice {
   hostedUrl: string | null;
 }
 
-function formatAmount(amount: number, currency: string): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100);
+// VaporForge plans for UpdatePlanCard
+const VF_PLANS: Plan[] = [
+  {
+    id: 'free',
+    title: 'Free',
+    description: 'Claude access via your own Anthropic account.',
+    currency: '$',
+    monthlyPrice: '0',
+    yearlyPrice: '0',
+    buttonText: 'Current Plan',
+    features: [
+      { name: 'Claude via OAuth', icon: 'check' },
+      { name: 'Shared sandbox', icon: 'check' },
+      { name: 'Monaco editor + terminal', icon: 'check' },
+    ],
+  },
+  {
+    id: 'pro',
+    title: 'Pro',
+    description: 'Dedicated sandbox with persistent storage and full MCP support.',
+    currency: '$',
+    monthlyPrice: '20',
+    yearlyPrice: '20',
+    buttonText: 'Upgrade',
+    badge: 'Recommended',
+    features: [
+      { name: 'Dedicated sandbox (2 vCPU, 12 GiB)', icon: 'check' },
+      { name: 'Persistent file storage (R2)', icon: 'check' },
+      { name: 'MCP server support', icon: 'check' },
+      { name: 'Agency visual editor', icon: 'check' },
+    ],
+  },
+];
+
+function mapStatus(s: string | null): InvoiceItem['status'] {
+  if (s === 'paid') return 'paid';
+  if (s === 'open') return 'open';
+  if (s === 'void') return 'void';
+  return 'void';
 }
 
-function formatDate(unix: number): string {
-  return new Date(unix * 1000).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function StatusBadge({ status }: { status: string | null }) {
-  const s = status ?? 'unknown';
-  const styles: Record<string, string> = {
-    paid: 'bg-green-500/10 text-green-400 border-green-500/30',
-    open: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-    void: 'bg-muted text-muted-foreground border-border',
-    uncollectible: 'bg-red-500/10 text-red-400 border-red-500/30',
-    draft: 'bg-muted text-muted-foreground border-border',
-    unknown: 'bg-muted text-muted-foreground border-border',
-  };
-  return (
-    <span
-      className={`rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${styles[s] ?? styles.unknown}`}
-    >
-      {s}
-    </span>
-  );
+function toInvoiceItems(invoices: StripeInvoice[]): InvoiceItem[] {
+  return invoices.map((inv) => ({
+    id: inv.id,
+    date: new Date(inv.date * 1000).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }),
+    amount: new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: inv.currency.toUpperCase(),
+    }).format(inv.amount / 100),
+    status: mapStatus(inv.status),
+    invoiceUrl: inv.hostedUrl ?? undefined,
+    description: 'VaporForge Pro',
+  }));
 }
 
 export function BillingTab() {
   const [status, setStatus] = useState<BillingStatus | null>(null);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<StripeInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [invoicesLoading, setInvoicesLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<'checkout' | 'portal' | null>(null);
@@ -75,7 +95,6 @@ export function BillingTab() {
       .then((res) => {
         if (res.success && res.data) {
           setStatus(res.data);
-          // Fetch invoices if user has/had a subscription
           if (res.data.plan === 'pro' || res.data.status !== 'none') {
             setInvoicesLoading(true);
             billingApi
@@ -123,7 +142,7 @@ export function BillingTab() {
   };
 
   const isPro = status?.plan === 'pro' && status?.status === 'active';
-  const hasHistory = status?.status !== 'none';
+  const hasHistory = status?.status !== 'none' && status?.status !== undefined;
 
   const periodEnd = status?.currentPeriodEnd
     ? new Date(status.currentPeriodEnd).toLocaleDateString('en-US', {
@@ -135,6 +154,7 @@ export function BillingTab() {
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <section className="space-y-1.5">
         <h3 className="flex items-center gap-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">
           <CreditCard className="h-4 w-4 text-primary" />
@@ -153,155 +173,86 @@ export function BillingTab() {
         </div>
       ) : (
         <>
-          {/* Current plan card */}
-          <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {isPro ? (
+          {/* Free users: plan upgrade card */}
+          {!isPro && (
+            <UpdatePlanCard
+              currentPlan={VF_PLANS[0]}
+              plans={VF_PLANS}
+              onPlanChange={(planId) => {
+                if (planId === 'pro') {
+                  if (actionLoading === 'checkout') return;
+                  handleCheckout();
+                }
+              }}
+              title="Choose your plan"
+              className="border-border bg-muted/20"
+            />
+          )}
+
+          {/* Pro users: current plan status */}
+          {isPro && (
+            <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-primary" />
-                ) : (
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                )}
-                <span className="text-sm font-medium text-foreground">
-                  {isPro ? 'Pro Plan' : 'Free Plan'}
+                  <span className="text-sm font-medium text-foreground">Pro Plan</span>
+                </div>
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide border bg-primary/10 text-primary border-primary/30">
+                  Active
                 </span>
               </div>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide border ${
-                  isPro
-                    ? 'bg-primary/10 text-primary border-primary/30'
-                    : 'bg-muted text-muted-foreground border-border'
-                }`}
-              >
-                {isPro ? 'Active' : 'Free'}
-              </span>
-            </div>
-
-            {isPro && periodEnd && (
-              <p className="text-xs text-muted-foreground">Renews {periodEnd}</p>
-            )}
-
-            {!isPro && (
-              <div className="space-y-1.5 pt-1">
-                <p className="text-xs text-muted-foreground font-medium">Pro includes:</p>
-                {[
-                  'Dedicated sandbox container (2 vCPU, 12 GiB)',
-                  'Persistent file storage (R2)',
-                  'Full MCP server support',
-                  'Agency visual editor',
-                ].map((feature) => (
-                  <div key={feature} className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <CheckCircle className="h-3.5 w-3.5 text-success mt-0.5 shrink-0" />
-                    {feature}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-2">
-            {!isPro && (
-              <button
-                onClick={handleCheckout}
-                disabled={actionLoading === 'checkout'}
-                className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {actionLoading === 'checkout' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4" />
-                )}
-                {actionLoading === 'checkout' ? 'Redirecting...' : 'Upgrade to Pro — $20/mo'}
-              </button>
-            )}
-
-            {/* Portal: always visible if user has/had a subscription */}
-            {(isPro || hasHistory) && (
+              {periodEnd && (
+                <p className="text-xs text-muted-foreground">Renews {periodEnd}</p>
+              )}
               <button
                 onClick={handlePortal}
                 disabled={actionLoading === 'portal'}
-                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {actionLoading === 'portal' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                 )}
-                {actionLoading === 'portal' ? 'Opening portal...' : 'Billing Portal'}
+                {actionLoading === 'portal' ? 'Opening...' : 'Billing Portal'}
               </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Portal button for ex-subscribers on free plan */}
+          {!isPro && hasHistory && (
+            <button
+              onClick={handlePortal}
+              disabled={actionLoading === 'portal'}
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {actionLoading === 'portal' ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ExternalLink className="h-3.5 w-3.5" />
+              )}
+              {actionLoading === 'portal' ? 'Opening...' : 'Billing Portal'}
+            </button>
+          )}
 
           {error && <p className="text-xs text-red-400">{error}</p>}
 
           {/* Invoice history */}
-          {(invoicesLoading || invoices.length > 0) && (
-            <section className="space-y-3">
-              <h4 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Receipt className="h-3.5 w-3.5" />
-                Payment History
-              </h4>
-
+          {(invoicesLoading || invoices.length > 0 || hasHistory) && (
+            <div>
               {invoicesLoading ? (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   Loading invoices...
                 </div>
               ) : (
-                <div className="rounded-lg border border-border overflow-hidden">
-                  {/* Header row */}
-                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-3 border-b border-border bg-muted/30 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <span>Date</span>
-                    <span className="text-right">Amount</span>
-                    <span>Status</span>
-                    <span className="sr-only">Actions</span>
-                  </div>
-
-                  {/* Invoice rows */}
-                  {invoices.map((inv, i) => (
-                    <div
-                      key={inv.id}
-                      className={`grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 px-4 py-3 text-sm ${
-                        i < invoices.length - 1 ? 'border-b border-border/60' : ''
-                      }`}
-                    >
-                      <span className="text-foreground tabular-nums">
-                        {formatDate(inv.date)}
-                      </span>
-                      <span className="text-right font-mono text-foreground tabular-nums">
-                        {formatAmount(inv.amount, inv.currency)}
-                      </span>
-                      <StatusBadge status={inv.status} />
-                      <div className="flex items-center gap-1">
-                        {inv.hostedUrl && (
-                          <a
-                            href={inv.hostedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
-                            title="View invoice"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                        {inv.pdfUrl && (
-                          <a
-                            href={inv.pdfUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground hover:bg-muted"
-                            title="Download PDF"
-                          >
-                            <Download className="h-3.5 w-3.5" />
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <InvoiceHistory
+                  invoices={toInvoiceItems(invoices)}
+                  title="Payment History"
+                  description="Your past invoices and receipts."
+                />
               )}
-            </section>
+            </div>
           )}
         </>
       )}

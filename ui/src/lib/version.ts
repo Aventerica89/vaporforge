@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'BillingSDK integration: UpdatePlanCard (Free vs Pro plan comparison, animated expand, Monthly/Yearly toggle) + InvoiceHistory (card+table, status badges, hosted invoice links) replacing hand-rolled billing UI; TrialExpiryCard installed for future use; stripe-logo SVG asset + assets.d.ts; utils.ts (clsx+twMerge); billingsdk-config.ts Plan/CurrentPlan interfaces; shadcn UI components: card, button, badge, label, radio-group, toggle, table' },
   { date: '2026-02-21', summary: 'BillingTab: invoice history — GET /api/billing/invoices (stripe.invoices.list, last 12), invoice table with date/amount/status badge/PDF+hosted links; Billing Portal button always visible for users with history; billingApi.invoices() added to api.ts' },
   { date: '2026-02-21', summary: 'Stripe go-live: VaporForge Pro product created (prod_U1GNi5MhRBSiWj), price_1T3Dr7H6aZ92e8Tx0GsEMHP0 ($20/mo), webhook registered (we_1T3DrXH6aZ92e8Txz7WuaxYc), STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET set as wrangler secrets, wrangler.jsonc STRIPE_PRO_PRICE_ID updated' },
   { date: '2026-02-21', summary: 'Stripe billing integration: /api/billing/status + /checkout + /portal + /webhook; KV subscription state (subscription:{userId}, customer:{stripeId}); BillingTab in Settings; billingApi in api.ts; Stripe 2026-01-28.clover (current_period_end on SubscriptionItem)' },
