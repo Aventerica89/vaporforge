@@ -561,6 +561,7 @@ function buildPreviewHtml(code: string): string {
 <html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<script>window.addEventListener('error',function(e){if(e.message&&/\bp\d+\b is not defined/.test(e.message))e.preventDefault();},true);</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -571,7 +572,7 @@ function buildPreviewHtml(code: string): string {
 </style>
 </head><body>
 <div id="root"></div>
-<script type="text/babel" data-presets="react">
+<script type="text/babel" data-presets="typescript,react">
   // React hooks as locals
   const { useState, useEffect, useRef, useCallback, useMemo,
           useContext, createContext, forwardRef, memo, Fragment } = React;

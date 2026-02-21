@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-20', summary: 'Fix component preview: add typescript to Babel preset (was react-only, silently failed on TS syntax); suppress Tailwind CDN p1 JIT errors in sandboxed null-origin iframe with targeted window.addEventListener error handler' },
   { date: '2026-02-20', summary: 'Changelog init: rewrite CHANGELOG.md (clean 3-tier format), create changelog.json + update changelog-action.json; header teal deploy badge (v{version} · Xm ago) using BUILD_TIMESTAMP' },
   { date: '2026-02-20', summary: 'Changelog sync: add missing public CHANGELOG entries for v0.26.0–v0.29.0 (What\'s New panel was stuck on v0.25.0)' },
   { date: '2026-02-20', summary: 'Component registry: Generate with AI (Haiku structured output) + manual Add form; instructions/setupScript/agents fields on all entries; docs+agents badges on cards; Files/Instructions tab in App Install Guide' },
