@@ -6,9 +6,11 @@ import {
   Bug,
   Hammer,
   LogOut,
+  Zap,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
+import { useQuickChat } from '@/hooks/useQuickChat';
 import { haptics } from '@/lib/haptics';
 import type { SubView } from '@/hooks/useMobileNav';
 
@@ -144,6 +146,11 @@ export function MoreMenu({
       {/* Tools */}
       <div className="p-3 space-y-0.5">
         <SectionHeader>Tools</SectionHeader>
+        <MenuItem
+          icon={<Zap className="h-4.5 w-4.5 text-primary" />}
+          label="Quick Chat"
+          onClick={() => useQuickChat.getState().openQuickChat()}
+        />
         <MenuItem
           icon={<Bug className="h-4.5 w-4.5 text-orange-500" />}
           label="Bug Tracker"

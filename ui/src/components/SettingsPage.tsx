@@ -122,7 +122,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
 
 /* ─── Settings Page ─── */
 
-export function SettingsPage() {
+export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: boolean }) {
   const { activeTab, setActiveTab, closeSettings } = useSettingsStore();
   const { layoutTier } = useDeviceInfo();
   const isMobile = layoutTier === 'phone';
@@ -147,8 +147,8 @@ export function SettingsPage() {
       className="flex flex-col bg-background overflow-hidden"
       style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
-      {/* ─── Top bar (hidden on mobile — MobileNavBar shows title) ─── */}
-      {!isMobile && (
+      {/* ─── Top bar (hidden on phone or when inside mobile subview) ─── */}
+      {!isMobile && !inMobileSubView && (
         <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3 safe-area-header">
           <div className="flex items-center gap-3">
             <h1
@@ -171,8 +171,8 @@ export function SettingsPage() {
         </div>
       )}
 
-      {/* ─── Mobile: horizontal tab bar (44pt touch targets per HIG) ─── */}
-      {isMobile && (
+      {/* ─── Mobile/subview: horizontal tab bar (44pt touch targets per HIG) ─── */}
+      {(isMobile || inMobileSubView) && (
         <div className="flex shrink-0 overflow-x-auto border-b border-border/60 px-2 scrollbar-none">
           {ALL_TABS.map((tab) => (
             <button
@@ -195,7 +195,7 @@ export function SettingsPage() {
       {/* ─── Body: sidebar (desktop) + content ─── */}
       <div className="flex flex-1 min-h-0">
         {/* Desktop sidebar */}
-        {!isMobile && (
+        {!isMobile && !inMobileSubView && (
           <nav className="flex w-[220px] shrink-0 flex-col gap-1 overflow-y-auto border-r border-border/60 px-3 py-4">
             {TAB_GROUPS.map((group) => {
               const isDev = group.label === 'Developer';
@@ -236,8 +236,8 @@ export function SettingsPage() {
         {/* Content area */}
         <div className="flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
           <div className="max-w-2xl">
-            {/* Section title (desktop only — mobile shows in tab bar) */}
-            {!isMobile && (
+            {/* Section title (desktop only — mobile/subview shows in tab bar) */}
+            {!isMobile && !inMobileSubView && (
               <h2 className={`mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${
                 activeTab === 'dev-tools'
                   ? 'from-amber-400 to-orange-500'

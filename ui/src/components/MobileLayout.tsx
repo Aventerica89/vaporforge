@@ -101,7 +101,7 @@ export function MobileLayout() {
     if (subView) {
       switch (subView) {
         case 'settings':
-          return <SettingsPage />;
+          return <SettingsPage inMobileSubView />;
         case 'marketplace':
           return <MarketplacePage />;
         case 'issues':

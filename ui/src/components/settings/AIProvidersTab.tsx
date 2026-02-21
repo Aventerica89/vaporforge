@@ -11,7 +11,6 @@ import {
   CheckCircle,
   XCircle,
   Crown,
-  MessageSquare,
 } from 'lucide-react';
 import { aiProvidersApi, secretsApi } from '@/lib/api';
 import type { AIProviderConfig } from '@/lib/types';
@@ -284,33 +283,30 @@ function ClaudeProviderCard({
           getKeyUrl="https://console.anthropic.com/settings/keys"
         />
 
-        {/* Model selector */}
+        {/* Model selector — segmented control (HIG-correct for 3 options) */}
         <div className="space-y-2">
           <label className="text-xs font-medium text-muted-foreground">
             Default Model
           </label>
-          <div className="grid grid-cols-3 gap-2">
-            <ModelButton
-              icon={<Zap className="h-4 w-4 flex-shrink-0" />}
-              label="Sonnet"
-              sublabel="Best balance"
-              selected={model === 'sonnet'}
-              onClick={() => handleModelChange('sonnet')}
-            />
-            <ModelButton
-              icon={<MessageSquare className="h-4 w-4 flex-shrink-0" />}
-              label="Haiku"
-              sublabel="Fast + cheap"
-              selected={model === 'haiku'}
-              onClick={() => handleModelChange('haiku')}
-            />
-            <ModelButton
-              icon={<Brain className="h-4 w-4 flex-shrink-0" />}
-              label="Opus"
-              sublabel="Deep reasoning"
-              selected={model === 'opus'}
-              onClick={() => handleModelChange('opus')}
-            />
+          <div className="flex rounded-lg bg-muted p-1 gap-1">
+            {([
+              { value: 'sonnet', label: 'Sonnet', sublabel: 'Balanced' },
+              { value: 'haiku', label: 'Haiku', sublabel: 'Fast' },
+              { value: 'opus', label: 'Opus', sublabel: 'Powerful' },
+            ] as const).map(({ value, label, sublabel }) => (
+              <button
+                key={value}
+                onClick={() => handleModelChange(value)}
+                className={`flex flex-1 flex-col items-center rounded-md py-2 transition-all ${
+                  model === value
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="text-xs font-semibold">{label}</span>
+                <span className="text-[10px] opacity-60">{sublabel}</span>
+              </button>
+            ))}
           </div>
         </div>
 
