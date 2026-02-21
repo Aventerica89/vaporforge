@@ -549,9 +549,12 @@ function buildPreviewHtml(code: string): string {
     .replace(/export\s+type\s+[^;]+;/g, '')
     .replace(/export\s+interface\s+\w+[^{]*\{[^}]*\}/gs, '');
 
-  // Find last uppercase-starting function or const — most likely the root component
-  const matches = [...cleaned.matchAll(/(?:^|\n)\s*(?:function|const)\s+([A-Z][A-Za-z0-9_]*)/g)];
-  const componentName = matches.length > 0 ? matches[matches.length - 1][1] : null;
+  // Prefer *Demo/*Preview/*Example/*Story names; fall back to last uppercase component
+  const allMatches = [...cleaned.matchAll(/(?:^|\n)\s*(?:function|const)\s+([A-Z][A-Za-z0-9_]*)/g)];
+  const demoMatches = [...cleaned.matchAll(/(?:^|\n)\s*(?:function|const)\s+([A-Z][A-Za-z0-9_]*(?:Demo|Preview|Example|Story))\b/g)];
+  const componentName = demoMatches.length > 0
+    ? demoMatches[demoMatches.length - 1][1]
+    : allMatches.length > 0 ? allMatches[allMatches.length - 1][1] : null;
 
   const renderCall = componentName
     ? `try { root.render(React.createElement(${componentName})); } catch(e) { root.render(React.createElement('pre', {style:{color:'#dc2626',fontSize:'12px',whiteSpace:'pre-wrap',background:'#fef2f2',padding:'12px',borderRadius:'6px',border:'1px solid #fecaca'}}, e.message)); }`

@@ -673,6 +673,20 @@ export const componentCatalog: ComponentEntry[] = [
       </table>
     </div>
   );
+}
+
+function TableDemo() {
+  const columns = [
+    { key: 'name', label: 'Name' },
+    { key: 'role', label: 'Role' },
+    { key: 'status', label: 'Status' },
+  ];
+  const data = [
+    { name: 'Alice', role: 'Designer', status: 'Active' },
+    { name: 'Bob', role: 'Engineer', status: 'Inactive' },
+    { name: 'Carol', role: 'PM', status: 'Active' },
+  ];
+  return <Table columns={columns} data={data} />;
 }`,
     dependencies: [],
     tailwindClasses: ['border-b', 'border-border', 'hover:bg-muted/50'],
@@ -779,6 +793,16 @@ export const componentCatalog: ComponentEntry[] = [
       ))}
     </div>
   );
+}
+
+function TabsDemo() {
+  const [active, setActive] = React.useState('account');
+  const tabs = [
+    { id: 'account', label: 'Account' },
+    { id: 'password', label: 'Password' },
+    { id: 'settings', label: 'Settings' },
+  ];
+  return <Tabs tabs={tabs} activeTab={active} onTabChange={setActive} />;
 }`,
     dependencies: [],
     tailwindClasses: ['rounded-md', 'bg-muted', 'shadow-sm'],
@@ -803,6 +827,15 @@ export const componentCatalog: ComponentEntry[] = [
       ))}
     </nav>
   );
+}
+
+function BreadcrumbDemo() {
+  const items = [
+    { label: 'Home', href: '/' },
+    { label: 'Components', href: '/components' },
+    { label: 'Breadcrumb' },
+  ];
+  return <Breadcrumb items={items} />;
 }`,
     dependencies: [],
     tailwindClasses: ['text-sm', 'text-muted-foreground'],
@@ -832,6 +865,29 @@ export const componentCatalog: ComponentEntry[] = [
       </div>
     </div>
   );
+}
+
+function DialogDemo() {
+  const [open, setOpen] = React.useState(true);
+  return (
+    <div style={{ padding: '16px' }}>
+      <button
+        onClick={() => setOpen(true)}
+        style={{ padding: '8px 16px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+      >
+        Open Dialog
+      </button>
+      <Dialog open={open} onClose={() => setOpen(false)} title="Example Dialog">
+        <p style={{ color: '#374151', fontSize: '14px', marginBottom: '16px' }}>
+          This is the dialog content. You can add any content here.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+          <button onClick={() => setOpen(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Cancel</button>
+          <button onClick={() => setOpen(false)} style={{ padding: '8px 16px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Confirm</button>
+        </div>
+      </Dialog>
+    </div>
+  );
 }`,
     dependencies: [],
     tailwindClasses: ['fixed', 'inset-0', 'z-50', 'backdrop-blur-sm'],
@@ -848,6 +904,22 @@ export const componentCatalog: ComponentEntry[] = [
       <div className="pointer-events-none absolute left-1/2 bottom-full mb-2 -translate-x-1/2 rounded-md bg-popover px-3 py-1.5 text-xs text-popover-foreground shadow-md opacity-0 transition-opacity group-hover:opacity-100 whitespace-nowrap border border-border">
         {content}
       </div>
+    </div>
+  );
+}
+
+function TooltipDemo() {
+  return (
+    <div style={{ padding: '48px 16px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+      <Tooltip content="Save your work">
+        <button style={{ padding: '8px 16px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Save</button>
+      </Tooltip>
+      <Tooltip content="Delete this item permanently">
+        <button style={{ padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Delete</button>
+      </Tooltip>
+      <Tooltip content="Share with your team">
+        <button style={{ padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>Share</button>
+      </Tooltip>
     </div>
   );
 }`,
@@ -879,6 +951,32 @@ export const componentCatalog: ComponentEntry[] = [
       <div className={\`fixed \${positions[side]} \${sizes[side]} border-border bg-background p-6 shadow-lg\`}>
         {children}
       </div>
+    </div>
+  );
+}
+
+function SheetDemo() {
+  const [open, setOpen] = React.useState(true);
+  return (
+    <div style={{ padding: '16px' }}>
+      <button
+        onClick={() => setOpen(true)}
+        style={{ padding: '8px 16px', background: '#111827', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+      >
+        Open Sheet
+      </button>
+      <Sheet open={open} onClose={() => setOpen(false)} side="right">
+        <h3 style={{ fontWeight: '600', fontSize: '16px', marginBottom: '8px' }}>Sheet Title</h3>
+        <p style={{ color: '#374151', fontSize: '14px', marginBottom: '16px' }}>
+          This is the sheet content area. Add navigation, settings, or forms here.
+        </p>
+        <button
+          onClick={() => setOpen(false)}
+          style={{ padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+        >
+          Close
+        </button>
+      </Sheet>
     </div>
   );
 }`,
