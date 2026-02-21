@@ -4,6 +4,17 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-21 · f098c96 · v0.29.0
+FEAT    ui — useFocusTrap hook: Tab/Shift+Tab trap + Escape-to-close for all overlay panels
+FEAT    ui — useSwipeTabs.ts: contentRef + live DOM transform swipe (no React re-renders per frame)
+FEAT    ui — TabletLayout: Settings/Marketplace as fixed full-screen overlay (M7); Cmd+1/2/3 nav shortcuts (M8)
+FIX     ui — MobileLayout: H8 edge-swipe-back (left-edge <20px swipe → goBack); TS2869 ?? precedence fix
+FIX     ui — Suggestion.tsx: min-h-[44px] HIG touch target (was ~28px)
+FIX     ui — SessionTabBar: 44px height, HIG-compliant overflow scroll; MobileTabBar: CSS token colors
+FIX     ui — PromptInputSubmit: 44×44px min touch target (was 32px)
+REFACTOR ui — remove scrollIntoView on keyboard open (causes iOS push-up bug)
+CHORE   ui — delete dead MobileDrawer.tsx (no imports, only test comment reference)
+
 ### 2026-02-20 · 4553aca · v0.29.0
 FIX     docker — ask_user_questions tool description: prescriptive (ALWAYS/NEVER), execute ack tells Claude to stop+wait; new container image d16f5f5d
 

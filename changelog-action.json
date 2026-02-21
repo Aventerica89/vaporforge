@@ -9,3 +9,4 @@
 { "v": "0.29.0", "ts": "2026-02-20T19:50:00Z", "msg": "Fix: tree/file hierarchy blocks now render with whitespace-pre", "hash": "1a9b4f4" }
 { "v": "0.29.0", "ts": "2026-02-20T22:10:00Z", "msg": "Personal component registry in Dev Playground", "hash": "23199a4" }
 { "v": "0.29.0", "ts": "2026-02-20T22:20:00Z", "msg": "Sync public CHANGELOG: add v0.26-0.29 What's New entries", "hash": "cfe455d" }
+{ "v": "0.29.0", "ts": "2026-02-21T05:48:00Z", "msg": "HIG UX audit: touch targets, focus traps, live swipe, overlay sheets", "hash": "f098c96" }
