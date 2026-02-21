@@ -129,7 +129,7 @@ export function IssueCard({
       }`}
     >
       {/* Collapsed header */}
-      <div className="flex items-center gap-3 px-4 py-3 sm:gap-2 sm:px-3 sm:py-2.5">
+      <div className="flex items-center gap-2 px-3 py-3 sm:py-2.5">
         {/* Selection checkbox */}
         {onToggleSelect && (
           <button
@@ -148,9 +148,9 @@ export function IssueCard({
           </button>
         )}
 
-        {/* Drag handle */}
-        <button className="min-h-[44px] min-w-[44px] flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing sm:min-h-0 sm:min-w-0">
-          <GripVertical className="h-5 w-5 sm:h-3.5 sm:w-3.5" />
+        {/* Drag handle — hidden on mobile (drag-and-drop unsupported on touch) */}
+        <button className="hidden sm:flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing">
+          <GripVertical className="h-3.5 w-3.5" />
         </button>
 
         {/* Resolve checkbox */}
@@ -276,7 +276,7 @@ export function IssueCard({
               toast.error('Failed to copy issue to clipboard');
             }
           }}
-          className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary sm:min-h-0 sm:min-w-0 sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
+          className="hidden sm:flex shrink-0 items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-primary sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
           title="Copy issue with VaporFiles URLs"
         >
           <ClipboardCopy className="h-4 w-4 sm:h-3 sm:w-3" />
@@ -285,7 +285,7 @@ export function IssueCard({
         {/* Delete */}
         <button
           onClick={() => removeIssue(issue.id)}
-          className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-red-500 sm:min-h-0 sm:min-w-0 sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
+          className="hidden sm:flex shrink-0 items-center justify-center rounded p-2 text-muted-foreground/40 opacity-100 transition-opacity hover:text-red-500 sm:p-0.5 md:opacity-0 md:group-hover:opacity-100"
           title="Delete issue"
         >
           <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />

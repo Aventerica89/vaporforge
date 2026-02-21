@@ -163,7 +163,8 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
           </div>
           <button
             onClick={closeSettings}
-            className="flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+            className="flex items-center justify-center p-3 text-muted-foreground transition-colors hover:text-foreground"
+            style={{ minHeight: '44px', minWidth: '44px' }}
             aria-label="Close settings"
           >
             <X className="h-5 w-5" />

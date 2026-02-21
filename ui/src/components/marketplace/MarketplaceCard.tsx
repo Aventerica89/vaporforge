@@ -1,4 +1,4 @@
-import { Loader2, Star } from 'lucide-react';
+import { Loader2, Plus, Star } from 'lucide-react';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 
 interface MarketplaceCardProps {
@@ -72,18 +72,18 @@ export function MarketplaceCard({
               {source.label}
             </span>
           )}
-          {/* Favorite star */}
+          {/* Favorite star — in compact mode don't force 44px width (card is too narrow) */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onToggleFavorite();
             }}
-            className={`transition-colors ${
+            className={`px-2 transition-colors ${
               isFavorite
                 ? 'text-yellow-400 hover:text-yellow-500'
                 : 'text-muted-foreground/30 hover:text-yellow-400'
             }`}
-            style={{ minHeight: '44px', minWidth: '44px' }}
+            style={{ minHeight: '44px', ...(isCompact ? {} : { minWidth: '44px' }) }}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
@@ -116,11 +116,13 @@ export function MarketplaceCard({
           ) : (
             <button
               onClick={onInstall}
-              className="flex items-center justify-center text-xs font-semibold px-3 py-1 rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40"
+              className={`flex items-center justify-center font-semibold rounded transition-all duration-200 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 hover:shadow-[0_0_12px_-2px_hsl(185,95%,55%,0.3)] border border-cyan-500/20 hover:border-cyan-500/40 ${
+                isCompact ? 'px-2 py-1' : 'text-xs px-3 py-1'
+              }`}
               style={{ minHeight: '44px' }}
               aria-label="Install plugin"
             >
-              Install
+              {isCompact ? <Plus className="h-3.5 w-3.5" /> : 'Install'}
             </button>
           )}
         </div>
