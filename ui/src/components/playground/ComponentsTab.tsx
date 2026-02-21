@@ -617,8 +617,21 @@ function buildPreviewHtml(code: string): string {
 <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
 <style>
-  body{margin:0;padding:16px;background:#0f0f12;color:#e5e7eb;font-family:system-ui,sans-serif}
   *{box-sizing:border-box}
+  body{
+    margin:0;padding:24px;
+    background:#111113;
+    color:#e5e7eb;
+    font-family:system-ui,sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+  }
+  #root{
+    width:100%;
+    max-width:680px;
+  }
 </style>
 </head><body>
 <div id="root"></div>
