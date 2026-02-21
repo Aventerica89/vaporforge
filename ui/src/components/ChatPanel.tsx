@@ -8,6 +8,7 @@ import { chatApi, filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
+import { SessionRemote } from '@/components/SessionRemote';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';
@@ -362,6 +363,10 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
         {estimatedTokens > 0 && (
           <TokenCounter tokens={estimatedTokens} />
         )}
+        <SessionRemote
+          sessionId={sessionId}
+          onSetPrompt={(text) => setInput(text)}
+        />
       </PromptInputTools>
       <PromptInputSlashMenu />
       <div className={cn(

@@ -254,3 +254,12 @@ export type WSMessage =
   | { type: 'pong' }
   | { type: 'mcp_relay_request'; requestId: string; serverName: string; body: Record<string, unknown> }
   | { type: 'mcp_relay_response'; requestId: string; body: Record<string, unknown>; error?: string };
+
+// Session checkpoint — saved to KV for cross-device persistence
+export interface Checkpoint {
+  id: string;
+  name: string;
+  sessionId: string;
+  timestamp: string;
+  summary: string;
+}

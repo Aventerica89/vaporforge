@@ -1,4 +1,4 @@
-import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory, AIProviderConfig } from './types';
+import type { ApiResponse, Session, Message, FileInfo, GitStatus, GitCommit, User, McpServerConfig, Plugin, ConfigFile, ConfigCategory, AIProviderConfig, Checkpoint } from './types';
 import { useDebugLog } from '@/hooks/useDebugLog';
 
 const API_BASE = '/api';
@@ -1138,6 +1138,23 @@ export const userComponentsApi = {
     request<ComponentDraft>('/user-components/generate', {
       method: 'POST',
       body: JSON.stringify({ prompt }),
+    }),
+};
+
+// Checkpoints API
+export const checkpointsApi = {
+  list: () =>
+    request<Checkpoint[]>('/checkpoints'),
+
+  create: (data: { name: string; sessionId: string; summary: string }) =>
+    request<Checkpoint>('/checkpoints', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<{ id: string }>(`/checkpoints/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     }),
 };
 
