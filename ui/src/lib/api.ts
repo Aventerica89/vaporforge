@@ -577,24 +577,28 @@ export const sdkApi = {
   },
 
   // Persist assistant message to KV after WS stream completes
+  // Returns triggered alerts (if any) so the caller can show in-app notifications
   persistMessage: async (
     sessionId: string,
     content: string,
-    sdkSessionId: string
-  ): Promise<void> => {
+    sdkSessionId: string,
+    costUsd?: number
+  ): Promise<{ triggeredAlerts?: AlertConfig[] }> => {
     try {
       const token = localStorage.getItem('session_token');
-      await fetch(`${API_BASE}/sdk/persist`, {
+      const res = await fetch(`${API_BASE}/sdk/persist`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ sessionId, content, sdkSessionId }),
+        body: JSON.stringify({ sessionId, content, sdkSessionId, ...(typeof costUsd === 'number' ? { costUsd } : {}) }),
       });
+      if (res.ok) return await res.json();
     } catch {
       // Best-effort persistence — don't break the UI
     }
+    return {};
   },
 };
 

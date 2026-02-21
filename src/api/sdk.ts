@@ -446,9 +446,10 @@ sdkRoutes.post('/persist', async (c) => {
     sessionId: string;
     content: string;
     sdkSessionId?: string;
+    costUsd?: number;
   }>();
 
-  const { sessionId, content, sdkSessionId } = body;
+  const { sessionId, content, sdkSessionId, costUsd } = body;
   if (!sessionId || !content) {
     return c.json<ApiResponse<never>>({ success: false, error: 'Missing fields' }, 400);
   }
@@ -486,8 +487,76 @@ sdkRoutes.post('/persist', async (c) => {
     await sandboxManager.syncConfigFromContainer(sessionId, user.id, c.env.SESSIONS_KV);
   } catch {}
 
-  return c.json({ success: true });
+  // Check usage alerts if cost data available
+  let triggeredAlerts: import('./billing').AlertConfig[] = [];
+  if (typeof costUsd === 'number' && costUsd > 0) {
+    try {
+      triggeredAlerts = await checkUsageAlerts(c.env, user.id, sessionId, costUsd);
+    } catch (e) {
+      console.error('[persist] alert check failed:', e);
+    }
+  }
+
+  return c.json({ success: true, triggeredAlerts });
 });
+
+// ─── Alert Triggering ─────────────────────────────────────────────────────────
+
+async function checkUsageAlerts(
+  env: Env,
+  userId: string,
+  sessionId: string,
+  costUsd: number
+): Promise<import('./billing').AlertConfig[]> {
+  // Read max budget (user-config:{userId}:max-budget-usd)
+  const maxBudgetRaw = await env.AUTH_KV.get(`user-config:${userId}:max-budget-usd`);
+  const maxBudgetUsd = maxBudgetRaw ? parseFloat(maxBudgetRaw) : null;
+  if (!maxBudgetUsd || maxBudgetUsd <= 0) return [];
+
+  // Accumulate session spend
+  const spendKey = `session-spend:${sessionId}`;
+  const prevRaw = await env.SESSIONS_KV.get(spendKey);
+  const prevSpend = prevRaw ? parseFloat(prevRaw) : 0;
+  const newSpend = prevSpend + costUsd;
+  await env.SESSIONS_KV.put(spendKey, String(newSpend), { expirationTtl: 7 * 24 * 60 * 60 });
+
+  // Read which alerts have already fired this session
+  const firedKey = `session-alert-fired:${sessionId}`;
+  const firedRaw = await env.SESSIONS_KV.get(firedKey);
+  const firedIds: string[] = firedRaw ? (JSON.parse(firedRaw) as string[]) : [];
+
+  // Load user's billing alerts
+  const alertsRaw = await env.AUTH_KV.get(`billing-alerts:${userId}`);
+  if (!alertsRaw) return [];
+  const alerts = JSON.parse(alertsRaw) as import('./billing').AlertConfig[];
+
+  const spendPct = (newSpend / maxBudgetUsd) * 100;
+  const nowIso = new Date().toISOString();
+  const newlyTriggered: import('./billing').AlertConfig[] = [];
+  const newFiredIds = [...firedIds];
+
+  for (const alert of alerts) {
+    if (!alert.enabled) continue;
+    if (firedIds.includes(alert.id)) continue;
+    if (spendPct < alert.thresholdPct) continue;
+
+    // Threshold crossed — mark as triggered
+    alert.triggeredAt = nowIso;
+    alert.triggeredCount += 1;
+    newlyTriggered.push({ ...alert });
+    newFiredIds.push(alert.id);
+  }
+
+  if (newlyTriggered.length === 0) return [];
+
+  // Persist updated alert records and fired set
+  await Promise.all([
+    env.AUTH_KV.put(`billing-alerts:${userId}`, JSON.stringify(alerts)),
+    env.SESSIONS_KV.put(firedKey, JSON.stringify(newFiredIds), { expirationTtl: 7 * 24 * 60 * 60 }),
+  ]);
+
+  return newlyTriggered;
+}
 
 // GET /api/sdk/replay/:sessionId?msgId=&offset= — serve buffered chunks for reconnect
 sdkRoutes.get('/replay/:sessionId', async (c) => {

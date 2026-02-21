@@ -4,6 +4,7 @@ import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { useStreamDebug } from '@/hooks/useStreamDebug';
+import { toast } from '@/hooks/useToast';
 import type { Session, FileInfo, Message, MessagePart, GitStatus, ImageAttachment } from '@/lib/types';
 
 function debugLog(
@@ -698,8 +699,15 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           sdkApi.persistMessage(
             session.id,
             (doneChunk.fullText as string) || content,
-            (doneChunk.sessionId as string) || ''
-          );
+            (doneChunk.sessionId as string) || '',
+            typeof doneChunk.costUsd === 'number' ? (doneChunk.costUsd as number) : undefined
+          ).then(({ triggeredAlerts }) => {
+            if (triggeredAlerts && triggeredAlerts.length > 0) {
+              for (const alert of triggeredAlerts) {
+                toast.warning(`Budget alert: ${alert.label} (${alert.thresholdPct}% reached)`, 8000);
+              }
+            }
+          }).catch(() => {});
         } else if (chunk.type === 'ws-exit') {
           processExitReceived = true;
           // WebSocket agent process exited
