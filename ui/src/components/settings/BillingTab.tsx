@@ -9,6 +9,7 @@ import {
   Download,
 } from 'lucide-react';
 import { billingApi } from '@/lib/api';
+import stripeLogo from '@/assets/logos/stripe-logo.svg';
 
 interface BillingStatus {
   plan: 'free' | 'pro';
@@ -140,7 +141,8 @@ export function BillingTab() {
           Billing
         </h3>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Manage your VaporForge subscription.
+          Manage your VaporForge subscription. Payments secured by{' '}
+          <img src={stripeLogo} alt="Stripe" className="inline h-3.5 align-middle opacity-60" />.
         </p>
       </section>
 
