@@ -363,10 +363,6 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
         {estimatedTokens > 0 && (
           <TokenCounter tokens={estimatedTokens} />
         )}
-        <SessionRemote
-          sessionId={sessionId}
-          onSetPrompt={(text) => setInput(text)}
-        />
       </PromptInputTools>
       <PromptInputSlashMenu />
       <div className={cn(
@@ -384,6 +380,12 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
               : 'Describe the task... (use @ to mention files, / for commands)'
           }
         />
+        <div className="absolute bottom-2 left-2">
+          <SessionRemote
+            sessionId={sessionId}
+            onSetPrompt={(text) => setInput(text)}
+          />
+        </div>
         <div className="absolute bottom-2 right-2 flex items-center gap-1">
           <PromptInputActions />
           <PromptInputSpeech />
