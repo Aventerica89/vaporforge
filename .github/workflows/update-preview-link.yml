@@ -1,0 +1,59 @@
+name: Deploy Preview & Update Shortlink
+
+on:
+  push:
+    branches-ignore:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: preview-deploy-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-and-update:
+    name: Deploy Preview & Update go.urlstogo.cloud/vaporforge--preview
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (full pipeline)
+        run: npm run build
+
+      - name: Deploy to preview environment
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --env preview
+
+      - name: Update URLsToGo preview shortlink
+        env:
+          URLSTOGO_API_KEY: ${{ secrets.URLSTOGO_API_KEY }}
+        run: |
+          set -euo pipefail
+          DESTINATION="https://vaporforge-preview.jbmd-creations.workers.dev/app/"
+          PREVIEW_CODE="vaporforge--preview"
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X PUT \
+            -H "Authorization: Bearer ${URLSTOGO_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data "{\"destination\":\"${DESTINATION}\"}" \
+            "https://go.urlstogo.cloud/api/preview-links/${PREVIEW_CODE}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          echo "Response (HTTP $HTTP_CODE): $BODY"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Preview link updated: https://go.urlstogo.cloud/${PREVIEW_CODE}"
+          else
+            echo "Failed to update preview link (HTTP $HTTP_CODE)"
+            exit 1
+          fi
