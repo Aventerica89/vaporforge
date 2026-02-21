@@ -554,8 +554,8 @@ function buildPreviewHtml(code: string): string {
   const componentName = matches.length > 0 ? matches[matches.length - 1][1] : null;
 
   const renderCall = componentName
-    ? `try { root.render(React.createElement(${componentName})); } catch(e) { root.render(React.createElement('pre', {style:{color:'#f87171',fontSize:'12px',whiteSpace:'pre-wrap'}}, e.message)); }`
-    : `root.render(React.createElement('p', {style:{color:'#9ca3af',fontSize:'12px'}}, 'No component found to render.'))`;
+    ? `try { root.render(React.createElement(${componentName})); } catch(e) { root.render(React.createElement('pre', {style:{color:'#dc2626',fontSize:'12px',whiteSpace:'pre-wrap',background:'#fef2f2',padding:'12px',borderRadius:'6px',border:'1px solid #fecaca'}}, e.message)); }`
+    : `root.render(React.createElement('p', {style:{color:'#6b7280',fontSize:'12px'}}, 'No component found to render.'))`;
 
   // Detect names already declared in component code — skip stubs for those to avoid
   // "Identifier X has already been declared" SyntaxError when component ships its own Button etc.
@@ -566,45 +566,54 @@ function buildPreviewHtml(code: string): string {
 
   const shadcnStubs = [
     s('Button', `const Button = ({ children, className = '', variant = 'default', size = 'default', onClick, disabled, type: btnType, ...p }) => {
-    const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none';
-    const v = variant === 'outline' ? 'border border-gray-600 text-gray-200 hover:bg-gray-800'
-            : variant === 'ghost'   ? 'text-gray-300 hover:bg-gray-800'
+    const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none disabled:opacity-50';
+    const v = variant === 'outline'     ? 'border border-gray-300 bg-white text-gray-900 hover:bg-gray-50'
+            : variant === 'ghost'       ? 'text-gray-900 hover:bg-gray-100'
+            : variant === 'secondary'   ? 'bg-gray-100 text-gray-900 hover:bg-gray-200'
             : variant === 'destructive' ? 'bg-red-600 text-white hover:bg-red-700'
-            : 'bg-indigo-600 text-white hover:bg-indigo-700';
+            : 'bg-gray-900 text-white hover:bg-gray-800';
     const sz = size === 'sm' ? 'h-8 px-3 text-xs' : size === 'lg' ? 'h-11 px-8 text-base' : 'h-9 px-4 text-sm';
     return React.createElement('button', { type: btnType || 'button', className: cn(base,v,sz,className), onClick, disabled, ...p }, children);
   };`),
     s('Input', `const Input = ({ className = '', ...p }) =>
-    React.createElement('input', { className: cn('flex h-9 w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-1 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500', className), ...p });`),
+    React.createElement('input', { className: cn('flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-1', className), ...p });`),
     s('Badge', `const Badge = ({ children, className = '', variant = 'default' }) => {
-    const bv = variant === 'secondary' ? 'bg-gray-700 text-gray-300' : variant === 'destructive' ? 'bg-red-900 text-red-300' : 'bg-indigo-900 text-indigo-300';
+    const bv = variant === 'secondary' ? 'bg-gray-100 text-gray-800' : variant === 'destructive' ? 'bg-red-100 text-red-700' : variant === 'outline' ? 'border border-gray-300 text-gray-700' : 'bg-gray-900 text-white';
     return React.createElement('span', { className: cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', bv, className) }, children);
   };`),
     s('Card', `const Card = ({ children, className = '' }) =>
-    React.createElement('div', { className: cn('rounded-lg border border-gray-700 bg-gray-900 text-gray-100 shadow-sm', className) }, children);`),
+    React.createElement('div', { className: cn('rounded-lg border border-gray-200 bg-white text-gray-950 shadow-sm', className) }, children);`),
     s('CardHeader', `const CardHeader = ({ children, className = '' }) =>
     React.createElement('div', { className: cn('flex flex-col space-y-1.5 p-6', className) }, children);`),
     s('CardTitle', `const CardTitle = ({ children, className = '' }) =>
-    React.createElement('h3', { className: cn('text-lg font-semibold', className) }, children);`),
+    React.createElement('h3', { className: cn('text-lg font-semibold text-gray-900', className) }, children);`),
+    s('CardDescription', `const CardDescription = ({ children, className = '' }) =>
+    React.createElement('p', { className: cn('text-sm text-gray-500', className) }, children);`),
     s('CardContent', `const CardContent = ({ children, className = '' }) =>
     React.createElement('div', { className: cn('p-6 pt-0', className) }, children);`),
     s('CardFooter', `const CardFooter = ({ children, className = '' }) =>
     React.createElement('div', { className: cn('flex items-center p-6 pt-0', className) }, children);`),
     s('Label', `const Label = ({ children, className = '', htmlFor }) =>
-    React.createElement('label', { className: cn('text-sm font-medium text-gray-200', className), htmlFor }, children);`),
+    React.createElement('label', { className: cn('text-sm font-medium text-gray-700', className), htmlFor }, children);`),
     s('Textarea', `const Textarea = ({ className = '', ...p }) =>
-    React.createElement('textarea', { className: cn('flex min-h-[80px] w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none', className), ...p });`),
-    s('Separator', `const Separator = ({ className = '' }) =>
-    React.createElement('div', { className: cn('h-px bg-gray-700', className) });`),
+    React.createElement('textarea', { className: cn('flex min-h-[80px] w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900', className), ...p });`),
+    s('Separator', `const Separator = ({ className = '', orientation = 'horizontal' }) =>
+    React.createElement('div', { className: cn(orientation === 'vertical' ? 'w-px h-full bg-gray-200' : 'h-px w-full bg-gray-200', className) });`),
     s('Switch', `const Switch = ({ checked, onCheckedChange, ...p }) =>
     React.createElement('button', { role:'switch', 'aria-checked': checked, onClick:() => onCheckedChange?.(!checked),
-      className: cn('relative inline-flex h-5 w-9 cursor-pointer rounded-full border-2 border-transparent transition-colors', checked ? 'bg-indigo-600' : 'bg-gray-700'), ...p },
+      className: cn('relative inline-flex h-5 w-9 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none', checked ? 'bg-gray-900' : 'bg-gray-200'), ...p },
       React.createElement('span', { className: cn('pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform', checked ? 'translate-x-4' : 'translate-x-0') })
     );`),
     s('Slider', `const Slider = ({ value = [50], onValueChange, min = 0, max = 100, step = 1, className = '' }) =>
     React.createElement('input', { type:'range', value:value[0], min, max, step,
       onChange:(e) => onValueChange?.([Number(e.target.value)]),
-      className: cn('w-full accent-indigo-500', className) });`),
+      className: cn('w-full accent-gray-900', className) });`),
+    s('Alert', `const Alert = ({ children, className = '', variant = 'default' }) =>
+    React.createElement('div', { role:'alert', className: cn('relative w-full rounded-lg border p-4 text-sm', variant === 'destructive' ? 'border-red-200 bg-red-50 text-red-800' : 'border-gray-200 bg-white text-gray-900', className) }, children);`),
+    s('AlertTitle', `const AlertTitle = ({ children, className = '' }) =>
+    React.createElement('h5', { className: cn('mb-1 font-medium leading-none', className) }, children);`),
+    s('AlertDescription', `const AlertDescription = ({ children, className = '' }) =>
+    React.createElement('div', { className: cn('text-sm opacity-90', className) }, children);`),
   ].filter(Boolean).join('\n  ');
 
   return `<!DOCTYPE html>
@@ -619,19 +628,14 @@ function buildPreviewHtml(code: string): string {
 <style>
   *{box-sizing:border-box}
   body{
-    margin:0;padding:24px;
-    background:#111113;
-    color:#e5e7eb;
-    font-family:system-ui,sans-serif;
+    margin:0;padding:32px;
+    background:#f8fafc;
+    color:#0f172a;
+    font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;
     display:flex;
-    align-items:center;
     justify-content:center;
-    min-height:100vh;
   }
-  #root{
-    width:100%;
-    max-width:680px;
-  }
+  #root{width:100%;max-width:640px}
 </style>
 </head><body>
 <div id="root"></div>
