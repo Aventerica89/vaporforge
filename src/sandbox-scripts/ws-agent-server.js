@@ -20,6 +20,23 @@ const AGENT_SCRIPT = '/opt/claude-agent/claude-agent.js';
 const wss = new WebSocketServer({ port: PORT });
 let activeChild = null;
 
+// Idle shutdown: exit after 15 min with no active connections or running agent.
+// CF stops billing for the container when the Node process exits.
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+let idleTimer = null;
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (wss.clients.size === 0 && !activeChild) {
+      console.log('[ws-agent-server] idle timeout — exiting to stop container billing');
+      process.exit(0);
+    } else {
+      resetIdleTimer(); // still busy, try again later
+    }
+  }, IDLE_TIMEOUT_MS);
+}
+
 console.log(`[ws-agent-server] listening on port ${PORT}`);
 
 // Run context-gathering script ONCE at startup (not per-connection).
@@ -46,7 +63,11 @@ try {
   console.log(`[ws-agent-server] auto-context gathering skipped: ${err.message || err}`);
 }
 
+// Start idle timer on boot — first connection will clear it
+resetIdleTimer();
+
 wss.on('connection', (ws) => {
+  clearTimeout(idleTimer);
   console.log('[ws-agent-server] client connected');
 
   // Kill any lingering child from a previous aborted connection
@@ -202,6 +223,8 @@ function startQuery(ws) {
       try { child.kill('SIGTERM'); } catch {}
       activeChild = null;
     }
+    // Restart idle timer — exit if no new connection arrives within timeout
+    resetIdleTimer();
   });
 }
 

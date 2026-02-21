@@ -21,6 +21,13 @@ declare global {
     // Secrets (set via wrangler secret put)
     JWT_SECRET: string;
 
+    // Stripe billing (secrets via wrangler secret put)
+    STRIPE_SECRET_KEY: string;
+    STRIPE_WEBHOOK_SECRET: string;
+
+    // Stripe public config (safe to commit)
+    STRIPE_PRO_PRICE_ID: string;
+
     // 1Password service account — gives sandbox access to App Dev vault
     OP_SERVICE_ACCOUNT_TOKEN?: string;
 

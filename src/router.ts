@@ -28,6 +28,7 @@ import { embeddingsRoutes } from './api/embeddings';
 import { agencyRoutes, handleAgencyEditWs, handleAgencyEditPreflight } from './api/agency';
 import { userComponentsRoutes } from './api/user-components';
 import { checkpointsRoutes } from './api/checkpoints';
+import { billingRoutes, handleBillingWebhook } from './api/billing';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -269,6 +270,11 @@ export function createRouter(env: Env) {
   // MCP relay route (uses relay token auth, not user JWT)
   app.route('/api/mcp-relay', mcpRelayRoutes);
 
+  // Stripe webhook — must be public (Stripe calls this directly, no JWT)
+  app.post('/api/billing/webhook', (c) =>
+    handleBillingWebhook({ req: c.req.raw, env: c.env })
+  );
+
   // Public file download endpoint (no auth required)
   app.get('/files/:key', async (c) => {
     const key = c.req.param('key');
@@ -374,6 +380,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/agency', agencyRoutes);
   protectedRoutes.route('/user-components', userComponentsRoutes);
   protectedRoutes.route('/checkpoints', checkpointsRoutes);
+  protectedRoutes.route('/billing', billingRoutes);
 
   // Temporary: exposePort validation endpoint (remove after Agency Mode ships)
   protectedRoutes.post('/agency/test-expose', async (c) => {

@@ -14,6 +14,7 @@ export type SettingsTab =
   | 'command-center'
   | 'files'
   | 'account'
+  | 'billing'
   | 'guide'
   | 'about'
   | 'dev-tools';

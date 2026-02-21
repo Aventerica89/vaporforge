@@ -17,6 +17,7 @@ import {
   HardDrive,
   Sparkles,
   Hammer,
+  CreditCard,
 } from 'lucide-react';
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
@@ -41,6 +42,7 @@ import { CommandCenterTab } from '@/components/settings/CommandCenterTab';
 import { VaporFilesTab } from '@/components/settings/VaporFilesTab';
 import { AIProvidersTab } from '@/components/settings/AIProvidersTab';
 import { DevToolsTab } from '@/components/settings/DevToolsTab';
+import { BillingTab } from '@/components/settings/BillingTab';
 
 /* ─── Tab definitions ─── */
 
@@ -82,6 +84,7 @@ const TAB_GROUPS: TabGroup[] = [
     label: 'Account',
     tabs: [
       { id: 'account', label: 'Account', icon: <User className="h-[18px] w-[18px]" /> },
+      { id: 'billing', label: 'Billing', icon: <CreditCard className="h-[18px] w-[18px]" /> },
     ],
   },
   {
@@ -115,6 +118,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   'command-center': CommandCenterTab,
   files: VaporFilesTab,
   account: AccountTab,
+  billing: BillingTab,
   'dev-tools': DevToolsTab,
   guide: GuideTab,
   about: AboutTab,

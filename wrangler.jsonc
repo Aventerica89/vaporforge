@@ -11,7 +11,7 @@
     {
       "class_name": "Sandbox",
       "image": "./Dockerfile",
-      "instance_type": "standard-2",
+      "instance_type": "standard-3",
       "max_instances": 10
     }
   ],
@@ -72,8 +72,11 @@
   ],
 
   // Environment variables (set via wrangler secret)
+  // Stripe secrets: wrangler secret put STRIPE_SECRET_KEY
+  //                 wrangler secret put STRIPE_WEBHOOK_SECRET
   "vars": {
-    "ENVIRONMENT": "production"
+    "ENVIRONMENT": "production",
+    "STRIPE_PRO_PRICE_ID": "price_placeholder_set_this"
   },
 
   // Static assets for UI

@@ -1216,3 +1216,17 @@ export const gitApi = {
       body: JSON.stringify({ branch, create }),
     }),
 };
+
+// Billing API
+export const billingApi = {
+  status: () =>
+    request<{ plan: 'free' | 'pro'; status: string; currentPeriodEnd?: string }>(
+      '/billing/status'
+    ),
+
+  checkout: () =>
+    request<{ url: string }>('/billing/checkout', { method: 'POST' }),
+
+  portal: () =>
+    request<{ url: string }>('/billing/portal', { method: 'POST' }),
+};
