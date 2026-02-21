@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'Component preview: add per-card Generate/Regenerate button — calls AI to produce CSS-variable-free example (bg-gray-* instead of bg-muted/bg-background), shows spinner during generation; generatedExample state in ComponentCard; iframe now white (#f8fafc) bg by default' },
   { date: '2026-02-21', summary: 'Fix component preview: add *Demo wrapper components to Table/Tabs/Breadcrumb/Dialog/Tooltip/Sheet catalog entries so data-dependent components render; update buildPreviewHtml detection to prefer *Demo/*Preview/*Example names over last generic uppercase component' },
   { date: '2026-02-20', summary: 'Fix component preview: switch to light theme (#f8fafc bg, dark text) matching shadcn pattern; top-aligned horizontal centering (justify-center, no vertical flex); update all stubs to light-mode shadcn colors; add Alert/AlertTitle/AlertDescription stubs; light-mode error display' },
   { date: '2026-02-20', summary: 'Fix component preview: add typescript to Babel preset (was react-only, silently failed on TS syntax); suppress Tailwind CDN p1 JIT errors in sandboxed null-origin iframe with targeted window.addEventListener error handler' },

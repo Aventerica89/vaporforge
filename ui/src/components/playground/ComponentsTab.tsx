@@ -720,8 +720,34 @@ function ComponentCard({
   const isCustom = isUserEntry(entry);
   const [installTab, setInstallTab] = useState<InstallTab>('files');
   const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const [generatedExample, setGeneratedExample] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const hasInstructions = Boolean(entry.instructions);
   const hasAgents = Array.isArray(entry.agents) && entry.agents.length > 0;
+
+  const handleGenerateExample = async () => {
+    setGenerating(true);
+    try {
+      const res = await userComponentsApi.generate(
+        `Generate a self-contained React JSX usage example for this component. Rules:\n` +
+        `- Use ONLY explicit inline styles or standard Tailwind classes with real color values (e.g. bg-gray-100, text-gray-900)\n` +
+        `- Do NOT use shadcn CSS variable classes: bg-muted, text-foreground, bg-background, border-border, text-muted-foreground, bg-card, bg-popover, bg-secondary, text-primary, bg-primary, bg-accent, etc.\n` +
+        `- Include realistic dummy data (names, dates, amounts, etc.)\n` +
+        `- No import statements — React is already available as a global\n` +
+        `- The example must be fully visible on a white (#f8fafc) background\n\n` +
+        `Component name: ${entry.name}\nDescription: ${entry.description}\n\nComponent code:\n${entry.code}`
+      );
+      if (res.success && res.data?.code) {
+        setGeneratedExample(res.data.code);
+      } else {
+        toast.error('Generation failed');
+      }
+    } catch {
+      toast.error('Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
@@ -830,7 +856,17 @@ function ComponentCard({
               Preview
             </button>
             {viewMode === 'preview' && (
-              <span className="ml-auto text-[10px] text-muted-foreground/60">loads CDN scripts</span>
+              <button
+                onClick={handleGenerateExample}
+                disabled={generating}
+                className="ml-auto flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors text-muted-foreground hover:text-foreground disabled:opacity-50"
+                title={generatedExample ? 'Regenerate example' : 'Generate example with dummy data'}
+              >
+                {generating
+                  ? <><span className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />{' '}Generating…</>
+                  : <><Sparkles className="h-3 w-3" />{generatedExample ? ' Regenerate' : ' Generate'}</>
+                }
+              </button>
             )}
           </div>
 
@@ -866,10 +902,10 @@ function ComponentCard({
           {/* Preview view */}
           {viewMode === 'preview' && (
             <iframe
-              srcDoc={buildPreviewHtml(entry.code)}
+              srcDoc={buildPreviewHtml(generatedExample ?? entry.code)}
               sandbox="allow-scripts"
               title={`Preview: ${entry.name}`}
-              className="w-full border-0 bg-[#0f0f12]"
+              className="w-full border-0 bg-[#f8fafc]"
               style={{ height: 280 }}
             />
           )}
