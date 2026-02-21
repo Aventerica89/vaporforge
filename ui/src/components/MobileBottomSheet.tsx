@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useKeyboard } from '@/hooks/useKeyboard';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { haptics } from '@/lib/haptics';
 
 interface MobileBottomSheetProps {
@@ -16,7 +17,8 @@ export function MobileBottomSheet({
   title,
   children,
 }: MobileBottomSheetProps) {
-  const sheetRef = useRef<HTMLDivElement>(null);
+  // H7 HIG fix: Focus trap keeps keyboard navigation inside the sheet.
+  const containerRef = useFocusTrap(isOpen, onClose) as React.RefObject<HTMLDivElement>;
   const dragStartY = useRef<number | null>(null);
   const currentTranslateY = useRef(0);
   const { isVisible: keyboardOpen, height: keyboardHeight } = useKeyboard();
@@ -45,8 +47,8 @@ export function MobileBottomSheet({
     // Only allow dragging down
     if (deltaY < 0) return;
     currentTranslateY.current = deltaY;
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = `translateY(${deltaY}px)`;
+    if (containerRef.current) {
+      containerRef.current.style.transform = `translateY(${deltaY}px)`;
     }
   }, []);
 
@@ -61,8 +63,8 @@ export function MobileBottomSheet({
     }
 
     // Reset position
-    if (sheetRef.current) {
-      sheetRef.current.style.transform = '';
+    if (containerRef.current) {
+      containerRef.current.style.transform = '';
     }
     currentTranslateY.current = 0;
   }, [onClose]);
@@ -86,7 +88,7 @@ export function MobileBottomSheet({
 
       {/* Sheet */}
       <div
-        ref={sheetRef}
+        ref={containerRef}
         className={`mobile-sheet fixed inset-x-0 bottom-0 z-[61] flex flex-col rounded-t-2xl ${
           isOpen ? 'open' : ''
         }`}

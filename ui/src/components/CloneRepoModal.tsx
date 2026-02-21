@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Star, Search, X, RefreshCw } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore, type FavoriteRepo } from '@/hooks/useFavorites';
@@ -23,6 +24,9 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
     loadRepos,
     setUsername: setGhUsername,
   } = useGithubRepos();
+
+  // H7 HIG fix: Focus trap keeps keyboard navigation inside the modal.
+  const modalRef = useFocusTrap(isOpen, onClose) as React.RefObject<HTMLDivElement>;
 
   const [activeTab, setActiveTab] = useState<Tab>('url');
 
@@ -170,6 +174,7 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
 
       {/* Modal */}
       <div
+        ref={modalRef}
         className="glass-card relative w-full max-w-lg p-4 sm:p-6 space-y-4 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >

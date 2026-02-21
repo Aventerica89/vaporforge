@@ -163,7 +163,7 @@ function ModelSelector({
           key={key}
           onClick={() => onSelect(key)}
           title={title}
-          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold font-mono transition-colors ${
+          className={`rounded px-1.5 py-1 text-xs font-semibold font-mono transition-colors ${
             selected === key
               ? 'bg-primary text-primary-foreground'
               : 'text-muted-foreground hover:text-foreground'
@@ -199,7 +199,7 @@ function AutonomySelector({
           key={key}
           onClick={() => onSelect(key)}
           title={title}
-          className={`rounded px-1.5 py-0.5 text-[10px] font-semibold font-mono transition-colors ${
+          className={`rounded px-1.5 py-1 text-xs font-semibold font-mono transition-colors ${
             selected === key
               ? 'bg-amber-500/80 text-white'
               : 'text-muted-foreground hover:text-foreground'
@@ -274,14 +274,8 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messageCount, hasStreamingContent]);
 
-  // Auto-scroll when keyboard opens
-  useEffect(() => {
-    if (keyboardOpen) {
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  }, [keyboardOpen]);
+  // C2 HIG fix: scrollIntoView on keyboard-open causes iOS push-up glitch.
+  // The layout resizes via visualViewport, so no manual scroll is needed.
 
   // Pull-to-refresh: reload chat history from server (mobile only)
   const currentSessionId = useSandboxStore((s) => s.currentSession?.id);

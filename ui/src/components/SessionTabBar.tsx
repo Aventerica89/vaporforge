@@ -110,25 +110,28 @@ export function SessionTabBar() {
   const getSessionName = (session: typeof sessions[0]) =>
     (session.metadata as { name?: string })?.name || session.id.slice(0, 8);
 
+  // H5: Use semantic status colors from design tokens where possible.
+  // Green/yellow/gray are intentional traffic-light semantics for session state.
   const getStatusColor = (status: string) => {
-    if (status === 'active') return 'bg-green-500';
-    if (status === 'sleeping') return 'bg-yellow-500';
-    if (status === 'creating') return 'bg-yellow-500 animate-pulse';
-    return 'bg-gray-500';
+    if (status === 'active') return 'bg-emerald-500';
+    if (status === 'sleeping') return 'bg-amber-500';
+    if (status === 'creating') return 'bg-amber-500 animate-pulse';
+    return 'bg-muted-foreground/40';
   };
 
   const visibleSessions = sessions.filter(
     (s) => s.status !== 'pending-delete'
   );
 
+  // HIG: min-h-11 (44px) for tab bar — touch-target compliant on iPad.
   return (
-    <div className="flex min-h-10 items-center border-b border-border bg-card safe-area-header">
+    <div className="flex min-h-11 items-center border-b border-border bg-card safe-area-header">
       {/* Left: New session + tabs */}
       <div className="flex min-w-0 flex-1 items-center overflow-x-auto scrollbar-none">
-        {/* Home button */}
+        {/* Home button — H1: 44×44 touch target */}
         <button
           onClick={() => deselectSession()}
-          className={`flex h-10 shrink-0 items-center gap-1 px-3 transition-colors hover:bg-accent hover:text-foreground ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center transition-colors hover:bg-accent hover:text-foreground ${
             !currentSession ? 'text-foreground bg-background' : 'text-muted-foreground'
           }`}
           title="Home"
@@ -136,10 +139,10 @@ export function SessionTabBar() {
           <Home className="h-3.5 w-3.5" />
         </button>
 
-        {/* New session button */}
+        {/* New session button — H1: 44×44 touch target */}
         <button
           onClick={() => createSession()}
-          className="flex h-10 shrink-0 items-center gap-1 px-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="New session"
         >
           <Plus className="h-3.5 w-3.5" />
@@ -153,7 +156,7 @@ export function SessionTabBar() {
           return (
             <div
               key={session.id}
-              className={`group relative flex h-10 shrink-0 items-center gap-1.5 border-r border-border/50 px-3 text-sm transition-colors ${
+              className={`group relative flex min-h-[44px] shrink-0 items-center gap-1.5 border-r border-border/50 px-3 text-sm transition-colors ${
                 isActive
                   ? 'bg-background text-foreground'
                   : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
@@ -204,12 +207,12 @@ export function SessionTabBar() {
                 </button>
               )}
 
-              {/* Close button — visible on hover */}
+              {/* C3 HIG fix: Close button — min 44px touch target via full-height flex */}
               {!isEditing && (
                 <button
                   onClick={(e) => handleDelete(e, session.id)}
                   disabled={deletingId === session.id}
-                  className="shrink-0 rounded p-0.5 opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+                  className="flex min-h-[44px] min-w-[32px] shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
                   title="Close session"
                 >
                   {deletingId === session.id ? (
@@ -225,7 +228,7 @@ export function SessionTabBar() {
       </div>
 
       {/* Right: status controls */}
-      <div className="flex shrink-0 items-center gap-1 px-2">
+      <div className="flex shrink-0 items-center gap-0.5 px-1">
         {/* Deploy badge — updates every build */}
         <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[9px] font-mono text-cyan-400/90">
           v{APP_VERSION} · {deployedAgo(BUILD_TIMESTAMP)}
@@ -276,10 +279,11 @@ export function SessionTabBar() {
         {/* MCP Relay */}
         {currentSession && <McpRelayStatus />}
 
+        {/* H1 HIG fix: All toolbar buttons → 44×44 touch targets */}
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title={isDark ? 'Light mode' : 'Dark mode'}
         >
           {isDark ? (
@@ -292,7 +296,7 @@ export function SessionTabBar() {
         {/* Agency */}
         <button
           onClick={() => useAgencyStore.getState().openDashboard()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Agency Sites"
         >
           <Globe className="h-3.5 w-3.5" />
@@ -301,7 +305,7 @@ export function SessionTabBar() {
         {/* Marketplace */}
         <button
           onClick={() => useMarketplace.getState().openMarketplace()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Plugin Marketplace (Cmd+Shift+P)"
         >
           <Puzzle className="h-3.5 w-3.5" />
@@ -310,7 +314,7 @@ export function SessionTabBar() {
         {/* Quick Chat */}
         <button
           onClick={() => useQuickChat.getState().toggleQuickChat()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Quick Chat (Cmd+Shift+Q)"
         >
           <MessageSquare className="h-3.5 w-3.5" />
@@ -326,7 +330,7 @@ export function SessionTabBar() {
               dc.openChangelog();
             }
           }}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Dev Changelog (Cmd+Shift+L)"
         >
           <GitCommitHorizontal className="h-3.5 w-3.5" />
@@ -335,7 +339,7 @@ export function SessionTabBar() {
         {/* Issue Tracker */}
         <button
           onClick={() => useIssueTracker.getState().openTracker()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Issue Tracker"
         >
           <Bug className="h-3.5 w-3.5" />
@@ -344,17 +348,17 @@ export function SessionTabBar() {
         {/* Settings */}
         <button
           onClick={() => openSettings()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
           title="Settings"
         >
           <Settings className="h-3.5 w-3.5" />
         </button>
 
-        {/* User avatar / menu */}
+        {/* User avatar / menu — H1: minimum 44×44 */}
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
           >
             U
           </button>

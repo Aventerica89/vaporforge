@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
@@ -32,11 +32,25 @@ export function MobileLayout() {
     onSessionChange,
   } = useMobileNav();
   const hasSession = !!currentSession;
-  const swipeHandlers = useSwipeTabs({
+  const { contentRef, ...swipeHandlers } = useSwipeTabs({
     activeTab,
     onTabChange: setActiveTab,
     hasSession,
   });
+
+  // H8 HIG fix: swipe from left edge to trigger goBack (mirrors iOS navigation pop gesture).
+  const edgeSwipeStartX = useRef<number | null>(null);
+  const onEdgeTouchStart = useCallback((e: React.TouchEvent) => {
+    const x = e.touches[0].clientX;
+    edgeSwipeStartX.current = x < 20 ? x : null;
+  }, []);
+  const onEdgeTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (edgeSwipeStartX.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - edgeSwipeStartX.current;
+    const deltaY = Math.abs(e.changedTouches[0].clientY - (e.touches[0]?.clientY ?? 0));
+    edgeSwipeStartX.current = null;
+    if (deltaX > 50 && deltaY < 60) goBack();
+  }, [goBack]);
   const [showCloneModal, setShowCloneModal] = useState(false);
   // Use 100dvh when keyboard is closed (fills full dynamic viewport,
   // including area behind address bar chrome). Switch to exact pixel
@@ -148,6 +162,8 @@ export function MobileLayout() {
     <div
       className="flex flex-col overflow-hidden"
       style={{ height: containerHeight }}
+      onTouchStart={onEdgeTouchStart}
+      onTouchEnd={onEdgeTouchEnd}
     >
       {/* HIG Navigation Bar */}
       <MobileNavBar
@@ -157,8 +173,9 @@ export function MobileLayout() {
         statusDot={!showBack ? statusColor : null}
       />
 
-      {/* Tab content */}
+      {/* Tab content — ref enables L2 live-swipe transform */}
       <div
+        ref={subView ? undefined : contentRef}
         className="flex flex-1 flex-col min-h-0 overflow-hidden"
         {...(subView ? {} : swipeHandlers)}
       >

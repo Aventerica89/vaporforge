@@ -30,9 +30,11 @@ const NO_SESSION_TABS: readonly TabDefinition[] = [
   { id: 'more', label: 'More', icon: MoreHorizontal },
 ] as const;
 
-/** HIG colors */
-const ACTIVE_COLOR = '#1dd3e6';
-const INACTIVE_COLOR = '#8E8E93';
+/** H2 HIG fix: Use CSS design tokens instead of hardcoded hex values.
+ *  Active: hsl(var(--primary)) — adapts to theme.
+ *  Inactive: hsl(var(--muted-foreground)) — adapts to dark/light mode. */
+const ACTIVE_COLOR = 'hsl(var(--primary))';
+const INACTIVE_COLOR = 'hsl(var(--muted-foreground))';
 
 interface MobileTabBarProps {
   readonly activeTab: MobileTab;
@@ -63,10 +65,10 @@ export const MobileTabBar = memo(function MobileTabBar({
         keyboardOpen ? 'translate-y-full' : '',
       ].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(30, 30, 30, 0.94)',
+        background: 'hsl(var(--card) / 0.94)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderTop: '0.5px solid rgba(255, 255, 255, 0.15)',
+        borderTop: '0.5px solid hsl(var(--border))',
       }}
     >
       {/* Button row — 49pt content height (HIG spec) */}

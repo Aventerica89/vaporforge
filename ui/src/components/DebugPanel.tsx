@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Bug, X } from 'lucide-react';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { ConsoleLogViewer } from '@/components/playground/ConsoleLogViewer';
@@ -22,6 +23,9 @@ export function DebugPanel() {
     useDebugLog();
   const [visible, setVisible] = useState(false);
   const [tab, setTab] = useState<Tab>('log');
+
+  // H7 HIG fix: Focus trap keeps keyboard navigation inside the panel.
+  const panelRef = useFocusTrap(isOpen, close) as React.RefObject<HTMLDivElement>;
 
   // Check localStorage flag on mount + listen for storage events
   useEffect(() => {
@@ -61,6 +65,7 @@ export function DebugPanel() {
       {/* Panel */}
       {isOpen && (
         <div
+          ref={panelRef}
           className="fixed z-50 flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
           style={{
             bottom: 'max(env(safe-area-inset-bottom, 0px) + 5rem, 5rem)',

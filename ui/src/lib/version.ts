@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'HIG UX Audit (hig-ux-audit branch): touch targets 44px (PromptInputSubmit, SessionTabBar, suggestion chips); useFocusTrap hook + applied to 6 overlays; live swipe animation (contentRef DOM transform); edge swipe back (H8); tablet M7 Settings/Marketplace as full-screen overlay sheets; M8 Cmd+1/2/3 keyboard shortcuts; dead MobileDrawer.tsx deleted' },
   { date: '2026-02-21', summary: 'Session Remote: floating panel above prompt input with 4 lifecycle buttons (New/Checkpoint/Restore/Wrap Up); checkpoints stored in SESSIONS_KV; SessionRemote component + checkpoints API (GET/POST/DELETE /api/checkpoints)' },
   { date: '2026-02-21', summary: 'Component preview: add per-card Generate/Regenerate button — calls AI to produce CSS-variable-free example (bg-gray-* instead of bg-muted/bg-background), shows spinner during generation; generatedExample state in ComponentCard; iframe now white (#f8fafc) bg by default' },
   { date: '2026-02-21', summary: 'Fix component preview: add *Demo wrapper components to Table/Tabs/Breadcrumb/Dialog/Tooltip/Sheet catalog entries so data-dependent components render; update buildPreviewHtml detection to prefer *Demo/*Preview/*Example names over last generic uppercase component' },

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { X, Loader2, ChevronDown, ChevronRight, Flame, Wand2 } from 'lucide-react';
 import { useReforge, type ReforgeChunk } from '@/hooks/useReforge';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -32,6 +33,9 @@ export function ReforgeModal({ onInsert }: ReforgeModalProps) {
       setSelectedSession(currentSessionId);
     }
   }, [isOpen, selectedSessionId, currentSessionId, setSelectedSession]);
+
+  // H7 HIG fix: Focus trap keeps keyboard navigation inside the modal.
+  const modalRef = useFocusTrap(isOpen, close) as React.RefObject<HTMLDivElement>;
 
   const selectedCount = selectedChunkIds.size;
   const allSelected = chunks.length > 0 && selectedCount === chunks.length;
@@ -73,6 +77,7 @@ export function ReforgeModal({ onInsert }: ReforgeModalProps) {
 
       {/* Modal */}
       <div
+        ref={modalRef}
         className="glass-card relative w-full max-w-2xl p-4 sm:p-6 space-y-4 animate-scale-in max-h-[80vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >

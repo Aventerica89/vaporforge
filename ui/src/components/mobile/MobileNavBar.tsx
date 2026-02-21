@@ -66,7 +66,7 @@ export const MobileNavBar = memo(function MobileNavBar({
               <rect width="512" height="512" rx="96" fill="#0f1419" />
               <path
                 d="M222 230 L162 296 L222 362"
-                stroke="#1dd3e6"
+                stroke="hsl(var(--primary))"
                 strokeWidth="24"
                 strokeLinecap="round"
                 strokeLinejoin="round"

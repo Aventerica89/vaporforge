@@ -9,6 +9,7 @@ import {
   Hammer,
   LogOut,
   Home,
+  X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -71,6 +72,9 @@ export function TabletLayout() {
   const { viewportHeight } = useKeyboard();
   const logout = useAuthStore((s) => s.logout);
   const [activeView, setActiveView] = useState<SidebarView>('chat');
+  // M7 HIG fix: Settings and Marketplace render as full-screen overlay sheets,
+  // not replacing the content area (which caused a double-sidebar layout).
+  const [overlayView, setOverlayView] = useState<'settings' | 'marketplace' | null>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const hasSession = !!currentSession;
 
@@ -99,10 +103,28 @@ export function TabletLayout() {
         usePlayground.getState().openPlayground();
         return;
       }
+      // M7: Settings and Marketplace open as full-screen overlay sheets
+      if (view === 'settings' || view === 'marketplace') {
+        setOverlayView(view);
+        return;
+      }
       setActiveView(view);
     },
     [deselectSession],
   );
+
+  // M8 HIG fix: Magic Keyboard shortcuts — Cmd+1/2/3 navigate session views.
+  useEffect(() => {
+    if (!hasSession) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.metaKey) return;
+      if (e.key === '1') { e.preventDefault(); setActiveView('chat'); }
+      else if (e.key === '2') { e.preventDefault(); setActiveView('files'); }
+      else if (e.key === '3') { e.preventDefault(); setActiveView('terminal'); }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [hasSession]);
 
   const handleSelectSession = useCallback(
     (id: string) => {
@@ -124,37 +146,25 @@ export function TabletLayout() {
 
   const renderContent = () => {
     if (isCreatingSession) return <SessionBootScreen />;
-    if (
-      !hasSession &&
-      activeView !== 'settings' &&
-      activeView !== 'marketplace'
-    ) {
-      return <WelcomeScreen />;
-    }
+    if (!hasSession) return <WelcomeScreen />;
 
     switch (activeView) {
       case 'home':
         return <WelcomeScreen />;
       case 'chat':
-        return hasSession ? <ChatPanel /> : <WelcomeScreen />;
+        return <ChatPanel />;
       case 'files':
-        return hasSession ? (
+        return (
           <div className="flex-1 overflow-y-auto">
             <FileTree />
           </div>
-        ) : (
-          <WelcomeScreen />
         );
       case 'terminal':
-        return hasSession ? <XTerminal /> : <WelcomeScreen />;
-      case 'settings':
-        return <SettingsPage />;
-      case 'marketplace':
-        return <MarketplacePage />;
+        return <XTerminal />;
       case 'issues':
       case 'playground':
-        // These are floating overlays — show default content
-        return hasSession ? <ChatPanel /> : <WelcomeScreen />;
+        // These are floating overlays — show default content underneath
+        return <ChatPanel />;
       default:
         return <WelcomeScreen />;
     }
@@ -188,7 +198,7 @@ export function TabletLayout() {
             <rect width="512" height="512" rx="96" fill="#0f1419" />
             <path
               d="M222 230 L162 296 L222 362"
-              stroke="#1dd3e6"
+              stroke="hsl(var(--primary))"
               strokeWidth="24"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -245,7 +255,11 @@ export function TabletLayout() {
               key={item.id}
               icon={item.icon}
               label={item.label}
-              active={activeView === item.id}
+              active={
+                item.id === 'settings' || item.id === 'marketplace'
+                  ? overlayView === item.id
+                  : activeView === item.id
+              }
               onClick={() => handleNavClick(item.id)}
             />
           ))}
@@ -321,9 +335,7 @@ export function TabletLayout() {
       {/* Content area */}
       <div className="flex flex-1 flex-col min-h-0 overflow-hidden safe-area-header">
         {/* Content header with session name */}
-        {sessionName &&
-          activeView !== 'settings' &&
-          activeView !== 'marketplace' && (
+        {sessionName && (
             <div
               className="flex shrink-0 items-center px-4 border-b border-border/50"
               style={{ minHeight: '44px' }}
@@ -341,6 +353,37 @@ export function TabletLayout() {
         isOpen={showCloneModal}
         onClose={() => setShowCloneModal(false)}
       />
+
+      {/* M7 HIG fix: Settings and Marketplace as full-screen overlay sheets,
+          preventing the double-sidebar layout bug. */}
+      {overlayView && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col"
+          style={{ background: 'rgba(10, 10, 15, 0.98)' }}
+        >
+          {/* Sheet header */}
+          <div
+            className="flex shrink-0 items-center justify-between px-5 border-b border-border/50"
+            style={{ minHeight: '52px' }}
+          >
+            <span className="text-sm font-semibold text-foreground">
+              {overlayView === 'settings' ? 'Settings' : 'Plugins'}
+            </span>
+            <button
+              onClick={() => setOverlayView(null)}
+              className="flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent/50 transition-colors"
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          {/* Sheet content */}
+          <div className="flex-1 overflow-y-auto">
+            {overlayView === 'settings' ? <SettingsPage /> : <MarketplacePage />}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

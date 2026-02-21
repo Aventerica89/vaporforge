@@ -100,7 +100,7 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
                 />
                 <path
                   d="M100 200 H150 V250 H200"
-                  stroke="#1dd3e6"
+                  stroke="hsl(var(--primary))"
                   strokeWidth="3"
                   className="agency-circuit-draw"
                   style={{ animationDelay: '0.5s' }}
@@ -109,7 +109,7 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
               {/* Cyan < */}
               <path
                 d="M 222 230 L 162 296 L 222 362"
-                stroke="#1dd3e6"
+                stroke="hsl(var(--primary))"
                 strokeWidth="20"
                 strokeLinecap="round"
                 strokeLinejoin="round"

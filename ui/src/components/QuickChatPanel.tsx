@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
@@ -159,7 +160,8 @@ export function QuickChatPanel() {
   const [showHistory, setShowHistory] = useState(false);
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  // H7 HIG fix: Focus trap keeps keyboard navigation inside the panel.
+  const panelRef = useFocusTrap(isOpen, closeQuickChat) as React.RefObject<HTMLDivElement>;
 
   // Auto-scroll on new messages
   useEffect(() => {

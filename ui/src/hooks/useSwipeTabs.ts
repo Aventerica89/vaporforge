@@ -5,6 +5,8 @@ import { haptics } from '@/lib/haptics';
 const SESSION_TAB_ORDER: MobileTab[] = ['chat', 'files', 'terminal', 'more'];
 const SWIPE_THRESHOLD = 50;
 const SWIPE_VELOCITY_THRESHOLD = 0.3;
+// L2 HIG fix: content follows finger during drag, springs back on release.
+const TRANSITION = 'transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
 
 interface UseSwipeTabsOptions {
   readonly activeTab: MobileTab;
@@ -17,6 +19,8 @@ export function useSwipeTabs({ activeTab, onTabChange, hasSession }: UseSwipeTab
   const touchStartY = useRef(0);
   const touchStartTime = useRef(0);
   const isHorizontalSwipe = useRef<boolean | null>(null);
+  // L2: ref to the content container — driven directly to avoid React re-renders per touch event
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const tabs = hasSession ? SESSION_TAB_ORDER : (['home', 'more'] as MobileTab[]);
 
@@ -25,19 +29,37 @@ export function useSwipeTabs({ activeTab, onTabChange, hasSession }: UseSwipeTab
     touchStartY.current = e.touches[0].clientY;
     touchStartTime.current = Date.now();
     isHorizontalSwipe.current = null;
+    // Remove transition so content moves instantly with finger
+    if (contentRef.current) {
+      contentRef.current.style.transition = 'none';
+    }
   }, []);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = e.touches[0].clientY - touchStartY.current;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
     if (isHorizontalSwipe.current === null) {
-      const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
-      const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-      if (dx > 10 || dy > 10) {
-        isHorizontalSwipe.current = dx > dy;
+      if (absDx > 10 || absDy > 10) {
+        isHorizontalSwipe.current = absDx > absDy;
       }
+    }
+
+    // L2: move content with finger during confirmed horizontal swipe
+    if (isHorizontalSwipe.current === true && contentRef.current) {
+      contentRef.current.style.transform = `translateX(${dx}px)`;
     }
   }, []);
 
   const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    // L2: always spring content back to resting position
+    if (contentRef.current) {
+      contentRef.current.style.transition = TRANSITION;
+      contentRef.current.style.transform = 'translateX(0)';
+    }
+
     if (isHorizontalSwipe.current !== true) return;
 
     const deltaX = e.changedTouches[0].clientX - touchStartX.current;
@@ -59,5 +81,5 @@ export function useSwipeTabs({ activeTab, onTabChange, hasSession }: UseSwipeTab
     }
   }, [activeTab, onTabChange, tabs]);
 
-  return { onTouchStart, onTouchMove, onTouchEnd };
+  return { onTouchStart, onTouchMove, onTouchEnd, contentRef };
 }
