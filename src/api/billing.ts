@@ -98,6 +98,34 @@ billingRoutes.post('/checkout', async (c) => {
   return c.json({ success: true, data: { url: session.url } });
 });
 
+// GET /api/billing/invoices — last 12 invoices for the current user
+billingRoutes.get('/invoices', async (c) => {
+  const user = c.get('user');
+  const sub = await getSubscription(c.env.AUTH_KV, user.id);
+
+  if (!sub?.stripeCustomerId) {
+    return c.json({ success: true, data: { invoices: [] } });
+  }
+
+  const stripe = getStripe(c.env);
+  const list = await stripe.invoices.list({
+    customer: sub.stripeCustomerId,
+    limit: 12,
+  });
+
+  const invoices = list.data.map((inv) => ({
+    id: inv.id,
+    date: inv.created,
+    amount: inv.amount_paid,
+    currency: inv.currency,
+    status: inv.status,
+    pdfUrl: inv.invoice_pdf,
+    hostedUrl: inv.hosted_invoice_url,
+  }));
+
+  return c.json({ success: true, data: { invoices } });
+});
+
 // POST /api/billing/portal — create a Stripe Customer Portal session
 billingRoutes.post('/portal', async (c) => {
   const user = c.get('user');

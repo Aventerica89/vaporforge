@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'BillingTab: invoice history — GET /api/billing/invoices (stripe.invoices.list, last 12), invoice table with date/amount/status badge/PDF+hosted links; Billing Portal button always visible for users with history; billingApi.invoices() added to api.ts' },
   { date: '2026-02-21', summary: 'Stripe go-live: VaporForge Pro product created (prod_U1GNi5MhRBSiWj), price_1T3Dr7H6aZ92e8Tx0GsEMHP0 ($20/mo), webhook registered (we_1T3DrXH6aZ92e8Txz7WuaxYc), STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET set as wrangler secrets, wrangler.jsonc STRIPE_PRO_PRICE_ID updated' },
   { date: '2026-02-21', summary: 'Stripe billing integration: /api/billing/status + /checkout + /portal + /webhook; KV subscription state (subscription:{userId}, customer:{stripeId}); BillingTab in Settings; billingApi in api.ts; Stripe 2026-01-28.clover (current_period_end on SubscriptionItem)' },
   { date: '2026-02-21', summary: 'HIG UX Audit phase 6: IssueCard mobile overflow — drag handle + copy + delete hidden sm:flex (freed 132px), gap-3→gap-2, px-4→px-3; MarketplaceCard compact overflow — star minWidth 44→unset (height-only target, px-2 padding), Install button → Plus icon in compact; SettingsPage X close → HIG plain style (p-3, no rounded-md/hover-bg box)' },

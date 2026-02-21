@@ -1229,4 +1229,17 @@ export const billingApi = {
 
   portal: () =>
     request<{ url: string }>('/billing/portal', { method: 'POST' }),
+
+  invoices: () =>
+    request<{
+      invoices: Array<{
+        id: string;
+        date: number;
+        amount: number;
+        currency: string;
+        status: string | null;
+        pdfUrl: string | null;
+        hostedUrl: string | null;
+      }>;
+    }>('/billing/invoices'),
 };
