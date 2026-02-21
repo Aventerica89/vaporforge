@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Search, Copy, Check, Code2, ChevronDown, ChevronRight,
-  Plus, Trash2, Package, Sparkles, Terminal, BookOpen, Bot,
+  Plus, Trash2, Package, Sparkles, Terminal, BookOpen, Bot, Eye,
 } from 'lucide-react';
 import { componentCatalog, componentCategories } from '@/lib/generated/component-catalog';
 import { usePlayground } from '@/hooks/usePlayground';
@@ -533,6 +533,123 @@ export function ComponentsTab() {
   );
 }
 
+// ─── Preview HTML builder ─────────────────────────────────────────────────────
+
+function buildPreviewHtml(code: string): string {
+  // Strip all import statements (single and multiline)
+  const noImports = code.replace(/import[\s\S]*?from\s+['"][^'"]+['"]\s*;?/g, '').trim();
+
+  // Strip export keywords so functions/consts become local
+  const cleaned = noImports
+    .replace(/export\s+default\s+function\s+/g, 'function ')
+    .replace(/export\s+default\s+class\s+/g, 'class ')
+    .replace(/export\s+function\s+/g, 'function ')
+    .replace(/export\s+class\s+/g, 'class ')
+    .replace(/export\s+const\s+/g, 'const ')
+    .replace(/export\s+type\s+[^;]+;/g, '')
+    .replace(/export\s+interface\s+\w+[^{]*\{[^}]*\}/gs, '');
+
+  // Find last uppercase-starting function or const — most likely the root component
+  const matches = [...cleaned.matchAll(/(?:^|\n)\s*(?:function|const)\s+([A-Z][A-Za-z0-9_]*)/g)];
+  const componentName = matches.length > 0 ? matches[matches.length - 1][1] : null;
+
+  const renderCall = componentName
+    ? `try { root.render(React.createElement(${componentName})); } catch(e) { root.render(React.createElement('pre', {style:{color:'#f87171',fontSize:'12px',whiteSpace:'pre-wrap'}}, e.message)); }`
+    : `root.render(React.createElement('p', {style:{color:'#9ca3af',fontSize:'12px'}}, 'No component found to render.'))`;
+
+  return `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<style>
+  body{margin:0;padding:16px;background:#0f0f12;color:#e5e7eb;font-family:system-ui,sans-serif}
+  *{box-sizing:border-box}
+</style>
+</head><body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+  // React hooks as locals
+  const { useState, useEffect, useRef, useCallback, useMemo,
+          useContext, createContext, forwardRef, memo, Fragment } = React;
+
+  // cn / clsx stub
+  const cn = (...a) => a.filter(Boolean).join(' ');
+  const clsx = cn;
+
+  // Lucide icon stub — renders a generic inline SVG box
+  const _makeIcon = () => (({ className = '', size = 16, strokeWidth = 2, ...p }) =>
+    React.createElement('svg', { xmlns:'http://www.w3.org/2000/svg', width:size, height:size,
+      viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', strokeWidth, className, ...p },
+      React.createElement('rect', { x:3, y:3, width:18, height:18, rx:2 })
+    ));
+  // Proxy: any undefined lucide icon name resolves to the stub
+  const _iconProxy = new Proxy({}, { get: () => _makeIcon() });
+  const { Check: _C, X: _X, Plus: _P, Search: _S, Trash2: _T,
+          ChevronDown: _CD, ChevronRight: _CR, ChevronUp: _CU,
+          AlertCircle: _AC, Info: _I, Star: _St, Heart: _H,
+          Settings: _Se, User: _U, Home: _Ho, Bell: _Be,
+          Copy: _Co, Eye: _Ey, Edit: _Ed, Save: _Sv,
+          Calendar: _Ca, Clock: _Cl, Mail: _Ma, Phone: _Ph } = _iconProxy;
+
+  // toast / sonner stub
+  const toast = { success: () => {}, error: () => {}, info: () => {} };
+
+  // shadcn-style component stubs (minimal)
+  const Button = ({ children, className = '', variant = 'default', size = 'default', onClick, disabled, ...p }) => {
+    const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus:outline-none';
+    const v = variant === 'outline' ? 'border border-gray-600 text-gray-200 hover:bg-gray-800'
+            : variant === 'ghost'   ? 'text-gray-300 hover:bg-gray-800'
+            : variant === 'destructive' ? 'bg-red-600 text-white hover:bg-red-700'
+            : 'bg-indigo-600 text-white hover:bg-indigo-700';
+    const s = size === 'sm' ? 'h-8 px-3 text-xs' : size === 'lg' ? 'h-11 px-8 text-base' : 'h-9 px-4 text-sm';
+    return React.createElement('button', { className: cn(base,v,s,className), onClick, disabled, ...p }, children);
+  };
+  const Input = ({ className = '', ...p }) =>
+    React.createElement('input', { className: cn('flex h-9 w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-1 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-indigo-500', className), ...p });
+  const Badge = ({ children, className = '', variant = 'default' }) => {
+    const v = variant === 'secondary' ? 'bg-gray-700 text-gray-300' : variant === 'destructive' ? 'bg-red-900 text-red-300' : 'bg-indigo-900 text-indigo-300';
+    return React.createElement('span', { className: cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', v, className) }, children);
+  };
+  const Card = ({ children, className = '' }) =>
+    React.createElement('div', { className: cn('rounded-lg border border-gray-700 bg-gray-900 text-gray-100 shadow-sm', className) }, children);
+  const CardHeader = ({ children, className = '' }) =>
+    React.createElement('div', { className: cn('flex flex-col space-y-1.5 p-6', className) }, children);
+  const CardTitle = ({ children, className = '' }) =>
+    React.createElement('h3', { className: cn('text-lg font-semibold', className) }, children);
+  const CardContent = ({ children, className = '' }) =>
+    React.createElement('div', { className: cn('p-6 pt-0', className) }, children);
+  const CardFooter = ({ children, className = '' }) =>
+    React.createElement('div', { className: cn('flex items-center p-6 pt-0', className) }, children);
+  const Label = ({ children, className = '', htmlFor }) =>
+    React.createElement('label', { className: cn('text-sm font-medium text-gray-200', className), htmlFor }, children);
+  const Textarea = ({ className = '', ...p }) =>
+    React.createElement('textarea', { className: cn('flex min-h-[80px] w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-500 focus:outline-none', className), ...p });
+  const Separator = ({ className = '' }) =>
+    React.createElement('div', { className: cn('h-px bg-gray-700', className) });
+  const Switch = ({ checked, onCheckedChange, ...p }) =>
+    React.createElement('button', { role:'switch', 'aria-checked': checked, onClick:() => onCheckedChange?.(!checked),
+      className: cn('relative inline-flex h-5 w-9 cursor-pointer rounded-full border-2 border-transparent transition-colors', checked ? 'bg-indigo-600' : 'bg-gray-700'), ...p },
+      React.createElement('span', { className: cn('pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform', checked ? 'translate-x-4' : 'translate-x-0') })
+    );
+  const Slider = ({ value = [50], onValueChange, min = 0, max = 100, step = 1, className = '' }) =>
+    React.createElement('input', { type:'range', value:value[0], min, max, step,
+      onChange:(e) => onValueChange?.([Number(e.target.value)]),
+      className: cn('w-full accent-indigo-500', className) });
+
+  // --- component code ---
+  ${cleaned}
+  // --- end ---
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  ${renderCall}
+</script>
+</body></html>`;
+}
+
 // ─── ComponentCard ────────────────────────────────────────────────────────────
 
 interface ComponentCardProps {
@@ -571,6 +688,7 @@ function ComponentCard({
   const isApp = entry.type === 'app';
   const isCustom = isUserEntry(entry);
   const [installTab, setInstallTab] = useState<InstallTab>('files');
+  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
   const hasInstructions = Boolean(entry.instructions);
   const hasAgents = Array.isArray(entry.agents) && entry.agents.length > 0;
 
@@ -662,8 +780,31 @@ function ComponentCard({
       {/* Snippet: code + optional extras */}
       {!isApp && expanded && (
         <div className="border-t border-border bg-muted/20">
-          {/* Setup script bar */}
-          {entry.setupScript && (
+          {/* Code / Preview toggle */}
+          <div className="flex items-center gap-1 border-b border-border/50 px-3 py-1.5">
+            <button
+              onClick={() => setViewMode('code')}
+              className={'flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ' +
+                (viewMode === 'code' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}
+            >
+              <Code2 className="h-3 w-3" />
+              Code
+            </button>
+            <button
+              onClick={() => setViewMode('preview')}
+              className={'flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium transition-colors ' +
+                (viewMode === 'preview' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}
+            >
+              <Eye className="h-3 w-3" />
+              Preview
+            </button>
+            {viewMode === 'preview' && (
+              <span className="ml-auto text-[10px] text-muted-foreground/60">loads CDN scripts</span>
+            )}
+          </div>
+
+          {/* Setup script bar (code mode only) */}
+          {viewMode === 'code' && entry.setupScript && (
             <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2">
               <Terminal className="h-3 w-3 shrink-0 text-muted-foreground" />
               <code className="flex-1 rounded bg-muted px-2 py-0.5 text-[11px] font-mono text-foreground">
@@ -681,13 +822,26 @@ function ComponentCard({
             </div>
           )}
 
-          {/* Code */}
-          <pre
-            className="overflow-x-auto p-3 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all sm:p-4"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            {entry.code}
-          </pre>
+          {/* Code view */}
+          {viewMode === 'code' && (
+            <pre
+              className="overflow-x-auto p-3 text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all sm:p-4"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              {entry.code}
+            </pre>
+          )}
+
+          {/* Preview view */}
+          {viewMode === 'preview' && (
+            <iframe
+              srcDoc={buildPreviewHtml(entry.code)}
+              sandbox="allow-scripts"
+              title={`Preview: ${entry.name}`}
+              className="w-full border-0 bg-[#0f0f12]"
+              style={{ height: 280 }}
+            />
+          )}
 
           {/* Instructions */}
           {entry.instructions && (
