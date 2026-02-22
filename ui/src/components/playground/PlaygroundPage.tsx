@@ -351,13 +351,15 @@ export function PlaygroundPage() {
             Same pattern as ChatPanel welcome state: flex-1 min-h-0 for heading area
             so iOS keyboard open (shrinking vpHeight) never clips heading off-screen. */}
         <div className={cn(
-          'flex h-full flex-col items-center px-3 pb-4 md:px-5 md:pb-5 mx-auto w-full',
+          'flex h-full flex-col items-center px-3 pb-4 md:px-5 md:pb-5 md:justify-center mx-auto w-full',
           'transition-[max-width] duration-300 ease-in-out',
           previewOpen ? 'md:max-w-md' : 'md:max-w-2xl',
         )}>
           <LayoutGroup id="playground-stack">
-            {/* Heading + SessionIsland — scrollable, centers in remaining height */}
-            <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto w-full gap-4 py-4">
+            {/* Heading + SessionIsland:
+                mobile — flex-1 min-h-0 so content centers in space above pinned prompt
+                desktop — md:flex-none so parent justify-center groups everything together */}
+            <div className="flex flex-1 min-h-0 md:flex-none flex-col items-center justify-center overflow-y-auto w-full gap-4 py-4">
               {!previewOpen && (
                 <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="self-start">
                   <button
