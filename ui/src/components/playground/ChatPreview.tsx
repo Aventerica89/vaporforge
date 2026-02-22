@@ -60,6 +60,8 @@ import {
   CheckpointList,
 } from '@/components/prompt-kit/checkpoint';
 import { Persona } from '@/components/prompt-kit/persona';
+import { Plan, PlanStep, PlanSteps } from '@/components/ai-elements/PlanCard';
+import { Confirmation } from '@/components/ai-elements/Confirmation';
 import type { SessionStatus } from '@/components/playground/SessionIsland';
 
 // ---------------------------------------------------------------------------
@@ -338,6 +340,48 @@ For _large enterprise apps_ with complex data flows.
     versions: [{ id: nanoid(), content: 'Migration in progress — staging step is active:' }],
   },
   // ---------------------------------------------------------------------------
+  // Plan card
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Create a plan to add authentication to this app.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    plan: {
+      title: 'Authentication Implementation Plan',
+      estimatedSteps: 5,
+      steps: [
+        { id: '1', label: 'Set up Better Auth', detail: 'Install dependencies and configure the auth provider with email/password and OAuth.' },
+        { id: '2', label: 'Database schema', detail: 'Add users, sessions, and accounts tables via a Drizzle migration.' },
+        { id: '3', label: 'Protect routes', detail: 'Add middleware to redirect unauthenticated users to /login.' },
+        { id: '4', label: 'Login / register UI', detail: 'Build sign-in and sign-up forms with validation and error handling.' },
+        { id: '5', label: 'Test end-to-end', detail: 'Verify login, session persistence, logout, and protected route redirect.' },
+      ],
+    },
+    versions: [{ id: nanoid(), content: "Here's the plan:" }],
+  },
+  // ---------------------------------------------------------------------------
+  // Confirmation (approval required)
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Delete all unused local branches.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    confirmation: {
+      toolName: 'Bash',
+      input: { command: "git branch | grep -v 'main\\|develop' | xargs git branch -D" },
+      approvalId: 'confirm-01',
+    },
+    versions: [{ id: nanoid(), content: 'This will permanently delete all local branches except main and develop. Approve to proceed:' }],
+  },
+  // ---------------------------------------------------------------------------
   // Persona (voice mode)
   // ---------------------------------------------------------------------------
   {
@@ -555,6 +599,33 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
                             />
                           ))}
                         </CheckpointList>
+                      ) : null}
+
+                      {/* Plan card */}
+                      {'plan' in msg && msg.plan ? (
+                        <Plan title={msg.plan.title} estimatedSteps={msg.plan.estimatedSteps}>
+                          <PlanSteps>
+                            {msg.plan.steps.map((step, idx) => (
+                              <PlanStep
+                                key={step.id}
+                                index={idx + 1}
+                                label={step.label}
+                                detail={step.detail}
+                              />
+                            ))}
+                          </PlanSteps>
+                        </Plan>
+                      ) : null}
+
+                      {/* Confirmation (approval required) */}
+                      {'confirmation' in msg && msg.confirmation ? (
+                        <Confirmation
+                          toolName={msg.confirmation.toolName}
+                          input={msg.confirmation.input}
+                          approvalId={msg.confirmation.approvalId}
+                          onApprove={() => {}}
+                          onDeny={() => {}}
+                        />
                       ) : null}
 
                       {/* Persona */}
