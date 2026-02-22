@@ -96,7 +96,7 @@ function TooltipButton({ icon, label, onClick, active, disabled }: TooltipButton
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         className={cn(
-          'flex size-8 items-center justify-center rounded-full border transition-all duration-200',
+          'flex size-8 items-center justify-center rounded-full border transition-[border-color,background-color,color,box-shadow] duration-200',
           active
             ? 'border-purple-500/50 bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/40'
             : disabled
@@ -239,7 +239,7 @@ export function SessionIsland({
       </motion.div>
 
       {/* Button row + help — shown/hidden by controlsOpen */}
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
       {controlsOpen && (
       <motion.div
         key="controls"

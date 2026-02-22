@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Motion perf: TooltipButton transition-all → transition-[colors] (scoped to paint only); controls AnimatePresence mode=popLayout so siblings animate up immediately on exit instead of waiting for fade' },
   { date: '2026-02-22', summary: 'SessionIsland always visible; Session toggle now only shows/hides the button row (controlsOpen prop), pill stays on screen at all times' },
   { date: '2026-02-22', summary: 'HelpButton popover: purple border (border-purple-500/40), wider (w-72), architecture blurb header explaining real Linux container model, sharper per-control copy' },
   { date: '2026-02-22', summary: 'ChatPreview: add prompt-kit Source HoverCard chips (inline citations with favicon) + PulseLoader streaming bubble (status-reactive); pass status prop from PlaygroundPage; install chat-container + scroll-button prompt-kit components' },
