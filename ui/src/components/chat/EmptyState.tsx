@@ -30,9 +30,11 @@ export function EmptyState({ onSuggestion }: EmptyStateProps) {
           <Suggestion
             key={text}
             suggestion={text}
-            icon={<Icon className="h-3 w-3" />}
             onClick={onSuggestion}
-          />
+          >
+            <Icon className="mr-1 h-3 w-3" />
+            {text}
+          </Suggestion>
         ))}
       </Suggestions>
     </div>

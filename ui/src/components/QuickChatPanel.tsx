@@ -31,7 +31,7 @@ import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { PlanCard } from './ai-elements/PlanCard';
-import { Sources, type SourceFile } from './ai-elements/sources';
+import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
 import {
   PromptInput,
@@ -423,9 +423,11 @@ export function QuickChatPanel() {
                         <Suggestion
                           key={s.label}
                           suggestion={s.label}
-                          icon={<s.icon className="h-3.5 w-3.5" />}
                           onClick={handleSuggestionClick}
-                        />
+                        >
+                          <s.icon className="mr-1 h-3.5 w-3.5" />
+                          {s.label}
+                        </Suggestion>
                       ))}
                     </Suggestions>
                   ) : (
@@ -748,7 +750,24 @@ function QuickChatMessage({
       })}
 
       {sources.length > 0 && (
-        <Sources sources={sources} onSourceClick={handleSourceClick} />
+        <Sources>
+          <SourcesTrigger count={sources.length} />
+          <SourcesContent>
+            {sources.map((s) => (
+              <button
+                key={s.path}
+                type="button"
+                onClick={() => handleSourceClick(s.path)}
+                className="flex items-center gap-2 text-xs text-primary hover:underline"
+              >
+                <span className="font-medium">{s.path}</span>
+                {s.score != null && (
+                  <span className="text-muted-foreground">{Math.round(s.score * 100)}%</span>
+                )}
+              </button>
+            ))}
+          </SourcesContent>
+        </Sources>
       )}
 
       {!isStreaming && textContent && (

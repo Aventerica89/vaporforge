@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(build): resolve TS errors from worktree merge — casing imports, icon-sm size, SelectTrigger size prop, icon prop on Button, sources prop, SessionStatus→PromptInputStatus mapping, glow-effect motion types' },
   { date: '2026-02-22', summary: 'fix(playground): restore missing desktop pills (Reforge/Auto-pick/Session) — accidentally dropped in 5cdb50f when AutonomySelectorPopup was added' },
   { date: '2026-02-22', summary: 'fix(mobile): ChatPanel welcome state — pin promptInput below a flex-1 centered block so iOS keyboard open no longer clips heading+chips off-screen (justify-center on overflowing container was splitting overflow symmetrically, leaving top content above viewport)' },
   { date: '2026-02-22', summary: 'fix(playground): action bar + tab bar mobile-only (md:hidden); desktop gets submit-only row (hidden md:flex)' },

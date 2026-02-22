@@ -21,7 +21,7 @@ import {
   SourcesContent,
   SourcesTrigger,
   Source as SourceLink,
-} from '@/components/ai-elements/sources';
+} from '@/components/ai-elements/Sources';
 import {
   CodeBlock,
   CodeBlockCode,

@@ -367,7 +367,7 @@ export function PlaygroundPage() {
       onInputChange={handleInputChange}
       onSubmit={handleSubmit}
       onStop={handleStop}
-      status={status}
+      status={status === 'paused' ? 'idle' : status}
       className={cn(
         'relative z-10 w-full rounded-3xl border bg-card/90 pt-1 backdrop-blur-md !px-0 !pb-0',
         status === 'streaming'
