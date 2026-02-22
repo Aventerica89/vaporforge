@@ -442,30 +442,39 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
 
       {isEmpty ? (
         /* ── WELCOME STATE: centered headline + input ── */
-        <div className="flex h-full flex-col items-center justify-center px-4">
-          <div className="w-full max-w-2xl space-y-5">
-            <div className="text-center">
-              <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-                What do you want to build?
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Describe a task — Claude will get to work in your sandbox
-              </p>
+        /* Prompt is anchored outside the centered block so iOS keyboard open
+           doesn't clip the heading off-screen (justify-center on an overflowing
+           container pushes the top out of view while leaving the bottom visible). */
+        <div className="flex h-full flex-col items-center px-4 pb-4">
+          {/* Heading + chips center in the space above the prompt */}
+          <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
+            <div className="w-full max-w-2xl space-y-5">
+              <div className="text-center">
+                <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
+                  What do you want to build?
+                </h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Describe a task — Claude will get to work in your sandbox
+                </p>
+              </div>
+              {/* Suggestion chips */}
+              <div className="flex flex-wrap justify-center gap-2">
+                {WELCOME_SUGGESTIONS.map(({ icon: Icon, text }) => (
+                  <button
+                    key={text}
+                    onClick={() => sendMessage(text)}
+                    disabled={!sessionId}
+                    className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
+                  >
+                    <Icon className="h-3 w-3" />
+                    {text}
+                  </button>
+                ))}
+              </div>
             </div>
-            {/* Suggestion chips */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {WELCOME_SUGGESTIONS.map(({ icon: Icon, text }) => (
-                <button
-                  key={text}
-                  onClick={() => sendMessage(text)}
-                  disabled={!sessionId}
-                  className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
-                >
-                  <Icon className="h-3 w-3" />
-                  {text}
-                </button>
-              ))}
-            </div>
+          </div>
+          {/* Prompt pinned at bottom — always visible when keyboard opens */}
+          <div className="w-full max-w-2xl">
             {promptInput}
           </div>
         </div>
