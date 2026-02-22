@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(playground): PlaygroundPage phone layout — heading + SessionIsland in flex-1 min-h-0 centering area, suggestions + prompt pinned at bottom (same pattern as ChatPanel welcome state fix; prevents heading clipping on iOS keyboard open)' },
   { date: '2026-02-22', summary: 'ChatPreview: add Tool component demo (Bash output-available + ReadFile output-error mock messages); fix markdown dark mode (prose prose-sm dark:prose-invert)' },
   { date: '2026-02-22', summary: 'Install prompt-kit feedback-bar.tsx (ThumbsUp/Down/X callbacks) and thinking-bar.tsx (TextShimmer label + optional chevron click + Answer Now stop button); fix prose color: typography config wires --tw-prose-* vars to theme tokens (foreground/primary/muted) so prose reads correctly on dark bg without dark:prose-invert' },
   { date: '2026-02-22', summary: 'Wire prompt-kit Reasoning+Markdown into ChatPreview: replace ai-elements reasoning with pk Reasoning (trigger label "Thought for Xs", ReasoningContent markdown prop); replace MessageResponse with Markdown (prose prose-sm dark:prose-invert); install @tailwindcss/typography' },

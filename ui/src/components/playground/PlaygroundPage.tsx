@@ -347,23 +347,28 @@ export function PlaygroundPage() {
           <ChatPreview status={status} />
         </div>
 
+        {/* Prompt column — heading centers in available space, input pinned at bottom.
+            Same pattern as ChatPanel welcome state: flex-1 min-h-0 for heading area
+            so iOS keyboard open (shrinking vpHeight) never clips heading off-screen. */}
         <div className={cn(
-          'flex flex-col items-center justify-center px-3 pb-3 md:px-5 md:pb-5 mx-auto',
+          'flex h-full flex-col items-center px-3 pb-4 md:px-5 md:pb-5 mx-auto w-full',
           'transition-[max-width] duration-300 ease-in-out',
-          previewOpen ? 'w-full max-w-md' : 'w-full max-w-2xl',
+          previewOpen ? 'md:max-w-md' : 'md:max-w-2xl',
         )}>
           <LayoutGroup id="playground-stack">
-            <div className="flex w-full -translate-y-[5%] flex-col items-center gap-4">
-              {/* Re-open preview button — only when closed */}
+            {/* Heading + SessionIsland — scrollable, centers in remaining height */}
+            <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto w-full gap-4 py-4">
               {!previewOpen && (
-                <button
-                  type="button"
-                  onClick={() => setPreviewOpen(true)}
-                  className="flex items-center gap-1 self-start rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
-                >
-                  <PanelLeftOpen className="h-3 w-3" />
-                  <span>Show preview</span>
-                </button>
+                <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="self-start">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    className="flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
+                  >
+                    <PanelLeftOpen className="h-3 w-3" />
+                    <span>Show preview</span>
+                  </button>
+                </motion.div>
               )}
 
               <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
@@ -380,13 +385,15 @@ export function PlaygroundPage() {
                   onStop={handleStop}
                 />
               </motion.div>
+            </div>
 
-              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
-                {promptInput}
-              </motion.div>
-
+            {/* Suggestions + prompt pinned at bottom — always visible */}
+            <div className="w-full space-y-2">
               <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
                 {suggestions}
+              </motion.div>
+              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
+                {promptInput}
               </motion.div>
             </div>
           </LayoutGroup>
