@@ -32,6 +32,7 @@ import {
   PromptInputModeToggle,
   PromptInputAttachments,
 } from '@/components/prompt-input';
+import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
 import type { Message as MessageType, ImageAttachment } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -97,6 +98,45 @@ function CompactionBanner() {
     <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400/80">
       <BrainCircuit className="h-3.5 w-3.5 shrink-0 animate-pulse" />
       <span>Compacting context — Claude is condensing the conversation to free up memory...</span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// FeedbackPrompt — appears once after each streaming response completes
+// ---------------------------------------------------------------------------
+
+function FeedbackPrompt() {
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const messageCount = useSandboxStore((s) => s.messageIds.length);
+  const [visible, setVisible] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const prevStreamingRef = useRef(false);
+
+  // Show prompt when streaming transitions to complete (streaming → idle)
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming && messageCount > 0) {
+      setVisible(true);
+      setSubmitted(false);
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, messageCount]);
+
+  if (!visible || submitted) return null;
+
+  const handleFeedback = () => {
+    setSubmitted(true);
+    setTimeout(() => setVisible(false), 600);
+  };
+
+  return (
+    <div className="mt-3 px-1">
+      <FeedbackBar
+        title="Was this response helpful?"
+        onHelpful={handleFeedback}
+        onNotHelpful={handleFeedback}
+        onClose={() => setVisible(false)}
+      />
     </div>
   );
 }
@@ -517,6 +557,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
               ))}
               <CompactionBanner />
               <StreamingMessage />
+              <FeedbackPrompt />
               <div ref={messagesEndRef} />
             </div>
           </div>
