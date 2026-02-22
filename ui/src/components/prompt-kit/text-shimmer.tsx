@@ -13,6 +13,7 @@ export function TextShimmer({
   duration = 4,
   spread = 20,
   children,
+  style,
   ...props
 }: TextShimmerProps) {
   const dynamicSpread = Math.min(Math.max(spread, 5), 45);
@@ -25,6 +26,7 @@ export function TextShimmer({
         backgroundImage: `linear-gradient(to right, var(--muted-foreground) ${50 - dynamicSpread}%, var(--foreground) 50%, var(--muted-foreground) ${50 + dynamicSpread}%)`,
         backgroundSize: '200% auto',
         animation: `shimmer ${duration}s infinite linear`,
+        ...style,
       }}
       {...props}
     >
