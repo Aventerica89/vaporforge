@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'feat(playground): agent selector dropdown — replaces mode toggle; click agent pill to open popover with grid bg pattern; AGENT_OPTIONS list (Claude/Architect/Code Review/Debugger); click-outside to close; AnimatePresence opacity+y; checkmark on selected' },
   { date: '2026-02-22', summary: 'feat(playground): pills below prompt on desktop, above on mobile — CSS order-1/md:order-2 on suggestions, order-2/md:order-1 on promptInput' },
   { date: '2026-02-22', summary: 'fix(playground): drop two-layer keyboard approach — heading was hidden in keyboard-open state because main layout went opacity-0; replaced with single layout driven by vpHeight: flex-1 min-h-0 on heading area naturally shrinks when keyboard opens so heading stays visible with prompt pinned at bottom (same pattern as ChatPanel)' },
   { date: '2026-02-22', summary: 'fix(playground): remove LayoutGroup + motion.div layout from PlaygroundPage — FLIP layout animations violated animation hook (only transform/opacity allowed) and caused scrollbar flash + horizontal shift during SessionIsland control toggle; replaced with overflow-hidden + AnimatePresence opacity/y only for show-preview button' },

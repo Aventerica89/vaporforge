@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Flame, Zap, Bookmark, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Flame, Zap, Bookmark, PanelLeftClose, PanelLeftOpen, ChevronDown, Check } from 'lucide-react';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { PromptInput } from '@/components/prompt-input';
 import { PromptInputTextarea } from '@/components/prompt-input';
 import { PromptInputSubmit } from '@/components/prompt-input';
-import { PromptInputModeToggle } from '@/components/prompt-input/PromptInputModeToggle';
+
 import { PromptSuggestion } from '@/components/ui/prompt-suggestion';
 import {
   Context,
@@ -67,6 +67,28 @@ const SUGGESTION_GROUPS = [
     ],
   },
 ] as const;
+
+// ---------------------------------------------------------------------------
+// Agent options — shown in the agent selector dropdown
+// ---------------------------------------------------------------------------
+
+const AGENT_OPTIONS = [
+  { id: 'default', label: 'Claude', description: 'Default assistant' },
+  { id: 'architect', label: 'Architect', description: 'System design and planning' },
+  { id: 'code-review', label: 'Code Review', description: 'Review for quality and security' },
+  { id: 'debugger', label: 'Debugger', description: 'Systematic bug investigation' },
+] as const;
+
+type AgentId = typeof AGENT_OPTIONS[number]['id'];
+
+// Shared grid overlay applied to floating panels
+const GRID_BG = [
+  'before:absolute before:inset-0 before:pointer-events-none before:z-0',
+  'before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]',
+  'before:bg-[size:24px_24px]',
+  'before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]',
+  '[&>*]:relative [&>*]:z-10',
+].join(' ');
 
 // ---------------------------------------------------------------------------
 // ActionPill — Reforge / Auto-pick style (bg-primary/10 text-primary)
@@ -146,8 +168,21 @@ function useVisualViewport() {
 export function PlaygroundPage() {
   const [input, setInput] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
-  const [mode, setMode] = useState<'agent' | 'plan'>('agent');
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<AgentId>('default');
+  const [agentOpen, setAgentOpen] = useState(false);
+  const agentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!agentOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (agentRef.current && !agentRef.current.contains(e.target as Node)) {
+        setAgentOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [agentOpen]);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,8 +317,64 @@ export function PlaygroundPage() {
               <Bookmark className="h-3 w-3" />
               <span>Session</span>
             </button>
-            {/* Agent / Plan mode toggle */}
-            <PromptInputModeToggle mode={mode} onModeChange={setMode} />
+            {/* Agent selector dropdown */}
+            <div ref={agentRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setAgentOpen((v) => !v)}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
+                  agentOpen
+                    ? 'bg-primary/15 text-primary'
+                    : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+                )}
+              >
+                <Zap className="h-3 w-3" />
+                <span>{AGENT_OPTIONS.find((a) => a.id === selectedAgent)?.label ?? 'Agent'}</span>
+                <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', agentOpen && 'rotate-180')} />
+              </button>
+
+              <AnimatePresence>
+                {agentOpen && (
+                  <motion.div
+                    key="agent-dropdown"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 4 }}
+                    transition={{ duration: 0.15 }}
+                    className={cn(
+                      'absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl',
+                      'border border-primary/50 bg-background overflow-hidden relative',
+                      GRID_BG,
+                    )}
+                  >
+                    <div className="p-1">
+                      {AGENT_OPTIONS.map((agent) => (
+                        <button
+                          key={agent.id}
+                          type="button"
+                          onClick={() => { setSelectedAgent(agent.id); setAgentOpen(false); }}
+                          className={cn(
+                            'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
+                            selectedAgent === agent.id
+                              ? 'bg-primary/10 text-primary'
+                              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                          )}
+                        >
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[11px] font-medium">{agent.label}</span>
+                            <span className="text-[10px] text-muted-foreground">{agent.description}</span>
+                          </div>
+                          {selectedAgent === agent.id && (
+                            <Check className="ml-auto h-3 w-3 shrink-0 mt-0.5 text-primary" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             {/* Context usage indicator — pushed to far right */}
             <div className="ml-auto">
             <Context usedTokens={12400} maxTokens={200000}>
