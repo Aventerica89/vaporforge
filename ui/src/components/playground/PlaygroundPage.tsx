@@ -18,7 +18,7 @@ import {
   ContextOutputUsage,
 } from '@/components/ai-elements/context';
 import { ChatPreview } from '@/components/playground/ChatPreview';
-import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { SessionIsland, type SessionStatus } from '@/components/playground/SessionIsland';
 import { cn } from '@/lib/cn';
 
 // ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ export function PlaygroundPage() {
   const [mode, setMode] = useState<'agent' | 'plan'>('agent');
   const [sessionOpen, setSessionOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
-  const [status, setStatus] = useState<'idle' | 'streaming'>('idle');
+  const [status, setStatus] = useState<SessionStatus>('idle');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { vpHeight, keyboardOpen } = useVisualViewport();
 
@@ -166,6 +166,15 @@ export function PlaygroundPage() {
 
   const handleStop = () => {
     if (streamTimerRef.current) clearTimeout(streamTimerRef.current);
+    setStatus('idle');
+  };
+
+  const handlePause = () => setStatus('paused');
+  const handleResume = () => setStatus('streaming');
+  const handleNew = () => {
+    if (streamTimerRef.current) clearTimeout(streamTimerRef.current);
+    setInput('');
+    setActiveCategory('');
     setStatus('idle');
   };
 
@@ -233,30 +242,7 @@ export function PlaygroundPage() {
         placeholder="Ask anything..."
         className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
       />
-      <div className="mt-2 flex w-full items-end px-3 pb-3">
-        <div className="flex flex-1 items-center pb-0.5">
-          <AnimatePresence>
-            {status === 'streaming' && (
-              <motion.div
-                key="shimmer"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <TextShimmer
-                  className="text-xs"
-                  style={{
-                    backgroundImage:
-                      'linear-gradient(to right, #7c3aed 0%, #d946ef 50%, #7c3aed 100%)',
-                  }}
-                >
-                  Claude is thinking...
-                </TextShimmer>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      <div className="mt-2 flex w-full items-end justify-end px-3 pb-3">
         <PromptInputSubmit />
       </div>
     </PromptInput>
@@ -379,6 +365,13 @@ export function PlaygroundPage() {
               </button>
             )}
             {headline}
+            <SessionIsland
+              status={status}
+              onNew={handleNew}
+              onPause={handlePause}
+              onResume={handleResume}
+              onStop={handleStop}
+            />
             {promptInput}
             {suggestions}
           </div>
