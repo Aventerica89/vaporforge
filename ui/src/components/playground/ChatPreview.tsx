@@ -17,10 +17,10 @@ import {
   ReasoningTrigger,
 } from '@/components/ai-elements/reasoning';
 import {
-  Source,
   Sources,
   SourcesContent,
   SourcesTrigger,
+  Source as SourceLink,
 } from '@/components/ai-elements/sources';
 import {
   CodeBlock,
@@ -31,6 +31,10 @@ import {
   CodeBlockCopyButton,
 } from '@/components/ai-elements/code-block';
 import { Image } from '@/components/ai-elements/image';
+import { Source, SourceContent, SourceTrigger } from '@/components/prompt-kit/source';
+import { PulseLoader } from '@/components/prompt-kit/loader';
+import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import type { SessionStatus } from '@/components/playground/SessionIsland';
 
 // ---------------------------------------------------------------------------
 // Mock messages — static demo data for visual preview
@@ -83,6 +87,38 @@ const MOCK_MESSAGES = [
   {
     key: nanoid(),
     from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Any good TypeScript learning resources?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    inlineSources: [
+      {
+        href: 'https://www.typescriptlang.org/docs/',
+        title: 'TypeScript Handbook',
+        description: 'Complete reference including handbook, playground, and API docs.',
+      },
+      {
+        href: 'https://react.dev/learn/typescript',
+        title: 'React + TypeScript Guide',
+        description: 'Official guide for using TypeScript with React components and hooks.',
+      },
+      {
+        href: 'https://github.com/microsoft/TypeScript',
+        title: 'TypeScript on GitHub',
+        description: 'Source repo with examples, issues, and release notes.',
+      },
+    ],
+    versions: [
+      {
+        id: nanoid(),
+        content: 'Here are the best places to start:',
+      },
+    ],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
     versions: [{ id: nanoid(), content: 'Can you generate a simple logo for a React app?' }],
   },
   {
@@ -107,7 +143,11 @@ const MOCK_MESSAGES = [
 // ChatPreview
 // ---------------------------------------------------------------------------
 
-export function ChatPreview() {
+interface ChatPreviewProps {
+  status?: SessionStatus;
+}
+
+export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <Conversation>
@@ -118,13 +158,13 @@ export function ChatPreview() {
                 {msg.versions.map((version) => (
                   <Message from={msg.from} key={`${msg.key}-${version.id}`}>
                     <div className="space-y-2">
-                      {/* Sources */}
+                      {/* Sources panel (ai-elements collapsible) */}
                       {'sources' in msg && msg.sources?.length ? (
                         <Sources>
                           <SourcesTrigger count={msg.sources.length} />
                           <SourcesContent>
                             {msg.sources.map((source) => (
-                              <Source href={source.href} key={source.href} title={source.title} />
+                              <SourceLink href={source.href} key={source.href} title={source.title} />
                             ))}
                           </SourcesContent>
                         </Sources>
@@ -142,6 +182,18 @@ export function ChatPreview() {
                       <MessageContent>
                         <MessageResponse>{version.content}</MessageResponse>
                       </MessageContent>
+
+                      {/* Inline source chips (prompt-kit HoverCard style) */}
+                      {'inlineSources' in msg && msg.inlineSources?.length ? (
+                        <div className="flex flex-wrap gap-1.5 pt-0.5">
+                          {msg.inlineSources.map((src) => (
+                            <Source key={src.href} href={src.href}>
+                              <SourceTrigger showFavicon />
+                              <SourceContent title={src.title} description={src.description} />
+                            </Source>
+                          ))}
+                        </div>
+                      ) : null}
 
                       {/* Code block (if present) */}
                       {'code' in version && version.code ? (
@@ -172,6 +224,26 @@ export function ChatPreview() {
               </MessageBranchContent>
             </MessageBranch>
           ))}
+
+          {/* Streaming indicator — visible while session is active */}
+          {status === 'streaming' && (
+            <Message from="assistant">
+              <MessageContent>
+                <div className="flex items-center gap-2.5 py-0.5">
+                  <PulseLoader size="sm" className="[&>div]:border-purple-500" />
+                  <TextShimmer
+                    className="text-xs"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(to right, #7c3aed 0%, #d946ef 50%, #7c3aed 100%)',
+                    }}
+                  >
+                    Claude is working...
+                  </TextShimmer>
+                </div>
+              </MessageContent>
+            </Message>
+          )}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>

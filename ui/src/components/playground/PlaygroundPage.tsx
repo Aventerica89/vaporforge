@@ -344,7 +344,7 @@ export function PlaygroundPage() {
               <span>Close preview</span>
             </button>
           </div>
-          <ChatPreview />
+          <ChatPreview status={status} />
         </div>
 
         <div className={cn(

@@ -2,6 +2,7 @@ import { HelpCircle, Pause, Play, Square, Zap } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { PulseLoader } from '@/components/prompt-kit/loader';
 import { cn } from '@/lib/cn';
 
 export type SessionStatus = 'idle' | 'streaming' | 'paused';
@@ -30,10 +31,9 @@ function IdleContent() {
 function StreamingContent() {
   return (
     <div className="flex items-center gap-2.5 px-4 py-2.5">
-      <motion.div
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        className="h-1.5 w-1.5 rounded-full bg-purple-400"
+      <PulseLoader
+        size="sm"
+        className="[&>div]:border-purple-500"
       />
       <TextShimmer
         className="text-xs"
@@ -133,7 +133,7 @@ function HelpButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ type: 'spring', bounce: 0.2, duration: 0.25 }}
-            className="absolute bottom-10 right-0 z-20 w-64 rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 backdrop-blur-sm"
+            className="absolute bottom-10 right-0 z-20 w-64 overflow-hidden rounded-2xl border border-primary/50 bg-background p-3 backdrop-blur-sm before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] before:bg-[size:24px_24px] before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)] [&>*]:relative [&>*]:z-10"
           >
             <p className="mb-2.5 text-[11px] font-medium text-zinc-400">Session controls</p>
             <div className="space-y-2">
