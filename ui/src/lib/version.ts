@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(playground): action bar + tab bar mobile-only (md:hidden); desktop gets submit-only row (hidden md:flex)' },
   { date: '2026-02-22', summary: 'fix(playground): PlaygroundTabBar — 4 primary tabs + More bottom sheet (HIG max-4); safe area fallback 0px→20px in MobileTabBar' },
   { date: '2026-02-22', summary: 'fix(playground): add MobileTabBar to PlaygroundPage; fix AutonomySelectorPopup active card background (bg-card)' },
   { date: '2026-02-22', summary: 'feat(mobile): input prompt redesign — AutonomySelectorPopup, PromptActionBar (5-icon), PromptMoreDrawer (3×2 grid bottom sheet), SessionRemote iconOnly, ChatPanel mobile wiring (conditional tool hiding, onMobileTabChange/onMobileNavigate props), MobileLayout compact nav' },

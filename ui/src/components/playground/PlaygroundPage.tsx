@@ -375,8 +375,8 @@ export function PlaygroundPage() {
         placeholder="Ask anything..."
         className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
       />
-      {/* Action bar — 5 icon buttons left, submit right */}
-      <div className="flex items-center justify-between px-1 pt-1 pb-2">
+      {/* Mobile action bar — 5 icons + submit (hidden on desktop) */}
+      <div className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
         <div className="flex items-center">
           {/* Reforge */}
           <button type="button" className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-accent hover:text-muted-foreground active:scale-95">
@@ -420,6 +420,11 @@ export function PlaygroundPage() {
         <div className="pr-2">
           <PromptInputSubmit />
         </div>
+      </div>
+
+      {/* Desktop submit — right-aligned, no action bar */}
+      <div className="hidden md:flex justify-end px-2 pb-2">
+        <PromptInputSubmit />
       </div>
     </PromptInput>
   );
