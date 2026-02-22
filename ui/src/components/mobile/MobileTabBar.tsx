@@ -110,7 +110,7 @@ export const MobileTabBar = memo(function MobileTabBar({
         })}
       </div>
       {/* Safe area spacer — background extends behind home indicator */}
-      <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
+      <div style={{ height: 'max(env(safe-area-inset-bottom), 20px)' }} />
     </nav>
   );
 });

@@ -45,3 +45,6 @@ coverage/
 # Cloudflare
 .mf/
 .worktrees/
+
+# motion-primitives stray install (component lives in ui/src/components/motion-primitives/)
+ui/components/

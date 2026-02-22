@@ -7,6 +7,8 @@ import type { Checkpoint } from '@/lib/types';
 interface SessionRemoteProps {
   sessionId: string | undefined;
   onSetPrompt: (text: string) => void;
+  /** Icon-only trigger — used in the mobile action bar */
+  iconOnly?: boolean;
 }
 
 type View = 'menu' | 'checkpoint' | 'restore';
@@ -21,7 +23,7 @@ function formatRelative(iso: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function SessionRemote({ sessionId, onSetPrompt }: SessionRemoteProps) {
+export function SessionRemote({ sessionId, onSetPrompt, iconOnly = false }: SessionRemoteProps) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('menu');
   const [checkpointName, setCheckpointName] = useState('');
@@ -134,15 +136,24 @@ export function SessionRemote({ sessionId, onSetPrompt }: SessionRemoteProps) {
         type="button"
         onClick={openMenu}
         title="Session remote"
-        className={[
-          'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
-          open
-            ? 'bg-purple-500/20 text-purple-400'
-            : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
-        ].join(' ')}
+        className={
+          iconOnly
+            ? [
+                'flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+                open
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+              ].join(' ')
+            : [
+                'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
+                open
+                  ? 'bg-purple-500/20 text-purple-400'
+                  : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+              ].join(' ')
+        }
       >
-        <Bookmark className="h-3 w-3" />
-        <span>Session</span>
+        <Bookmark className={iconOnly ? 'size-5' : 'h-3 w-3'} />
+        {!iconOnly && <span>Session</span>}
       </button>
 
       {/* Popup */}

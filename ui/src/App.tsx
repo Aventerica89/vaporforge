@@ -6,8 +6,13 @@ import { UpdateToast } from './components/UpdateToast';
 import { ToastContainer } from './components/ToastContainer';
 import { useAuthStore } from './hooks/useAuth';
 import { toast } from './hooks/useToast';
+import { PlaygroundPage } from './components/playground/PlaygroundPage';
 
 export default function App() {
+  if (window.location.pathname.includes('playground')) {
+    return <PlaygroundPage />;
+  }
+
   const { checkAuth, isLoading } = useAuthStore();
 
   useEffect(() => {

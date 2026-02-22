@@ -1,58 +1,57 @@
-import { useCallback, type ReactNode } from 'react';
-import { cn } from '@/lib/cn';
 
-/* ── Suggestions container ────────────────── */
+import type { ComponentProps } from "react";
 
-interface SuggestionsProps {
-  className?: string;
-  children: ReactNode;
-}
+import { Button } from "@/components/ui/button";
+import {
+  ScrollArea,
+  ScrollBar,
+} from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { useCallback } from "react";
 
-export function Suggestions({ className, children }: SuggestionsProps) {
-  return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      {children}
-    </div>
-  );
-}
+export type SuggestionsProps = ComponentProps<typeof ScrollArea>;
 
-/* ── Single suggestion chip ───────────────── */
-
-interface SuggestionProps {
-  suggestion: string;
-  icon?: ReactNode;
-  onClick?: (suggestion: string) => void;
-  className?: string;
-  children?: ReactNode;
-}
-
-export function Suggestion({
-  suggestion,
-  icon,
-  onClick,
+export const Suggestions = ({
   className,
   children,
-}: SuggestionProps) {
+  ...props
+}: SuggestionsProps) => (
+  <ScrollArea className="w-full overflow-x-auto whitespace-nowrap" {...props}>
+    <div className={cn("flex w-max flex-nowrap items-center gap-2", className)}>
+      {children}
+    </div>
+    <ScrollBar className="hidden" orientation="horizontal" />
+  </ScrollArea>
+);
+
+export type SuggestionProps = Omit<ComponentProps<typeof Button>, "onClick"> & {
+  suggestion: string;
+  onClick?: (suggestion: string) => void;
+};
+
+export const Suggestion = ({
+  suggestion,
+  onClick,
+  className,
+  variant = "outline",
+  size = "sm",
+  children,
+  ...props
+}: SuggestionProps) => {
   const handleClick = useCallback(() => {
     onClick?.(suggestion);
   }, [onClick, suggestion]);
 
   return (
-    <button
-      type="button"
+    <Button
+      className={cn("cursor-pointer rounded-full px-4", className)}
       onClick={handleClick}
-      className={cn(
-        // M1/M2 HIG fix: 44px min touch target (HIG 44pt minimum interactive area)
-        'flex items-center gap-2 rounded-full border border-border/60',
-        'bg-muted/30 px-4 py-2 text-xs text-muted-foreground',
-        'hover:border-primary/40 hover:text-foreground hover:bg-primary/5',
-        'hover:scale-[1.02] active:scale-[0.98]',
-        'transition-all cursor-pointer min-h-[44px]',
-        className,
-      )}
+      size={size}
+      type="button"
+      variant={variant}
+      {...props}
     >
-      {icon}
       {children || suggestion}
-    </button>
+    </Button>
   );
-}
+};

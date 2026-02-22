@@ -136,7 +136,13 @@ export function MobileLayout() {
       case 'home':
         return <WelcomeScreen />;
       case 'chat':
-        return <ChatPanel />;
+        return (
+          <ChatPanel
+            compact
+            onMobileTabChange={handleTabChange}
+            onMobileNavigate={setSubView}
+          />
+        );
       case 'files':
         return (
           <div className="flex-1 overflow-y-auto">
@@ -154,7 +160,13 @@ export function MobileLayout() {
           />
         );
       default:
-        return <ChatPanel />;
+        return (
+          <ChatPanel
+            compact
+            onMobileTabChange={handleTabChange}
+            onMobileNavigate={setSubView}
+          />
+        );
     }
   };
 

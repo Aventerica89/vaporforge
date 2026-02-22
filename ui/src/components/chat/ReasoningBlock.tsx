@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, Brain } from 'lucide-react';
 import { cn } from '@/lib/cn';
-import { Shimmer } from '../ai-elements/Shimmer';
+import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
 import { ChatMarkdown } from './ChatMarkdown';
 
 interface ReasoningBlockProps {
@@ -76,7 +76,7 @@ export function ReasoningBlock({
 
         {/* Label or shimmer */}
         {isStreaming ? (
-          <Shimmer className="text-xs font-medium">Thinking...</Shimmer>
+          <TextShimmer className="text-xs font-medium">Thinking...</TextShimmer>
         ) : (
           <span className="font-medium text-muted-foreground">
             {triggerLabel}

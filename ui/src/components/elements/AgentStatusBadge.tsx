@@ -1,21 +1,50 @@
-import { Check, Zap, Clock, ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { ClaudeIcon } from '@/components/icons/ClaudeIcon';
+import { ArrowRight, Check, Clock, Zap } from 'lucide-react';
+import React, { createContext, useContext } from 'react';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export type AgentState = 'idle' | 'thinking' | 'acting' | 'waiting' | 'done' | 'handoff';
 
-interface AgentStatusBadgeProps {
+// ---------------------------------------------------------------------------
+// Context
+// ---------------------------------------------------------------------------
+
+type AgentStatusContextType = {
   status: AgentState;
-  label?: string;
-  handoffTo?: string;
-  className?: string;
+  label: string;
+};
+
+const AgentStatusContext = createContext<AgentStatusContextType | undefined>(undefined);
+
+function useAgentStatusContext() {
+  const context = useContext(AgentStatusContext);
+  if (!context) {
+    throw new Error('useAgentStatusContext must be used within an AgentStatus provider');
+  }
+  return context;
 }
 
-const STATUS_CONFIG: Record<AgentState, {
-  dot: string;
-  ping: string;
-  text: string;
-  icon?: React.ReactNode;
-}> = {
+// ---------------------------------------------------------------------------
+// Config
+// ---------------------------------------------------------------------------
+
+const DEFAULT_LABELS: Record<AgentState, string> = {
+  idle: 'Idle',
+  thinking: 'Thinking...',
+  acting: 'Acting...',
+  waiting: 'Waiting...',
+  done: 'Done',
+  handoff: 'Handing off...',
+};
+
+const DOT_CONFIG: Record<
+  AgentState,
+  { dot: string; ping: string; text: string; icon?: React.ReactNode }
+> = {
   idle: {
     dot: 'bg-muted-foreground/40',
     ping: '',
@@ -23,65 +52,150 @@ const STATUS_CONFIG: Record<AgentState, {
   },
   thinking: {
     dot: 'bg-primary',
-    ping: 'animate-ping bg-primary/40',
+    ping: 'bg-primary/40',
     text: 'text-primary',
   },
   acting: {
-    dot: 'bg-amber-400',
-    ping: 'animate-ping bg-amber-400/40',
-    text: 'text-amber-400',
-    icon: <Zap className="h-3 w-3" />,
+    dot: 'bg-[var(--color-amber-400,theme(colors.amber.400))]',
+    ping: 'bg-[var(--color-amber-400,theme(colors.amber.400))]/40',
+    text: 'text-[var(--color-amber-400,theme(colors.amber.400))]',
+    icon: <Zap className="size-3" />,
   },
   waiting: {
-    dot: 'bg-blue-400',
+    dot: 'bg-[var(--color-blue-400,theme(colors.blue.400))]',
     ping: '',
-    text: 'text-blue-400',
-    icon: <Clock className="h-3 w-3" />,
+    text: 'text-[var(--color-blue-400,theme(colors.blue.400))]',
+    icon: <Clock className="size-3" />,
   },
   done: {
-    dot: 'bg-emerald-400',
+    dot: 'bg-[var(--color-emerald-400,theme(colors.emerald.400))]',
     ping: '',
-    text: 'text-emerald-400',
-    icon: <Check className="h-3 w-3" />,
+    text: 'text-[var(--color-emerald-400,theme(colors.emerald.400))]',
+    icon: <Check className="size-3" />,
   },
   handoff: {
-    dot: 'bg-purple-400',
-    ping: 'animate-ping bg-purple-400/40',
-    text: 'text-purple-400',
-    icon: <ArrowRight className="h-3 w-3" />,
+    dot: 'bg-[var(--color-purple-400,theme(colors.purple.400))]',
+    ping: 'bg-[var(--color-purple-400,theme(colors.purple.400))]/40',
+    text: 'text-[var(--color-purple-400,theme(colors.purple.400))]',
+    icon: <ArrowRight className="size-3" />,
   },
 };
 
-export function AgentStatusBadge({ status, label, handoffTo, className = '' }: AgentStatusBadgeProps) {
-  const cfg = STATUS_CONFIG[status];
+// ---------------------------------------------------------------------------
+// Root — AgentStatus
+// ---------------------------------------------------------------------------
 
-  const displayLabel =
+export type AgentStatusProps = {
+  status: AgentState;
+  label?: string;
+  handoffTo?: string;
+  children: React.ReactNode;
+  className?: string;
+} & Omit<React.ComponentProps<'div'>, 'children'>;
+
+export function AgentStatus({
+  status,
+  label,
+  handoffTo,
+  children,
+  className,
+  ...props
+}: AgentStatusProps) {
+  const resolvedLabel =
     handoffTo && status === 'handoff'
       ? `Handing off to ${handoffTo}...`
-      : label ?? {
-          idle: 'Idle',
-          thinking: 'Thinking...',
-          acting: 'Acting...',
-          waiting: 'Waiting...',
-          done: 'Done',
-          handoff: 'Handing off...',
-        }[status];
+      : (label ?? DEFAULT_LABELS[status]);
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {/* Agent icon */}
-      <ClaudeIcon className="h-3.5 w-3.5 flex-shrink-0 opacity-70" />
-
-      {/* Animated dot */}
-      <div className="relative flex h-3.5 w-3.5 flex-shrink-0 items-center justify-center">
-        {cfg.ping && (
-          <span className={`absolute inline-flex h-full w-full rounded-full ${cfg.ping}`} />
-        )}
-        <span className={`relative inline-flex h-2 w-2 rounded-full ${cfg.dot}`} />
+    <AgentStatusContext.Provider value={{ status, label: resolvedLabel }}>
+      <div className={cn('flex items-center gap-2', className)} {...props}>
+        <ClaudeIcon className="size-3.5 shrink-0 opacity-70" />
+        {children}
       </div>
+    </AgentStatusContext.Provider>
+  );
+}
 
-      {/* Label */}
-      <span className={`text-xs font-medium ${cfg.text}`}>{displayLabel}</span>
+// ---------------------------------------------------------------------------
+// AgentStatusDot
+// ---------------------------------------------------------------------------
+
+export type AgentStatusDotProps = {
+  className?: string;
+} & React.ComponentProps<'div'>;
+
+export function AgentStatusDot({ className, ...props }: AgentStatusDotProps) {
+  const { status } = useAgentStatusContext();
+  const cfg = DOT_CONFIG[status];
+
+  return (
+    <div
+      className={cn('relative flex size-3.5 shrink-0 items-center justify-center', className)}
+      {...props}
+    >
+      {cfg.ping && (
+        <span
+          className={cn(
+            'absolute inline-flex size-full animate-ping rounded-full',
+            cfg.ping,
+          )}
+        />
+      )}
+      <span className={cn('relative inline-flex size-2 rounded-full', cfg.dot)} />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AgentStatusLabel
+// ---------------------------------------------------------------------------
+
+export type AgentStatusLabelProps = {
+  className?: string;
+} & React.ComponentProps<'span'>;
+
+export function AgentStatusLabel({ className, ...props }: AgentStatusLabelProps) {
+  const { status, label } = useAgentStatusContext();
+  const cfg = DOT_CONFIG[status];
+
+  return (
+    <span
+      className={cn('text-xs font-medium', cfg.text, className)}
+      {...props}
+    >
+      {label}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Convenience export — pre-composed badge (backward-compatible)
+// ---------------------------------------------------------------------------
+
+export type AgentStatusBadgeProps = {
+  status: AgentState;
+  label?: string;
+  handoffTo?: string;
+  className?: string;
+} & Omit<React.ComponentProps<'div'>, 'children'>;
+
+export function AgentStatusBadge({
+  status,
+  label,
+  handoffTo,
+  className,
+  ...props
+}: AgentStatusBadgeProps) {
+  return (
+    <AgentStatus
+      status={status}
+      label={label}
+      handoffTo={handoffTo}
+      className={className}
+      {...props}
+    >
+      <AgentStatusDot />
+      <AgentStatusLabel />
+    </AgentStatus>
   );
 }
