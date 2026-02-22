@@ -39,6 +39,7 @@ import {
   StepsItem,
   StepsTrigger,
 } from '@/components/prompt-kit/steps';
+import { Tool } from '@/components/prompt-kit/tool';
 import type { SessionStatus } from '@/components/playground/SessionIsland';
 
 // ---------------------------------------------------------------------------
@@ -175,6 +176,44 @@ const MOCK_MESSAGES = [
       },
     ],
   },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'What TypeScript version does this project use?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    toolParts: [
+      {
+        type: 'Bash',
+        state: 'output-available' as const,
+        input: { command: 'cat package.json | grep typescript' },
+        output: { result: '"typescript": "^5.6.0"' },
+        toolCallId: 'toolu_01',
+      },
+    ],
+    versions: [{ id: nanoid(), content: 'The project uses **TypeScript ^5.6.0** — a recent stable release with full ES2024 support and improved type inference.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Try to read the missing config file.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    toolParts: [
+      {
+        type: 'ReadFile',
+        state: 'output-error' as const,
+        input: { path: './config/missing.json' },
+        errorText: 'ENOENT: no such file or directory, open \'./config/missing.json\'',
+        toolCallId: 'toolu_02',
+      },
+    ],
+    versions: [{ id: nanoid(), content: "That file doesn't exist yet. Would you like me to create it with a default configuration?" }],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -310,9 +349,18 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
                         </Steps>
                       ) : null}
 
+                      {/* Tool calls */}
+                      {'toolParts' in msg && msg.toolParts?.length ? (
+                        <div className="space-y-1.5">
+                          {msg.toolParts.map((part) => (
+                            <Tool key={part.toolCallId} toolPart={part} />
+                          ))}
+                        </div>
+                      ) : null}
+
                       {/* Message text */}
                       <MessageContent>
-                        <Markdown className="prose prose-sm">
+                        <Markdown className="prose prose-sm dark:prose-invert">
                           {version.content}
                         </Markdown>
                       </MessageContent>
