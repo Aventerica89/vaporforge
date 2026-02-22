@@ -83,7 +83,17 @@ export function SourceContent({ title, description, className }: SourceContentPr
   const { href, domain } = useSourceContext();
 
   return (
-    <HoverCardContent className={cn('w-80 p-0 shadow-xs', className)}>
+    <HoverCardContent
+      className={cn(
+        'relative w-80 overflow-hidden border-purple-500/40 bg-background p-0 shadow-xs',
+        'before:pointer-events-none before:absolute before:inset-0 before:z-0',
+        'before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]',
+        'before:bg-[size:24px_24px]',
+        'before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]',
+        '[&>*]:relative [&>*]:z-10',
+        className,
+      )}
+    >
       <a href={href} target="_blank" rel="noopener noreferrer" className="flex flex-col gap-2 p-3">
         <div className="flex items-center gap-1.5">
           <img
