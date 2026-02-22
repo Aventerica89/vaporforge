@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Install prompt-kit feedback-bar.tsx (ThumbsUp/Down/X callbacks) and thinking-bar.tsx (TextShimmer label + optional chevron click + Answer Now stop button); fix prose color: typography config wires --tw-prose-* vars to theme tokens (foreground/primary/muted) so prose reads correctly on dark bg without dark:prose-invert' },
   { date: '2026-02-22', summary: 'Wire prompt-kit Reasoning+Markdown into ChatPreview: replace ai-elements reasoning with pk Reasoning (trigger label "Thought for Xs", ReasoningContent markdown prop); replace MessageResponse with Markdown (prose prose-sm dark:prose-invert); install @tailwindcss/typography' },
   { date: '2026-02-22', summary: 'Install prompt-kit markdown.tsx (marked lexer block-splitting, MemoizedMarkdownBlock, react-markdown + remark-gfm/breaks, code fences via CodeBlock); reasoning.tsx (Context provider, auto-open/close on isStreaming, ResizeObserver maxHeight animation); response-stream.tsx (useTextStream hook, typewriter + fade modes, AsyncIterable support)' },
   { date: '2026-02-22', summary: 'Install prompt-kit code-block.tsx (CodeBlock+CodeBlockCode+CodeBlockGroup, shiki github-dark); replace ai-elements code-block in ChatPreview with CodeBlockWithCopy (header: language badge + filename + inline copy button); tool.tsx border border-border→border-teal-500/40' },

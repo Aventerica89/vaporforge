@@ -312,7 +312,7 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
 
                       {/* Message text */}
                       <MessageContent>
-                        <Markdown className="prose prose-sm dark:prose-invert max-w-none">
+                        <Markdown className="prose prose-sm">
                           {version.content}
                         </Markdown>
                       </MessageContent>
