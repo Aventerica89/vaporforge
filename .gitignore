@@ -44,3 +44,4 @@ coverage/
 
 # Cloudflare
 .mf/
+.worktrees/
