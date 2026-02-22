@@ -365,13 +365,25 @@ export function PlaygroundPage() {
               </button>
             )}
             {headline}
-            <SessionIsland
-              status={status}
-              onNew={handleNew}
-              onPause={handlePause}
-              onResume={handleResume}
-              onStop={handleStop}
-            />
+            <AnimatePresence>
+              {sessionOpen && (
+                <motion.div
+                  key="session-island"
+                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
+                  transition={{ type: 'spring', bounce: 0.25, duration: 0.3 }}
+                >
+                  <SessionIsland
+                    status={status}
+                    onNew={handleNew}
+                    onPause={handlePause}
+                    onResume={handleResume}
+                    onStop={handleStop}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
             {promptInput}
             {suggestions}
           </div>
