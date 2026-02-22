@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Flame, Zap, Bookmark, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { PromptInput } from '@/components/prompt-input';
@@ -355,50 +355,49 @@ export function PlaygroundPage() {
           'transition-[max-width] duration-300 ease-in-out',
           previewOpen ? 'md:max-w-md' : 'md:max-w-2xl',
         )}>
-          <LayoutGroup id="playground-stack">
             {/* Heading + SessionIsland:
                 mobile — flex-1 min-h-0 so content centers in space above pinned prompt
                 desktop — md:flex-none so parent justify-center groups everything together */}
-            <div className="flex flex-1 min-h-0 md:flex-none flex-col items-center justify-center overflow-y-auto w-full gap-4 py-4">
-              {!previewOpen && (
-                <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }} className="self-start">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewOpen(true)}
-                    className="flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
+            <div className="flex flex-1 min-h-0 md:flex-none flex-col items-center justify-center overflow-hidden w-full gap-4 py-4">
+              <AnimatePresence>
+                {!previewOpen && (
+                  <motion.div
+                    key="show-preview"
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.15 }}
+                    className="self-start"
                   >
-                    <PanelLeftOpen className="h-3 w-3" />
-                    <span>Show preview</span>
-                  </button>
-                </motion.div>
-              )}
+                    <button
+                      type="button"
+                      onClick={() => setPreviewOpen(true)}
+                      className="flex items-center gap-1 rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
+                    >
+                      <PanelLeftOpen className="h-3 w-3" />
+                      <span>Show preview</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
-                {headline}
-              </motion.div>
+              {headline}
 
-              <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
-                <SessionIsland
-                  status={status}
-                  controlsOpen={sessionOpen}
-                  onNew={handleNew}
-                  onPause={handlePause}
-                  onResume={handleResume}
-                  onStop={handleStop}
-                />
-              </motion.div>
+              <SessionIsland
+                status={status}
+                controlsOpen={sessionOpen}
+                onNew={handleNew}
+                onPause={handlePause}
+                onResume={handleResume}
+                onStop={handleStop}
+              />
             </div>
 
             {/* Suggestions + prompt pinned at bottom — always visible */}
             <div className="w-full space-y-2">
-              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
-                {suggestions}
-              </motion.div>
-              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
-                {promptInput}
-              </motion.div>
+              {suggestions}
+              {promptInput}
             </div>
-          </LayoutGroup>
         </div>
       </div>
 

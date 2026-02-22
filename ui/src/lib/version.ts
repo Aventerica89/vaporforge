@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(playground): remove LayoutGroup + motion.div layout from PlaygroundPage — FLIP layout animations violated animation hook (only transform/opacity allowed) and caused scrollbar flash + horizontal shift during SessionIsland control toggle; replaced with overflow-hidden + AnimatePresence opacity/y only for show-preview button' },
   { date: '2026-02-22', summary: 'fix(playground): PlaygroundPage responsive layout — md:justify-center on outer column + md:flex-none on heading area restores vertical center on desktop while keeping mobile pinned-bottom behavior (flex-1 min-h-0 only applies on mobile)' },
   { date: '2026-02-22', summary: 'fix(playground): PlaygroundPage phone layout — heading + SessionIsland in flex-1 min-h-0 centering area, suggestions + prompt pinned at bottom (same pattern as ChatPanel welcome state fix; prevents heading clipping on iOS keyboard open)' },
   { date: '2026-02-22', summary: 'ChatPreview: add Tool component demo (Bash output-available + ReadFile output-error mock messages); fix markdown dark mode (prose prose-sm dark:prose-invert)' },
