@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'feat(playground): wire FeedbackBar + ThinkingBar into ChatPreview; add rich markdown showcase message (h2/h3/bold/italic/list/code/blockquote); replace PulseLoader+TextShimmer streaming indicator with ThinkingBar' },
   { date: '2026-02-22', summary: 'fix(playground): agent dropdown floats above layout — relative class on motion.div was overriding absolute (CSS cascade); moved relative to inner wrapper so dropdown overlays without pushing pills to next line' },
   { date: '2026-02-22', summary: 'fix(playground): pills stretch + model pill size mismatch — items-stretch on pills flex container caused all pills to fill container height; changed to items-center so pills stay naturally sized' },
   { date: '2026-02-22', summary: 'feat(playground): agent selector dropdown — replaces mode toggle; click agent pill to open popover with grid bg pattern; AGENT_OPTIONS list (Claude/Architect/Code Review/Debugger); click-outside to close; AnimatePresence opacity+y; checkmark on selected' },

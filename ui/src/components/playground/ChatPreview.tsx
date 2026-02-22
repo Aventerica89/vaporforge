@@ -31,8 +31,9 @@ import { Check, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { Image } from '@/components/ai-elements/image';
 import { Source, SourceContent, SourceTrigger } from '@/components/prompt-kit/source';
-import { PulseLoader } from '@/components/prompt-kit/loader';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
+import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
 import {
   Steps,
   StepsContent,
@@ -173,6 +174,38 @@ const MOCK_MESSAGES = [
           mediaType: 'image/svg+xml' as const,
           alt: 'React logo icon',
         },
+      },
+    ],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'What are the main state management options in React?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    showFeedback: true,
+    versions: [
+      {
+        id: nanoid(),
+        content: `## State Management Options
+
+Here's a breakdown of the **three most popular** approaches:
+
+### 1. useState + useContext
+Good for _small to medium_ apps — simple, built-in, zero dependencies.
+
+### 2. Zustand
+Lightweight with minimal boilerplate — **recommended for most projects**:
+- No providers required
+- Works with \`immer\` for immutable updates
+- Excellent TypeScript support
+
+### 3. Redux Toolkit
+For _large enterprise apps_ with complex data flows.
+
+> Pick the **simplest option** that meets your needs — complexity should be earned.`,
       },
     ],
   },
@@ -395,6 +428,17 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
                           mediaType={version.image.mediaType}
                         />
                       ) : null}
+
+                      {/* Feedback bar — shown on messages with showFeedback: true */}
+                      {'showFeedback' in msg && msg.showFeedback ? (
+                        <FeedbackBar
+                          title="Was this helpful?"
+                          className="mt-1"
+                          onHelpful={() => {}}
+                          onNotHelpful={() => {}}
+                          onClose={() => {}}
+                        />
+                      ) : null}
                     </div>
                   </Message>
                 ))}
@@ -406,18 +450,11 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
           {status === 'streaming' && (
             <Message from="assistant">
               <MessageContent>
-                <div className="flex items-center gap-2.5 py-0.5">
-                  <PulseLoader size="sm" className="[&>div]:border-purple-500" />
-                  <TextShimmer
-                    className="text-xs"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(to right, #7c3aed 0%, #d946ef 50%, #7c3aed 100%)',
-                    }}
-                  >
-                    Claude is working...
-                  </TextShimmer>
-                </div>
+                <ThinkingBar
+                  text="Claude is thinking..."
+                  onStop={() => {}}
+                  stopLabel="Stop"
+                />
               </MessageContent>
             </Message>
           )}
