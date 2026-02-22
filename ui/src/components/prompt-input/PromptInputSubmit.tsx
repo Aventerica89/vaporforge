@@ -47,7 +47,7 @@ export function PromptInputSubmit() {
               mode="colorShift"
               blur="soft"
               duration={3}
-              scale={0.85}
+              scale={1.4}
             />
           </motion.div>
         )}

@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Fix GlowEffect visibility on submit button: scale 0.85→1.4 so glow extends beyond bg-primary button edges and renders as a visible vapor-purple halo' },
   { date: '2026-02-22', summary: 'Fix BorderTrail corner radius: replace rect(... round) offsetPath (inconsistent browser support) with ResizeObserver + path() using computed SVG rounded-rect string; clamps radius to half min-dimension so it never overflows' },
   { date: '2026-02-22', summary: 'Playground redesign (input-prompt-redesign branch): ai-elements compound components (code-block, context, conversation, image, message, reasoning, sources), motion-primitives BorderTrail on PromptInput during streaming (purple gradient, radius=24 matches rounded-3xl), ChatPreview mock conversation with code/image blocks, close/reopen panel toggle, ibelick-converter agent' },
   { date: '2026-02-22', summary: 'Stream reconnect hardening: (1) persist after replay — useSandbox.ts calls persistMessage() after replay recovery so message survives page reload; (2) 30s grace period on WS close in ws-agent-server.js — transient disconnects no longer abort in-flight agent work, new connections still kill lingering activeChild immediately' },
