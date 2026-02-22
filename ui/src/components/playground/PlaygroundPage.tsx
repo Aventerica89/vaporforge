@@ -341,34 +341,33 @@ export function PlaygroundPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.15 }}
-                    className={cn(
-                      'absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl',
-                      'border border-primary/50 bg-background overflow-hidden relative',
-                      GRID_BG,
-                    )}
+                    className="absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl border border-primary/50 bg-background overflow-hidden"
                   >
-                    <div className="p-1">
-                      {AGENT_OPTIONS.map((agent) => (
-                        <button
-                          key={agent.id}
-                          type="button"
-                          onClick={() => { setSelectedAgent(agent.id); setAgentOpen(false); }}
-                          className={cn(
-                            'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
-                            selectedAgent === agent.id
-                              ? 'bg-primary/10 text-primary'
-                              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                          )}
-                        >
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[11px] font-medium">{agent.label}</span>
-                            <span className="text-[10px] text-muted-foreground">{agent.description}</span>
-                          </div>
-                          {selectedAgent === agent.id && (
-                            <Check className="ml-auto h-3 w-3 shrink-0 mt-0.5 text-primary" />
-                          )}
-                        </button>
-                      ))}
+                    {/* Inner div owns `relative` for GRID_BG pseudo-elements — keeps outer absolute uncontested */}
+                    <div className={cn('relative', GRID_BG)}>
+                      <div className="p-1">
+                        {AGENT_OPTIONS.map((agent) => (
+                          <button
+                            key={agent.id}
+                            type="button"
+                            onClick={() => { setSelectedAgent(agent.id); setAgentOpen(false); }}
+                            className={cn(
+                              'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
+                              selectedAgent === agent.id
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                            )}
+                          >
+                            <div className="flex flex-col min-w-0">
+                              <span className="text-[11px] font-medium">{agent.label}</span>
+                              <span className="text-[10px] text-muted-foreground">{agent.description}</span>
+                            </div>
+                            {selectedAgent === agent.id && (
+                              <Check className="ml-auto h-3 w-3 shrink-0 mt-0.5 text-primary" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </motion.div>
                 )}
