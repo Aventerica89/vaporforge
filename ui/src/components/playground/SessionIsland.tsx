@@ -204,10 +204,10 @@ export function SessionIsland({
         <AnimatePresence mode="wait">
           <motion.div
             key={status}
-            initial={{ opacity: 0, scale: 0.92, filter: 'blur(4px)' }}
-            animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', transition: { delay: 0.05 } }}
-            exit={{ opacity: 0, scale: 0.92, filter: 'blur(4px)' }}
-            transition={{ type: 'spring', bounce: 0.3, duration: 0.25 }}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0, transition: { delay: 0.04 } }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ type: 'spring', stiffness: 480, damping: 38 }}
           >
             {ISLAND_CONTENT[status]}
           </motion.div>

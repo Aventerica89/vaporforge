@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'SessionIsland transition: LayoutGroup + motion.div layout on siblings so headline/prompt/suggestions glide on reveal; island entrance y+opacity only (removed scale+blur — compositor-only per fixing-motion-performance skill); tighter spring stiffness 500/damping 42/mass 0.5' },
   { date: '2026-02-22', summary: 'SessionIsland: hide by default, shown/hidden by Session toggle button (AnimatePresence scale+fade+y spring)' },
   { date: '2026-02-22', summary: 'SessionIsland: add HelpCircle button next to button row — click toggles a spring-animated popover listing each control (icon + label + description)' },
   { date: '2026-02-22', summary: 'SessionIsland: Dynamic Island-style session lifecycle control (idle/streaming/paused pill + Zap/Pause/Play/Stop button row with motion tooltips + vapor purple colors); installed smoothui dynamic-island; wired into PlaygroundPage between headline and prompt input' },

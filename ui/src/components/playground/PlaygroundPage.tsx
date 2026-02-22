@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, LayoutGroup, motion } from 'motion/react';
 import { Flame, Zap, Bookmark, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { PromptInput } from '@/components/prompt-input';
@@ -352,41 +352,54 @@ export function PlaygroundPage() {
           'transition-[max-width] duration-300 ease-in-out',
           previewOpen ? 'w-full max-w-md' : 'w-full max-w-2xl',
         )}>
-          <div className="flex w-full -translate-y-[5%] flex-col items-center gap-4">
-            {/* Re-open preview button — only when closed */}
-            {!previewOpen && (
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="flex items-center gap-1 self-start rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
-              >
-                <PanelLeftOpen className="h-3 w-3" />
-                <span>Show preview</span>
-              </button>
-            )}
-            {headline}
-            <AnimatePresence>
-              {sessionOpen && (
-                <motion.div
-                  key="session-island"
-                  initial={{ opacity: 0, scale: 0.95, y: -8 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -8 }}
-                  transition={{ type: 'spring', bounce: 0.25, duration: 0.3 }}
+          <LayoutGroup id="playground-stack">
+            <div className="flex w-full -translate-y-[5%] flex-col items-center gap-4">
+              {/* Re-open preview button — only when closed */}
+              {!previewOpen && (
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(true)}
+                  className="flex items-center gap-1 self-start rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 transition-colors hover:bg-muted hover:text-muted-foreground"
                 >
-                  <SessionIsland
-                    status={status}
-                    onNew={handleNew}
-                    onPause={handlePause}
-                    onResume={handleResume}
-                    onStop={handleStop}
-                  />
-                </motion.div>
+                  <PanelLeftOpen className="h-3 w-3" />
+                  <span>Show preview</span>
+                </button>
               )}
-            </AnimatePresence>
-            {promptInput}
-            {suggestions}
-          </div>
+
+              <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
+                {headline}
+              </motion.div>
+
+              <AnimatePresence>
+                {sessionOpen && (
+                  <motion.div
+                    key="session-island"
+                    layout
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 42, mass: 0.5 }}
+                  >
+                    <SessionIsland
+                      status={status}
+                      onNew={handleNew}
+                      onPause={handlePause}
+                      onResume={handleResume}
+                      onStop={handleStop}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
+                {promptInput}
+              </motion.div>
+
+              <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
+                {suggestions}
+              </motion.div>
+            </div>
+          </LayoutGroup>
         </div>
       </div>
 
