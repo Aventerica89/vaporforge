@@ -114,10 +114,26 @@ function TooltipButton({ icon, label, onClick, active, disabled }: TooltipButton
 // ---------------------------------------------------------------------------
 
 const HELP_ITEMS = [
-  { icon: <Zap className="size-3 shrink-0 text-purple-400" />, label: 'New session', desc: 'Start fresh — clears context and sandbox state' },
-  { icon: <Pause className="size-3 shrink-0 text-purple-400" />, label: 'Pause', desc: 'Suspend the running agent without losing progress' },
-  { icon: <Play className="size-3 shrink-0 text-purple-400" />, label: 'Resume', desc: 'Continue from where the agent left off' },
-  { icon: <Square className="size-3 shrink-0 text-purple-400" />, label: 'Stop', desc: 'End the session and finalize output' },
+  {
+    icon: <Zap className="size-3 shrink-0 text-purple-400" />,
+    label: 'New session',
+    desc: 'Spin up a fresh container. Wipes Claude\'s context, filesystem, and running processes.',
+  },
+  {
+    icon: <Pause className="size-3 shrink-0 text-purple-400" />,
+    label: 'Pause',
+    desc: 'Freeze the agent mid-run. The container stays alive — nothing is lost.',
+  },
+  {
+    icon: <Play className="size-3 shrink-0 text-purple-400" />,
+    label: 'Resume',
+    desc: 'Wake the frozen agent. Continues from the exact point it was paused.',
+  },
+  {
+    icon: <Square className="size-3 shrink-0 text-purple-400" />,
+    label: 'Stop',
+    desc: 'Halt the current run. Your sandbox files stay intact for the next task.',
+  },
 ];
 
 function HelpButton() {
@@ -133,9 +149,15 @@ function HelpButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.96 }}
             transition={{ type: 'spring', bounce: 0.2, duration: 0.25 }}
-            className="absolute bottom-10 right-0 z-20 w-64 overflow-hidden rounded-2xl border border-primary/50 bg-background p-3 backdrop-blur-sm before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] before:bg-[size:24px_24px] before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)] [&>*]:relative [&>*]:z-10"
+            className="absolute bottom-10 right-0 z-20 w-72 overflow-hidden rounded-2xl border border-purple-500/40 bg-background p-3 backdrop-blur-sm before:pointer-events-none before:absolute before:inset-0 before:z-0 before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] before:bg-[size:24px_24px] before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)] [&>*]:relative [&>*]:z-10"
           >
-            <p className="mb-2.5 text-[11px] font-medium text-zinc-400">Session controls</p>
+            <div className="mb-3 border-b border-purple-500/20 pb-2.5">
+              <p className="text-[11px] font-semibold text-zinc-300">Agent session controls</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-zinc-500">
+                Claude runs in a real Linux container — not just a chat thread. It has a filesystem,
+                processes, and persistent state between messages.
+              </p>
+            </div>
             <div className="space-y-2">
               {HELP_ITEMS.map(({ icon, label, desc }) => (
                 <div key={label} className="flex items-start gap-2.5">

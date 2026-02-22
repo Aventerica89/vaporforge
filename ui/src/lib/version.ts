@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'HelpButton popover: purple border (border-purple-500/40), wider (w-72), architecture blurb header explaining real Linux container model, sharper per-control copy' },
   { date: '2026-02-22', summary: 'ChatPreview: add prompt-kit Source HoverCard chips (inline citations with favicon) + PulseLoader streaming bubble (status-reactive); pass status prop from PlaygroundPage; install chat-container + scroll-button prompt-kit components' },
   { date: '2026-02-22', summary: 'prompt-kit batch install: loader (all 12 variants + keyframes in tailwind.config.js), source (HoverCard-based with favicon), PulseLoader replaces motion.div in SessionIsland StreamingContent' },
   { date: '2026-02-22', summary: 'SessionIsland transition: LayoutGroup + motion.div layout on siblings so headline/prompt/suggestions glide on reveal; island entrance y+opacity only (removed scale+blur — compositor-only per fixing-motion-performance skill); tighter spring stiffness 500/damping 42/mass 0.5' },
