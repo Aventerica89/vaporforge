@@ -15,7 +15,7 @@ export function PromptInputSubmit() {
       <button
         type="button"
         onClick={onStop}
-        className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
         title="Stop generating"
       >
         <Square className="h-4 w-4" />
@@ -25,7 +25,7 @@ export function PromptInputSubmit() {
 
   if (status === 'uploading') {
     return (
-      <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted/50">
+      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted/50">
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     );
@@ -40,14 +40,14 @@ export function PromptInputSubmit() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.4 }}
           >
             <GlowEffect
               colors={VAPOR_COLORS}
-              mode="colorShift"
+              mode="pulse"
               blur="soft"
-              duration={3}
-              scale={1.4}
+              duration={2.5}
+              scale={1.15}
             />
           </motion.div>
         )}
@@ -56,7 +56,7 @@ export function PromptInputSubmit() {
         type="submit"
         disabled={!hasInput}
         className={cn(
-          'relative flex h-11 w-11 items-center justify-center rounded-lg transition-all',
+          'relative flex h-9 w-9 items-center justify-center rounded-full transition-all',
           hasInput
             ? 'bg-primary text-primary-foreground'
             : 'bg-muted/50 text-muted-foreground/40',

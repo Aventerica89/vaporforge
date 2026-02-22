@@ -18,6 +18,7 @@ import {
   ContextOutputUsage,
 } from '@/components/ai-elements/context';
 import { ChatPreview } from '@/components/playground/ChatPreview';
+import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
 import { cn } from '@/lib/cn';
 
 // ---------------------------------------------------------------------------
@@ -232,7 +233,21 @@ export function PlaygroundPage() {
         placeholder="Ask anything..."
         className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
       />
-      <div className="mt-2 flex w-full items-end justify-end px-3 pb-3">
+      <div className="mt-2 flex w-full items-end justify-between px-3 pb-3">
+        <AnimatePresence>
+          {status === 'streaming' && (
+            <motion.div
+              key="shimmer"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-center pb-0.5"
+            >
+              <TextShimmer className="text-xs">Claude is thinking...</TextShimmer>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <PromptInputSubmit />
       </div>
     </PromptInput>
