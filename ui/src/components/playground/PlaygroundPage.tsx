@@ -140,6 +140,34 @@ function useVisualViewport() {
 }
 
 // ---------------------------------------------------------------------------
+// ActionPill — small rounded pill button used in the desktop pills row
+// ---------------------------------------------------------------------------
+
+interface PillProps {
+  children: React.ReactNode;
+  icon?: React.ElementType;
+  onClick?: () => void;
+  className?: string;
+}
+
+function ActionPill({ children, icon: Icon, onClick, className }: PillProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1',
+        'text-[10px] font-medium text-primary transition-colors hover:bg-primary/20',
+        className,
+      )}
+    >
+      {Icon && <Icon className="h-3 w-3" />}
+      {children}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PlaygroundTabBar — 4 primary tabs + More bottom sheet (HIG: max 4 in bar)
 // ---------------------------------------------------------------------------
 
@@ -447,6 +475,24 @@ export function PlaygroundPage() {
           </div>
         ) : (
           <div className="flex w-full flex-wrap items-center justify-start gap-2">
+            {/* Desktop/iPad-only action pills — these functions are in the mobile action bar on small screens */}
+            <div className="hidden md:contents">
+              <ActionPill icon={Flame} onClick={() => {}}>Reforge</ActionPill>
+              <ActionPill icon={Zap} onClick={() => {}}>Auto-pick</ActionPill>
+              <button
+                type="button"
+                onClick={() => setSessionOpen((v) => !v)}
+                className={cn(
+                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
+                  sessionOpen
+                    ? 'bg-purple-500/20 text-purple-400'
+                    : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+                )}
+              >
+                <Bookmark className="h-3 w-3" />
+                <span>Session</span>
+              </button>
+            </div>
             {/* Model selector dropdown */}
             <div ref={agentRef} className="relative">
               <button

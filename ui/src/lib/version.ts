@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(playground): restore missing desktop pills (Reforge/Auto-pick/Session) — accidentally dropped in 5cdb50f when AutonomySelectorPopup was added' },
   { date: '2026-02-22', summary: 'fix(playground): action bar + tab bar mobile-only (md:hidden); desktop gets submit-only row (hidden md:flex)' },
   { date: '2026-02-22', summary: 'fix(playground): PlaygroundTabBar — 4 primary tabs + More bottom sheet (HIG max-4); safe area fallback 0px→20px in MobileTabBar' },
   { date: '2026-02-22', summary: 'fix(playground): add MobileTabBar to PlaygroundPage; fix AutonomySelectorPopup active card background (bg-card)' },
