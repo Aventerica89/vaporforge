@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-21', summary: 'Smart Context Phase 2: auto session summaries — session-summarizer.ts generates AI summary (Haiku/Gemini Flash if API key configured) or rule-based fallback; persist endpoint triggers every 10 messages, writes to /workspace/.vaporforge/session-summary.md via sandboxManager.writeFile(); gather-context.sh ### Previous Session block picks it up on next session start' },
   { date: '2026-02-21', summary: 'Smart Context Phase 1 extras: MAX_CHARS 2048→4096, package name/version/framework detection in Code Intelligence section, Proactive Health Checks (staged console.logs, large files >500KB, unpushed commits, new TODOs, cached test failures); synced Dockerfile heredoc' },
   { date: '2026-02-21', summary: 'Usage Alerts: connect triggering to session spend — checkUsageAlerts() in persist endpoint accumulates spend in SESSIONS_KV, deduplicates per-session fired set, updates triggeredAt/Count in AUTH_KV; persistMessage passes costUsd + returns triggeredAlerts; done handler shows toast.warning() per triggered alert' },
   { date: '2026-02-21', summary: 'Usage Alerts: full-stack threshold alert system — 4 CRUD endpoints (GET/POST/PATCH/DELETE /api/billing/alerts), AlertConfig KV store (billing-alerts:{userId}), UsageAlertsCard component (preset+custom threshold, in-app channel badges, active/paused toggle, trigger history, empty state, budget context hint), wired into BillingTab below plan section' },

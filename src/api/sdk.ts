@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { User, Session, Message, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
 import type { SandboxManager } from '../sandbox';
+import { summarizeSession } from '../services/session-summarizer';
 import { assembleSandboxConfig, assembleSandboxConfigWithHashes } from '../config-assembly';
 
 type Variables = {
@@ -486,6 +487,24 @@ sdkRoutes.post('/persist', async (c) => {
   try {
     await sandboxManager.syncConfigFromContainer(sessionId, user.id, c.env.SESSIONS_KV);
   } catch {}
+
+  // Fire-and-forget session summary every 10 messages
+  const messageCount = await c.env.SESSIONS_KV.list({ prefix: `message:${sessionId}:` })
+    .then((r) => r.keys.length)
+    .catch(() => 0);
+  if (messageCount > 0 && messageCount % 10 === 0) {
+    summarizeSession(c.env.SESSIONS_KV, user.id, sessionId)
+      .then(async (summary) => {
+        if (!summary) return;
+        const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
+        if (!rawSession) return;
+        const sess = JSON.parse(rawSession) as Session;
+        if (!sess.sandboxId) return;
+        await sandboxManager.execInSandbox(sess.sandboxId, 'mkdir -p /workspace/.vaporforge');
+        await sandboxManager.writeFile(sess.sandboxId, '/workspace/.vaporforge/session-summary.md', summary);
+      })
+      .catch(() => {});
+  }
 
   // Check usage alerts if cost data available
   let triggeredAlerts: import('./billing').AlertConfig[] = [];
