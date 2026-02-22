@@ -1,56 +1,76 @@
-import { FileText } from 'lucide-react';
+import type { ComponentProps } from 'react';
+
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { cn } from '@/lib/cn';
+import { BookIcon, ChevronDownIcon } from 'lucide-react';
 
-export interface SourceFile {
-  path: string;
-  score: number;
-}
+export type SourcesProps = ComponentProps<'div'>;
 
-interface SourcesProps {
-  sources: SourceFile[];
-  onSourceClick?: (path: string) => void;
-  className?: string;
-}
+export const Sources = ({ className, ...props }: SourcesProps) => (
+  <Collapsible
+    className={cn('not-prose mb-4 text-primary text-xs', className)}
+    {...props}
+  />
+);
 
-function truncatePath(path: string): string {
-  const parts = path.split('/');
-  if (parts.length <= 2) return path;
-  return parts.slice(-2).join('/');
-}
+export type SourcesTriggerProps = ComponentProps<typeof CollapsibleTrigger> & {
+  count: number;
+};
 
-function scoreColor(score: number): string {
-  if (score >= 0.8) return 'text-green-400';
-  if (score >= 0.6) return 'text-yellow-400';
-  return 'text-muted-foreground';
-}
+export const SourcesTrigger = ({
+  className,
+  count,
+  children,
+  ...props
+}: SourcesTriggerProps) => (
+  <CollapsibleTrigger
+    className={cn('flex items-center gap-2', className)}
+    {...props}
+  >
+    {children ?? (
+      <>
+        <p className="font-medium">Used {count} sources</p>
+        <ChevronDownIcon className="h-4 w-4" />
+      </>
+    )}
+  </CollapsibleTrigger>
+);
 
-export function Sources({ sources, onSourceClick, className }: SourcesProps) {
-  if (sources.length === 0) return null;
+export type SourcesContentProps = ComponentProps<typeof CollapsibleContent>;
 
-  return (
-    <div className={cn('mt-2', className)}>
-      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mb-1 block">
-        Sources
-      </span>
-      <div className="flex flex-wrap gap-1.5">
-        {sources.map((source) => (
-          <button
-            key={source.path}
-            type="button"
-            onClick={() => onSourceClick?.(source.path)}
-            title={source.path}
-            className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-[11px] hover:bg-muted/70 hover:border-primary/30 transition-colors cursor-pointer"
-          >
-            <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="text-foreground/80 truncate max-w-[140px]">
-              {truncatePath(source.path)}
-            </span>
-            <span className={cn('text-[9px] font-medium', scoreColor(source.score))}>
-              {(source.score * 100).toFixed(0)}%
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
+export const SourcesContent = ({
+  className,
+  ...props
+}: SourcesContentProps) => (
+  <CollapsibleContent
+    className={cn(
+      'mt-3 flex w-fit flex-col gap-2',
+      'data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-2 data-[state=open]:slide-in-from-top-2 outline-none data-[state=closed]:animate-out data-[state=open]:animate-in',
+      className,
+    )}
+    {...props}
+  />
+);
+
+export type SourceProps = ComponentProps<'a'>;
+
+export const Source = ({ href, title, children, ...props }: SourceProps) => (
+  <a
+    className="flex items-center gap-2"
+    href={href}
+    rel="noreferrer"
+    target="_blank"
+    {...props}
+  >
+    {children ?? (
+      <>
+        <BookIcon className="h-4 w-4" />
+        <span className="block font-medium">{title}</span>
+      </>
+    )}
+  </a>
+);

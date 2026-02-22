@@ -1,0 +1,180 @@
+import { nanoid } from 'nanoid';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
+import {
+  Message,
+  MessageBranch,
+  MessageBranchContent,
+  MessageContent,
+  MessageResponse,
+} from '@/components/ai-elements/message';
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from '@/components/ai-elements/reasoning';
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from '@/components/ai-elements/sources';
+import {
+  CodeBlock,
+  CodeBlockHeader,
+  CodeBlockTitle,
+  CodeBlockFilename,
+  CodeBlockActions,
+  CodeBlockCopyButton,
+} from '@/components/ai-elements/code-block';
+import { Image } from '@/components/ai-elements/image';
+
+// ---------------------------------------------------------------------------
+// Mock messages — static demo data for visual preview
+// ---------------------------------------------------------------------------
+
+const MOCK_MESSAGES = [
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Can you explain how to use React hooks effectively?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    sources: [
+      { href: 'https://react.dev/reference/react', title: 'React Documentation' },
+      { href: 'https://react.dev/reference/react-dom', title: 'React DOM Documentation' },
+    ],
+    versions: [
+      {
+        id: nanoid(),
+        content: 'React hooks are a powerful feature. Here are the key rules:\n\n1. Only call hooks at the top level\n2. Don\'t call hooks inside loops or conditions',
+      },
+    ],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Show me a code example using useCallback.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    reasoning: {
+      content: 'The user wants a useCallback example. I should show a clear before/after demonstrating the memoization benefit with a child component.',
+      duration: 4,
+    },
+    versions: [
+      {
+        id: nanoid(),
+        content: 'Here\'s how `useCallback` prevents unnecessary re-renders:',
+        code: `const handleClick = useCallback(() => {
+  console.log(count);
+}, [count]);`,
+        language: 'typescript' as const,
+        filename: 'example.ts',
+      },
+    ],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Can you generate a simple logo for a React app?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    versions: [
+      {
+        id: nanoid(),
+        content: 'Here\'s a minimal React logo icon:',
+        // Compact SVG: purple rounded square with React atom orbits
+        image: {
+          base64: 'PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiB2aWV3Qm94PSIwIDAgMTIwIDEyMCI+PHJlY3Qgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIHJ4PSIyNCIgZmlsbD0iIzBmMTcyYSIvPjxlbGxpcHNlIGN4PSI2MCIgY3k9IjYwIiByeD0iNDUiIHJ5PSIxNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjFkYWZiIiBzdHJva2Utd2lkdGg9IjMiLz48ZWxsaXBzZSBjeD0iNjAiIGN5PSI2MCIgcng9IjQ1IiByeT0iMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzYxZGFmYiIgc3Ryb2tlLXdpZHRoPSIzIiB0cmFuc2Zvcm09InJvdGF0ZSg2MCw2MCw2MCkiLz48ZWxsaXBzZSBjeD0iNjAiIGN5PSI2MCIgcng9IjQ1IiByeT0iMTYiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzYxZGFmYiIgc3Ryb2tlLXdpZHRoPSIzIiB0cmFuc2Zvcm09InJvdGF0ZSgxMjAsNjAsNjApIi8+PGNpcmNsZSBjeD0iNjAiIGN5PSI2MCIgcj0iOCIgZmlsbD0iIzYxZGFmYiIvPjwvc3ZnPg==',
+          mediaType: 'image/svg+xml' as const,
+          alt: 'React logo icon',
+        },
+      },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// ChatPreview
+// ---------------------------------------------------------------------------
+
+export function ChatPreview() {
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      <Conversation>
+        <ConversationContent>
+          {MOCK_MESSAGES.map((msg) => (
+            <MessageBranch defaultBranch={0} key={msg.key}>
+              <MessageBranchContent>
+                {msg.versions.map((version) => (
+                  <Message from={msg.from} key={`${msg.key}-${version.id}`}>
+                    <div className="space-y-2">
+                      {/* Sources */}
+                      {'sources' in msg && msg.sources?.length ? (
+                        <Sources>
+                          <SourcesTrigger count={msg.sources.length} />
+                          <SourcesContent>
+                            {msg.sources.map((source) => (
+                              <Source href={source.href} key={source.href} title={source.title} />
+                            ))}
+                          </SourcesContent>
+                        </Sources>
+                      ) : null}
+
+                      {/* Reasoning */}
+                      {'reasoning' in msg && msg.reasoning ? (
+                        <Reasoning duration={msg.reasoning.duration}>
+                          <ReasoningTrigger />
+                          <ReasoningContent>{msg.reasoning.content}</ReasoningContent>
+                        </Reasoning>
+                      ) : null}
+
+                      {/* Message text */}
+                      <MessageContent>
+                        <MessageResponse>{version.content}</MessageResponse>
+                      </MessageContent>
+
+                      {/* Code block (if present) */}
+                      {'code' in version && version.code ? (
+                        <CodeBlock code={version.code} language={version.language ?? 'typescript'}>
+                          <CodeBlockHeader>
+                            <CodeBlockTitle>
+                              <CodeBlockFilename>{version.filename}</CodeBlockFilename>
+                            </CodeBlockTitle>
+                            <CodeBlockActions>
+                              <CodeBlockCopyButton />
+                            </CodeBlockActions>
+                          </CodeBlockHeader>
+                        </CodeBlock>
+                      ) : null}
+
+                      {/* Image (if present) */}
+                      {'image' in version && version.image ? (
+                        <Image
+                          alt={version.image.alt}
+                          base64={version.image.base64}
+                          className="max-h-48 w-auto rounded-lg"
+                          mediaType={version.image.mediaType}
+                        />
+                      ) : null}
+                    </div>
+                  </Message>
+                ))}
+              </MessageBranchContent>
+            </MessageBranch>
+          ))}
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
+    </div>
+  );
+}

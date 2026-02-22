@@ -31,7 +31,7 @@ import { ToolDisplay } from './ai-elements/Tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { PlanCard } from './ai-elements/PlanCard';
-import { Sources, type SourceFile } from './ai-elements/Sources';
+import { Sources, type SourceFile } from './ai-elements/sources';
 import { embeddingsApi } from '@/lib/api';
 import {
   PromptInput,
