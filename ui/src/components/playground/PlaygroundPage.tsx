@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Flame, Zap, Bookmark, PanelLeftClose, PanelLeftOpen, ChevronDown, Check } from 'lucide-react';
+import { Flame, Eye, Zap, Paperclip, Bookmark, MoreHorizontal, PanelLeftClose, PanelLeftOpen, ChevronDown, Check } from 'lucide-react';
+import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
+import type { AutonomyMode } from '@/components/prompt-input/AutonomySelectorPopup';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { PromptInput } from '@/components/prompt-input';
 import { PromptInputTextarea } from '@/components/prompt-input';
@@ -19,6 +21,7 @@ import {
 } from '@/components/ai-elements/context';
 import { ChatPreview } from '@/components/playground/ChatPreview';
 import { SessionIsland, type SessionStatus } from '@/components/playground/SessionIsland';
+import { MobileTabBar, type MobileTab } from '@/components/mobile/MobileTabBar';
 import { cn } from '@/lib/cn';
 
 // ---------------------------------------------------------------------------
@@ -89,35 +92,6 @@ const GRID_BG = [
   '[&>*]:relative [&>*]:z-10',
 ].join(' ');
 
-// ---------------------------------------------------------------------------
-// ActionPill — Reforge / Auto-pick style (bg-primary/10 text-primary)
-// CategoryPill — suggestion chip style (muted border)
-// ---------------------------------------------------------------------------
-
-interface PillProps {
-  children: React.ReactNode;
-  icon?: React.ElementType;
-  onClick?: () => void;
-  className?: string;
-}
-
-function ActionPill({ children, icon: Icon, onClick, className }: PillProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1',
-        'text-[10px] font-medium text-primary transition-colors hover:bg-primary/20',
-        className,
-      )}
-    >
-      {Icon && <Icon className="h-3 w-3" />}
-      {children}
-    </button>
-  );
-}
-
 
 // ---------------------------------------------------------------------------
 // useVisualViewport — keyboard-aware height on iOS
@@ -171,6 +145,8 @@ export function PlaygroundPage() {
   const [selectedAgent, setSelectedAgent] = useState<AgentId>('sonnet');
   const [agentOpen, setAgentOpen] = useState(false);
   const agentRef = useRef<HTMLDivElement>(null);
+  const [autonomy, setAutonomy] = useState<AutonomyMode>('standard');
+  const [agentMode, setAgentMode] = useState<'plan' | 'agent'>('agent');
 
   useEffect(() => {
     if (!agentOpen) return;
@@ -185,7 +161,8 @@ export function PlaygroundPage() {
   const [previewOpen, setPreviewOpen] = useState(true);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { vpHeight } = useVisualViewport();
+  const [activeTab, setActiveTab] = useState<MobileTab>('chat');
+  const { vpHeight, keyboardOpen } = useVisualViewport();
 
   const handleSubmit = (message: string) => {
     setInput('');
@@ -276,13 +253,56 @@ export function PlaygroundPage() {
         placeholder="Ask anything..."
         className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
       />
-      <div className="mt-2 flex w-full items-end justify-end px-3 pb-3">
-        <PromptInputSubmit />
+      {/* Action bar — 5 icon buttons left, submit right */}
+      <div className="flex items-center justify-between px-1 pt-1 pb-2">
+        <div className="flex items-center">
+          {/* Reforge */}
+          <button type="button" className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-accent hover:text-muted-foreground active:scale-95">
+            <Flame className="size-5 text-primary/70" />
+          </button>
+          {/* Mode toggle */}
+          <button
+            type="button"
+            onClick={() => setAgentMode((m) => (m === 'plan' ? 'agent' : 'plan'))}
+            className={cn(
+              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+              agentMode === 'plan'
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+            )}
+          >
+            {agentMode === 'plan' ? <Eye className="size-5" /> : <Zap className="size-5" />}
+          </button>
+          {/* Attach */}
+          <button type="button" className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-accent hover:text-muted-foreground active:scale-95">
+            <Paperclip className="size-5" />
+          </button>
+          {/* Session Remote */}
+          <button
+            type="button"
+            onClick={() => setSessionOpen((v) => !v)}
+            className={cn(
+              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+              sessionOpen
+                ? 'text-purple-400 bg-purple-500/10'
+                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+            )}
+          >
+            <Bookmark className="size-5" />
+          </button>
+          {/* More */}
+          <button type="button" className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 transition-colors hover:bg-accent hover:text-muted-foreground active:scale-95">
+            <MoreHorizontal className="size-5" />
+          </button>
+        </div>
+        <div className="pr-2">
+          <PromptInputSubmit />
+        </div>
       </div>
     </PromptInput>
   );
 
-  // Suggestions rendered OUTSIDE PromptInput — Zola pattern
+  // Top pills row — model selector + autonomy selector + token counter
   const suggestions = (
     <div className="relative flex w-full flex-col items-center justify-center space-y-2">
       <div className="w-full">
@@ -300,23 +320,7 @@ export function PlaygroundPage() {
           </div>
         ) : (
           <div className="flex w-full flex-wrap items-center justify-start gap-2">
-            <ActionPill icon={Flame} onClick={() => {}}>Reforge</ActionPill>
-            <ActionPill icon={Zap} onClick={() => {}}>Auto-pick</ActionPill>
-            {/* Session toggle */}
-            <button
-              type="button"
-              onClick={() => setSessionOpen((v) => !v)}
-              className={cn(
-                'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
-                sessionOpen
-                  ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
-              )}
-            >
-              <Bookmark className="h-3 w-3" />
-              <span>Session</span>
-            </button>
-            {/* Agent selector dropdown */}
+            {/* Model selector dropdown */}
             <div ref={agentRef} className="relative">
               <button
                 type="button"
@@ -343,7 +347,6 @@ export function PlaygroundPage() {
                     transition={{ duration: 0.15 }}
                     className="absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl border border-primary/50 bg-background overflow-hidden"
                   >
-                    {/* Inner div owns `relative` for GRID_BG pseudo-elements — keeps outer absolute uncontested */}
                     <div className={cn('relative', GRID_BG)}>
                       <div className="p-1">
                         {AGENT_OPTIONS.map((agent) => (
@@ -373,28 +376,32 @@ export function PlaygroundPage() {
                 )}
               </AnimatePresence>
             </div>
+
+            {/* Autonomy selector popup */}
+            <AutonomySelectorPopup selected={autonomy} onSelect={setAutonomy} />
+
             {/* Context usage indicator — pushed to far right */}
             <div className="ml-auto">
-            <Context usedTokens={12400} maxTokens={200000}>
-              <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground" />
-              <ContextContent
-                side="top"
-                align="start"
-                className="relative border-primary/50 bg-background overflow-hidden
-                  before:absolute before:inset-0 before:pointer-events-none before:z-0
-                  before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]
-                  before:bg-[size:24px_24px]
-                  before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]
-                  [&>*]:relative [&>*]:z-10"
-              >
-                <ContextContentHeader />
-                <ContextContentBody className="space-y-1.5">
-                  <ContextInputUsage />
-                  <ContextOutputUsage />
-                </ContextContentBody>
-                <ContextContentFooter />
-              </ContextContent>
-            </Context>
+              <Context usedTokens={12400} maxTokens={200000}>
+                <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground" />
+                <ContextContent
+                  side="top"
+                  align="start"
+                  className="relative border-primary/50 bg-background overflow-hidden
+                    before:absolute before:inset-0 before:pointer-events-none before:z-0
+                    before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]
+                    before:bg-[size:24px_24px]
+                    before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]
+                    [&>*]:relative [&>*]:z-10"
+                >
+                  <ContextContentHeader />
+                  <ContextContentBody className="space-y-1.5">
+                    <ContextInputUsage />
+                    <ContextOutputUsage />
+                  </ContextContentBody>
+                  <ContextContentFooter />
+                </ContextContent>
+              </Context>
             </div>
           </div>
         )}
@@ -404,7 +411,7 @@ export function PlaygroundPage() {
 
   return (
     <div
-      className="relative w-full overflow-hidden bg-background"
+      className="relative flex w-full flex-col overflow-hidden bg-background"
       style={{ height: vpHeight }}
     >
       {/* Grid background — 1:1 square cells */}
@@ -413,7 +420,7 @@ export function PlaygroundPage() {
       {/* Layout: side-by-side chat preview + prompt column.
           vpHeight shrinks when iOS keyboard opens — flex-1 min-h-0 on heading area
           keeps heading visible while prompt stays pinned at bottom. */}
-      <div className="absolute inset-0 flex gap-0 overflow-hidden">
+      <div className="relative flex flex-1 min-h-0 gap-0 overflow-hidden">
         {/* Chat preview panel — collapses out */}
         <div className={cn(
           'overflow-hidden border-r border-border/30',
@@ -489,6 +496,13 @@ export function PlaygroundPage() {
         </div>
       </div>
 
+      {/* HIG Tab bar — same as real MobileLayout */}
+      <MobileTabBar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        hasSession
+        keyboardOpen={keyboardOpen}
+      />
     </div>
   );
 }

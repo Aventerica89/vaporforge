@@ -95,7 +95,7 @@ export function AutonomySelectorPopup({ selected, onSelect }: AutonomySelectorPo
                   onClick={() => { onSelect(key); setOpen(false); }}
                   className={cn(
                     'flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors',
-                    isActive ? 'bg-white/8 ring-1 ring-white/10' : 'hover:bg-white/5',
+                    isActive ? 'bg-card ring-1 ring-white/10' : 'hover:bg-white/5',
                   )}
                 >
                   <Icon className={cn('size-4 shrink-0', iconColor)} />
