@@ -151,7 +151,7 @@ export function PlaygroundPage() {
   const [previewOpen, setPreviewOpen] = useState(true);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { vpHeight, keyboardOpen } = useVisualViewport();
+  const { vpHeight } = useVisualViewport();
 
   const handleSubmit = (message: string) => {
     setInput('');
@@ -321,12 +321,10 @@ export function PlaygroundPage() {
       {/* Grid background — 1:1 square cells */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
 
-      {/* Desktop: side-by-side chat preview + prompt */}
-      <div className={cn(
-        'absolute inset-0 flex gap-0 overflow-hidden',
-        'transition-opacity duration-200 will-change-[opacity]',
-        keyboardOpen ? 'pointer-events-none opacity-0' : 'opacity-100',
-      )}>
+      {/* Layout: side-by-side chat preview + prompt column.
+          vpHeight shrinks when iOS keyboard opens — flex-1 min-h-0 on heading area
+          keeps heading visible while prompt stays pinned at bottom. */}
+      <div className="absolute inset-0 flex gap-0 overflow-hidden">
         {/* Chat preview panel — collapses out */}
         <div className={cn(
           'overflow-hidden border-r border-border/30',
@@ -401,20 +399,6 @@ export function PlaygroundPage() {
         </div>
       </div>
 
-      {/* Mobile keyboard-open: input pinned to keyboard top
-          Animates in/out with transform only — no layout recalculation */}
-      <div className={cn(
-        'absolute inset-x-0 bottom-0 px-3 pb-2',
-        'transition-[opacity,transform] duration-200 will-change-[opacity,transform]',
-        keyboardOpen
-          ? 'translate-y-0 opacity-100'
-          : 'pointer-events-none translate-y-4 opacity-0',
-      )}>
-        <div className="mx-auto max-w-3xl space-y-2">
-          {suggestions}
-          {promptInput}
-        </div>
-      </div>
     </div>
   );
 }
