@@ -1065,7 +1065,7 @@ RUN cat > /opt/claude-agent/gather-context.sh << 'GATHER_CONTEXT_EOF'
 
 set -o pipefail 2>/dev/null || true
 
-MAX_CHARS=2048
+MAX_CHARS=4096
 output=""
 
 append() {
@@ -1178,6 +1178,83 @@ if [ -f coverage/coverage-summary.json ]; then
   if [ -n "$cov" ]; then
     append "Test coverage: ${cov}
 " || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+# Package name, version, and framework detection
+if [ -f package.json ] && command -v node >/dev/null 2>&1; then
+  pkg_info=$(node -e '
+    try {
+      const p = JSON.parse(require("fs").readFileSync("package.json","utf8"));
+      const parts = [];
+      if (p.name) parts.push(p.name);
+      if (p.version) parts.push("v" + p.version);
+      const deps = Object.assign({}, p.dependencies, p.devDependencies);
+      const fw = [];
+      if (deps["next"]) fw.push("Next.js " + deps["next"].replace(/[\^~>=<]/g,""));
+      else if (deps["astro"]) fw.push("Astro " + deps["astro"].replace(/[\^~>=<]/g,""));
+      else if (deps["@remix-run/node"]) fw.push("Remix");
+      else if (deps["nuxt"]) fw.push("Nuxt");
+      else if (deps["react"]) fw.push("React " + deps["react"].replace(/[\^~>=<]/g,""));
+      else if (deps["vue"]) fw.push("Vue");
+      if (deps["typescript"] || deps["ts-node"]) fw.push("TypeScript");
+      if (fw.length) parts.push("(" + fw.join(", ") + ")");
+      if (parts.length) console.log(parts.join(" "));
+    } catch {}
+  ' 2>/dev/null)
+  if [ -n "$pkg_info" ]; then
+    append "Project: ${pkg_info}
+" || { printf '%s' "$output"; exit 0; }
+  fi
+fi
+
+# --- Health Checks ---
+if [ -d .git ] && command -v git >/dev/null 2>&1; then
+  health=""
+
+  # Staged console.log calls in TS/JS files
+  staged_logs=$(git diff --cached --name-only 2>/dev/null | \
+    grep -E '\.(ts|tsx|js|jsx)$' | \
+    xargs -I{} git diff --cached {} 2>/dev/null | \
+    grep '^\+' | grep -v '^\+\+\+' | grep 'console\.log' | wc -l | tr -d ' ')
+  [ "$staged_logs" -gt 0 ] 2>/dev/null && health="${health}⚠ ${staged_logs} console.log in staged files\n"
+
+  # Large files outside node_modules/dist/.git (>500KB)
+  large_files=$(find . -size +500k \
+    -not -path '*/node_modules/*' \
+    -not -path '*/.git/*' \
+    -not -path '*/dist/*' \
+    -not -path '*/build/*' \
+    2>/dev/null | head -5 | tr '\n' ' ')
+  [ -n "$large_files" ] && health="${health}⚠ Large files: ${large_files}\n"
+
+  # Unpushed commits
+  unpushed=$(git log @{u}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+  [ "$unpushed" -gt 0 ] 2>/dev/null && health="${health}⚠ ${unpushed} unpushed commit(s)\n"
+
+  # New TODOs introduced since last commit
+  new_todos=$(git diff HEAD 2>/dev/null | \
+    grep '^\+' | grep -v '^\+\+\+' | \
+    grep -c 'TODO\|FIXME\|HACK' 2>/dev/null || echo 0)
+  new_todos=$(echo "$new_todos" | tr -d ' ')
+  [ "$new_todos" -gt 0 ] 2>/dev/null && health="${health}⚠ ${new_todos} new TODO/FIXME in uncommitted changes\n"
+
+  # Cached test failure count (vitest)
+  if [ -f test-results/results.json ]; then
+    failed_tests=$(node -e '
+      try {
+        const r = JSON.parse(require("fs").readFileSync("test-results/results.json","utf8"));
+        const n = (r.numFailedTests || r.failed || 0);
+        if (n > 0) console.log(n);
+      } catch {}
+    ' 2>/dev/null)
+    [ -n "$failed_tests" ] && health="${health}⚠ ${failed_tests} test(s) failed in last run\n"
+  fi
+
+  if [ -n "$health" ]; then
+    append "
+### Health Checks
+$(printf '%b' "$health")" || { printf '%s' "$output"; exit 0; }
   fi
 fi
 
