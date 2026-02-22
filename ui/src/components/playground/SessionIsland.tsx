@@ -1,4 +1,4 @@
-import { Pause, Play, Square, Zap } from 'lucide-react';
+import { HelpCircle, Pause, Play, Square, Zap } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
@@ -110,6 +110,66 @@ function TooltipButton({ icon, label, onClick, active, disabled }: TooltipButton
 }
 
 // ---------------------------------------------------------------------------
+// Help button + popover
+// ---------------------------------------------------------------------------
+
+const HELP_ITEMS = [
+  { icon: <Zap className="size-3 shrink-0 text-purple-400" />, label: 'New session', desc: 'Start fresh — clears context and sandbox state' },
+  { icon: <Pause className="size-3 shrink-0 text-purple-400" />, label: 'Pause', desc: 'Suspend the running agent without losing progress' },
+  { icon: <Play className="size-3 shrink-0 text-purple-400" />, label: 'Resume', desc: 'Continue from where the agent left off' },
+  { icon: <Square className="size-3 shrink-0 text-purple-400" />, label: 'Stop', desc: 'End the session and finalize output' },
+];
+
+function HelpButton() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="help"
+            initial={{ opacity: 0, y: 6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.96 }}
+            transition={{ type: 'spring', bounce: 0.2, duration: 0.25 }}
+            className="absolute bottom-10 right-0 z-20 w-64 rounded-2xl border border-zinc-800 bg-zinc-950/95 p-3 backdrop-blur-sm"
+          >
+            <p className="mb-2.5 text-[11px] font-medium text-zinc-400">Session controls</p>
+            <div className="space-y-2">
+              {HELP_ITEMS.map(({ icon, label, desc }) => (
+                <div key={label} className="flex items-start gap-2.5">
+                  <div className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-purple-500/30 bg-purple-500/10">
+                    {icon}
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-medium text-zinc-300">{label}</span>
+                    <p className="text-[10px] leading-snug text-zinc-500">{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'flex size-6 items-center justify-center rounded-full transition-colors',
+          open
+            ? 'text-purple-400'
+            : 'text-zinc-600 hover:text-zinc-400',
+        )}
+      >
+        <HelpCircle className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SessionIsland
 // ---------------------------------------------------------------------------
 
@@ -154,36 +214,40 @@ export function SessionIsland({
         </AnimatePresence>
       </motion.div>
 
-      {/* Button row */}
-      <div className="flex items-center gap-1.5 rounded-full border border-zinc-800/60 bg-zinc-950/60 p-1.5 backdrop-blur-sm">
-        <TooltipButton
-          icon={<Zap className="size-3" />}
-          label="New session"
-          onClick={onNew}
-          active={status === 'idle'}
-          disabled={status === 'streaming'}
-        />
-        <TooltipButton
-          icon={<Pause className="size-3" />}
-          label="Pause"
-          onClick={onPause}
-          active={status === 'streaming'}
-          disabled={status !== 'streaming'}
-        />
-        <TooltipButton
-          icon={<Play className="size-3" />}
-          label="Resume"
-          onClick={onResume}
-          active={status === 'paused'}
-          disabled={status !== 'paused'}
-        />
-        <TooltipButton
-          icon={<Square className="size-3" />}
-          label="Stop"
-          onClick={onStop}
-          active={false}
-          disabled={status === 'idle'}
-        />
+      {/* Button row + help */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 rounded-full border border-zinc-800/60 bg-zinc-950/60 p-1.5 backdrop-blur-sm">
+          <TooltipButton
+            icon={<Zap className="size-3" />}
+            label="New session"
+            onClick={onNew}
+            active={status === 'idle'}
+            disabled={status === 'streaming'}
+          />
+          <TooltipButton
+            icon={<Pause className="size-3" />}
+            label="Pause"
+            onClick={onPause}
+            active={status === 'streaming'}
+            disabled={status !== 'streaming'}
+          />
+          <TooltipButton
+            icon={<Play className="size-3" />}
+            label="Resume"
+            onClick={onResume}
+            active={status === 'paused'}
+            disabled={status !== 'paused'}
+          />
+          <TooltipButton
+            icon={<Square className="size-3" />}
+            label="Stop"
+            onClick={onStop}
+            active={false}
+            disabled={status === 'idle'}
+          />
+        </div>
+
+        <HelpButton />
       </div>
     </div>
   );
