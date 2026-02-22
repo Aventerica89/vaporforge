@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'feat(playground): add commit card, test results, checkpoint list, and persona to ChatPreview showcase — 4 new user+assistant message pairs demonstrating all new prompt-kit components' },
   { date: '2026-02-22', summary: 'feat(prompt-kit): add 4 new compound components (commit, test-results, checkpoint, persona) + convert 5 existing components (AgentStatusBadge, SchemaViewer, PlanCard, Confirmation, sources) to prompt-kit ibelick style; add backward-compat shims for PlanCard + SourceFile type' },
   { date: '2026-02-22', summary: 'feat(playground): wire FeedbackBar + ThinkingBar into ChatPreview; add rich markdown showcase message (h2/h3/bold/italic/list/code/blockquote); replace PulseLoader+TextShimmer streaming indicator with ThinkingBar' },
   { date: '2026-02-22', summary: 'fix(playground): agent dropdown floats above layout — relative class on motion.div was overriding absolute (CSS cascade); moved relative to inner wrapper so dropdown overlays without pushing pills to next line' },

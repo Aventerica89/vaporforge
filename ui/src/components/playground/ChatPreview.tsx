@@ -41,6 +41,25 @@ import {
   StepsTrigger,
 } from '@/components/prompt-kit/steps';
 import { Tool } from '@/components/prompt-kit/tool';
+import {
+  Commit,
+  CommitAuthorAvatar,
+  CommitCopyButton,
+  CommitFile,
+  CommitFiles,
+  CommitTimestamp,
+} from '@/components/prompt-kit/commit';
+import {
+  TestResults,
+  TestResultsBody,
+  TestResultsHeader,
+  TestCase,
+} from '@/components/prompt-kit/test-results';
+import {
+  Checkpoint,
+  CheckpointList,
+} from '@/components/prompt-kit/checkpoint';
+import { Persona } from '@/components/prompt-kit/persona';
 import type { SessionStatus } from '@/components/playground/SessionIsland';
 
 // ---------------------------------------------------------------------------
@@ -247,6 +266,91 @@ For _large enterprise apps_ with complex data flows.
     ],
     versions: [{ id: nanoid(), content: "That file doesn't exist yet. Would you like me to create it with a default configuration?" }],
   },
+  // ---------------------------------------------------------------------------
+  // Commit card
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'What was the last commit?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    commit: {
+      hash: 'a3f7c2d89b1e',
+      message: 'feat(prompt-kit): add commit, checkpoint, and persona components',
+      author: 'JB',
+      date: new Date(Date.now() - 18 * 60 * 1000),
+      files: [
+        { path: 'ui/src/components/prompt-kit/commit.tsx', status: 'added' as const, additions: 386, deletions: 0 },
+        { path: 'ui/src/components/prompt-kit/checkpoint.tsx', status: 'added' as const, additions: 231, deletions: 0 },
+        { path: 'ui/src/components/ai-elements/PlanCard.tsx', status: 'modified' as const, additions: 47, deletions: 12 },
+      ],
+    },
+    versions: [{ id: nanoid(), content: "Here's the latest commit:" }],
+  },
+  // ---------------------------------------------------------------------------
+  // Test results
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Run the auth module tests.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    testResults: {
+      status: 'fail' as const,
+      suiteName: 'auth/middleware.test.ts',
+      passed: 8,
+      failed: 2,
+      skipped: 1,
+      cases: [
+        { name: 'should authenticate valid JWT', status: 'pass' as const, duration: 12 },
+        { name: 'should refresh expired tokens', status: 'pass' as const, duration: 34 },
+        { name: 'should reject invalid signature', status: 'fail' as const, duration: 8, error: "Expected status 401 but received 200\n  at assertStatus (auth.test.ts:42)\n  at Object.<anonymous> (auth.test.ts:38)" },
+        { name: 'should handle concurrent requests', status: 'fail' as const, duration: 5021, error: "Timeout: test exceeded 5000ms\n  consider increasing timeout or mocking long operations" },
+        { name: 'should validate token format', status: 'skip' as const },
+      ],
+    },
+    versions: [{ id: nanoid(), content: 'Tests ran. 2 failures to address:' }],
+  },
+  // ---------------------------------------------------------------------------
+  // Checkpoint list
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'How is the database migration going?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    checkpoints: [
+      { title: 'Schema design', description: 'Defined all tables and relations', status: 'complete' as const, timestamp: '2h ago' },
+      { title: 'Write migrations', description: 'Generated SQL from updated schema', status: 'complete' as const, timestamp: '1h ago' },
+      { title: 'Apply to staging', description: 'Running migrations on staging database', status: 'active' as const },
+      { title: 'Verify data integrity', description: 'Run consistency checks post-migration', status: 'pending' as const },
+      { title: 'Deploy to production', description: 'Apply to production once staging is confirmed', status: 'pending' as const },
+    ],
+    versions: [{ id: nanoid(), content: 'Migration in progress — staging step is active:' }],
+  },
+  // ---------------------------------------------------------------------------
+  // Persona (voice mode)
+  // ---------------------------------------------------------------------------
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Switch to voice mode.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    persona: { state: 'speaking' as const, name: 'Claude' },
+    versions: [{ id: nanoid(), content: "Voice mode active. I'm listening." }],
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -389,6 +493,73 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
                             <Tool key={part.toolCallId} toolPart={part} />
                           ))}
                         </div>
+                      ) : null}
+
+                      {/* Commit card */}
+                      {'commit' in msg && msg.commit ? (
+                        <Commit hash={msg.commit.hash} message={msg.commit.message}>
+                          <div className="flex items-center gap-2">
+                            <CommitAuthorAvatar name={msg.commit.author} />
+                            <CommitTimestamp date={msg.commit.date} />
+                            <CommitCopyButton className="ml-auto" />
+                          </div>
+                          <CommitFiles>
+                            {msg.commit.files.map((f) => (
+                              <CommitFile
+                                key={f.path}
+                                path={f.path}
+                                status={f.status}
+                                additions={f.additions}
+                                deletions={f.deletions}
+                              />
+                            ))}
+                          </CommitFiles>
+                        </Commit>
+                      ) : null}
+
+                      {/* Test results */}
+                      {'testResults' in msg && msg.testResults ? (
+                        <TestResults
+                          status={msg.testResults.status}
+                          suiteName={msg.testResults.suiteName}
+                        >
+                          <TestResultsHeader
+                            passed={msg.testResults.passed}
+                            failed={msg.testResults.failed}
+                            skipped={msg.testResults.skipped}
+                          />
+                          <TestResultsBody>
+                            {msg.testResults.cases.map((c) => (
+                              <TestCase
+                                key={c.name}
+                                name={c.name}
+                                status={c.status}
+                                duration={'duration' in c ? c.duration : undefined}
+                                error={'error' in c ? c.error : undefined}
+                              />
+                            ))}
+                          </TestResultsBody>
+                        </TestResults>
+                      ) : null}
+
+                      {/* Checkpoint list */}
+                      {'checkpoints' in msg && msg.checkpoints?.length ? (
+                        <CheckpointList>
+                          {msg.checkpoints.map((cp) => (
+                            <Checkpoint
+                              key={cp.title}
+                              status={cp.status}
+                              title={cp.title}
+                              description={cp.description}
+                              timestamp={'timestamp' in cp ? cp.timestamp : undefined}
+                            />
+                          ))}
+                        </CheckpointList>
+                      ) : null}
+
+                      {/* Persona */}
+                      {'persona' in msg && msg.persona ? (
+                        <Persona state={msg.persona.state} name={msg.persona.name} />
                       ) : null}
 
                       {/* Message text */}
