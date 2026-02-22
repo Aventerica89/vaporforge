@@ -1026,12 +1026,22 @@ function startQuery(ws) {
 
   // If client disconnects while agent is still running, mark dirty disconnect.
   // The buffer file is left intact so the replay endpoint can serve it.
+  // Grace period: wait 30s before killing the agent — transient WS drops should
+  // not abort in-flight work. A new connection kills any lingering activeChild
+  // immediately via the check at the top of wss.on('connection').
   ws.on('close', () => {
     console.log('[ws-agent-server] client disconnected');
     if (child && !child.killed) {
       clientDisconnectedEarly = true;
-      try { child.kill('SIGTERM'); } catch {}
-      activeChild = null;
+      const killTimer = setTimeout(() => {
+        if (child && !child.killed) {
+          console.log('[ws-agent-server] grace period expired, killing agent');
+          try { child.kill('SIGTERM'); } catch {}
+          activeChild = null;
+        }
+      }, 30000);
+      // Clear timer if child exits naturally before grace period expires
+      child.once('exit', () => clearTimeout(killTimer));
     }
   });
 }

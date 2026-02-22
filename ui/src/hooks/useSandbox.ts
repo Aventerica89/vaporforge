@@ -756,6 +756,15 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           } else if (!content && parts.length === 0) {
             parts.push({ type: 'error', content: 'Stream interrupted. Could not reconnect.' });
           }
+          // Persist recovered content — replay path skips the normal 'done' handler
+          if (content) {
+            sdkApi.persistMessage(
+              session.id,
+              content,
+              '', // sdkSessionId unknown after reconnect
+              streamUsage?.costUsd
+            ).catch(() => {});
+          }
         } catch { /* replay is best-effort — failures fall through to normal completion */ }
       }
 
