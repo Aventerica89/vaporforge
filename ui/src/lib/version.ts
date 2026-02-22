@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Fix BorderTrail corner radius: replace rect(... round) offsetPath (inconsistent browser support) with ResizeObserver + path() using computed SVG rounded-rect string; clamps radius to half min-dimension so it never overflows' },
   { date: '2026-02-22', summary: 'Playground redesign (input-prompt-redesign branch): ai-elements compound components (code-block, context, conversation, image, message, reasoning, sources), motion-primitives BorderTrail on PromptInput during streaming (purple gradient, radius=24 matches rounded-3xl), ChatPreview mock conversation with code/image blocks, close/reopen panel toggle, ibelick-converter agent' },
   { date: '2026-02-22', summary: 'Stream reconnect hardening: (1) persist after replay — useSandbox.ts calls persistMessage() after replay recovery so message survives page reload; (2) 30s grace period on WS close in ws-agent-server.js — transient disconnects no longer abort in-flight agent work, new connections still kill lingering activeChild immediately' },
   { date: '2026-02-21', summary: 'Smart Context Phase 2: auto session summaries — session-summarizer.ts generates AI summary (Haiku/Gemini Flash if API key configured) or rule-based fallback; persist endpoint triggers every 10 messages, writes to /workspace/.vaporforge/session-summary.md via sandboxManager.writeFile(); gather-context.sh ### Previous Session block picks it up on next session start' },
