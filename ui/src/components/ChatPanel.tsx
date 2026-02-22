@@ -9,6 +9,11 @@ import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { SessionRemote } from '@/components/SessionRemote';
+import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
+import { PromptActionBar } from '@/components/mobile/PromptActionBar';
+import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
+import type { MobileTab } from '@/components/mobile/MobileTabBar';
+import type { SubView } from '@/hooks/useMobileNav';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';
@@ -216,42 +221,6 @@ function ModelSelector({
   );
 }
 
-// AutonomySelector — three pills for permission mode selection
-// ---------------------------------------------------------------------------
-
-const AUTONOMY_OPTIONS = [
-  { key: 'conservative', label: 'C', title: 'Conservative — Claude asks before making changes' },
-  { key: 'standard',     label: 'S', title: 'Standard — Claude accepts edits automatically' },
-  { key: 'autonomous',   label: 'A', title: 'Autonomous — Full bypass, no confirmation prompts' },
-] as const;
-
-function AutonomySelector({
-  selected,
-  onSelect,
-}: {
-  selected: 'conservative' | 'standard' | 'autonomous';
-  onSelect: (m: 'conservative' | 'standard' | 'autonomous') => void;
-}) {
-  return (
-    <div className="flex items-center gap-0.5 rounded-md border border-border/40 bg-muted/20 p-0.5">
-      {AUTONOMY_OPTIONS.map(({ key, label, title }) => (
-        <button
-          key={key}
-          onClick={() => onSelect(key)}
-          title={title}
-          className={`rounded px-1.5 py-1 text-xs font-semibold font-mono transition-colors ${
-            selected === key
-              ? 'bg-amber-500/80 text-white'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // ChatPanel
 // ---------------------------------------------------------------------------
@@ -261,9 +230,18 @@ interface ChatPanelProps {
   compact?: boolean;
   /** Primary workspace mode — hides internal header (chat IS the main area) */
   primary?: boolean;
+  /** Mobile-only: navigate to a tab (provided by MobileLayout) */
+  onMobileTabChange?: (tab: MobileTab) => void;
+  /** Mobile-only: navigate to a sub-view (provided by MobileLayout) */
+  onMobileNavigate?: (view: SubView) => void;
 }
 
-export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) {
+export function ChatPanel({
+  compact = false,
+  primary = false,
+  onMobileTabChange,
+  onMobileNavigate,
+}: ChatPanelProps) {
   // Granular selectors — each subscribes only to the slice it needs
   const messageIds = useMessageIds();
   const messageCount = useMessageCount();
@@ -307,6 +285,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
 
   const [input, setInput] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
 
@@ -391,14 +370,16 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
             </span>
           </>
         )}
-        <PromptInputReforge />
-        <SessionRemote
-          sessionId={sessionId}
-          onSetPrompt={(text) => setInput(text)}
-        />
-        <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />
+        {!compact && <PromptInputReforge />}
+        {!compact && (
+          <SessionRemote
+            sessionId={sessionId}
+            onSetPrompt={(text) => setInput(text)}
+          />
+        )}
+        {!compact && <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />}
         <ModelSelector selected={selectedModel} onSelect={setModel} />
-        <AutonomySelector selected={autonomyMode} onSelect={setAutonomy} />
+        <AutonomySelectorPopup selected={autonomyMode} onSelect={setAutonomy} />
         {estimatedTokens > 0 && (
           <TokenCounter tokens={estimatedTokens} />
         )}
@@ -425,6 +406,7 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
           <PromptInputSubmit />
         </div>
       </div>
+      {compact && <PromptActionBar onMoreOpen={() => setMoreDrawerOpen(true)} />}
       <PromptInputHint />
     </PromptInput>
   );
@@ -564,6 +546,15 @@ export function ChatPanel({ compact = false, primary = false }: ChatPanelProps) 
 
           {promptInput}
         </>
+      )}
+
+      {compact && onMobileTabChange && onMobileNavigate && (
+        <PromptMoreDrawer
+          isOpen={moreDrawerOpen}
+          onClose={() => setMoreDrawerOpen(false)}
+          onTabChange={onMobileTabChange}
+          onNavigate={onMobileNavigate}
+        />
       )}
     </div>
   );

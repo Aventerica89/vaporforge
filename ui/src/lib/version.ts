@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'feat(mobile): input prompt redesign — AutonomySelectorPopup, PromptActionBar (5-icon), PromptMoreDrawer (3×2 grid bottom sheet), SessionRemote iconOnly, ChatPanel mobile wiring (conditional tool hiding, onMobileTabChange/onMobileNavigate props), MobileLayout compact nav' },
   { date: '2026-02-22', summary: 'refactor(ui): complete prompt-kit ibelick style audit — fix 7 components (Shimmer, sources, CitationCard, Tool, HandoffChain, TokenCounter, QuestionFlow): interface→type, size shorthands, shrink-0, cn() for class concat' },
   { date: '2026-02-22', summary: 'feat(playground): add Plan card and Confirmation approval widget to ChatPreview showcase — missed in initial pass' },
   { date: '2026-02-22', summary: 'feat(playground): add commit card, test results, checkpoint list, and persona to ChatPreview showcase — 4 new user+assistant message pairs demonstrating all new prompt-kit components' },
