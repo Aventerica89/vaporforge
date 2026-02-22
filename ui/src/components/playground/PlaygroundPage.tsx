@@ -232,8 +232,8 @@ function PlaygroundTabBar({
           </button>
         </div>
 
-        {/* Safe area spacer — 20px fallback for desktop browser */}
-        <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }} />
+        {/* Safe area spacer — fixed 20px in playground (desktop Chrome env() always 0) */}
+        <div style={{ height: '20px' }} />
       </nav>
 
       <MobileBottomSheet isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="More">
@@ -618,12 +618,14 @@ export function PlaygroundPage() {
         </div>
       </div>
 
-      {/* HIG Tab bar — 4 primary + More sheet */}
-      <PlaygroundTabBar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        keyboardOpen={keyboardOpen}
-      />
+      {/* HIG Tab bar — mobile only */}
+      <div className="md:hidden">
+        <PlaygroundTabBar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          keyboardOpen={keyboardOpen}
+        />
+      </div>
     </div>
   );
 }
