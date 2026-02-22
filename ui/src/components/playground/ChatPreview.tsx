@@ -9,13 +9,13 @@ import {
   MessageBranch,
   MessageBranchContent,
   MessageContent,
-  MessageResponse,
 } from '@/components/ai-elements/message';
 import {
   Reasoning,
   ReasoningContent,
   ReasoningTrigger,
-} from '@/components/ai-elements/reasoning';
+} from '@/components/prompt-kit/reasoning';
+import { Markdown } from '@/components/prompt-kit/markdown';
 import {
   Sources,
   SourcesContent,
@@ -257,9 +257,13 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
 
                       {/* Reasoning */}
                       {'reasoning' in msg && msg.reasoning ? (
-                        <Reasoning duration={msg.reasoning.duration}>
-                          <ReasoningTrigger />
-                          <ReasoningContent>{msg.reasoning.content}</ReasoningContent>
+                        <Reasoning>
+                          <ReasoningTrigger className="text-xs text-muted-foreground">
+                            Thought for {msg.reasoning.duration}s
+                          </ReasoningTrigger>
+                          <ReasoningContent markdown contentClassName="mt-2 text-xs">
+                            {msg.reasoning.content}
+                          </ReasoningContent>
                         </Reasoning>
                       ) : null}
 
@@ -308,7 +312,9 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
 
                       {/* Message text */}
                       <MessageContent>
-                        <MessageResponse>{version.content}</MessageResponse>
+                        <Markdown className="prose prose-sm dark:prose-invert max-w-none">
+                          {version.content}
+                        </Markdown>
                       </MessageContent>
 
                       {/* Inline source chips (prompt-kit HoverCard style) */}
