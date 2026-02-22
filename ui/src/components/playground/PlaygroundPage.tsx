@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Flame, Eye, Zap, Paperclip, Bookmark, MoreHorizontal, PanelLeftClose, PanelLeftOpen, ChevronDown, Check } from 'lucide-react';
+import {
+  Flame, Eye, Zap, Paperclip, Bookmark, MoreHorizontal,
+  PanelLeftClose, PanelLeftOpen, ChevronDown, Check,
+  Home, MessageSquare, FolderTree, Terminal as TerminalIcon,
+  Settings, Package, Plus, Bug,
+} from 'lucide-react';
 import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
 import type { AutonomyMode } from '@/components/prompt-input/AutonomySelectorPopup';
+import { MobileBottomSheet } from '@/components/MobileBottomSheet';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { PromptInput } from '@/components/prompt-input';
 import { PromptInputTextarea } from '@/components/prompt-input';
@@ -21,7 +27,6 @@ import {
 } from '@/components/ai-elements/context';
 import { ChatPreview } from '@/components/playground/ChatPreview';
 import { SessionIsland, type SessionStatus } from '@/components/playground/SessionIsland';
-import { MobileTabBar, type MobileTab } from '@/components/mobile/MobileTabBar';
 import { cn } from '@/lib/cn';
 
 // ---------------------------------------------------------------------------
@@ -135,6 +140,123 @@ function useVisualViewport() {
 }
 
 // ---------------------------------------------------------------------------
+// PlaygroundTabBar — 4 primary tabs + More bottom sheet (HIG: max 4 in bar)
+// ---------------------------------------------------------------------------
+
+type PlaygroundTab = 'home' | 'chat' | 'files' | 'terminal';
+
+const PRIMARY_TABS = [
+  { id: 'home' as const, label: 'Home', icon: Home },
+  { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
+  { id: 'files' as const, label: 'Files', icon: FolderTree },
+  { id: 'terminal' as const, label: 'Terminal', icon: TerminalIcon },
+] as const;
+
+const MORE_GRID_ITEMS = [
+  { id: 'settings', label: 'Settings', icon: Settings, color: 'text-muted-foreground' },
+  { id: 'plugins', label: 'Plugins', icon: Package, color: 'text-primary' },
+  { id: 'session', label: 'New Session', icon: Plus, color: 'text-primary' },
+  { id: 'bugs', label: 'Bug Tracker', icon: Bug, color: 'text-orange-400' },
+] as const;
+
+const TAB_ACTIVE = 'hsl(var(--primary))';
+const TAB_INACTIVE = 'hsl(var(--muted-foreground))';
+
+function PlaygroundTabBar({
+  activeTab,
+  onTabChange,
+  keyboardOpen,
+}: {
+  activeTab: PlaygroundTab;
+  onTabChange: (tab: PlaygroundTab) => void;
+  keyboardOpen: boolean;
+}) {
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  return (
+    <>
+      <nav
+        role="tablist"
+        className={[
+          'flex flex-col transition-transform duration-200',
+          keyboardOpen ? 'translate-y-full' : '',
+        ].filter(Boolean).join(' ')}
+        style={{
+          background: 'hsl(var(--card) / 0.94)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderTop: '0.5px solid hsl(var(--border))',
+        }}
+      >
+        <div className="flex items-stretch justify-around" style={{ height: '49px' }}>
+          {PRIMARY_TABS.map((tab) => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-label={tab.label}
+                className="flex flex-1 flex-col items-center justify-center gap-0.5"
+                style={{
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  color: isActive ? TAB_ACTIVE : TAB_INACTIVE,
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+                onClick={() => onTabChange(tab.id)}
+              >
+                <Icon size={25} strokeWidth={isActive ? 2.5 : 1.5} />
+                <span className="font-medium" style={{ fontSize: '10px' }}>{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* More — opens bottom sheet */}
+          <button
+            role="tab"
+            aria-selected={moreOpen}
+            aria-label="More"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5"
+            style={{
+              minHeight: '44px',
+              minWidth: '44px',
+              color: moreOpen ? TAB_ACTIVE : TAB_INACTIVE,
+              WebkitTapHighlightColor: 'transparent',
+            }}
+            onClick={() => setMoreOpen(true)}
+          >
+            <MoreHorizontal size={25} strokeWidth={moreOpen ? 2.5 : 1.5} />
+            <span className="font-medium" style={{ fontSize: '10px' }}>More</span>
+          </button>
+        </div>
+
+        {/* Safe area spacer — 20px fallback for desktop browser */}
+        <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 20px)' }} />
+      </nav>
+
+      <MobileBottomSheet isOpen={moreOpen} onClose={() => setMoreOpen(false)} title="More">
+        <div className="grid grid-cols-3 gap-2 pb-2">
+          {MORE_GRID_ITEMS.map(({ id, icon: Icon, label, color }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setMoreOpen(false)}
+              className="flex flex-col items-center gap-2 rounded-xl p-4 min-h-[80px] transition-colors active:scale-[0.96] hover:bg-accent active:bg-accent"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <Icon className={cn('size-6', color)} strokeWidth={1.5} />
+              <span className="text-xs font-medium text-foreground/80">{label}</span>
+            </button>
+          ))}
+        </div>
+      </MobileBottomSheet>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PlaygroundPage
 // ---------------------------------------------------------------------------
 
@@ -161,7 +283,7 @@ export function PlaygroundPage() {
   const [previewOpen, setPreviewOpen] = useState(true);
   const [status, setStatus] = useState<SessionStatus>('idle');
   const streamTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [activeTab, setActiveTab] = useState<MobileTab>('chat');
+  const [activeTab, setActiveTab] = useState<PlaygroundTab>('chat');
   const { vpHeight, keyboardOpen } = useVisualViewport();
 
   const handleSubmit = (message: string) => {
@@ -496,11 +618,10 @@ export function PlaygroundPage() {
         </div>
       </div>
 
-      {/* HIG Tab bar — same as real MobileLayout */}
-      <MobileTabBar
+      {/* HIG Tab bar — 4 primary + More sheet */}
+      <PlaygroundTabBar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        hasSession
         keyboardOpen={keyboardOpen}
       />
     </div>

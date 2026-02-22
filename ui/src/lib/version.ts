@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(playground): PlaygroundTabBar — 4 primary tabs + More bottom sheet (HIG max-4); safe area fallback 0px→20px in MobileTabBar' },
   { date: '2026-02-22', summary: 'fix(playground): add MobileTabBar to PlaygroundPage; fix AutonomySelectorPopup active card background (bg-card)' },
   { date: '2026-02-22', summary: 'feat(mobile): input prompt redesign — AutonomySelectorPopup, PromptActionBar (5-icon), PromptMoreDrawer (3×2 grid bottom sheet), SessionRemote iconOnly, ChatPanel mobile wiring (conditional tool hiding, onMobileTabChange/onMobileNavigate props), MobileLayout compact nav' },
   { date: '2026-02-22', summary: 'refactor(ui): complete prompt-kit ibelick style audit — fix 7 components (Shimmer, sources, CitationCard, Tool, HandoffChain, TokenCounter, QuestionFlow): interface→type, size shorthands, shrink-0, cn() for class concat' },
