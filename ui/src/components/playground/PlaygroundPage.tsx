@@ -391,10 +391,11 @@ export function PlaygroundPage() {
               />
             </div>
 
-            {/* Suggestions + prompt pinned at bottom — always visible */}
-            <div className="w-full space-y-2">
-              {suggestions}
-              {promptInput}
+            {/* Suggestions + prompt pinned at bottom.
+                Mobile: suggestions above prompt. Desktop: prompt above suggestions. */}
+            <div className="w-full flex flex-col gap-2">
+              <div className="order-1 md:order-2">{suggestions}</div>
+              <div className="order-2 md:order-1">{promptInput}</div>
             </div>
         </div>
       </div>
