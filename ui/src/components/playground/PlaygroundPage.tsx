@@ -73,10 +73,9 @@ const SUGGESTION_GROUPS = [
 // ---------------------------------------------------------------------------
 
 const AGENT_OPTIONS = [
-  { id: 'default', label: 'Claude', description: 'Default assistant' },
-  { id: 'architect', label: 'Architect', description: 'System design and planning' },
-  { id: 'code-review', label: 'Code Review', description: 'Review for quality and security' },
-  { id: 'debugger', label: 'Debugger', description: 'Systematic bug investigation' },
+  { id: 'opus', label: 'Opus 4.6', description: 'Most capable — complex reasoning and tasks' },
+  { id: 'sonnet', label: 'Sonnet 4.6', description: 'Balanced — fast and highly capable' },
+  { id: 'haiku', label: 'Haiku 4.5', description: 'Fastest — lightweight tasks and quick edits' },
 ] as const;
 
 type AgentId = typeof AGENT_OPTIONS[number]['id'];
@@ -169,7 +168,7 @@ export function PlaygroundPage() {
   const [input, setInput] = useState('');
   const [activeCategory, setActiveCategory] = useState('');
   const [sessionOpen, setSessionOpen] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<AgentId>('default');
+  const [selectedAgent, setSelectedAgent] = useState<AgentId>('sonnet');
   const [agentOpen, setAgentOpen] = useState(false);
   const agentRef = useRef<HTMLDivElement>(null);
 
