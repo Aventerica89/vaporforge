@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Tune GlowEffect on submit button: scale 1.15→1.3 (pulse mode, was too subtle)' },
   { date: '2026-02-22', summary: 'Fix shimmer layout: submit button pinned right via flex-1 spacer; shimmer purple (#7c3aed→#d946ef); TextShimmer style merge fix (spread ...style after defaults so backgroundImage override works)' },
   { date: '2026-02-22', summary: 'TextShimmer prompt-kit component: shimmer keyframe in tailwind.config.js, "Claude is thinking..." shimmer in playground during streaming; submit button rounded-full + pulse glow (scale 1.15) replacing colorShift (was too erratic)' },
   { date: '2026-02-22', summary: 'Fix GlowEffect visibility on submit button: scale 0.85→1.4 so glow extends beyond bg-primary button edges and renders as a visible vapor-purple halo' },

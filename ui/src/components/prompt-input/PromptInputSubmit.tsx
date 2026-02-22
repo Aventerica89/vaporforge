@@ -47,7 +47,7 @@ export function PromptInputSubmit() {
               mode="pulse"
               blur="soft"
               duration={2.5}
-              scale={1.15}
+              scale={1.3}
             />
           </motion.div>
         )}
