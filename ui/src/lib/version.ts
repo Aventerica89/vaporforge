@@ -134,6 +134,7 @@ export const DEV_CHANGELOG: readonly DevLogEntry[] = [
   { date: '2026-02-20', summary: 'Add cost meter — captures token usage from SDK result event, shown as input/output counts below assistant messages' },
   { date: '2026-02-20', summary: 'Fix cost meter pipeline: capture total_cost_usd from SDK result, pass through done frame, fix api.ts usage passthrough bug, show cost per-message and session total' },
   { date: '2026-02-22', summary: 'Upgrade StreamingIndicator: use ThinkingBar (prompt-kit TextShimmer) for thinking/reasoning states; keep AgentStatusBadge for tool-running only' },
+  { date: '2026-02-22', summary: 'Replace ai-elements Shimmer with prompt-kit TextShimmer in ReasoningBlock for consistent CSS-based shimmer animation' },
 ];
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
