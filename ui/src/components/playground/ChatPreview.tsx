@@ -34,6 +34,12 @@ import { Image } from '@/components/ai-elements/image';
 import { Source, SourceContent, SourceTrigger } from '@/components/prompt-kit/source';
 import { PulseLoader } from '@/components/prompt-kit/loader';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import {
+  Steps,
+  StepsContent,
+  StepsItem,
+  StepsTrigger,
+} from '@/components/prompt-kit/steps';
 import type { SessionStatus } from '@/components/playground/SessionIsland';
 
 // ---------------------------------------------------------------------------
@@ -119,6 +125,39 @@ const MOCK_MESSAGES = [
   {
     key: nanoid(),
     from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'What are the best practices for structuring a Next.js project?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    stepsWithSources: {
+      trigger: 'Web search: Next.js project structure best practices',
+      items: ['Searching across curated sources...', 'Top matches'],
+      sources: [
+        { href: 'https://nextjs.org/docs', label: 'nextjs.org/docs', title: 'Next.js Docs', description: 'Official documentation covering App Router, file conventions, and project layout.' },
+        { href: 'https://github.com/vercel/next.js', label: 'github.com/vercel/next.js', title: 'Next.js on GitHub', description: 'Source repo with examples, RFCs, and community conventions.' },
+      ],
+      trailing: 'Extracting key sections and summarizing…',
+    },
+    versions: [{ id: nanoid(), content: 'Here\'s what the community converges on:' }],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
+    versions: [{ id: nanoid(), content: 'Can you scan all my files and check for any issues?' }],
+  },
+  {
+    key: nanoid(),
+    from: 'assistant' as const,
+    stepsWithShimmer: {
+      triggerText: 'Ensuring all files are included',
+      items: ['Planning next actions…', 'Searching repository files…', 'Parsing and extracting key sections…', 'Ready to respond'],
+    },
+    versions: [{ id: nanoid(), content: 'Scan complete. Found 3 items worth reviewing.' }],
+  },
+  {
+    key: nanoid(),
+    from: 'user' as const,
     versions: [{ id: nanoid(), content: 'Can you generate a simple logo for a React app?' }],
   },
   {
@@ -176,6 +215,49 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
                           <ReasoningTrigger />
                           <ReasoningContent>{msg.reasoning.content}</ReasoningContent>
                         </Reasoning>
+                      ) : null}
+
+                      {/* Steps with Sources */}
+                      {'stepsWithSources' in msg && msg.stepsWithSources ? (
+                        <Steps defaultOpen>
+                          <StepsTrigger>{msg.stepsWithSources.trigger}</StepsTrigger>
+                          <StepsContent>
+                            {msg.stepsWithSources.items.map((item) => (
+                              <StepsItem key={item}>{item}</StepsItem>
+                            ))}
+                            <div className="flex flex-wrap gap-1.5">
+                              {msg.stepsWithSources.sources.map((src) => (
+                                <Source key={src.href} href={src.href}>
+                                  <SourceTrigger label={src.label} showFavicon />
+                                  <SourceContent title={src.title} description={src.description} />
+                                </Source>
+                              ))}
+                            </div>
+                            <StepsItem>{msg.stepsWithSources.trailing}</StepsItem>
+                          </StepsContent>
+                        </Steps>
+                      ) : null}
+
+                      {/* Steps with TextShimmer trigger */}
+                      {'stepsWithShimmer' in msg && msg.stepsWithShimmer ? (
+                        <Steps defaultOpen>
+                          <StepsTrigger>
+                            <TextShimmer
+                              className="text-sm"
+                              style={{
+                                backgroundImage:
+                                  'linear-gradient(to right, #a1a1aa 0%, #71717a 40%, #a1a1aa 100%)',
+                              }}
+                            >
+                              {msg.stepsWithShimmer.triggerText}
+                            </TextShimmer>
+                          </StepsTrigger>
+                          <StepsContent>
+                            {msg.stepsWithShimmer.items.map((item) => (
+                              <StepsItem key={item}>{item}</StepsItem>
+                            ))}
+                          </StepsContent>
+                        </Steps>
                       ) : null}
 
                       {/* Message text */}

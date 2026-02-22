@@ -213,10 +213,10 @@ export function SessionIsland({
   const shouldReduceMotion = useReducedMotion();
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Pill */}
+    <div className="flex min-w-[200px] flex-col items-center gap-3">
+      {/* Pill — min-w-[200px] on container keeps items-center stable so FLIP only moves y */}
       <motion.div
-        layout="size"
+        layout
         style={{ borderRadius: 32 }}
         className="overflow-hidden border border-purple-500/20 bg-zinc-950/90 backdrop-blur-sm"
         transition={
