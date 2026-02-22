@@ -216,7 +216,7 @@ export function SessionIsland({
     <div className="flex flex-col items-center gap-3">
       {/* Pill */}
       <motion.div
-        layout
+        layout="size"
         style={{ borderRadius: 32 }}
         className="overflow-hidden border border-purple-500/20 bg-zinc-950/90 backdrop-blur-sm"
         transition={

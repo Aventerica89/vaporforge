@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Install prompt-kit tool.tsx (collapsible tool-call card: input-streaming/input-available/output-available/output-error states); fix pill x-wobble via layout="size" (animates width only, not position)' },
   { date: '2026-02-22', summary: 'Motion perf: TooltipButton transition-all → transition-[colors] (scoped to paint only); controls AnimatePresence mode=popLayout so siblings animate up immediately on exit instead of waiting for fade' },
   { date: '2026-02-22', summary: 'SessionIsland always visible; Session toggle now only shows/hides the button row (controlsOpen prop), pill stays on screen at all times' },
   { date: '2026-02-22', summary: 'HelpButton popover: purple border (border-purple-500/40), wider (w-72), architecture blurb header explaining real Linux container model, sharper per-control copy' },
