@@ -370,26 +370,16 @@ export function PlaygroundPage() {
                 {headline}
               </motion.div>
 
-              <AnimatePresence>
-                {sessionOpen && (
-                  <motion.div
-                    key="session-island"
-                    layout
-                    initial={{ opacity: 0, y: -6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ type: 'spring', stiffness: 500, damping: 42, mass: 0.5 }}
-                  >
-                    <SessionIsland
-                      status={status}
-                      onNew={handleNew}
-                      onPause={handlePause}
-                      onResume={handleResume}
-                      onStop={handleStop}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <motion.div layout transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
+                <SessionIsland
+                  status={status}
+                  controlsOpen={sessionOpen}
+                  onNew={handleNew}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                  onStop={handleStop}
+                />
+              </motion.div>
 
               <motion.div layout className="w-full" transition={{ type: 'spring', stiffness: 400, damping: 40 }}>
                 {promptInput}

@@ -9,6 +9,7 @@ export type SessionStatus = 'idle' | 'streaming' | 'paused';
 
 interface SessionIslandProps {
   status: SessionStatus;
+  controlsOpen?: boolean;
   onNew: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -203,6 +204,7 @@ const ISLAND_CONTENT = {
 
 export function SessionIsland({
   status,
+  controlsOpen = false,
   onNew,
   onPause,
   onResume,
@@ -236,7 +238,16 @@ export function SessionIsland({
         </AnimatePresence>
       </motion.div>
 
-      {/* Button row + help */}
+      {/* Button row + help — shown/hidden by controlsOpen */}
+      <AnimatePresence>
+      {controlsOpen && (
+      <motion.div
+        key="controls"
+        initial={{ opacity: 0, y: -4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 42, mass: 0.5 }}
+      >
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 rounded-full border border-zinc-800/60 bg-zinc-950/60 p-1.5 backdrop-blur-sm">
           <TooltipButton
@@ -271,6 +282,9 @@ export function SessionIsland({
 
         <HelpButton />
       </div>
+      </motion.div>
+      )}
+      </AnimatePresence>
     </div>
   );
 }
