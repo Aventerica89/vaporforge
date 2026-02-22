@@ -127,7 +127,7 @@ const Tool = ({ toolPart, defaultOpen = false, className }: ToolProps) => {
   return (
     <div
       className={cn(
-        "border-border mt-3 overflow-hidden rounded-lg border",
+        "mt-3 overflow-hidden rounded-lg border border-teal-500/40",
         className
       )}
     >

@@ -24,12 +24,11 @@ import {
 } from '@/components/ai-elements/sources';
 import {
   CodeBlock,
-  CodeBlockHeader,
-  CodeBlockTitle,
-  CodeBlockFilename,
-  CodeBlockActions,
-  CodeBlockCopyButton,
-} from '@/components/ai-elements/code-block';
+  CodeBlockCode,
+  CodeBlockGroup,
+} from '@/components/prompt-kit/code-block';
+import { Check, Copy } from 'lucide-react';
+import { useState } from 'react';
 import { Image } from '@/components/ai-elements/image';
 import { Source, SourceContent, SourceTrigger } from '@/components/prompt-kit/source';
 import { PulseLoader } from '@/components/prompt-kit/loader';
@@ -179,6 +178,53 @@ const MOCK_MESSAGES = [
 ];
 
 // ---------------------------------------------------------------------------
+// CodeBlockWithCopy — prompt-kit CodeBlock with inline header + copy button
+// ---------------------------------------------------------------------------
+
+interface CodeBlockWithCopyProps {
+  code: string;
+  language: string;
+  filename?: string;
+}
+
+function CodeBlockWithCopy({ code, language, filename }: CodeBlockWithCopyProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <CodeBlock>
+      <CodeBlockGroup className="border-b border-zinc-700/60 py-2 pl-4 pr-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300">
+            {language}
+          </div>
+          {filename && (
+            <span className="text-xs text-zinc-400">{filename}</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-700/60 hover:text-zinc-200"
+        >
+          {copied ? (
+            <Check className="size-3.5 text-green-400" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+        </button>
+      </CodeBlockGroup>
+      <CodeBlockCode code={code} language={language} />
+    </CodeBlock>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ChatPreview
 // ---------------------------------------------------------------------------
 
@@ -279,16 +325,11 @@ export function ChatPreview({ status = 'idle' }: ChatPreviewProps) {
 
                       {/* Code block (if present) */}
                       {'code' in version && version.code ? (
-                        <CodeBlock code={version.code} language={version.language ?? 'typescript'}>
-                          <CodeBlockHeader>
-                            <CodeBlockTitle>
-                              <CodeBlockFilename>{version.filename}</CodeBlockFilename>
-                            </CodeBlockTitle>
-                            <CodeBlockActions>
-                              <CodeBlockCopyButton />
-                            </CodeBlockActions>
-                          </CodeBlockHeader>
-                        </CodeBlock>
+                        <CodeBlockWithCopy
+                          code={version.code}
+                          language={version.language ?? 'typescript'}
+                          filename={version.filename}
+                        />
                       ) : null}
 
                       {/* Image (if present) */}

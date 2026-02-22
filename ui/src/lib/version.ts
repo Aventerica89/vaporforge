@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'Install prompt-kit code-block.tsx (CodeBlock+CodeBlockCode+CodeBlockGroup, shiki github-dark); replace ai-elements code-block in ChatPreview with CodeBlockWithCopy (header: language badge + filename + inline copy button); tool.tsx border border-border→border-teal-500/40' },
   { date: '2026-02-22', summary: 'source.tsx SourceContent HoverCard: add grid background pattern (border-purple-500/40, before: grid lines + radial mask) matching ContextContent and HelpButton popover aesthetic' },
   { date: '2026-02-22', summary: 'Install prompt-kit steps.tsx; add Steps+Sources and Steps+TextShimmer to ChatPreview; fix pill y-animation (min-w-[200px] stabilizes container so FLIP only moves y, revert layout="size" to layout); add animation-perf-check PreToolUse hook to settings.json' },
   { date: '2026-02-22', summary: 'Install prompt-kit tool.tsx (collapsible tool-call card: input-streaming/input-available/output-available/output-error states); fix pill x-wobble via layout="size" (animates width only, not position)' },
