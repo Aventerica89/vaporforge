@@ -8,6 +8,13 @@ import {
 import { cn } from '@/lib/cn';
 import { BookIcon, ChevronDownIcon } from 'lucide-react';
 
+/** Backward-compat type used by QuickChatPanel */
+export type SourceFile = {
+  path: string;
+  score?: number;
+  snippet?: string;
+};
+
 export type SourcesProps = ComponentProps<'div'>;
 
 export const Sources = ({ className, ...props }: SourcesProps) => (
