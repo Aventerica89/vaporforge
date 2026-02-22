@@ -10,13 +10,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-interface ToolDisplayProps {
+export type ToolDisplayProps = {
   toolName: string;
   state: string;
   input: unknown;
   output?: unknown;
   errorText?: string;
-}
+};
 
 const STATE_CONFIG: Record<string, { label: string; color: string; Icon: typeof Wrench }> = {
   'input-streaming': { label: 'Running...', color: 'text-blue-400', Icon: Loader2 },
@@ -72,35 +72,35 @@ export function ToolDisplay({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-3 py-2 hover:bg-muted/50 transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2 transition-colors hover:bg-muted/50"
       >
-        <Wrench className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <Wrench className="size-3.5 shrink-0 text-muted-foreground" />
         <span className="font-medium text-foreground">{displayName}</span>
         {inputSummary && !open && (
-          <span className="truncate text-muted-foreground/70 max-w-[200px]">
+          <span className="max-w-[200px] truncate text-muted-foreground/70">
             {inputSummary}
           </span>
         )}
-        <span className={cn('ml-auto flex items-center gap-1 shrink-0', color)}>
-          <Icon className={cn('h-3 w-3', isActive && 'animate-spin')} />
+        <span className={cn('ml-auto flex shrink-0 items-center gap-1', color)}>
+          <Icon className={cn('size-3', isActive && 'animate-spin')} />
           <span className="text-[10px] font-medium">{label}</span>
         </span>
         <ChevronDown
           className={cn(
-            'h-3 w-3 text-muted-foreground/50 transition-transform shrink-0',
-            open && 'rotate-180'
+            'size-3 shrink-0 text-muted-foreground/50 transition-transform',
+            open && 'rotate-180',
           )}
         />
       </button>
 
       {open && (
-        <div className="border-t border-border/30 px-3 py-2 space-y-2">
+        <div className="space-y-2 border-t border-border/30 px-3 py-2">
           {input != null && (
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
                 Input
               </span>
-              <pre className="mt-0.5 whitespace-pre-wrap break-all text-muted-foreground font-mono text-[11px] leading-relaxed">
+              <pre className="mt-0.5 whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-muted-foreground">
                 {formatInput(input)}
               </pre>
             </div>
@@ -110,10 +110,12 @@ export function ToolDisplay({
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
                 {errorText ? 'Error' : 'Output'}
               </span>
-              <pre className={cn(
-                'mt-0.5 whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed max-h-60 overflow-y-auto',
-                errorText ? 'text-red-400' : 'text-foreground/80'
-              )}>
+              <pre
+                className={cn(
+                  'mt-0.5 max-h-60 overflow-y-auto whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed',
+                  errorText ? 'text-red-400' : 'text-foreground/80',
+                )}
+              >
                 {errorText || formatOutput(output)}
               </pre>
             </div>

@@ -1,11 +1,11 @@
 import { ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-interface CitationCardProps {
+export type CitationCardProps = {
   url: string;
   content?: string;
   className?: string;
-}
+};
 
 function extractDomain(url: string): string {
   try {
@@ -52,32 +52,29 @@ export function CitationCard({ url, content, className }: CitationCardProps) {
       rel="noopener noreferrer"
       className={cn(
         'group flex flex-col gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5',
-        'hover:border-primary/30 hover:bg-muted/30 transition-colors no-underline',
+        'no-underline transition-colors hover:border-primary/30 hover:bg-muted/30',
         className,
       )}
     >
-      {/* Domain row */}
       <div className="flex items-center gap-1.5">
         <img
           src={faviconSrc}
           alt=""
-          className="h-3.5 w-3.5 flex-shrink-0 rounded-sm opacity-70"
+          className="size-3.5 shrink-0 rounded-sm opacity-70"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.display = 'none';
           }}
         />
-        <span className="text-[10px] font-mono text-muted-foreground">{domain}</span>
-        <ExternalLink className="ml-auto h-3 w-3 flex-shrink-0 text-muted-foreground/40 opacity-0 group-hover:opacity-100 transition-opacity" />
+        <span className="font-mono text-[10px] text-muted-foreground">{domain}</span>
+        <ExternalLink className="ml-auto size-3 shrink-0 text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100" />
       </div>
 
-      {/* Title */}
-      <p className="text-xs font-medium text-foreground/90 leading-snug line-clamp-1">
+      <p className="line-clamp-1 text-xs font-medium leading-snug text-foreground/90">
         {title}
       </p>
 
-      {/* Snippet */}
       {snippet && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2">
+        <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
           {snippet}
         </p>
       )}

@@ -2,21 +2,21 @@ import { useState, useCallback } from 'react';
 import { HelpCircle, Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
-interface Question {
+type Question = {
   id: string;
   question: string;
   type: 'text' | 'select' | 'multiselect' | 'confirm';
   options?: string[];
   placeholder?: string;
   required?: boolean;
-}
+};
 
-interface QuestionFlowProps {
+type QuestionFlowProps = {
   title?: string;
   questions: Question[];
   onSubmit: (formattedAnswers: string) => void;
   onSkip?: () => void;
-}
+};
 
 type Answers = Record<string, string | string[] | boolean>;
 
@@ -111,7 +111,7 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
   if (submitted) {
     return (
       <div className="my-1.5 flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-3 py-2 text-xs text-green-400">
-        <Check className="h-3.5 w-3.5 flex-shrink-0" />
+        <Check className="size-3.5 shrink-0" />
         <span className="font-medium">Answers submitted</span>
       </div>
     );
@@ -121,7 +121,7 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
     <div className="my-1.5 rounded-lg border border-primary/30 bg-primary/5 px-3 py-3">
       {/* Header */}
       <div className="mb-3 flex items-center gap-2">
-        <HelpCircle className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
+        <HelpCircle className="size-3.5 shrink-0 text-primary" />
         <span className="text-xs font-medium text-primary">
           {title || 'A few questions before I proceed'}
         </span>
@@ -192,7 +192,7 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
                           : 'border-border/50 bg-transparent text-muted-foreground hover:border-primary/30 hover:text-foreground',
                       )}
                     >
-                      {selected && <Check className="mr-1 inline-block h-2.5 w-2.5" />}
+                      {selected && <Check className="mr-1 inline-block size-2.5" />}
                       {opt}
                     </button>
                   );
@@ -217,7 +217,7 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
           )}
         >
           Submit
-          <ChevronRight className="h-3 w-3" />
+          <ChevronRight className="size-3" />
         </button>
         {onSkip && (
           <button
