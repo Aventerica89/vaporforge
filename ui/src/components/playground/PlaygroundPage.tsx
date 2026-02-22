@@ -299,7 +299,7 @@ export function PlaygroundPage() {
             ))}
           </div>
         ) : (
-          <div className="flex w-full flex-wrap items-stretch justify-start gap-2">
+          <div className="flex w-full flex-wrap items-center justify-start gap-2">
             <ActionPill icon={Flame} onClick={() => {}}>Reforge</ActionPill>
             <ActionPill icon={Zap} onClick={() => {}}>Auto-pick</ActionPill>
             {/* Session toggle */}
