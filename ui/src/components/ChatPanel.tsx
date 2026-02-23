@@ -57,7 +57,7 @@ import {
   PromptInputAttachments,
 } from '@/components/prompt-input';
 import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
-import type { Message as MessageType, ImageAttachment } from '@/lib/types';
+import type { ImageAttachment } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Agent options — model selector dropdown
