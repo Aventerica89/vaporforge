@@ -1,10 +1,7 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ToolCallBlock } from './ToolCallBlock';
-import { ReasoningBlock } from './ReasoningBlock';
-import { ArtifactBlock } from './ArtifactBlock';
-import { ChainOfThoughtBlock } from './ChainOfThoughtBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { PlanCard } from '@/components/ai-elements/PlanCard';
@@ -12,6 +9,12 @@ import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSmoothText } from '@/hooks/useSmoothText';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/prompt-kit/reasoning';
+import { Tool } from '@/components/prompt-kit/tool';
+import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
+import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
+import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { Check, Copy } from 'lucide-react';
 
 interface MessageContentProps {
   message: Message;
@@ -50,7 +53,50 @@ function AskQuestionsBlock({ part }: { part: MessagePart }) {
   );
 }
 
-function renderPart(part: MessagePart, index: number, isStreaming = false) {
+// Verbatim from ChatPreview — prompt-kit CodeBlock with inline header + copy button
+interface CodeBlockWithCopyProps {
+  code: string;
+  language: string;
+  filename?: string;
+}
+
+function CodeBlockWithCopy({ code, language, filename }: CodeBlockWithCopyProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <CodeBlock>
+      <CodeBlockGroup className="border-b border-zinc-700/60 py-2 pl-4 pr-2">
+        <div className="flex items-center gap-2">
+          <div className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300">
+            {language}
+          </div>
+          {filename && <span className="text-xs text-zinc-400">{filename}</span>}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-700/60 hover:text-zinc-200"
+        >
+          {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
+        </button>
+      </CodeBlockGroup>
+      <CodeBlockCode code={code} language={language} />
+    </CodeBlock>
+  );
+}
+
+function renderPart(
+  part: MessagePart,
+  index: number,
+  isStreaming = false,
+  allParts?: MessagePart[],
+) {
   switch (part.type) {
     case 'text':
       if (!part.content) return null;
@@ -62,33 +108,72 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
 
     case 'reasoning':
       return (
-        <ReasoningBlock
-          key={index}
-          content={part.content || ''}
-          isStreaming={isStreaming}
-        />
+        <Reasoning key={index} isStreaming={isStreaming}>
+          <ReasoningTrigger className="text-xs text-muted-foreground">
+            {part.duration ? `Thought for ${part.duration}s` : 'Thinking...'}
+          </ReasoningTrigger>
+          <ReasoningContent markdown contentClassName="mt-2 text-xs">
+            {part.content || ''}
+          </ReasoningContent>
+        </Reasoning>
       );
 
     case 'tool-start': {
       if (part.name === 'create_plan' && part.input) {
-        const pi = part.input as { title: string; steps: Array<{ id: string; label: string; detail?: string }>; estimatedSteps?: number };
-        return <PlanCard key={index} title={pi.title} steps={pi.steps ?? []} estimatedSteps={pi.estimatedSteps} />;
+        const pi = part.input as {
+          title: string;
+          steps: Array<{ id: string; label: string; detail?: string }>;
+          estimatedSteps?: number;
+        };
+        return (
+          <PlanCard key={index} title={pi.title} steps={pi.steps ?? []} estimatedSteps={pi.estimatedSteps} />
+        );
       }
       if (part.name === 'ask_user_questions') {
         return <AskQuestionsBlock key={index} part={part} />;
       }
-      return <ToolCallBlock key={index} part={part} isRunning={isStreaming} />;
+      // Hide tool-start in completed messages — tool-result renders the full state
+      if (!isStreaming) return null;
+      return (
+        <Tool
+          key={index}
+          toolPart={{
+            type: part.name || 'Tool',
+            state: 'input-streaming',
+            input: part.input,
+            toolCallId: part.toolId,
+          }}
+        />
+      );
     }
 
-    case 'tool-result':
+    case 'tool-result': {
       if (part.name === 'create_plan' || part.name === 'ask_user_questions') {
         return null;
       }
-      return <ToolCallBlock key={index} part={part} />;
+      // Look up the matching tool-start to include input in the completed view
+      const matchingStart = allParts?.find(
+        (p) =>
+          p.type === 'tool-start' &&
+          (part.toolId ? p.toolId === part.toolId : p.name === part.name),
+      );
+      return (
+        <Tool
+          key={index}
+          toolPart={{
+            type: part.name || 'Tool',
+            state: 'output-available',
+            input: matchingStart?.input ?? part.input,
+            output: part.output != null ? { result: part.output } : undefined,
+            toolCallId: part.toolId,
+          }}
+        />
+      );
+    }
 
     case 'artifact':
       return (
-        <ArtifactBlock
+        <CodeBlockWithCopy
           key={index}
           code={part.content || ''}
           language={part.language || 'text'}
@@ -96,14 +181,38 @@ function renderPart(part: MessagePart, index: number, isStreaming = false) {
         />
       );
 
-    case 'chain-of-thought':
-      return part.steps ? (
-        <ChainOfThoughtBlock
-          key={index}
-          steps={part.steps}
-          isStreaming={isStreaming}
-        />
-      ) : null;
+    case 'chain-of-thought': {
+      if (!part.steps?.length) return null;
+      const isActive = part.steps.some((s) => s.status === 'active');
+      const activeStep = part.steps.find((s) => s.status === 'active');
+      const triggerLabel = isActive
+        ? (activeStep?.title ?? 'Working...')
+        : `Completed ${part.steps.length} step${part.steps.length === 1 ? '' : 's'}`;
+      return (
+        <Steps key={index} defaultOpen={isActive}>
+          <StepsTrigger>
+            {isActive ? (
+              <TextShimmer
+                className="text-sm"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(to right, #a1a1aa 0%, #71717a 40%, #a1a1aa 100%)',
+                }}
+              >
+                {triggerLabel}
+              </TextShimmer>
+            ) : (
+              triggerLabel
+            )}
+          </StepsTrigger>
+          <StepsContent>
+            {part.steps.map((step) => (
+              <StepsItem key={step.title}>{step.title}</StepsItem>
+            ))}
+          </StepsContent>
+        </Steps>
+      );
+    }
 
     case 'error':
       return (
@@ -131,7 +240,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
       <>
         {taskPlan && <TaskPlanBlock plan={taskPlan} />}
         <HandoffChain parts={message.parts} />
-        {message.parts.map((part, i) => renderPart(part, i))}
+        {message.parts.map((part, i) => renderPart(part, i, false, message.parts))}
       </>
     );
   }
@@ -167,11 +276,13 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
         {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
-          // Text parts are streaming when they're the last part (still accumulating)
-          // Tool/reasoning/CoT parts use isStreaming for their own active indicators
           const isStreamingPart =
-            isLast && (part.type === 'text' || part.type === 'tool-start' || part.type === 'reasoning' || part.type === 'chain-of-thought');
-          return renderPart(part, i, isStreamingPart);
+            isLast &&
+            (part.type === 'text' ||
+              part.type === 'tool-start' ||
+              part.type === 'reasoning' ||
+              part.type === 'chain-of-thought');
+          return renderPart(part, i, isStreamingPart, parts);
         })}
       </>
     );

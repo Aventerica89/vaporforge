@@ -14,6 +14,7 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 2. **OAuth tokens do NOT work with `@ai-sdk/anthropic` in CF Workers.** QuickChat, Code Transform, and Analyze features require explicit API keys (`sk-ant-api01-*`) stored in user secrets. Only sandbox sessions use OAuth tokens (passed to Claude SDK inside the container). NOTE: OAuth tokens DO work with `@anthropic-ai/sdk` in Node.js via `authToken` — this is a CF Workers / `@ai-sdk/anthropic` limitation, not a universal Anthropic API restriction.
 3. **NEVER run `build:ui` alone.** Always use `npm run build` (runs build:info + build:landing + build:ui + build:merge). Running only build:ui leaves stale code in `dist/`.
 4. **DEV_CHANGELOG on every commit.** Before every `git commit`, add a new entry to `DEV_CHANGELOG` in `ui/src/lib/version.ts` with today's date and a one-line summary. This is separate from `CHANGELOG` (feature releases only). Stage the file before committing.
+5. **`ui/src/components/playground/` is READ-ONLY — NEVER MODIFY.** This directory is the canonical UI/UX source of truth. You may ONLY use `Read` on these files. Never `Edit`, `Write`, or run any `Bash` command that touches them. The playground is protected until the user explicitly lifts this restriction. To replicate playground UI into live components: read it, copy it verbatim, wire up real store/state in the destination file only.
 
 ## Architecture
 

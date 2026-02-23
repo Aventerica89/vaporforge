@@ -44,8 +44,6 @@ import {
   PromptInput,
   PromptInputTextarea,
   PromptInputSubmit,
-  PromptInputActions,
-  PromptInputSpeech,
   PromptInputSlashMenu,
   PromptInputAttachments,
 } from '@/components/prompt-input';
@@ -423,9 +421,7 @@ export function ChatPanel({
         </div>
       </div>
       {/* Desktop submit row */}
-      <div className="hidden md:flex justify-end items-center gap-1 px-2 pb-2">
-        <PromptInputActions />
-        <PromptInputSpeech />
+      <div className="hidden md:flex justify-end px-2 pb-2">
         <PromptInputSubmit />
       </div>
     </PromptInput>
@@ -463,14 +459,14 @@ export function ChatPanel({
           type="button"
           onClick={() => setSessionOpen((v) => !v)}
           className={cn(
-            'flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium transition-colors',
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
             sessionOpen
-              ? 'bg-purple-500/15 text-purple-400'
-              : 'bg-primary/10 text-primary hover:bg-primary/20',
+              ? 'bg-purple-500/20 text-purple-400'
+              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
           )}
         >
           <Bookmark className="h-3 w-3" />
-          Session
+          <span>Session</span>
         </button>
       </div>
 
@@ -605,7 +601,9 @@ export function ChatPanel({
 
       {isEmpty ? (
         /* Welcome state — SessionIsland + headline + input + pills */
-        <div className="flex h-full flex-col items-center px-4 pb-4 md:justify-center">
+        <div className="relative flex h-full flex-col items-center px-4 pb-4 md:justify-center">
+          {/* Grid background — matches PlaygroundPage */}
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
           <div className="flex flex-1 md:flex-none min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
             <div className="w-full max-w-2xl space-y-5 flex flex-col items-center">
               <div className="text-center">
