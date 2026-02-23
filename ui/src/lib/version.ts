@@ -1,7 +1,7 @@
 // Single source of truth for app version and changelog
 // Update this file when releasing new versions
 
-export const APP_VERSION = '0.29.0';
+export const APP_VERSION = '0.30.0';
 
 export interface ChangelogEntry {
   readonly version: string;
@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-23', summary: 'chore: bump version 0.29.0 → 0.30.0 (mobile chat design parity release)' },
   { date: '2026-02-23', summary: 'refactor(ui): mobile chat design parity — bg-background on ChatPanel outer, MobileMemoizedMessageItem+MobileStreamingMessage using ai-elements Message (no avatar/footer/timestamps), Conversation/ConversationContent/ConversationScrollButton for mobile message list, ThinkingBar on empty stream, remove compact clear button, pl-4 pt-3 textarea, PromptActionBar pb-2/pr-2/size-10 inline classes matching reference' },
   { date: '2026-02-22', summary: 'feat(ui): hash deep links + session naming from repo + refresh persistence — extractRepoName()+deduplicateSessionName() in session-names.ts; new hash-nav.ts with parseHash()/buildHash()/HashState; Layout.tsx: remove localStorage.removeItem on mount, restore state from URL hash after loadSessions(), reactive hash write effect (replaceState), hashchange listener for back/forward' },
   { date: '2026-02-22', summary: 'feat(ui): smart context phase 3 — surface session summary in UI: KV storage of summary on persist (summary:{sessionId}), GET /api/sdk/summary/:sessionId endpoint, summaryApi.get() in api.ts, loadSessionSummary + dismissCompactionDone actions in useSandbox; CompactionBanner now transitions amber→emerald "Context compacted" with 4s auto-dismiss; Context hover card shows "Session summary" section when available' },
@@ -167,6 +168,22 @@ export const DEV_CHANGELOG: readonly DevLogEntry[] = [
 ];
 
 export const CHANGELOG: readonly ChangelogEntry[] = [
+  {
+    version: '0.30.0',
+    date: '2026-02-23',
+    tag: 'feature',
+    title: 'Mobile Chat Redesign — Clean Reference UI',
+    items: [
+      'Mobile chat now matches the playground reference design exactly',
+      'Removed Claude avatar, timestamps, token counters, and message action buttons from mobile view',
+      'User bubbles use bg-secondary style (no more cyan primary bubbles)',
+      'Chat background darker (bg-background instead of bg-card) for better contrast',
+      'Thinking indicator shows animated "Claude is thinking..." bar during empty stream state',
+      'Scroll-to-bottom button added to mobile message list',
+      'Prompt input has correct padding and layout matching reference spec',
+      'Desktop and iPad rendering unchanged — all improvements are mobile-only',
+    ],
+  },
   {
     version: '0.29.0',
     date: '2026-02-20',
