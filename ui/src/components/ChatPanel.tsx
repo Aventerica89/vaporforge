@@ -109,14 +109,34 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
 
 function CompactionBanner() {
   const isCompacting = useSandboxStore((s) => s.isCompacting);
-  if (!isCompacting) return null;
+  const compactionDone = useSandboxStore((s) => s.compactionDone);
+  const dismissCompactionDone = useSandboxStore((s) => s.dismissCompactionDone);
 
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400/80">
-      <BrainCircuit className="h-3.5 w-3.5 shrink-0 animate-pulse" />
-      <span>Compacting context — Claude is condensing the conversation to free up memory...</span>
-    </div>
-  );
+  useEffect(() => {
+    if (!compactionDone) return;
+    const timer = setTimeout(() => dismissCompactionDone(), 4000);
+    return () => clearTimeout(timer);
+  }, [compactionDone, dismissCompactionDone]);
+
+  if (isCompacting) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400/80">
+        <BrainCircuit className="h-3.5 w-3.5 shrink-0 animate-pulse" />
+        <span>Compacting context — Claude is condensing the conversation to free up memory...</span>
+      </div>
+    );
+  }
+
+  if (compactionDone) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400/80">
+        <BrainCircuit className="h-3.5 w-3.5 shrink-0" />
+        <span>Context compacted — session summary saved</span>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -226,6 +246,7 @@ export function ChatPanel({
   const setAutonomy = useSandboxStore((s) => s.setAutonomy);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
   const messagesById = useSandboxStore((s) => s.messagesById);
+  const sessionSummary = useSandboxStore((s) => s.sessionSummary);
 
   const estimatedTokens = useMemo(() => {
     let chars = 0;
@@ -541,6 +562,16 @@ export function ChatPanel({
               <ContextInputUsage />
               <ContextOutputUsage />
             </ContextContentBody>
+            {sessionSummary && (
+              <ContextContentBody className="space-y-1.5">
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
+                  Session summary
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-6">
+                  {sessionSummary}
+                </p>
+              </ContextContentBody>
+            )}
             <ContextContentFooter />
           </ContextContent>
         </Context>
