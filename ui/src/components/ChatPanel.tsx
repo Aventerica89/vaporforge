@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/cn';
-import { Trash2, Loader2, ArrowDown, Paperclip, Code, Bug, TestTube, Lightbulb, BrainCircuit, X } from 'lucide-react';
+import {
+  Trash2, Loader2, ArrowDown, Paperclip, BrainCircuit, X,
+  Flame, Eye, Zap, Bookmark, MoreHorizontal, ChevronDown, Check,
+} from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
-import { TokenCounter } from '@/components/elements/TokenCounter';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { chatApi, filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
@@ -10,13 +13,26 @@ import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import { SessionRemote } from '@/components/SessionRemote';
 import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
-import { PromptActionBar } from '@/components/mobile/PromptActionBar';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
 import type { MobileTab } from '@/components/mobile/MobileTabBar';
 import type { SubView } from '@/hooks/useMobileNav';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';
+import { ReforgeModal } from '@/components/chat/ReforgeModal';
+import { BorderTrail } from '@/components/motion-primitives/border-trail';
+import {
+  Context,
+  ContextTrigger,
+  ContextContent,
+  ContextContentHeader,
+  ContextContentBody,
+  ContextContentFooter,
+  ContextInputUsage,
+  ContextOutputUsage,
+} from '@/components/ai-elements/context';
+import { SessionIsland } from '@/components/playground/SessionIsland';
+import { useReforge } from '@/hooks/useReforge';
 import {
   Message,
   MessageBubble,
@@ -28,32 +44,35 @@ import {
   PromptInput,
   PromptInputTextarea,
   PromptInputSubmit,
-  PromptInputTools,
-  PromptInputHint,
   PromptInputActions,
   PromptInputSpeech,
   PromptInputSlashMenu,
-  PromptInputReforge,
-  PromptInputModeToggle,
   PromptInputAttachments,
 } from '@/components/prompt-input';
 import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
 import type { Message as MessageType, ImageAttachment } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
-// Welcome state suggestion chips
+// Agent options — model selector dropdown
 // ---------------------------------------------------------------------------
 
-const WELCOME_SUGGESTIONS = [
-  { icon: Code, text: 'Explain this codebase' },
-  { icon: Bug, text: 'Help me fix a bug' },
-  { icon: TestTube, text: 'Write tests for my code' },
-  { icon: Lightbulb, text: 'Suggest improvements' },
+const AGENT_OPTIONS = [
+  { id: 'auto',   label: 'Auto',       description: 'Best model for each task (default)' },
+  { id: 'opus',   label: 'Opus 4.6',   description: 'Most capable — complex reasoning' },
+  { id: 'sonnet', label: 'Sonnet 4.6', description: 'Balanced — fast and highly capable' },
+  { id: 'haiku',  label: 'Haiku 4.5',  description: 'Fastest — lightweight tasks' },
 ] as const;
 
+const GRID_BG = [
+  'before:absolute before:inset-0 before:pointer-events-none before:z-0',
+  'before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]',
+  'before:bg-[size:24px_24px]',
+  'before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]',
+  '[&>*]:relative [&>*]:z-10',
+].join(' ');
+
 // ---------------------------------------------------------------------------
-// MemoizedMessageItem — selects its own message by ID, skips re-render when
-// the message object hasn't changed (reference equality from the map).
+// MemoizedMessageItem
 // ---------------------------------------------------------------------------
 
 const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
@@ -87,12 +106,7 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
 });
 
 // ---------------------------------------------------------------------------
-// StreamingMessage — isolated component that subscribes ONLY to streaming state.
-// Prevents the message list from re-rendering on every streaming chunk.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// CompactionBanner — shown while Claude auto-compacts its context window
+// CompactionBanner
 // ---------------------------------------------------------------------------
 
 function CompactionBanner() {
@@ -108,7 +122,7 @@ function CompactionBanner() {
 }
 
 // ---------------------------------------------------------------------------
-// FeedbackPrompt — appears once after each streaming response completes
+// FeedbackPrompt
 // ---------------------------------------------------------------------------
 
 function FeedbackPrompt() {
@@ -118,7 +132,6 @@ function FeedbackPrompt() {
   const [submitted, setSubmitted] = useState(false);
   const prevStreamingRef = useRef(false);
 
-  // Show prompt when streaming transitions to complete (streaming → idle)
   useEffect(() => {
     if (prevStreamingRef.current && !isStreaming && messageCount > 0) {
       setVisible(true);
@@ -184,55 +197,13 @@ function StreamingMessage() {
 }
 
 // ---------------------------------------------------------------------------
-// ModelSelector — three pills for Sonnet / Haiku / Opus selection
-// ---------------------------------------------------------------------------
-
-const MODEL_OPTIONS = [
-  { key: 'auto',   label: 'A', title: 'Auto — best model for the task (default)' },
-  { key: 'sonnet', label: 'S', title: 'Claude Sonnet 4.6' },
-  { key: 'haiku',  label: 'H', title: 'Claude Haiku (fast, lightweight)' },
-  { key: 'opus',   label: 'O', title: 'Claude Opus (most capable)' },
-] as const;
-
-function ModelSelector({
-  selected,
-  onSelect,
-}: {
-  selected: 'auto' | 'sonnet' | 'haiku' | 'opus';
-  onSelect: (m: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
-}) {
-  return (
-    <div className="flex items-center gap-0.5 rounded-md border border-border/40 bg-muted/20 p-0.5">
-      {MODEL_OPTIONS.map(({ key, label, title }) => (
-        <button
-          key={key}
-          onClick={() => onSelect(key)}
-          title={title}
-          className={`rounded px-1.5 py-1 text-xs font-semibold font-mono transition-colors ${
-            selected === key
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // ChatPanel
 // ---------------------------------------------------------------------------
 
 interface ChatPanelProps {
-  /** Hide the header bar — used on mobile where MobileLayout provides chrome */
   compact?: boolean;
-  /** Primary workspace mode — hides internal header (chat IS the main area) */
   primary?: boolean;
-  /** Mobile-only: navigate to a tab (provided by MobileLayout) */
   onMobileTabChange?: (tab: MobileTab) => void;
-  /** Mobile-only: navigate to a sub-view (provided by MobileLayout) */
   onMobileNavigate?: (view: SubView) => void;
 }
 
@@ -242,7 +213,6 @@ export function ChatPanel({
   onMobileTabChange,
   onMobileNavigate,
 }: ChatPanelProps) {
-  // Granular selectors — each subscribes only to the slice it needs
   const messageIds = useMessageIds();
   const messageCount = useMessageCount();
   const sendMessage = useSandboxStore((s) => s.sendMessage);
@@ -259,7 +229,6 @@ export function ChatPanel({
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
   const messagesById = useSandboxStore((s) => s.messagesById);
 
-  // Rough token estimate: total chars ÷ 4 (industry standard approximation)
   const estimatedTokens = useMemo(() => {
     let chars = 0;
     for (const msg of Object.values(messagesById)) {
@@ -268,7 +237,6 @@ export function ChatPanel({
     return Math.floor(chars / 4);
   }, [messagesById]);
 
-  // Session cost total — sum of costUsd across all assistant messages
   const sessionCostUsd = useMemo(() => {
     let total = 0;
     let hasAny = false;
@@ -280,24 +248,33 @@ export function ChatPanel({
     }
     return hasAny ? total : undefined;
   }, [messagesById]);
-  // For auto-scroll: subscribe to streamingContent length, not full content
+
   const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
 
   const [input, setInput] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const agentRef = useRef<HTMLDivElement>(null);
+  const [sessionOpen, setSessionOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
 
-  // Auto-scroll to bottom on new messages or streaming progress
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messageCount, hasStreamingContent]);
 
-  // C2 HIG fix: scrollIntoView on keyboard-open causes iOS push-up glitch.
-  // The layout resizes via visualViewport, so no manual scroll is needed.
+  useEffect(() => {
+    if (!agentOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (agentRef.current && !agentRef.current.contains(e.target as Node)) {
+        setAgentOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [agentOpen]);
 
-  // Pull-to-refresh: reload chat history from server (mobile only)
   const currentSessionId = useSandboxStore((s) => s.currentSession?.id);
 
   const handleRefresh = useCallback(async () => {
@@ -320,7 +297,6 @@ export function ChatPanel({
       disabled: !compact,
     });
 
-  // Image upload function — uploads to sandbox, returns attachment with uploadedPath
   const uploadImage = useCallback(
     async (img: ImageAttachment): Promise<ImageAttachment | null> => {
       if (!sessionId) return null;
@@ -348,7 +324,10 @@ export function ChatPanel({
 
   const isEmpty = messageCount === 0 && !isStreaming;
 
-  // Shared prompt input — extracted so it can be placed at center or bottom
+  // ---------------------------------------------------------------------------
+  // Prompt input — rounded-3xl with BorderTrail + mobile action bar
+  // ---------------------------------------------------------------------------
+
   const promptInput = (
     <PromptInput
       input={input}
@@ -360,60 +339,210 @@ export function ChatPanel({
       compact={compact}
       keyboardOpen={keyboardOpen}
       disabled={!sessionId}
-    >
-      <PromptInputTools>
-        {currentFile && (
-          <>
-            <Paperclip className="h-3 w-3 text-muted-foreground/60" />
-            <span className="rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground">
-              {currentFile.name}
-            </span>
-          </>
-        )}
-        {!compact && <PromptInputReforge />}
-        {!compact && (
-          <SessionRemote
-            sessionId={sessionId}
-            onSetPrompt={(text) => setInput(text)}
-          />
-        )}
-        {!compact && <PromptInputModeToggle mode={sdkMode} onModeChange={setMode} />}
-        <ModelSelector selected={selectedModel} onSelect={setModel} />
-        <AutonomySelectorPopup selected={autonomyMode} onSelect={setAutonomy} />
-        {estimatedTokens > 0 && (
-          <TokenCounter tokens={estimatedTokens} />
-        )}
-      </PromptInputTools>
-      <PromptInputSlashMenu />
-      <div className={cn(
-        'relative rounded-xl border transition-all duration-300',
-        'bg-background',
-        input.trim().length > 0
+      className={cn(
+        'relative z-10 w-full rounded-3xl border bg-card/90 pt-1 backdrop-blur-md !px-0 !pb-0',
+        isStreaming || input.trim().length > 0
           ? 'border-purple-500/60 shadow-[0_0_20px_-4px_rgba(168,85,247,0.35)]'
           : 'border-primary/50 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.25)] hover:border-primary/70 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.35)]',
-      )}>
-        <PromptInputAttachments />
-        <PromptInputTextarea
-          placeholder={
-            sdkMode === 'plan'
-              ? 'Research mode — Claude can read but not edit...'
-              : 'Describe the task... (use @ to mention files, / for commands)'
-          }
-        />
-        <div className="absolute bottom-2 right-2 flex items-center gap-1">
-          <PromptInputActions />
-          <PromptInputSpeech />
+      )}
+    >
+      <AnimatePresence>
+        {isStreaming && (
+          <motion.div
+            key="border-trail"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <BorderTrail
+              size={120}
+              radius={24}
+              className="bg-gradient-to-l from-purple-400/0 via-purple-400 to-purple-400/0"
+              transition={{ ease: 'linear', duration: 3, repeat: Infinity }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <PromptInputSlashMenu />
+      <PromptInputAttachments />
+      <PromptInputTextarea
+        placeholder="Ask anything..."
+        className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
+      />
+      {/* Mobile action bar (hidden on desktop) */}
+      <div className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => useReforge.getState().open()}
+            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+          >
+            <Flame className="size-5 text-primary/70" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode(sdkMode === 'plan' ? 'agent' : 'plan')}
+            className={cn(
+              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+              sdkMode === 'plan'
+                ? 'text-primary bg-primary/10'
+                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+            )}
+          >
+            {sdkMode === 'plan' ? <Eye className="size-5" /> : <Zap className="size-5" />}
+          </button>
+          <button
+            type="button"
+            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+          >
+            <Paperclip className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setSessionOpen((v) => !v)}
+            className={cn(
+              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+              sessionOpen
+                ? 'text-purple-400 bg-purple-500/10'
+                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+            )}
+          >
+            <Bookmark className="size-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setMoreDrawerOpen(true)}
+            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+          >
+            <MoreHorizontal className="size-5" />
+          </button>
+        </div>
+        <div className="pr-2">
           <PromptInputSubmit />
         </div>
       </div>
-      {compact && <PromptActionBar onMoreOpen={() => setMoreDrawerOpen(true)} />}
-      <PromptInputHint />
+      {/* Desktop submit row */}
+      <div className="hidden md:flex justify-end items-center gap-1 px-2 pb-2">
+        <PromptInputActions />
+        <PromptInputSpeech />
+        <PromptInputSubmit />
+      </div>
     </PromptInput>
+  );
+
+  // ---------------------------------------------------------------------------
+  // Pills row — Reforge / mode / Session / Model / Autonomy / Context
+  // ---------------------------------------------------------------------------
+
+  const pillsRow = (
+    <div className="flex w-full flex-wrap items-center justify-start gap-2">
+      <div className="hidden md:contents">
+        <button
+          type="button"
+          onClick={() => useReforge.getState().open()}
+          className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
+        >
+          <Flame className="h-3 w-3" />
+          Reforge
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode(sdkMode === 'plan' ? 'agent' : 'plan')}
+          className={cn(
+            'flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium transition-colors',
+            sdkMode === 'plan'
+              ? 'bg-primary/15 text-primary'
+              : 'bg-primary/10 text-primary hover:bg-primary/20',
+          )}
+        >
+          <Zap className="h-3 w-3" />
+          {sdkMode === 'plan' ? 'Plan mode' : 'Auto-pick'}
+        </button>
+        <SessionRemote sessionId={sessionId} onSetPrompt={(text) => setInput(text)} />
+      </div>
+
+      {/* Model dropdown */}
+      <div ref={agentRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setAgentOpen((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
+            agentOpen
+              ? 'bg-primary/15 text-primary'
+              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+          )}
+        >
+          <Zap className="h-3 w-3" />
+          <span>{AGENT_OPTIONS.find((a) => a.id === selectedModel)?.label ?? 'Auto'}</span>
+          <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', agentOpen && 'rotate-180')} />
+        </button>
+        <AnimatePresence>
+          {agentOpen && (
+            <motion.div
+              key="agent-dropdown"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              transition={{ duration: 0.15 }}
+              className="absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl border border-primary/50 bg-background overflow-hidden"
+            >
+              <div className={cn('relative', GRID_BG)}>
+                <div className="p-1">
+                  {AGENT_OPTIONS.map((agent) => (
+                    <button
+                      key={agent.id}
+                      type="button"
+                      onClick={() => { setModel(agent.id); setAgentOpen(false); }}
+                      className={cn(
+                        'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
+                        selectedModel === agent.id
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                      )}
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[11px] font-medium">{agent.label}</span>
+                        <span className="text-[10px] text-muted-foreground">{agent.description}</span>
+                      </div>
+                      {selectedModel === agent.id && (
+                        <Check className="ml-auto h-3 w-3 shrink-0 mt-0.5 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <AutonomySelectorPopup selected={autonomyMode} onSelect={setAutonomy} />
+
+      <div className="ml-auto">
+        <Context usedTokens={estimatedTokens} maxTokens={200000}>
+          <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground" />
+          <ContextContent
+            side="top"
+            align="start"
+            className={cn('relative border-primary/50 bg-background overflow-hidden', GRID_BG)}
+          >
+            <ContextContentHeader />
+            <ContextContentBody className="space-y-1.5">
+              <ContextInputUsage />
+              <ContextOutputUsage />
+            </ContextContentBody>
+            <ContextContentFooter />
+          </ContextContent>
+        </Context>
+      </div>
+    </div>
   );
 
   return (
     <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border/60'}`}>
-      {/* Header — hidden in compact (mobile) or primary (center workspace) mode */}
+      {/* Header — hidden in compact/primary/welcome mode */}
       {!compact && !primary && !isEmpty && (
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <div className="flex items-center gap-2">
@@ -463,14 +592,10 @@ export function ChatPanel({
       )}
 
       {isEmpty ? (
-        /* ── WELCOME STATE: centered headline + input ── */
-        /* Prompt is anchored outside the centered block so iOS keyboard open
-           doesn't clip the heading off-screen (justify-center on an overflowing
-           container pushes the top out of view while leaving the bottom visible). */
+        /* Welcome state — SessionIsland + headline + input + pills */
         <div className="flex h-full flex-col items-center px-4 pb-4">
-          {/* Heading + chips center in the space above the prompt */}
           <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
-            <div className="w-full max-w-2xl space-y-5">
+            <div className="w-full max-w-2xl space-y-5 flex flex-col items-center">
               <div className="text-center">
                 <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
                   What do you want to build?
@@ -479,29 +604,23 @@ export function ChatPanel({
                   Describe a task — Claude will get to work in your sandbox
                 </p>
               </div>
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap justify-center gap-2">
-                {WELCOME_SUGGESTIONS.map(({ icon: Icon, text }) => (
-                  <button
-                    key={text}
-                    onClick={() => sendMessage(text)}
-                    disabled={!sessionId}
-                    className="flex items-center gap-1.5 rounded-full border border-border/40 bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-foreground disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <Icon className="h-3 w-3" />
-                    {text}
-                  </button>
-                ))}
-              </div>
+              <SessionIsland
+                status={isStreaming ? 'streaming' : 'idle'}
+                controlsOpen={sessionOpen}
+                onNew={clearMessages}
+                onPause={() => {}}
+                onResume={() => {}}
+                onStop={stopStreaming}
+              />
             </div>
           </div>
-          {/* Prompt pinned at bottom — always visible when keyboard opens */}
-          <div className="w-full max-w-2xl">
-            {promptInput}
+          <div className="w-full max-w-2xl flex flex-col gap-2">
+            <div className="order-2 md:order-1">{promptInput}</div>
+            <div className="order-1 md:order-2">{pillsRow}</div>
           </div>
         </div>
       ) : (
-        /* ── CHAT STATE: messages list + input at bottom ── */
+        /* Chat state — messages + input + pills at bottom */
         <>
           {compact && messageCount > 0 && (
             <div className="flex justify-end px-3 pt-2">
@@ -520,7 +639,6 @@ export function ChatPanel({
             className="flex-1 overflow-y-auto px-4 py-3"
             {...(compact ? pullHandlers : {})}
           >
-            {/* Pull-to-refresh indicator (mobile only) */}
             {compact && (pullDistance > 0 || isRefreshing) && (
               <div
                 className="flex items-center justify-center transition-all"
@@ -553,7 +671,10 @@ export function ChatPanel({
             </div>
           </div>
 
-          {promptInput}
+          <div className="px-0 flex flex-col gap-2">
+            <div className="order-2 md:order-1">{promptInput}</div>
+            <div className="px-4 pb-4 order-1 md:order-2">{pillsRow}</div>
+          </div>
         </>
       )}
 
@@ -565,6 +686,8 @@ export function ChatPanel({
           onNavigate={onMobileNavigate}
         />
       )}
+
+      <ReforgeModal onInsert={(text) => setInput((prev) => prev ? `${prev}\n\n${text}` : text)} />
     </div>
   );
 }
