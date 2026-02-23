@@ -11,7 +11,7 @@ import { chatApi, filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
-import { SessionRemote } from '@/components/SessionRemote';
+
 import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
 import type { MobileTab } from '@/components/mobile/MobileTabBar';
@@ -459,7 +459,19 @@ export function ChatPanel({
           <Zap className="h-3 w-3" />
           {sdkMode === 'plan' ? 'Plan mode' : 'Auto-pick'}
         </button>
-        <SessionRemote sessionId={sessionId} onSetPrompt={(text) => setInput(text)} />
+        <button
+          type="button"
+          onClick={() => setSessionOpen((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium transition-colors',
+            sessionOpen
+              ? 'bg-purple-500/15 text-purple-400'
+              : 'bg-primary/10 text-primary hover:bg-primary/20',
+          )}
+        >
+          <Bookmark className="h-3 w-3" />
+          Session
+        </button>
       </div>
 
       {/* Model dropdown */}
@@ -593,8 +605,8 @@ export function ChatPanel({
 
       {isEmpty ? (
         /* Welcome state — SessionIsland + headline + input + pills */
-        <div className="flex h-full flex-col items-center px-4 pb-4">
-          <div className="flex flex-1 min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
+        <div className="flex h-full flex-col items-center px-4 pb-4 md:justify-center">
+          <div className="flex flex-1 md:flex-none min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
             <div className="w-full max-w-2xl space-y-5 flex flex-col items-center">
               <div className="text-center">
                 <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
@@ -614,7 +626,7 @@ export function ChatPanel({
               />
             </div>
           </div>
-          <div className="w-full max-w-2xl flex flex-col gap-2">
+          <div className="w-full max-w-2xl flex flex-col gap-2 md:mt-5">
             <div className="order-2 md:order-1">{promptInput}</div>
             <div className="order-1 md:order-2">{pillsRow}</div>
           </div>

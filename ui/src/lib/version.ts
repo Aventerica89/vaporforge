@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-22', summary: 'fix(ui): ChatPanel desktop/iPad centering — md:justify-center on outer + md:flex-none on content block centers headline+island+input as a group on desktop while mobile keeps flex-1 spacer + bottom-pinned input; replace SessionRemote in desktop pills with Bookmark sessionOpen toggle matching PlaygroundPage design' },
   { date: '2026-02-22', summary: 'feat(ui): integrate playground prompt design into ChatPanel — rounded-3xl input with BorderTrail streaming glow, pills row (Reforge/Auto-pick/Session/Model dropdown/Autonomy/Context), SessionIsland on welcome state, mobile 5-icon action bar, ReforgeModal wired' },
   { date: '2026-02-22', summary: 'fix(build): resolve TS errors from worktree merge — casing imports, icon-sm size, SelectTrigger size prop, icon prop on Button, sources prop, SessionStatus→PromptInputStatus mapping, glow-effect motion types' },
   { date: '2026-02-22', summary: 'fix(playground): restore missing desktop pills (Reforge/Auto-pick/Session) — accidentally dropped in 5cdb50f when AutonomySelectorPopup was added' },
