@@ -286,8 +286,7 @@ export function PromptInput({
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={cn(
-          'relative border-t border-border/40 bg-card/80 backdrop-blur-sm px-4 pb-3 pt-2',
-          compact && !keyboardOpen && 'safe-bottom',
+          'relative',
           isDragOver && 'ring-2 ring-primary/50 ring-inset rounded-lg',
           className,
         )}
