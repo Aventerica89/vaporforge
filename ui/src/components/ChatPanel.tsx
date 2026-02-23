@@ -2,15 +2,24 @@ import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/cn';
 import {
-  Trash2, Loader2, ArrowDown, Paperclip, BrainCircuit, X,
+  Trash2, Paperclip, BrainCircuit, X,
   Flame, Eye, Zap, Bookmark, MoreHorizontal, ChevronDown, Check,
 } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
-import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import { chatApi, filesApi } from '@/lib/api';
+import { filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
+import {
+  Message as AIMessage,
+  MessageContent as AIMessageContent,
+} from '@/components/ai-elements/message';
+import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
 
 import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
@@ -100,6 +109,29 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
         </MessageBody>
       )}
     </Message>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// MobileMemoizedMessageItem — ai-elements Message (no avatar, no footer)
+// ---------------------------------------------------------------------------
+
+const MobileMemoizedMessageItem = memo(function MobileMessageItem({ id }: { id: string }) {
+  const message = useMessage(id);
+  if (!message) return null;
+
+  return (
+    <AIMessage from={message.role}>
+      {message.role === 'user' ? (
+        <AIMessageContent>
+          <MessageAttachments message={message} />
+        </AIMessageContent>
+      ) : (
+        <AIMessageContent>
+          <MessageContent message={message} />
+        </AIMessageContent>
+      )}
+    </AIMessage>
   );
 });
 
@@ -215,6 +247,38 @@ function StreamingMessage() {
 }
 
 // ---------------------------------------------------------------------------
+// MobileStreamingMessage — ai-elements Message (no avatar, ThinkingBar when empty)
+// ---------------------------------------------------------------------------
+
+function MobileStreamingMessage() {
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const streamingContent = useSandboxStore((s) => s.streamingContent);
+  const streamingParts = useSandboxStore((s) => s.streamingParts);
+  const stopStreaming = useSandboxStore((s) => s.stopStreaming);
+
+  if (!isStreaming) return null;
+
+  return (
+    <AIMessage from="assistant">
+      <AIMessageContent>
+        {streamingContent || streamingParts.length > 0 ? (
+          <StreamingContent
+            parts={streamingParts}
+            fallbackContent={streamingContent}
+          />
+        ) : (
+          <ThinkingBar
+            text="Claude is thinking..."
+            onStop={stopStreaming}
+            stopLabel="Stop"
+          />
+        )}
+      </AIMessageContent>
+    </AIMessage>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // ChatPanel
 // ---------------------------------------------------------------------------
 
@@ -294,28 +358,6 @@ export function ChatPanel({
     return () => document.removeEventListener('mousedown', handler);
   }, [agentOpen]);
 
-  const currentSessionId = useSandboxStore((s) => s.currentSession?.id);
-
-  const handleRefresh = useCallback(async () => {
-    if (!currentSessionId) return;
-    const result = await chatApi.history(currentSessionId);
-    if (result.success && result.data) {
-      const byId: Record<string, MessageType> = {};
-      const ids: string[] = [];
-      for (const msg of result.data) {
-        byId[msg.id] = msg;
-        ids.push(msg.id);
-      }
-      useSandboxStore.setState({ messagesById: byId, messageIds: ids });
-    }
-  }, [currentSessionId]);
-
-  const { pullDistance, isRefreshing, handlers: pullHandlers } =
-    usePullToRefresh({
-      onRefresh: handleRefresh,
-      disabled: !compact,
-    });
-
   const uploadImage = useCallback(
     async (img: ImageAttachment): Promise<ImageAttachment | null> => {
       if (!sessionId) return null;
@@ -387,7 +429,7 @@ export function ChatPanel({
       <PromptInputAttachments />
       <PromptInputTextarea
         placeholder="Ask anything..."
-        className="min-h-[44px] text-base leading-[1.3]"
+        className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
       />
       {/* Mobile action bar (hidden on desktop) */}
       <div className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
@@ -580,7 +622,7 @@ export function ChatPanel({
   );
 
   return (
-    <div className={`flex h-full flex-col bg-card ${compact || primary ? '' : 'border-l border-border/60'}`}>
+    <div className={`flex h-full flex-col bg-background ${compact || primary ? '' : 'border-l border-border/60'}`}>
       {/* Header — hidden in compact/primary/welcome mode */}
       {!compact && !primary && !isEmpty && (
         <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
@@ -663,54 +705,34 @@ export function ChatPanel({
       ) : (
         /* Chat state — messages + input + pills at bottom */
         <>
-          {compact && messageCount > 0 && (
-            <div className="flex justify-end px-3 pt-2">
-              <button
-                onClick={clearMessages}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                title="Clear chat"
-              >
-                <Trash2 className="h-3 w-3" />
-                Clear
-              </button>
+          {compact ? (
+            /* Mobile: reference-style conversation wrapper */
+            <Conversation className="flex-1 overflow-hidden">
+              <ConversationContent className="px-4 py-3">
+                {messageIds.map((id) => (
+                  <MobileMemoizedMessageItem key={id} id={id} />
+                ))}
+                <CompactionBanner />
+                <MobileStreamingMessage />
+                <FeedbackPrompt />
+                <div ref={messagesEndRef} />
+              </ConversationContent>
+              <ConversationScrollButton />
+            </Conversation>
+          ) : (
+            /* Desktop: existing rendering (unchanged) */
+            <div className="flex-1 overflow-y-auto px-4 py-3">
+              <div className="mx-auto max-w-3xl space-y-1">
+                {messageIds.map((id) => (
+                  <MemoizedMessageItem key={id} id={id} />
+                ))}
+                <CompactionBanner />
+                <StreamingMessage />
+                <FeedbackPrompt />
+                <div ref={messagesEndRef} />
+              </div>
             </div>
           )}
-
-          <div
-            className="flex-1 overflow-y-auto px-4 py-3"
-            {...(compact ? pullHandlers : {})}
-          >
-            {compact && (pullDistance > 0 || isRefreshing) && (
-              <div
-                className="flex items-center justify-center transition-all"
-                style={{
-                  height: isRefreshing ? 40 : Math.min(pullDistance, 80),
-                  opacity: isRefreshing ? 1 : Math.min(pullDistance / 80, 1),
-                }}
-              >
-                {isRefreshing ? (
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                ) : (
-                  <ArrowDown
-                    className="h-5 w-5 text-muted-foreground transition-transform"
-                    style={{
-                      transform: pullDistance >= 80 ? 'rotate(180deg)' : 'none',
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-            <div className="mx-auto max-w-3xl space-y-1">
-              {messageIds.map((id) => (
-                <MemoizedMessageItem key={id} id={id} />
-              ))}
-              <CompactionBanner />
-              <StreamingMessage />
-              <FeedbackPrompt />
-              <div ref={messagesEndRef} />
-            </div>
-          </div>
 
           <div className="px-4 pb-4 flex flex-col gap-2">
             <div className="order-2 md:order-1">{promptInput}</div>
