@@ -486,6 +486,21 @@ export function ChatPanel({
   );
 
   // ---------------------------------------------------------------------------
+  // SessionIsland — shared across welcome + chat states for layoutId animation
+  // ---------------------------------------------------------------------------
+
+  const sessionIsland = (
+    <SessionIsland
+      status={isStreaming ? 'streaming' : 'idle'}
+      controlsOpen={sessionOpen}
+      onNew={clearMessages}
+      onPause={() => {}}
+      onResume={() => {}}
+      onStop={stopStreaming}
+    />
+  );
+
+  // ---------------------------------------------------------------------------
   // Pills row — Reforge / mode / Session / Model / Autonomy / Context
   // ---------------------------------------------------------------------------
 
@@ -682,14 +697,12 @@ export function ChatPanel({
                   Describe a task — Claude will get to work in your sandbox
                 </p>
               </div>
-              <SessionIsland
-                status={isStreaming ? 'streaming' : 'idle'}
-                controlsOpen={sessionOpen}
-                onNew={clearMessages}
-                onPause={() => {}}
-                onResume={() => {}}
-                onStop={stopStreaming}
-              />
+              <motion.div
+                layoutId="session-island"
+                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              >
+                {sessionIsland}
+              </motion.div>
             </div>
           </div>
           <div className="w-full max-w-2xl flex flex-col gap-2 md:mt-5">
@@ -729,6 +742,14 @@ export function ChatPanel({
           )}
 
           <div className="px-4 pb-4 flex flex-col gap-2">
+            <div className="flex justify-center">
+              <motion.div
+                layoutId="session-island"
+                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              >
+                {sessionIsland}
+              </motion.div>
+            </div>
             <div className="order-2 md:order-1">{promptInput}</div>
             <div className="order-1 md:order-2">{pillsRow}</div>
           </div>

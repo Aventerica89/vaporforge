@@ -93,6 +93,9 @@ export function Layout() {
   const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
     useAgencyStore();
 
+  // Capture the initial URL hash before the sync effect can overwrite it on mount
+  const initialHashRef = useRef(window.location.hash);
+
   // Panel refs for collapse/expand
   const fileTreePanelRef = useRef<ImperativePanelHandle>(null);
   const rightPanelRef = useRef<ImperativePanelHandle>(null);
@@ -173,10 +176,12 @@ export function Layout() {
     }
   }, [openFiles.length]);
 
-  // Load sessions on mount, then restore state from URL hash (refresh persistence)
+  // Load sessions on mount, then restore state from URL hash (refresh persistence).
+  // Uses initialHashRef — not window.location.hash — because the sync effect below
+  // clears the hash on first render (currentSession is null) before this async resolves.
   useEffect(() => {
     loadSessions().then(() => {
-      applyHashState(parseHash(window.location.hash));
+      applyHashState(parseHash(initialHashRef.current));
     });
   }, [loadSessions]);
 

@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-23', summary: 'feat(ui): persist SessionIsland in chat state — layoutId="session-island" spring animation from welcome center to above-prompt on first message' },
   { date: '2026-02-23', summary: 'fix(mobile): drop StickToBottom from mobile chat path — replace Conversation/ConversationContent/ConversationScrollButton with plain overflow-y-auto div; fix user bubble bg-primary override on AIMessageContent (was bg-secondary = pink)' },
   { date: '2026-02-23', summary: 'chore: bump version 0.29.0 → 0.30.0 (mobile chat design parity release)' },
   { date: '2026-02-23', summary: 'refactor(ui): mobile chat design parity — bg-background on ChatPanel outer, MobileMemoizedMessageItem+MobileStreamingMessage using ai-elements Message (no avatar/footer/timestamps), Conversation/ConversationContent/ConversationScrollButton for mobile message list, ThinkingBar on empty stream, remove compact clear button, pl-4 pt-3 textarea, PromptActionBar pb-2/pr-2/size-10 inline classes matching reference' },
