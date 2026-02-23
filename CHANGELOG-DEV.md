@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-23 · v0.30.0
+FIX     streaming — Pause/resume hardening: inner try/catch on SIGSTOP/SIGCONT, pause-failed/resume-failed error events, server confirmation handlers, pausedAt + 45s timeout toast, 6 unit tests
+
+### 2026-02-23 · v0.30.0
 FEAT    streaming — Agent pause/resume via SIGSTOP/SIGCONT through WS tunnel (ws-agent-server, api.ts, useSandbox, ChatPanel)
 
 ### 2026-02-21 · f098c96 · v0.29.0

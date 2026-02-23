@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-23', summary: 'fix(streaming): pause/resume hardening — inner try/catch on SIGSTOP/SIGCONT with pause-failed/resume-failed error events; server confirmation handlers in streaming loop (paused/resumed/pause-failed/resume-failed); pausedAt timestamp + 45s timeout warning toast in ChatPanel; 6 unit tests for pause/resume store actions (ui/vitest.config.ts + useSandbox-pause.test.ts)' },
   { date: '2026-02-23', summary: 'feat(streaming): agent pause/resume via SIGSTOP/SIGCONT — ws-agent-server.js listens for pause/resume WS commands, sends SIGSTOP/SIGCONT to child process; sendWsCommand() in api.ts; isPaused/pauseStreaming/resumeStreaming in useSandbox; SessionIsland wired to real pause/resume (replaces premature stopStreaming hack from 4f04318)' },
   { date: '2026-02-23', summary: 'feat(ui): persist SessionIsland in chat state — layoutId="session-island" spring animation from welcome center to above-prompt on first message' },
   { date: '2026-02-23', summary: 'fix(mobile): drop StickToBottom from mobile chat path — replace Conversation/ConversationContent/ConversationScrollButton with plain overflow-y-auto div; fix user bubble bg-primary override on AIMessageContent (was bg-secondary = pink)' },

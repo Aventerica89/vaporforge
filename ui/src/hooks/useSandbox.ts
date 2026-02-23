@@ -59,6 +59,7 @@ interface SandboxState {
   // Stream control
   streamAbortController: AbortController | null;
   isPaused: boolean;
+  pausedAt: number | null;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -145,6 +146,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   summaryUpdatedAt: null,
   streamAbortController: null,
   isPaused: false,
+  pausedAt: null,
 
   gitStatus: null,
 
@@ -706,6 +708,24 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         } else if (chunk.type === 'session-reset') {
           // Agent script signals stale session — persist will clear it
           continue;
+        } else if (chunk.type === 'paused') {
+          // Server confirmed SIGSTOP — ensure UI state matches
+          if (!get().isPaused) set({ isPaused: true, pausedAt: Date.now() });
+          continue;
+        } else if (chunk.type === 'resumed') {
+          // Server confirmed SIGCONT — ensure UI state matches
+          if (get().isPaused) set({ isPaused: false, pausedAt: null });
+          continue;
+        } else if (chunk.type === 'pause-failed') {
+          // SIGSTOP failed (child already exited?) — roll back optimistic state
+          set({ isPaused: false, pausedAt: null });
+          toast.warning('Pause failed — agent may have already finished');
+          continue;
+        } else if (chunk.type === 'resume-failed') {
+          // SIGCONT failed — roll back
+          set({ isPaused: true });
+          toast.warning('Resume failed — try stopping the session');
+          continue;
         } else if (chunk.type === 'done') {
           doneReceived = true;
           // Stream completed normally
@@ -850,6 +870,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         messageIds: [...state.messageIds, assistantMessage.id],
         isStreaming: false,
         isPaused: false,
+        pausedAt: null,
         streamingContent: '',
         streamingParts: [],
         streamAbortController: null,
@@ -897,6 +918,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messageIds: [...state.messageIds, stoppedMessage.id],
           isStreaming: false,
           isPaused: false,
+          pausedAt: null,
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
@@ -916,6 +938,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messageIds: [...state.messageIds, errorMessage.id],
           isStreaming: false,
           isPaused: false,
+          pausedAt: null,
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
@@ -956,6 +979,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messageIds: [...state.messageIds, stoppedMessage.id],
           isStreaming: false,
           isPaused: false,
+          pausedAt: null,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,
@@ -964,6 +988,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         set({
           isStreaming: false,
           isPaused: false,
+          pausedAt: null,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,
@@ -975,14 +1000,14 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   pauseStreaming: () => {
     if (get().isStreaming && !get().isPaused) {
       sendWsCommand({ type: 'pause' });
-      set({ isPaused: true });
+      set({ isPaused: true, pausedAt: Date.now() });
     }
   },
 
   resumeStreaming: () => {
     if (get().isStreaming && get().isPaused) {
       sendWsCommand({ type: 'resume' });
-      set({ isPaused: false });
+      set({ isPaused: false, pausedAt: null });
     }
   },
 

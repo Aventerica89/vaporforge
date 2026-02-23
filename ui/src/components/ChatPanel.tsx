@@ -9,6 +9,7 @@ import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/h
 import { filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
+import { toast } from '@/hooks/useToast';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import {
   Message as AIMessage,
@@ -490,8 +491,19 @@ export function ChatPanel({
   // ---------------------------------------------------------------------------
 
   const isPaused = useSandboxStore((s) => s.isPaused);
+  const pausedAt = useSandboxStore((s) => s.pausedAt);
   const pauseStreaming = useSandboxStore((s) => s.pauseStreaming);
   const resumeStreaming = useSandboxStore((s) => s.resumeStreaming);
+
+  // Warn if paused too long — API TCP connection times out at 60-120s
+  useEffect(() => {
+    if (!isPaused || !pausedAt) return;
+    const remaining = Math.max(0, 45_000 - (Date.now() - pausedAt));
+    const timer = setTimeout(() => {
+      toast.warning('Paused for 45s — API connection may drop. Consider resuming.', 8000);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [isPaused, pausedAt]);
 
   const sessionIsland = (
     <SessionIsland

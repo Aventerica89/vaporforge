@@ -499,6 +499,12 @@ export const sdkApi = {
           case 'resumed':
             push({ value: { type: 'resumed' }, done: false });
             break;
+          case 'pause-failed':
+            push({ value: { type: 'pause-failed', error: msg.error }, done: false });
+            break;
+          case 'resume-failed':
+            push({ value: { type: 'resume-failed', error: msg.error }, done: false });
+            break;
           case 'process-exit':
             push({ value: { type: 'ws-exit', exitCode: msg.exitCode }, done: false });
             // Signal end of stream after a brief delay for final frames

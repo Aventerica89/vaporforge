@@ -1004,17 +1004,27 @@ function startQuery(ws) {
     try {
       const msg = JSON.parse(data.toString());
       if (msg.type === 'pause' && activeChild && !paused) {
-        process.kill(activeChild.pid, 'SIGSTOP');
-        paused = true;
-        sendJson(ws, { type: 'paused' });
-        console.log('[ws-agent-server] agent paused (SIGSTOP)');
+        try {
+          process.kill(activeChild.pid, 'SIGSTOP');
+          paused = true;
+          sendJson(ws, { type: 'paused' });
+          console.log('[ws-agent-server] agent paused (SIGSTOP)');
+        } catch (err) {
+          sendJson(ws, { type: 'pause-failed', error: err.message });
+          console.error('[ws-agent-server] SIGSTOP failed:', err.message);
+        }
       } else if (msg.type === 'resume' && activeChild && paused) {
-        process.kill(activeChild.pid, 'SIGCONT');
-        paused = false;
-        sendJson(ws, { type: 'resumed' });
-        console.log('[ws-agent-server] agent resumed (SIGCONT)');
+        try {
+          process.kill(activeChild.pid, 'SIGCONT');
+          paused = false;
+          sendJson(ws, { type: 'resumed' });
+          console.log('[ws-agent-server] agent resumed (SIGCONT)');
+        } catch (err) {
+          sendJson(ws, { type: 'resume-failed', error: err.message });
+          console.error('[ws-agent-server] SIGCONT failed:', err.message);
+        }
       }
-    } catch {}
+    } catch {} // outer catch: malformed JSON — ignore
   });
 
   child.on('close', (code) => {
