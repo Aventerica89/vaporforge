@@ -11,11 +11,6 @@ import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
 import {
-  Conversation,
-  ConversationContent,
-  ConversationScrollButton,
-} from '@/components/ai-elements/conversation';
-import {
   Message as AIMessage,
   MessageContent as AIMessageContent,
 } from '@/components/ai-elements/message';
@@ -123,7 +118,7 @@ const MobileMemoizedMessageItem = memo(function MobileMessageItem({ id }: { id: 
   return (
     <AIMessage from={message.role}>
       {message.role === 'user' ? (
-        <AIMessageContent>
+        <AIMessageContent className="group-[.is-user]:bg-primary">
           <MessageAttachments message={message} />
         </AIMessageContent>
       ) : (
@@ -706,9 +701,9 @@ export function ChatPanel({
         /* Chat state — messages + input + pills at bottom */
         <>
           {compact ? (
-            /* Mobile: reference-style conversation wrapper */
-            <Conversation className="flex-1 overflow-hidden">
-              <ConversationContent className="px-4 py-3">
+            /* Mobile: plain scroll div — respects visualViewport from MobileLayout */
+            <div className="flex-1 overflow-y-auto">
+              <div className="flex flex-col gap-4 px-4 py-3">
                 {messageIds.map((id) => (
                   <MobileMemoizedMessageItem key={id} id={id} />
                 ))}
@@ -716,9 +711,8 @@ export function ChatPanel({
                 <MobileStreamingMessage />
                 <FeedbackPrompt />
                 <div ref={messagesEndRef} />
-              </ConversationContent>
-              <ConversationScrollButton />
-            </Conversation>
+              </div>
+            </div>
           ) : (
             /* Desktop: existing rendering (unchanged) */
             <div className="flex-1 overflow-y-auto px-4 py-3">
