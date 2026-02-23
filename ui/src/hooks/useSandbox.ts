@@ -1,7 +1,7 @@
 import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi, summaryApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
-import { generateSessionName } from '@/lib/session-names';
+import { generateSessionName, extractRepoName, deduplicateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { useStreamDebug } from '@/hooks/useStreamDebug';
 import { toast } from '@/hooks/useToast';
@@ -160,7 +160,18 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   createSession: async (name?: string, gitRepo?: string, branch?: string) => {
-    const sessionName = name || generateSessionName();
+    let sessionName: string;
+    if (name) {
+      sessionName = name;
+    } else if (gitRepo) {
+      const base = extractRepoName(gitRepo);
+      const existingNames = get().sessions.map(
+        (s) => (s.metadata as { name?: string })?.name ?? ''
+      );
+      sessionName = deduplicateSessionName(base, existingNames);
+    } else {
+      sessionName = generateSessionName();
+    }
     set({ isCreatingSession: true });
     try {
       const result = await sessionsApi.create({ name: sessionName, gitRepo, branch });

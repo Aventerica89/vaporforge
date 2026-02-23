@@ -29,19 +29,66 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
+import type { SettingsTab } from '@/hooks/useSettings';
 import { useMarketplace } from '@/hooks/useMarketplace';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
+import { parseHash, buildHash } from '@/lib/hash-nav';
+import type { HashState } from '@/lib/hash-nav';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { useLayoutStore } from '@/hooks/useLayoutStore';
+
+// Apply navigation state from a parsed hash — called on mount and hashchange.
+// Uses .getState() to always read the latest store values without React hooks.
+function applyHashState(parsed: HashState) {
+  const { sessions, selectSession } = useSandboxStore.getState();
+  const { openSettings, closeSettings } = useSettingsStore.getState();
+  const { openMarketplace, closeMarketplace } = useMarketplace.getState();
+  const { openDashboard, closeDashboard, closeEditor } = useAgencyStore.getState();
+
+  switch (parsed.type) {
+    case 'session': {
+      closeSettings();
+      closeMarketplace();
+      closeDashboard();
+      closeEditor();
+      const session = sessions.find((s) => s.id === parsed.id);
+      if (session) selectSession(parsed.id);
+      break;
+    }
+    case 'settings':
+      closeMarketplace();
+      closeDashboard();
+      closeEditor();
+      openSettings(parsed.tab as SettingsTab | undefined);
+      break;
+    case 'marketplace':
+      closeSettings();
+      closeDashboard();
+      closeEditor();
+      openMarketplace();
+      break;
+    case 'agency':
+      closeSettings();
+      closeMarketplace();
+      openDashboard();
+      break;
+    case 'home':
+      closeSettings();
+      closeMarketplace();
+      closeDashboard();
+      closeEditor();
+      break;
+  }
+}
 
 export function Layout() {
   const { loadSessions, currentSession, openFiles, isCreatingSession } =
     useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
-  const { isOpen: settingsOpen } = useSettingsStore();
+  const { isOpen: settingsOpen, activeTab: settingsTab } = useSettingsStore();
   const { isOpen: marketplaceOpen } = useMarketplace();
   const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
     useAgencyStore();
@@ -126,11 +173,45 @@ export function Layout() {
     }
   }, [openFiles.length]);
 
-  // Load sessions on mount — always start on home (WelcomeScreen)
+  // Load sessions on mount, then restore state from URL hash (refresh persistence)
   useEffect(() => {
-    localStorage.removeItem('vf_active_session');
-    loadSessions();
+    loadSessions().then(() => {
+      applyHashState(parseHash(window.location.hash));
+    });
   }, [loadSessions]);
+
+  // Sync URL hash to current UI state (write direction)
+  useEffect(() => {
+    let hash: string;
+    if (agencyEditorOpen || agencyDashboardOpen) {
+      hash = buildHash({ type: 'agency' });
+    } else if (marketplaceOpen) {
+      hash = buildHash({ type: 'marketplace' });
+    } else if (settingsOpen) {
+      hash = buildHash({ type: 'settings', tab: settingsTab });
+    } else if (currentSession) {
+      hash = buildHash({ type: 'session', id: currentSession.id });
+    } else {
+      hash = buildHash({ type: 'home' });
+    }
+    // replaceState does not fire hashchange, so this won't trigger the listener below
+    if (window.location.hash !== hash) {
+      history.replaceState(null, '', hash || window.location.pathname);
+    }
+  }, [currentSession, settingsOpen, settingsTab, marketplaceOpen, agencyDashboardOpen, agencyEditorOpen]);
+
+  // Handle browser back/forward button navigation via hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const parsed = parseHash(window.location.hash);
+      applyHashState(parsed);
+      if (parsed.type === 'home') {
+        useSandboxStore.getState().deselectSession();
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Keyboard shortcuts: Cmd+1 (files), Cmd+2 (editor/terminal), Cmd+3 (focus), Cmd+Shift+P (marketplace)
   useEffect(() => {

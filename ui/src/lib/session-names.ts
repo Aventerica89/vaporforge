@@ -20,3 +20,21 @@ export function generateSessionName(): string {
   const num = Math.floor(Math.random() * 99) + 1;
   return `${word}-${num}`;
 }
+
+// Extract a friendly name from a git repo URL
+// "https://github.com/foo/my-project.git" → "my-project"
+// "https://github.com/foo/my-project" → "my-project"
+// "git@github.com:foo/my-project.git" → "my-project"
+export function extractRepoName(url: string): string {
+  const cleaned = url.replace(/\.git$/, '').replace(/\/$/, '');
+  const parts = cleaned.split(/[/:]/).filter(Boolean);
+  return parts[parts.length - 1] || generateSessionName();
+}
+
+// Deduplicate: if "my-project" exists, return "my-project-2", then "my-project-3", etc.
+export function deduplicateSessionName(base: string, existingNames: string[]): string {
+  if (!existingNames.includes(base)) return base;
+  let n = 2;
+  while (existingNames.includes(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
