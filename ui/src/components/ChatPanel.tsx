@@ -494,7 +494,7 @@ export function ChatPanel({
       status={isStreaming ? 'streaming' : 'idle'}
       controlsOpen={sessionOpen}
       onNew={clearMessages}
-      onPause={() => {}}
+      onPause={stopStreaming}
       onResume={() => {}}
       onStop={stopStreaming}
     />
