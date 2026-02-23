@@ -1,5 +1,5 @@
 import { create, type StateCreator } from 'zustand';
-import { sessionsApi, filesApi, gitApi, chatApi, sdkApi } from '@/lib/api';
+import { sessionsApi, filesApi, gitApi, chatApi, sdkApi, summaryApi } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
@@ -45,6 +45,9 @@ interface SandboxState {
   selectedModel: 'auto' | 'sonnet' | 'haiku' | 'opus';
   autonomyMode: 'conservative' | 'standard' | 'autonomous';
   isCompacting: boolean;
+  compactionDone: boolean;
+  sessionSummary: string | null;
+  summaryUpdatedAt: string | null;
 
   // Git state
   gitStatus: GitStatus | null;
@@ -78,6 +81,8 @@ interface SandboxState {
   sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
   stopStreaming: () => void;
   clearMessages: () => void;
+  loadSessionSummary: () => Promise<void>;
+  dismissCompactionDone: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
   setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
@@ -132,6 +137,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   selectedModel: 'auto' as const,
   autonomyMode: 'autonomous' as const,
   isCompacting: false,
+  compactionDone: false,
+  sessionSummary: null,
+  summaryUpdatedAt: null,
   streamAbortController: null,
 
   gitStatus: null,
@@ -582,7 +590,10 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         if (chunk.type === 'text' && chunk.content) {
           resetTimeout();
           // Clear compaction banner once Claude starts responding again
-          if (get().isCompacting) set({ isCompacting: false });
+          if (get().isCompacting) {
+            set({ isCompacting: false, compactionDone: true });
+            void get().loadSessionSummary();
+          }
           useStreamDebug.getState().recordEvent('text', chunk.content);
           content += chunk.content;
           currentReasoningPart = null;
@@ -684,7 +695,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           doneReceived = true;
           // Stream completed normally
           resetTimeout();
-          set({ isCompacting: false });
+          const wasCompacting = get().isCompacting;
+          set({ isCompacting: false, ...(wasCompacting && { compactionDone: true }) });
+          if (wasCompacting) void get().loadSessionSummary();
           useStreamDebug.getState().endStream();
           // Persist assistant message to KV (WS can't use waitUntil)
           const doneChunk = chunk as Record<string, unknown>;
@@ -940,6 +953,21 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   clearMessages: () => set({ messagesById: {}, messageIds: [] }),
+
+  loadSessionSummary: async () => {
+    const sessionId = get().currentSession?.id;
+    if (!sessionId) return;
+    try {
+      const result = await summaryApi.get(sessionId);
+      if (result.success && result.data) {
+        set({ sessionSummary: result.data.text, summaryUpdatedAt: result.data.updatedAt });
+      }
+    } catch {
+      // No summary available yet — non-fatal
+    }
+  },
+
+  dismissCompactionDone: () => set({ compactionDone: false }),
 
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
 

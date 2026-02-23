@@ -496,6 +496,13 @@ sdkRoutes.post('/persist', async (c) => {
     summarizeSession(c.env.SESSIONS_KV, user.id, sessionId)
       .then(async (summary) => {
         if (!summary) return;
+        // Store in KV for UI retrieval
+        await c.env.SESSIONS_KV.put(
+          `summary:${sessionId}`,
+          JSON.stringify({ text: summary, updatedAt: new Date().toISOString(), messageCount }),
+          { expirationTtl: 60 * 60 * 24 * 30 }
+        );
+        // Write to container for next-session gather-context.sh injection
         const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
         if (!rawSession) return;
         const sess = JSON.parse(rawSession) as Session;
@@ -624,6 +631,26 @@ sdkRoutes.get('/replay/:sessionId', async (c) => {
   const safeOffset = Math.max(0, Math.min(offset, lines.length));
   console.log(`[sdk/replay] msgId=${msgId.slice(0, 8)} total=${lines.length} offset=${safeOffset} returning=${lines.length - safeOffset}`);
   return c.json({ chunks: lines.slice(safeOffset), total: lines.length });
+});
+
+// GET /api/sdk/summary/:sessionId — fetch stored session summary from KV
+sdkRoutes.get('/summary/:sessionId', async (c) => {
+  const user = c.get('user');
+  const sessionId = c.req.param('sessionId');
+
+  const session = await c.env.SESSIONS_KV.get<Session>(`session:${sessionId}`, 'json');
+  if (!session || session.userId !== user.id) {
+    return c.json({ success: false, error: 'Not found' }, 404);
+  }
+
+  const stored = await c.env.SESSIONS_KV.get<{
+    text: string;
+    updatedAt: string;
+    messageCount: number;
+  }>(`summary:${sessionId}`, 'json');
+
+  if (!stored) return c.json({ success: false, error: 'No summary yet' }, 404);
+  return c.json({ success: true, data: stored });
 });
 
 // Standalone WS handler — called from router.ts with inline auth (no middleware)

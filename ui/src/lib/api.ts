@@ -1265,6 +1265,13 @@ export const billingApi = {
   },
 };
 
+export const summaryApi = {
+  get: (sessionId: string) =>
+    request<{ text: string; updatedAt: string; messageCount: number }>(
+      `/api/sdk/summary/${sessionId}`
+    ),
+};
+
 export interface AlertConfig {
   id: string;
   label: string;
