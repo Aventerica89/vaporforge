@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-23 · v0.30.0
+FEAT    streaming — Agent pause/resume via SIGSTOP/SIGCONT through WS tunnel (ws-agent-server, api.ts, useSandbox, ChatPanel)
+
 ### 2026-02-21 · f098c96 · v0.29.0
 FEAT    ui — useFocusTrap hook: Tab/Shift+Tab trap + Escape-to-close for all overlay panels
 FEAT    ui — useSwipeTabs.ts: contentRef + live DOM transform swipe (no React re-renders per frame)

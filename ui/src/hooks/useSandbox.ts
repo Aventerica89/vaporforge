@@ -1,5 +1,5 @@
 import { create, type StateCreator } from 'zustand';
-import { sessionsApi, filesApi, gitApi, chatApi, sdkApi, summaryApi } from '@/lib/api';
+import { sessionsApi, filesApi, gitApi, chatApi, sdkApi, summaryApi, sendWsCommand } from '@/lib/api';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName, extractRepoName, deduplicateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
@@ -58,6 +58,7 @@ interface SandboxState {
 
   // Stream control
   streamAbortController: AbortController | null;
+  isPaused: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -80,6 +81,8 @@ interface SandboxState {
 
   sendMessage: (message: string, images?: ImageAttachment[]) => Promise<void>;
   stopStreaming: () => void;
+  pauseStreaming: () => void;
+  resumeStreaming: () => void;
   clearMessages: () => void;
   loadSessionSummary: () => Promise<void>;
   dismissCompactionDone: () => void;
@@ -141,6 +144,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   sessionSummary: null,
   summaryUpdatedAt: null,
   streamAbortController: null,
+  isPaused: false,
 
   gitStatus: null,
 
@@ -845,6 +849,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         messagesById: { ...state.messagesById, [assistantMessage.id]: assistantMessage },
         messageIds: [...state.messageIds, assistantMessage.id],
         isStreaming: false,
+        isPaused: false,
         streamingContent: '',
         streamingParts: [],
         streamAbortController: null,
@@ -891,6 +896,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messagesById: { ...state.messagesById, [stoppedMessage.id]: stoppedMessage },
           messageIds: [...state.messageIds, stoppedMessage.id],
           isStreaming: false,
+          isPaused: false,
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
@@ -909,6 +915,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messagesById: { ...state.messagesById, [errorMessage.id]: errorMessage },
           messageIds: [...state.messageIds, errorMessage.id],
           isStreaming: false,
+          isPaused: false,
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
@@ -948,6 +955,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           messagesById: { ...state.messagesById, [stoppedMessage.id]: stoppedMessage },
           messageIds: [...state.messageIds, stoppedMessage.id],
           isStreaming: false,
+          isPaused: false,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,
@@ -955,11 +963,26 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       } else {
         set({
           isStreaming: false,
+          isPaused: false,
           streamingContent: '',
           streamingParts: [],
           streamAbortController: null,
         });
       }
+    }
+  },
+
+  pauseStreaming: () => {
+    if (get().isStreaming && !get().isPaused) {
+      sendWsCommand({ type: 'pause' });
+      set({ isPaused: true });
+    }
+  },
+
+  resumeStreaming: () => {
+    if (get().isStreaming && get().isPaused) {
+      sendWsCommand({ type: 'resume' });
+      set({ isPaused: false });
     }
   },
 

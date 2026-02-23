@@ -489,13 +489,17 @@ export function ChatPanel({
   // SessionIsland — shared across welcome + chat states for layoutId animation
   // ---------------------------------------------------------------------------
 
+  const isPaused = useSandboxStore((s) => s.isPaused);
+  const pauseStreaming = useSandboxStore((s) => s.pauseStreaming);
+  const resumeStreaming = useSandboxStore((s) => s.resumeStreaming);
+
   const sessionIsland = (
     <SessionIsland
-      status={isStreaming ? 'streaming' : 'idle'}
+      status={isPaused ? 'paused' : isStreaming ? 'streaming' : 'idle'}
       controlsOpen={sessionOpen}
       onNew={clearMessages}
-      onPause={stopStreaming}
-      onResume={() => {}}
+      onPause={pauseStreaming}
+      onResume={resumeStreaming}
       onStop={stopStreaming}
     />
   );

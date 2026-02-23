@@ -314,6 +314,16 @@ export const chatApi = {
   },
 };
 
+// Module-level ref for active WS (one at a time) — used by sendWsCommand
+let activeWs: WebSocket | null = null;
+
+/** Send a JSON command to the active WS agent (pause/resume). */
+export function sendWsCommand(command: { type: string }) {
+  if (activeWs && activeWs.readyState === WebSocket.OPEN) {
+    activeWs.send(JSON.stringify(command));
+  }
+}
+
 // SDK API - True progressive streaming via Agent SDK
 export const sdkApi = {
   stream: async function* (
@@ -423,6 +433,7 @@ export const sdkApi = {
     yield { type: 'msg-id', msgId };
 
     const ws = new WebSocket(wsUrl);
+    activeWs = ws;
 
     // Queue + resolver pattern for async iteration
     type QueueItem = { value: Record<string, unknown>; done: false } | { done: true };
@@ -482,6 +493,12 @@ export const sdkApi = {
           case 'session-reset':
             push({ value: { type: 'session-reset' }, done: false });
             break;
+          case 'paused':
+            push({ value: { type: 'paused' }, done: false });
+            break;
+          case 'resumed':
+            push({ value: { type: 'resumed' }, done: false });
+            break;
           case 'process-exit':
             push({ value: { type: 'ws-exit', exitCode: msg.exitCode }, done: false });
             // Signal end of stream after a brief delay for final frames
@@ -502,6 +519,7 @@ export const sdkApi = {
     };
 
     ws.onclose = () => {
+      activeWs = null;
       push({ done: true });
     };
 
@@ -545,6 +563,7 @@ export const sdkApi = {
         };
       }
     } finally {
+      activeWs = null;
       if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
         ws.close();
       }

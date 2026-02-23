@@ -19,7 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
-  { date: '2026-02-23', summary: 'fix(ui): wire SessionIsland pause button to stopStreaming — was no-op' },
+  { date: '2026-02-23', summary: 'feat(streaming): agent pause/resume via SIGSTOP/SIGCONT — ws-agent-server.js listens for pause/resume WS commands, sends SIGSTOP/SIGCONT to child process; sendWsCommand() in api.ts; isPaused/pauseStreaming/resumeStreaming in useSandbox; SessionIsland wired to real pause/resume (replaces premature stopStreaming hack from 4f04318)' },
   { date: '2026-02-23', summary: 'feat(ui): persist SessionIsland in chat state — layoutId="session-island" spring animation from welcome center to above-prompt on first message' },
   { date: '2026-02-23', summary: 'fix(mobile): drop StickToBottom from mobile chat path — replace Conversation/ConversationContent/ConversationScrollButton with plain overflow-y-auto div; fix user bubble bg-primary override on AIMessageContent (was bg-secondary = pink)' },
   { date: '2026-02-23', summary: 'chore: bump version 0.29.0 → 0.30.0 (mobile chat design parity release)' },

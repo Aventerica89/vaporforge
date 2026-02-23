@@ -929,6 +929,8 @@ function startQuery(ws) {
   // Flag set to true when client disconnects before agent finishes.
   // Prevents buffer deletion on close so the replay endpoint can serve it.
   let clientDisconnectedEarly = false;
+  // Pause/resume: SIGSTOP freezes the child process at kernel level
+  let paused = false;
 
   if (!prompt) {
     sendJson(ws, { type: 'error', error: 'No prompt in context file' });
@@ -997,8 +999,27 @@ function startQuery(ws) {
     sendJson(ws, { type: 'error', error: firstLine || 'Agent error' });
   });
 
+  // Listen for pause/resume commands from the browser via WS
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'pause' && activeChild && !paused) {
+        process.kill(activeChild.pid, 'SIGSTOP');
+        paused = true;
+        sendJson(ws, { type: 'paused' });
+        console.log('[ws-agent-server] agent paused (SIGSTOP)');
+      } else if (msg.type === 'resume' && activeChild && paused) {
+        process.kill(activeChild.pid, 'SIGCONT');
+        paused = false;
+        sendJson(ws, { type: 'resumed' });
+        console.log('[ws-agent-server] agent resumed (SIGCONT)');
+      }
+    } catch {}
+  });
+
   child.on('close', (code) => {
     activeChild = null;
+    paused = false;
     // Flush any remaining stdout
     if (stdoutBuf.trim() && ws.readyState === 1) {
       ws.send(stdoutBuf.trim());
