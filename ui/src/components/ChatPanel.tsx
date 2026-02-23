@@ -366,7 +366,7 @@ export function ChatPanel({
       <PromptInputAttachments />
       <PromptInputTextarea
         placeholder="Ask anything..."
-        className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
+        className="min-h-[44px] text-base leading-[1.3]"
       />
       {/* Mobile action bar (hidden on desktop) */}
       <div className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
@@ -681,9 +681,9 @@ export function ChatPanel({
             </div>
           </div>
 
-          <div className="px-0 flex flex-col gap-2">
+          <div className="px-4 pb-4 flex flex-col gap-2">
             <div className="order-2 md:order-1">{promptInput}</div>
-            <div className="px-4 pb-4 order-1 md:order-2">{pillsRow}</div>
+            <div className="order-1 md:order-2">{pillsRow}</div>
           </div>
         </>
       )}
