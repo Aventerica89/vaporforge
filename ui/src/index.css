@@ -103,6 +103,10 @@
     overscroll-behavior: none;
   }
 
+  #root {
+    height: 100%;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
