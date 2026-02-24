@@ -757,7 +757,7 @@ export function ChatPanel({
             </div>
           )}
 
-          <div className="px-4 pb-4 flex flex-col gap-2">
+          <div className="px-4 pb-4 flex flex-col gap-2 max-w-2xl mx-auto w-full">
             <div className="flex justify-center">
               <motion.div
                 layoutId="session-island"
