@@ -25,11 +25,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8787',
+        target: process.env.VF_API_TARGET || 'http://localhost:8787',
         changeOrigin: true,
+        secure: true,
       },
       '/ws': {
-        target: 'ws://localhost:8787',
+        target: process.env.VF_WS_TARGET || 'ws://localhost:8787',
         ws: true,
       },
     },

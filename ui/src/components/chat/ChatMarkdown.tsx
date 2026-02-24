@@ -2,7 +2,7 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import { CodeBlock } from './CodeBlock';
+import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
 import { prepareStreamingMarkdown } from '@/lib/markdown-utils';
 
 interface ChatMarkdownProps {
@@ -25,7 +25,19 @@ const components: Components = {
         filename = titleMatch ? titleMatch[1] : undefined;
       }
 
-      return <CodeBlock code={codeStr} language={match[1]} filename={filename} />;
+      return (
+        <CodeBlock>
+          <CodeBlockGroup className="border-b border-zinc-700/60 py-2 pl-4 pr-2">
+            <div className="flex items-center gap-2">
+              <div className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300">
+                {match[1]}
+              </div>
+              {filename && <span className="text-xs text-zinc-400">{filename}</span>}
+            </div>
+          </CodeBlockGroup>
+          <CodeBlockCode code={codeStr} language={match[1]} />
+        </CodeBlock>
+      );
     }
 
     // No-language fenced block (tree diagrams, file listings, etc.) — multiline

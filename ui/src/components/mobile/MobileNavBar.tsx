@@ -85,7 +85,7 @@ export const MobileNavBar = memo(function MobileNavBar({
         </div>
 
         {/* Center: title */}
-        <div className="flex flex-1 items-center justify-center gap-2 min-w-0">
+        <div className="flex flex-1 items-center justify-center gap-2">
           {statusDot && (
             <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
           )}

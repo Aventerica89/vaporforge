@@ -23,7 +23,7 @@ import {
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { ChatMarkdown } from './chat/ChatMarkdown';
-import { ReasoningBlock } from './chat/ReasoningBlock';
+import { Reasoning, ReasoningTrigger, ReasoningContent } from './prompt-kit/reasoning';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
@@ -666,11 +666,14 @@ function QuickChatMessage({
 
         if (part.type === 'reasoning' && 'text' in part) {
           return (
-            <ReasoningBlock
-              key={i}
-              content={(part as { type: 'reasoning'; text: string }).text}
-              isStreaming={isLastAssistant && isStreaming}
-            />
+            <Reasoning key={i} isStreaming={isLastAssistant && isStreaming}>
+              <ReasoningTrigger className="text-xs text-muted-foreground">
+                Thinking...
+              </ReasoningTrigger>
+              <ReasoningContent markdown contentClassName="mt-2 text-xs">
+                {(part as { type: 'reasoning'; text: string }).text}
+              </ReasoningContent>
+            </Reasoning>
           );
         }
 
