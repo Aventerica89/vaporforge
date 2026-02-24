@@ -565,6 +565,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       let wsChunkCount = 0;       // WS frames received (maps 1:1 to JSONL buffer lines)
       let doneReceived = false;   // 'done' frame received = agent finished normally
       let processExitReceived = false; // 'ws-exit' frame received = process exited
+      let shouldAutoRetry = false; // transient crash detected — eligible for auto-retry
 
       for await (const chunk of sdkApi.streamWs(
         session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel, get().autonomyMode
@@ -815,13 +816,37 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           }).catch(() => {});
         } else if (chunk.type === 'ws-exit') {
           processExitReceived = true;
-          // WebSocket agent process exited
+          // WebSocket agent process exited — capture reason for retry logic
+          const exitReason = (chunk as Record<string, unknown>).reason as string | undefined;
+          // Only auto-retry for transient failures (cold start race, SDK startup)
+          if (exitReason === 'context-timeout' || exitReason === 'child-exit') {
+            shouldAutoRetry = true;
+          }
           resetTimeout();
           useStreamDebug.getState().endStream();
         }
       }
 
       clearTimeout(timeoutId);
+
+      // Auto-retry once for transient crashes (cold start race, SDK startup failure)
+      // Only retry if no meaningful content was received and this isn't already a retry
+      const hasOnlyErrors = !content && parts.every((p) => p.type === 'error');
+      if (shouldAutoRetry && hasOnlyErrors && !doneReceived) {
+        // Check localStorage flag to prevent infinite retry loops
+        const retryKey = `vf-retry-${session.id}`;
+        const lastRetry = sessionStorage.getItem(retryKey);
+        const now = Date.now();
+        if (!lastRetry || now - parseInt(lastRetry, 10) > 30000) {
+          sessionStorage.setItem(retryKey, String(now));
+          set({ streamingContent: '', streamingParts: [], isStreaming: false });
+          toast.info('Connection issue — retrying automatically...');
+          await new Promise((r) => setTimeout(r, 2000));
+          // Re-invoke sendMessage (non-recursive — just calls the store action)
+          get().sendMessage(message, images);
+          return;
+        }
+      }
 
       // Replay: if the WS closed without a 'done' or 'ws-exit' frame, the connection
       // dropped mid-response. Try to recover missed chunks from the container buffer.

@@ -137,11 +137,26 @@ function buildSystemPromptAppend() {
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
-  // "Claude Code process exited with code N at XX.getProcessExitError ..."
+
+  // Categorize by exit code pattern
   const exitMatch = raw.match(/process exited with code (\d+)/i);
   if (exitMatch) {
-    return `Claude Code process crashed (exit code ${exitMatch[1]}). This usually means the session state is stale or the sandbox restarted.`;
+    const code = exitMatch[1];
+    if (code === '1') return 'Claude SDK failed to start. The sandbox may need a moment to warm up — try again.';
+    if (code === '137') return 'Claude process was killed (out of memory). Try a shorter prompt.';
+    return `Claude process exited unexpectedly (code ${code}).`;
   }
+
+  // Detect specific SDK / network errors
+  if (raw.includes('ECONNREFUSED') || raw.includes('fetch failed'))
+    return 'Could not reach Anthropic API. Check your connection and try again.';
+  if (raw.includes('401') || /invalid.*token/i.test(raw))
+    return 'Authentication failed. Your Claude token may have expired — try logging out and back in.';
+  if (raw.includes('rate_limit') || raw.includes('429'))
+    return 'Rate limited by Anthropic. Wait a moment and try again.';
+  if (raw.includes('overloaded') || raw.includes('529'))
+    return 'Anthropic API is overloaded. Try again in a few seconds.';
+
   // Strip file paths and stack frames for cleaner messages
   const firstLine = raw.split('\n')[0].trim();
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
@@ -371,6 +386,8 @@ async function handleQuery(prompt, sessionId, cwd) {
     // First attempt: resume existing session if we have a sessionId
     result = await runStream(prompt, sessionId, cwd, !!sessionId);
   } catch (err) {
+    // Log raw error to stderr for server-side debugging (visible in wrangler tail)
+    console.error(`[claude-agent] RAW_ERROR sessionId=${sessionId?.slice(0, 8) || 'none'}: ${err.stack || err.message}`);
     const friendly = cleanErrorMessage(err);
 
     // If we were trying to resume a session and it crashed, retry fresh

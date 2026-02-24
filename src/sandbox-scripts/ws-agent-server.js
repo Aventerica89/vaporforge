@@ -78,7 +78,7 @@ wss.on('connection', (ws) => {
 
   // Poll for context file (50ms intervals, 3s max) instead of hardcoded 150ms wait
   const POLL_INTERVAL = 50;
-  const POLL_MAX = 3000;
+  const POLL_MAX = 6000;
   let elapsed = 0;
   const pollTimer = setInterval(() => {
     elapsed += POLL_INTERVAL;
@@ -87,9 +87,9 @@ wss.on('connection', (ws) => {
       startQuery(ws);
     } else if (elapsed >= POLL_MAX) {
       clearInterval(pollTimer);
-      console.log('[ws-agent-server] context file not found after 3s');
-      sendJson(ws, { type: 'error', error: 'Context file timeout' });
-      sendJson(ws, { type: 'process-exit', exitCode: 1 });
+      console.log(`[ws-agent-server] context file not found after ${POLL_MAX / 1000}s — possible cold start race`);
+      sendJson(ws, { type: 'error', error: 'Sandbox is still warming up. Try sending your message again in a few seconds.' });
+      sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'context-timeout' });
       ws.close();
     }
   }, POLL_INTERVAL);
@@ -103,7 +103,7 @@ function startQuery(ws) {
     context = JSON.parse(raw);
   } catch (err) {
     sendJson(ws, { type: 'error', error: `Failed to read context: ${err.message}` });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'context-read-error' });
     ws.close();
     return;
   }
@@ -122,7 +122,7 @@ function startQuery(ws) {
 
   if (!prompt) {
     sendJson(ws, { type: 'error', error: 'No prompt in context file' });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'no-prompt' });
     ws.close();
     return;
   }
@@ -196,7 +196,7 @@ function startQuery(ws) {
         try { fs.appendFileSync(bufferPath, stdoutBuf.trim() + '\n'); } catch {}
       }
     }
-    sendJson(ws, { type: 'process-exit', exitCode: code || 0 });
+    sendJson(ws, { type: 'process-exit', exitCode: code || 0, reason: 'child-exit' });
     console.log(`[ws-agent-server] agent exited with code ${code}`);
     // Clean up buffer file on normal completion — client got everything
     if (bufferPath && !clientDisconnectedEarly) {
@@ -208,7 +208,7 @@ function startQuery(ws) {
   child.on('error', (err) => {
     activeChild = null;
     sendJson(ws, { type: 'error', error: `Spawn failed: ${err.message}` });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'spawn-error' });
     if (bufferPath && !clientDisconnectedEarly) {
       try { fs.unlinkSync(bufferPath); } catch {}
     }

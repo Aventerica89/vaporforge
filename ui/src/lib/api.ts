@@ -506,7 +506,7 @@ export const sdkApi = {
             push({ value: { type: 'resume-failed', error: msg.error }, done: false });
             break;
           case 'process-exit':
-            push({ value: { type: 'ws-exit', exitCode: msg.exitCode }, done: false });
+            push({ value: { type: 'ws-exit', exitCode: msg.exitCode, reason: msg.reason }, done: false });
             // Signal end of stream after a brief delay for final frames
             setTimeout(() => push({ done: true }), 50);
             break;

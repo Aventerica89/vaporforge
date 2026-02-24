@@ -17,7 +17,7 @@ import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } 
 import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
 import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
 import { Persona } from '@/components/prompt-kit/persona';
-import { Check, Copy } from 'lucide-react';
+import { AlertCircle, Check, Copy, RotateCw } from 'lucide-react';
 
 interface MessageContentProps {
   message: Message;
@@ -31,6 +31,48 @@ interface StreamingContentProps {
 function SmoothTextPart({ content, isStreaming }: { content: string; isStreaming: boolean }) {
   const smoothed = useSmoothText(content, isStreaming);
   return <ChatMarkdown content={smoothed} isStreaming={isStreaming} />;
+}
+
+/** Retry button for crash/warmup errors — re-sends the last user message */
+function RetryErrorBlock({ content }: { content: string }) {
+  const sendMessage = useSandboxStore((s) => s.sendMessage);
+  const messageIds = useSandboxStore((s) => s.messageIds);
+  const messagesById = useSandboxStore((s) => s.messagesById);
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+
+  const isRetryable = content.includes('crashed') ||
+    content.includes('warming up') ||
+    content.includes('warm up') ||
+    content.includes('try again') ||
+    content.includes('Connection issue');
+
+  const handleRetry = () => {
+    // Find the last user message and re-send it
+    for (let i = messageIds.length - 1; i >= 0; i--) {
+      const msg = messagesById[messageIds[i]];
+      if (msg?.role === 'user') {
+        void sendMessage(msg.content);
+        return;
+      }
+    }
+  };
+
+  return (
+    <div className="my-2 flex items-start gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error">
+      <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+      <span className="flex-1">{content || 'An error occurred'}</span>
+      {isRetryable && !isStreaming && (
+        <button
+          type="button"
+          onClick={handleRetry}
+          className="ml-2 flex shrink-0 items-center gap-1 rounded-md bg-error/10 px-2 py-1 text-[11px] font-medium text-error transition-colors hover:bg-error/20"
+        >
+          <RotateCw className="size-3" />
+          Retry
+        </button>
+      )}
+    </div>
+  );
 }
 
 function AskQuestionsBlock({ part }: { part: MessagePart }) {
@@ -332,14 +374,7 @@ function renderPart(
     }
 
     case 'error':
-      return (
-        <div
-          key={index}
-          className="my-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-xs text-error"
-        >
-          {part.content || 'An error occurred'}
-        </div>
-      );
+      return <RetryErrorBlock key={index} content={part.content || 'An error occurred'} />;
 
     default:
       return null;

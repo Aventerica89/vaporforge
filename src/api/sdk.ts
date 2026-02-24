@@ -336,9 +336,12 @@ sdkRoutes.post('/stream', async (c) => {
             } else if (event.type === 'exit') {
               // Sandbox exec finished — detect non-zero exit without stdout data
               if (event.exitCode && event.exitCode !== 0 && !hasData) {
+                const reason = (event as Record<string, unknown>).reason as string || 'unknown';
                 await writeEvent({
                   type: 'error',
-                  content: 'Claude Code process crashed. The session may be stale — try sending your message again.',
+                  content: reason === 'context-timeout'
+                    ? 'Sandbox is warming up — try again in a moment.'
+                    : 'Claude Code process crashed. Try sending your message again.',
                 });
                 // Clear stale sdkSessionId so next attempt starts fresh
                 newSdkSessionId = '';
