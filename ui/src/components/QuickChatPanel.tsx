@@ -27,7 +27,7 @@ import { ReasoningBlock } from './chat/ReasoningBlock';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
-import { ToolDisplay } from './ai-elements/Tool';
+import { UnifiedToolBlock } from './chat/UnifiedToolBlock';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { PlanCard } from './ai-elements/PlanCard';
@@ -734,16 +734,22 @@ function QuickChatMessage({
             );
           }
 
-          return (
-            <ToolDisplay
-              key={toolPart.toolCallId}
-              toolName={toolPart.toolName}
-              state={toolPart.state}
-              input={toolPart.input}
-              output={'output' in toolPart ? toolPart.output : undefined}
-              errorText={'errorText' in toolPart ? toolPart.errorText : undefined}
-            />
-          );
+          {
+            const rawOutput = 'output' in toolPart ? toolPart.output : undefined;
+            const rawError = 'errorText' in toolPart ? toolPart.errorText : undefined;
+            return (
+              <UnifiedToolBlock
+                key={toolPart.toolCallId}
+                name={toolPart.toolName}
+                state={toolPart.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
+                input={toolPart.input as Record<string, unknown>}
+                output={typeof rawOutput === 'string' ? rawOutput : undefined}
+                errorText={typeof rawError === 'string' ? rawError : undefined}
+                toolId={toolPart.toolCallId}
+                compact
+              />
+            );
+          }
         }
 
         return null;

@@ -1,7 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { ChatMarkdown } from './ChatMarkdown';
-import { ToolCallBlock } from './ToolCallBlock';
+import { UnifiedToolBlock } from './UnifiedToolBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { PlanCard } from '@/components/ai-elements/PlanCard';
@@ -10,10 +10,13 @@ import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSmoothText } from '@/hooks/useSmoothText';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/prompt-kit/reasoning';
-import { Tool } from '@/components/prompt-kit/tool';
 import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
 import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/prompt-kit/commit';
+import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
+import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
+import { Persona } from '@/components/prompt-kit/persona';
 import { Check, Copy } from 'lucide-react';
 
 interface MessageContentProps {
@@ -50,6 +53,42 @@ function AskQuestionsBlock({ part }: { part: MessagePart }) {
       questions={input.questions}
       onSubmit={(formatted) => void sendMessage(formatted)}
     />
+  );
+}
+
+/** Wrapper for Confirmation that needs hook access (sendMessage for approval) */
+function ConfirmationBlock({ part }: { part: MessagePart }) {
+  const sendMessage = useSandboxStore((s) => s.sendMessage);
+  const conf = part.confirmation;
+  if (!conf) return null;
+
+  return (
+    <div className="my-1.5">
+      {/* Rendered as a UnifiedToolBlock in approval-responded state once handled */}
+      <UnifiedToolBlock
+        name={conf.toolName}
+        state="input-available"
+        input={conf.input as Record<string, unknown>}
+        toolId={conf.approvalId}
+      />
+      <div className="flex items-center gap-2 px-3 py-1.5">
+        <button
+          type="button"
+          onClick={() => void sendMessage(`Approved: ${conf.toolName}`)}
+          className="flex items-center gap-1.5 rounded-md bg-green-600/20 px-3 py-1.5 text-[11px] font-medium text-green-400 transition-opacity hover:opacity-80"
+        >
+          <Check className="size-3" />
+          Approve
+        </button>
+        <button
+          type="button"
+          onClick={() => void sendMessage(`Denied: ${conf.toolName}`)}
+          className="flex items-center gap-1.5 rounded-md bg-red-600/20 px-3 py-1.5 text-[11px] font-medium text-red-400 transition-opacity hover:opacity-80"
+        >
+          Deny
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -135,14 +174,13 @@ function renderPart(
       // Hide tool-start in completed messages — tool-result renders the full state
       if (!isStreaming) return null;
       return (
-        <Tool
+        <UnifiedToolBlock
           key={index}
-          toolPart={{
-            type: part.name || 'Tool',
-            state: 'input-streaming',
-            input: part.input,
-            toolCallId: part.toolId,
-          }}
+          name={part.name || 'Tool'}
+          state="input-streaming"
+          input={part.input}
+          toolId={part.toolId}
+          startedAt={part.startedAt}
         />
       );
     }
@@ -158,15 +196,14 @@ function renderPart(
           (part.toolId ? p.toolId === part.toolId : p.name === part.name),
       );
       return (
-        <Tool
+        <UnifiedToolBlock
           key={index}
-          toolPart={{
-            type: part.name || 'Tool',
-            state: 'output-available',
-            input: matchingStart?.input ?? part.input,
-            output: part.output != null ? { result: part.output } : undefined,
-            toolCallId: part.toolId,
-          }}
+          name={part.name || 'Tool'}
+          state="output-available"
+          input={matchingStart?.input ?? part.input}
+          output={part.output}
+          toolId={part.toolId}
+          duration={part.duration}
         />
       );
     }
@@ -214,6 +251,86 @@ function renderPart(
       );
     }
 
+    case 'commit': {
+      const c = part.commit;
+      if (!c) return null;
+      return (
+        <Commit key={index} hash={c.hash} message={c.message}>
+          {c.author && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <CommitAuthorAvatar name={c.author} />
+              <span>{c.author}</span>
+              {c.date && <CommitTimestamp date={c.date} />}
+            </div>
+          )}
+          {c.files && c.files.length > 0 && (
+            <CommitFiles label={`${c.files.length} changed file${c.files.length === 1 ? '' : 's'}`}>
+              {c.files.map((f) => (
+                <CommitFile
+                  key={f.path}
+                  path={f.path}
+                  status={f.status}
+                  additions={f.additions}
+                  deletions={f.deletions}
+                />
+              ))}
+            </CommitFiles>
+          )}
+        </Commit>
+      );
+    }
+
+    case 'test-results': {
+      const tr = part.testResults;
+      if (!tr) return null;
+      return (
+        <TestResults key={index} status={tr.status} suiteName={tr.suiteName}>
+          <TestResultsHeader passed={tr.passed} failed={tr.failed} skipped={tr.skipped} />
+          {tr.cases && tr.cases.length > 0 && (
+            <TestResultsBody defaultOpen={tr.status === 'fail'}>
+              {tr.cases.map((tc) => (
+                <TestCase
+                  key={tc.name}
+                  name={tc.name}
+                  status={tc.status}
+                  duration={tc.duration}
+                  error={tc.error}
+                />
+              ))}
+            </TestResultsBody>
+          )}
+        </TestResults>
+      );
+    }
+
+    case 'checkpoint-list': {
+      const cps = part.checkpoints;
+      if (!cps || cps.length === 0) return null;
+      return (
+        <CheckpointList key={index}>
+          {cps.map((cp, i) => (
+            <Checkpoint
+              key={cp.title}
+              status={cp.status}
+              title={cp.title}
+              description={cp.description}
+              timestamp={cp.timestamp}
+              index={i + 1}
+            />
+          ))}
+        </CheckpointList>
+      );
+    }
+
+    case 'confirmation':
+      return <ConfirmationBlock key={index} part={part} />;
+
+    case 'persona': {
+      const p = part.persona;
+      if (!p) return null;
+      return <Persona key={index} state={p.state} name={p.name} />;
+    }
+
     case 'error':
       return (
         <div
@@ -251,14 +368,13 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
-            <ToolCallBlock
+            <UnifiedToolBlock
               key={tool.id}
-              part={{
-                type: 'tool-result',
-                name: tool.name,
-                input: tool.input,
-                output: tool.output,
-              }}
+              name={tool.name}
+              state="output-available"
+              input={tool.input}
+              output={tool.output}
+              toolId={tool.id}
             />
           ))}
         </div>

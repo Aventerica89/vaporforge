@@ -22,7 +22,19 @@ export interface ChainOfThoughtStep {
 
 // Structured message parts for rich rendering
 export interface MessagePart {
-  type: 'text' | 'tool-start' | 'tool-result' | 'error' | 'reasoning' | 'artifact' | 'chain-of-thought';
+  type:
+    | 'text'
+    | 'tool-start'
+    | 'tool-result'
+    | 'error'
+    | 'reasoning'
+    | 'artifact'
+    | 'chain-of-thought'
+    | 'commit'
+    | 'test-results'
+    | 'checkpoint-list'
+    | 'confirmation'
+    | 'persona';
   content?: string;
   name?: string;
   /** Unique tool call ID — composite "parentId:childId" for nested agent tools */
@@ -39,6 +51,56 @@ export interface MessagePart {
   filename?: string;
   /** Steps for chain-of-thought parts */
   steps?: ChainOfThoughtStep[];
+
+  /** Commit part data */
+  commit?: {
+    hash: string;
+    message: string;
+    author?: string;
+    date?: string;
+    files?: Array<{
+      path: string;
+      status: 'added' | 'modified' | 'deleted' | 'renamed';
+      additions?: number;
+      deletions?: number;
+    }>;
+  };
+
+  /** Test results part data */
+  testResults?: {
+    status: 'pass' | 'fail' | 'running' | 'skip';
+    suiteName?: string;
+    passed?: number;
+    failed?: number;
+    skipped?: number;
+    cases?: Array<{
+      name: string;
+      status: 'pass' | 'fail' | 'running' | 'skip';
+      duration?: number;
+      error?: string;
+    }>;
+  };
+
+  /** Checkpoint list part data */
+  checkpoints?: Array<{
+    title: string;
+    description?: string;
+    status: 'pending' | 'active' | 'complete' | 'error';
+    timestamp?: string;
+  }>;
+
+  /** Confirmation part data (tool approval request) */
+  confirmation?: {
+    toolName: string;
+    input: unknown;
+    approvalId: string;
+  };
+
+  /** Persona part data */
+  persona?: {
+    state: 'idle' | 'listening' | 'thinking' | 'speaking';
+    name: string;
+  };
 }
 
 // Message types

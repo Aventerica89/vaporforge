@@ -697,6 +697,63 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           };
           parts.push(resultPart);
           set({ streamingParts: [...parts] });
+        } else if (chunk.type === 'commit') {
+          resetTimeout();
+          currentTextPart = null;
+          currentReasoningPart = null;
+          const c = chunk as Record<string, unknown>;
+          parts.push({
+            type: 'commit',
+            commit: {
+              hash: (c.hash as string) || '',
+              message: (c.message as string) || '',
+              author: c.author as string | undefined,
+              date: c.date as string | undefined,
+              files: c.files as Array<{ path: string; status: 'added' | 'modified' | 'deleted' | 'renamed'; additions?: number; deletions?: number }> | undefined,
+            },
+          });
+          set({ streamingParts: [...parts] });
+        } else if (chunk.type === 'test-results') {
+          resetTimeout();
+          currentTextPart = null;
+          currentReasoningPart = null;
+          const tr = chunk as Record<string, unknown>;
+          parts.push({
+            type: 'test-results',
+            testResults: {
+              status: (tr.status as 'pass' | 'fail' | 'running' | 'skip') || 'running',
+              suiteName: tr.suiteName as string | undefined,
+              passed: tr.passed as number | undefined,
+              failed: tr.failed as number | undefined,
+              skipped: tr.skipped as number | undefined,
+              cases: tr.cases as Array<{ name: string; status: 'pass' | 'fail' | 'running' | 'skip'; duration?: number; error?: string }> | undefined,
+            },
+          });
+          set({ streamingParts: [...parts] });
+        } else if (chunk.type === 'checkpoint-list') {
+          resetTimeout();
+          currentTextPart = null;
+          currentReasoningPart = null;
+          const cl = chunk as Record<string, unknown>;
+          parts.push({
+            type: 'checkpoint-list',
+            checkpoints: (cl.checkpoints as Array<{ title: string; description?: string; status: 'pending' | 'active' | 'complete' | 'error'; timestamp?: string }>) || [],
+          });
+          set({ streamingParts: [...parts] });
+        } else if (chunk.type === 'confirmation') {
+          resetTimeout();
+          currentTextPart = null;
+          currentReasoningPart = null;
+          const cf = chunk as Record<string, unknown>;
+          parts.push({
+            type: 'confirmation',
+            confirmation: {
+              toolName: (cf.toolName as string) || '',
+              input: cf.input,
+              approvalId: (cf.approvalId as string) || '',
+            },
+          });
+          set({ streamingParts: [...parts] });
         } else if (chunk.type === 'error' && chunk.content) {
           resetTimeout();
           useStreamDebug.getState().recordEvent('error', chunk.content);

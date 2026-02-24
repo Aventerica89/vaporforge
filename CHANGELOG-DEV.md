@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-23 · v0.30.0
+REFACTOR ui — Consolidate 3 tool renderers into UnifiedToolBlock; new tool-utils.ts + UnifiedToolBlock.tsx (6-state, icons, summaries, timer, CitationCard, SchemaViewer); wire commit/test-results/checkpoint-list/confirmation/persona part types; delete ToolCallBlock + ai-elements/Tool
+
+### 2026-02-23 · v0.30.0
 FIX     streaming — Pause/resume hardening: inner try/catch on SIGSTOP/SIGCONT, pause-failed/resume-failed error events, server confirmation handlers, pausedAt + 45s timeout toast, 6 unit tests
 
 ### 2026-02-23 · v0.30.0
