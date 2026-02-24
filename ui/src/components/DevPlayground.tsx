@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { X, Paintbrush, Code2, Terminal, Bug } from 'lucide-react';
 import { usePlayground } from '@/hooks/usePlayground';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
-import { useKeyboard } from '@/hooks/useKeyboard';
 import { CanvasTab } from '@/components/playground/CanvasTab';
 import { ComponentsTab } from '@/components/playground/ComponentsTab';
 import { ConsoleTab } from '@/components/playground/ConsoleTab';
@@ -28,9 +27,6 @@ export function DevPlayground() {
   const { layoutTier } = useDeviceInfo();
   const isMobile = layoutTier === 'phone';
 
-  // iOS keyboard safety
-  const { viewportHeight } = useKeyboard();
-
   // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
@@ -48,7 +44,6 @@ export function DevPlayground() {
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden"
-      style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
     >
       {/* ─── Header ─── */}
       <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-3 py-2.5 safe-area-header sm:px-4 sm:py-3">

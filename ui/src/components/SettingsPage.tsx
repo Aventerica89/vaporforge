@@ -22,7 +22,6 @@ import {
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
-import { useKeyboard } from '@/hooks/useKeyboard';
 import { APP_VERSION } from '@/lib/version';
 
 // Tab content components
@@ -131,9 +130,6 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
   const { layoutTier } = useDeviceInfo();
   const isMobile = layoutTier === 'phone';
 
-  // Mobile: use viewportHeight for iOS keyboard safety
-  const { viewportHeight } = useKeyboard();
-
   // Close on Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -148,8 +144,7 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
 
   return (
     <div
-      className="flex flex-col bg-background overflow-hidden"
-      style={isMobile ? { height: `${viewportHeight}px` } : { height: '100vh' }}
+      className="flex flex-col bg-background overflow-hidden h-full"
     >
       {/* ─── Top bar (hidden on phone or when inside mobile subview) ─── */}
       {!isMobile && !inMobileSubView && (

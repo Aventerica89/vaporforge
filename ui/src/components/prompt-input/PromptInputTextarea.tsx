@@ -20,7 +20,6 @@ export function PromptInputTextarea({
     images,
     status,
     disabled,
-    compact,
     textareaRef,
     menuOpen,
     menuState,
@@ -40,12 +39,6 @@ export function PromptInputTextarea({
     const maxHeight = LINE_HEIGHT * MAX_ROWS;
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [input, textareaRef]);
-
-  // iOS scroll reset on blur
-  const handleBlur = useCallback(() => {
-    if (!compact) return;
-    setTimeout(() => window.scrollTo(0, 0), 100);
-  }, [compact]);
 
   // Paste image handling
   const handlePaste = useCallback(
@@ -142,7 +135,6 @@ export function PromptInputTextarea({
       value={input}
       onChange={(e) => setInput(e.target.value)}
       onKeyDown={handleKeyDown}
-      onBlur={handleBlur}
       onPaste={handlePaste}
       placeholder={effectivePlaceholder}
       rows={1}

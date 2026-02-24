@@ -22,7 +22,7 @@ export function MobileLayout() {
   const { currentSession, isCreatingSession, selectSession, deselectSession } =
     useSandboxStore();
   useAutoReconnect();
-  const { isVisible: keyboardOpen, viewportHeight } = useKeyboard();
+  const { isVisible: keyboardOpen } = useKeyboard();
   const {
     activeTab,
     setActiveTab,
@@ -52,11 +52,6 @@ export function MobileLayout() {
     if (deltaX > 50 && deltaY < 60) goBack();
   }, [goBack]);
   const [showCloneModal, setShowCloneModal] = useState(false);
-  // Use 100dvh when keyboard is closed (fills full dynamic viewport,
-  // including area behind address bar chrome). Switch to exact pixel
-  // height from visualViewport only when keyboard is open, since dvh
-  // does NOT respond to the virtual keyboard (Apple HIG / WebKit spec).
-  const containerHeight = keyboardOpen ? `${viewportHeight}px` : '100dvh';
 
   const sessionId = currentSession?.id;
   useEffect(() => {
@@ -172,8 +167,7 @@ export function MobileLayout() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: containerHeight }}
+      className="flex flex-col h-full overflow-hidden"
       onTouchStart={onEdgeTouchStart}
       onTouchEnd={onEdgeTouchEnd}
     >

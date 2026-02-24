@@ -224,10 +224,11 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 ### Mobile (iOS)
 
-- Root CSS: `html, body { position: fixed; width: 100%; height: 100% }`
-- Always use `visualViewport.height` (not `dvh` or `100%`) for mobile sizing
-- No `scrollIntoView()` — causes iOS keyboard push-up
-- `window.scrollTo(0,0)` on every viewport resize as safety net
+- Root CSS: `html, body { height: 100dvh; overflow: hidden; overscroll-behavior: none }`
+- NO `position: fixed` on html/body — blocks browser keyboard handling
+- Use flexbox for layout (`h-full`, `flex-1 overflow-y-auto`) — let the browser handle keyboard
+- `useKeyboard()` hook only for detecting keyboard state (tab bar hiding), NOT for layout sizing
+- `scrollIntoView({ behavior: 'smooth' })` is safe and recommended for scroll anchoring
 
 ### PromptInput Ownership Model
 

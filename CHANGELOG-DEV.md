@@ -4,6 +4,12 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-24 · v0.30.0
+FIX     mobile — Eliminate iOS keyboard jank: remove position:fixed from html/body, use height:100dvh + flexbox h-full, strip viewportHeight from useKeyboard + 4 layout components, remove scroll-reset hacks
+
+### 2026-02-24 · 988bccf · v0.30.0
+FIX     streaming — Structured error diagnostics + auto-retry for transient crashes: categorized cleanErrorMessage (exit codes, auth, rate limit, overloaded), 6s context-file timeout with reason field on all exit paths, auto-retry once on context-timeout/child-exit, Retry button in MessageContent, reason forwarded through WS + SSE paths
+
 ### 2026-02-23 · v0.30.0
 REFACTOR ui — Consolidate 3 tool renderers into UnifiedToolBlock; new tool-utils.ts + UnifiedToolBlock.tsx (6-state, icons, summaries, timer, CitationCard, SchemaViewer); wire commit/test-results/checkpoint-list/confirmation/persona part types; delete ToolCallBlock + ai-elements/Tool
 

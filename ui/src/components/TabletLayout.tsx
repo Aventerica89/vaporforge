@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
-import { useKeyboard } from '@/hooks/useKeyboard';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { ChatPanel } from './ChatPanel';
 import { FileTree } from './FileTree';
@@ -69,7 +68,6 @@ export function TabletLayout() {
     createSession,
   } = useSandboxStore();
   useAutoReconnect();
-  const { viewportHeight } = useKeyboard();
   const logout = useAuthStore((s) => s.logout);
   const [activeView, setActiveView] = useState<SidebarView>('chat');
   // M7 HIG fix: Settings and Marketplace render as full-screen overlay sheets,
@@ -172,8 +170,7 @@ export function TabletLayout() {
 
   return (
     <div
-      className="flex overflow-hidden"
-      style={{ height: `${viewportHeight}px` }}
+      className="flex overflow-hidden h-full"
     >
       {/* Sidebar */}
       <nav

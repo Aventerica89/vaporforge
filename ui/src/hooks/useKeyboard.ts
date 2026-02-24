@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 
 interface KeyboardState {
   /** Whether the virtual keyboard is currently visible */
   isVisible: boolean;
   /** Estimated keyboard height in pixels */
   height: number;
-  /** Current visual viewport height (tracks keyboard animation) */
-  viewportHeight: number;
 }
 
 /**
@@ -20,10 +18,7 @@ export function useKeyboard(): KeyboardState {
   const [state, setState] = useState<KeyboardState>({
     isVisible: false,
     height: 0,
-    viewportHeight: typeof window !== 'undefined' ? window.innerHeight : 0,
   });
-
-  const wasVisibleRef = useRef(false);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -36,17 +31,9 @@ export function useKeyboard(): KeyboardState {
       const kbHeight = fullHeight - vpHeight;
       const isVisible = kbHeight > 150;
 
-      // Only scroll on keyboard close to prevent bounce when typing
-      if (wasVisibleRef.current && !isVisible) {
-        window.scrollTo(0, 0);
-      }
-
-      wasVisibleRef.current = isVisible;
-
       setState({
         isVisible,
         height: isVisible ? kbHeight : 0,
-        viewportHeight: vpHeight,
       });
     };
 
