@@ -4,6 +4,7 @@ import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName, extractRepoName, deduplicateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { useStreamDebug } from '@/hooks/useStreamDebug';
+import { useDiagnostics } from '@/hooks/useDiagnostics';
 import { toast } from '@/hooks/useToast';
 import type { Session, FileInfo, Message, MessagePart, GitStatus, ImageAttachment } from '@/lib/types';
 
@@ -592,6 +593,30 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           continue;
         }
 
+        // Container system-info — store for diagnostics panel + debug log
+        if (chunk.type === 'system-info') {
+          const info = chunk as Record<string, unknown>;
+          window.dispatchEvent(
+            new CustomEvent('vf:system-info', {
+              detail: {
+                sdkVersion: info.sdkVersion,
+                buildDate: info.buildDate,
+                nodeVersion: info.nodeVersion,
+              },
+            })
+          );
+          debugLog('sandbox', 'info', `Container: SDK ${info.sdkVersion}, CLI ${info.cliVersion || '?'}, build ${info.buildDate}, Node ${info.nodeVersion}`);
+          continue;
+        }
+
+        // Model fallback: agent detected rate limit and auto-switched models
+        if (chunk.type === 'model-fallback') {
+          const fb = chunk as Record<string, unknown>;
+          toast.warning(`${fb.from} limit reached — switching to ${fb.to}`);
+          debugLog('sandbox', 'warn', `Model fallback: ${fb.from} -> ${fb.to} (${fb.reason})`);
+          continue;
+        }
+
         // SDK is auto-compacting context (emitted during the long silence)
         if (chunk.type === 'system-status' && (chunk as Record<string, unknown>).status === 'compacting') {
           set({ isCompacting: true });
@@ -802,22 +827,36 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
               ...(typeof doneChunk.costUsd === 'number' ? { costUsd: doneChunk.costUsd as number } : {}),
             };
           }
-          sdkApi.persistMessage(
-            session.id,
-            (doneChunk.fullText as string) || content,
-            (doneChunk.sessionId as string) || '',
-            typeof doneChunk.costUsd === 'number' ? (doneChunk.costUsd as number) : undefined
-          ).then(({ triggeredAlerts }) => {
-            if (triggeredAlerts && triggeredAlerts.length > 0) {
-              for (const alert of triggeredAlerts) {
-                toast.warning(`Budget alert: ${alert.label} (${alert.thresholdPct}% reached)`, 8000);
+          const textToSave = (doneChunk.fullText as string) || content;
+          if (textToSave) {
+            sdkApi.persistMessage(
+              session.id,
+              textToSave,
+              (doneChunk.sessionId as string) || '',
+              typeof doneChunk.costUsd === 'number' ? (doneChunk.costUsd as number) : undefined
+            ).then(({ triggeredAlerts }) => {
+              if (triggeredAlerts && triggeredAlerts.length > 0) {
+                for (const alert of triggeredAlerts) {
+                  toast.warning(`Budget alert: ${alert.label} (${alert.thresholdPct}% reached)`, 8000);
+                }
               }
-            }
-          }).catch(() => {});
+            }).catch(() => {});
+          }
+        } else if (chunk.type === 'stderr' && chunk.content) {
+          // Forward container stderr to diagnostics store + debug log
+          useDiagnostics.getState().addStderr(chunk.content);
+          debugLog('sandbox', 'warn', `Container stderr: ${chunk.content}`);
         } else if (chunk.type === 'ws-exit') {
           processExitReceived = true;
           // WebSocket agent process exited — capture reason for retry logic
           const exitReason = (chunk as Record<string, unknown>).reason as string | undefined;
+          const exitCode = (chunk as Record<string, unknown>).exitCode as number | undefined;
+          // Track crashes in diagnostics
+          if (exitCode && exitCode !== 0) {
+            useDiagnostics.getState().recordCrash(exitReason || `exit-code-${exitCode}`);
+          }
+          debugLog('sandbox', exitCode === 0 ? 'info' : 'error',
+            `Process exited: code=${exitCode ?? 0} reason=${exitReason || 'none'}`);
           // Only auto-retry for transient failures (cold start race, SDK startup)
           if (exitReason === 'context-timeout' || exitReason === 'child-exit') {
             shouldAutoRetry = true;

@@ -454,8 +454,23 @@ sdkRoutes.post('/persist', async (c) => {
   }>();
 
   const { sessionId, content, sdkSessionId, costUsd } = body;
-  if (!sessionId || !content) {
-    return c.json<ApiResponse<never>>({ success: false, error: 'Missing fields' }, 400);
+  if (!sessionId) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Missing sessionId' }, 400);
+  }
+  // If content is empty (e.g. agent crashed before producing text), skip persist
+  // but still update sdkSessionId and return success to avoid 400 noise
+  if (!content) {
+    if (sdkSessionId !== undefined) {
+      const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
+      if (rawSession) {
+        const session = JSON.parse(rawSession) as Session;
+        if ((session.sdkSessionId || '') !== sdkSessionId) {
+          const updated: Session = { ...session, sdkSessionId: sdkSessionId || undefined };
+          await c.env.SESSIONS_KV.put(`session:${sessionId}`, JSON.stringify(updated));
+        }
+      }
+    }
+    return c.json({ success: true, triggeredAlerts: [] });
   }
 
   // Persist assistant message

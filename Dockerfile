@@ -29,6 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
+ENV VF_CONTAINER_BUILD=20260224f
 
 # Create workspace directory
 RUN mkdir -p /workspace
@@ -47,7 +48,7 @@ RUN cat > /opt/claude-agent/claude-agent.js << 'CLAUDE_AGENT_EOF'
 //   { type: "text-delta", text: "..." }
 //   { type: "tool-start", name: "...", input: {...} }
 //   { type: "tool-result", name: "...", output: "..." }
-//   { type: "done", sessionId: "...", fullText: "..." }
+//   { type: "done", sessionId: "...", fullText: "...", usage?: {inputTokens, outputTokens} }
 //   { type: "error", error: "..." }
 
 let query;
@@ -172,26 +173,82 @@ function buildSystemPromptAppend() {
   return BASE_SYSTEM_APPEND;
 }
 
+// Model fallback chain: when a model hits its usage limit, try the next one.
+// Order: sonnet -> haiku -> opus (haiku is cheapest fallback, opus is last resort).
+const MODEL_FALLBACK_CHAIN = {
+  'claude-sonnet-4-6': 'claude-haiku-4-5-20251001',
+  'claude-haiku-4-5-20251001': 'claude-opus-4-6',
+  'claude-opus-4-6': null, // no further fallback
+};
+
+const MODEL_DISPLAY_NAMES = {
+  'claude-sonnet-4-6': 'Sonnet',
+  'claude-haiku-4-5-20251001': 'Haiku',
+  'claude-opus-4-6': 'Opus',
+};
+
+// Detect if an exit-code-1 failure is a rate/usage limit by probing the CLI directly.
+// Returns the rate limit message if detected, null otherwise.
+function detectRateLimit(env, cwd) {
+  try {
+    const { execFileSync } = require('child_process');
+    execFileSync('claude', ['-p', 'ok', '--max-turns', '1', '--output-format', 'json'], {
+      env,
+      cwd: cwd || '/workspace',
+      encoding: 'utf8',
+      timeout: 10000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return null; // succeeded — not a rate limit
+  } catch (probeErr) {
+    const stdout = probeErr.stdout ? probeErr.stdout.toString() : '';
+    if (stdout.includes('hit your limit') || stdout.includes("you've hit") || stdout.includes('resets')) {
+      // Extract the reset message from JSON output
+      try {
+        const parsed = JSON.parse(stdout);
+        if (parsed.result && typeof parsed.result === 'string') {
+          return parsed.result;
+        }
+      } catch {}
+      return 'Usage limit reached';
+    }
+    return null; // different error — not a rate limit
+  }
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
-  // "Claude Code process exited with code N at XX.getProcessExitError ..."
+
+  // Categorize by exit code pattern
   const exitMatch = raw.match(/process exited with code (\d+)/i);
   if (exitMatch) {
-    return `Claude Code process crashed (exit code ${exitMatch[1]}). This usually means the session state is stale or the sandbox restarted.`;
+    const code = exitMatch[1];
+    if (code === '1') return 'Claude exited with an error. Common causes: usage limit reached (try switching models), auth expired (re-login), or API issue.';
+    if (code === '137') return 'Claude process was killed (out of memory). Try a shorter prompt.';
+    return `Claude process exited unexpectedly (code ${code}).`;
   }
+
+  // Detect specific SDK / network errors
+  if (raw.includes('ECONNREFUSED') || raw.includes('fetch failed'))
+    return 'Could not reach Anthropic API. Check your connection and try again.';
+  if (raw.includes('401') || /invalid.*token/i.test(raw))
+    return 'Authentication failed. Your Claude token may have expired — try logging out and back in.';
+  if (raw.includes('rate_limit') || raw.includes('429'))
+    return 'Rate limited by Anthropic. Wait a moment and try again.';
+  if (raw.includes('overloaded') || raw.includes('529'))
+    return 'Anthropic API is overloaded. Try again in a few seconds.';
+
   // Strip file paths and stack frames for cleaner messages
   const firstLine = raw.split('\n')[0].trim();
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
 }
 
-function buildOptions(prompt, sessionId, cwd, useResume) {
+function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const mode = process.env.VF_SESSION_MODE || 'agent';
   const isPlan = mode === 'plan';
-  const isAgency = process.env.VF_AGENCY_MODE === '1';
   if (isPlan) console.error('[claude-agent] Running in PLAN mode (read-only)');
-  if (isAgency) console.error('[claude-agent] Running in AGENCY mode (fresh session, no continue)');
 
   // Autonomy mode: conservative=ask, standard=auto-accept edits, autonomous=bypass all
   // Plan mode always wins regardless of autonomy setting.
@@ -292,7 +349,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   }
 
   return {
-    model: process.env.VF_MODEL || 'claude-sonnet-4-6',
+    model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
     betas: ['context-1m-2025-08-07'],
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
@@ -312,8 +369,7 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
         return true;
       },
     } : {}),
-    // Agency edits always start fresh — no accumulated conversation history from prior failed attempts
-    ...(isAgency ? {} : { continue: true }),
+    continue: true,
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',
@@ -331,8 +387,27 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   };
 }
 
-async function runStream(prompt, sessionId, cwd, useResume) {
-  const options = buildOptions(prompt, sessionId, cwd, useResume);
+async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
+  const options = buildOptions(prompt, sessionId, cwd, useResume, modelOverride);
+
+  // Pre-flight: test CLI binary + real query to capture any startup errors
+  const { execFileSync } = require('child_process');
+  try {
+    const ver = execFileSync('claude', ['--version'], {
+      env: options.env,
+      encoding: 'utf8',
+      timeout: 10000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    console.error(`[claude-agent] CLI pre-flight OK: ${ver}`);
+  } catch (pfErr) {
+    const stderr = pfErr.stderr ? pfErr.stderr.toString().trim() : '';
+    const stdout = pfErr.stdout ? pfErr.stdout.toString().trim() : '';
+    console.error(`[claude-agent] CLI pre-flight FAILED (code=${pfErr.status}): ${pfErr.message}`);
+    if (stderr) console.error(`[claude-agent] CLI pre-flight stderr: ${stderr.slice(0, 500)}`);
+    if (stdout) console.error(`[claude-agent] CLI pre-flight stdout: ${stdout.slice(0, 500)}`);
+  }
+
   const stream = query({ prompt, options });
 
   let newSessionId = sessionId || '';
@@ -359,15 +434,6 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
       newSessionId = msg.session_id;
       emit({ type: 'session-init', sessionId: newSessionId });
-    }
-
-    // Forward compaction status so the frontend can show a banner.
-    // The SDK emits system events when auto-compacting context (~119s silence).
-    if (msg.type === 'system' && msg.subtype !== 'init') {
-      const raw = JSON.stringify(msg).toLowerCase();
-      if (raw.includes('compact')) {
-        emit({ type: 'system-status', status: 'compacting' });
-      }
     }
 
     // Track parent_tool_use_id for nested agent tools
@@ -449,6 +515,8 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
+      // Log full raw error event to stderr for diagnostics
+      console.error(`[claude-agent] SDK_ERROR: ${JSON.stringify(msg).slice(0, 500)}`);
       const isBudgetError = typeof errorMsg === 'string' &&
         (errorMsg.toLowerCase().includes('max_budget') || errorMsg.toLowerCase().includes('budget'));
       emit({
@@ -476,12 +544,112 @@ async function runStream(prompt, sessionId, cwd, useResume) {
 }
 
 async function handleQuery(prompt, sessionId, cwd) {
+  const currentModel = process.env.VF_MODEL || 'claude-sonnet-4-6';
   let result;
 
   try {
     // First attempt: resume existing session if we have a sessionId
     result = await runStream(prompt, sessionId, cwd, !!sessionId);
   } catch (err) {
+    // Log raw error to stderr for server-side debugging (visible in wrangler tail)
+    console.error(`[claude-agent] RAW_ERROR sessionId=${sessionId?.slice(0, 8) || 'none'}: ${err.stack || err.message}`);
+    // Dump all non-standard error properties (SDK may attach stderr, exitCode, etc.)
+    const extraProps = Object.getOwnPropertyNames(err).filter(k => !['message', 'stack', 'name'].includes(k));
+    if (extraProps.length > 0) {
+      for (const k of extraProps) {
+        const v = err[k];
+        const s = typeof v === 'string' ? v : JSON.stringify(v);
+        console.error(`[claude-agent] ERR_PROP ${k}=${String(s).slice(0, 500)}`);
+      }
+    }
+
+    const raw = err.stack || err.message || String(err);
+    const isExitCode1 = /process exited with code 1/i.test(raw);
+
+    // Check for rate/usage limit on exit code 1 — auto-fallback to next model
+    if (isExitCode1) {
+      const rateLimitMsg = detectRateLimit(
+        { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN || '' },
+        cwd
+      );
+
+      if (rateLimitMsg) {
+        const failedModel = currentModel;
+        const nextModel = MODEL_FALLBACK_CHAIN[failedModel] || null;
+        const failedName = MODEL_DISPLAY_NAMES[failedModel] || failedModel;
+
+        if (nextModel) {
+          const nextName = MODEL_DISPLAY_NAMES[nextModel] || nextModel;
+          console.error(`[claude-agent] Rate limit on ${failedName}, falling back to ${nextName}`);
+          emit({
+            type: 'model-fallback',
+            from: failedName,
+            to: nextName,
+            reason: rateLimitMsg,
+          });
+
+          try {
+            // Retry with fallback model (fresh session — no resume)
+            result = await runStream(prompt, '', cwd, false, nextModel);
+          } catch (fallbackErr) {
+            // Fallback also failed — check if THAT model is also rate limited
+            const fbRaw = fallbackErr.stack || fallbackErr.message || '';
+            if (/process exited with code 1/i.test(fbRaw)) {
+              const fbRateLimit = detectRateLimit(
+                { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN || '' },
+                cwd
+              );
+              if (fbRateLimit) {
+                const thirdModel = MODEL_FALLBACK_CHAIN[nextModel] || null;
+                if (thirdModel) {
+                  const thirdName = MODEL_DISPLAY_NAMES[thirdModel] || thirdModel;
+                  console.error(`[claude-agent] Rate limit on ${nextName} too, falling back to ${thirdName}`);
+                  emit({ type: 'model-fallback', from: nextName, to: thirdName, reason: fbRateLimit });
+                  try {
+                    result = await runStream(prompt, '', cwd, false, thirdModel);
+                  } catch (thirdErr) {
+                    emit({ type: 'error', error: 'All models rate limited. Wait for your usage to reset.' });
+                    emit({ type: 'done', sessionId: '', fullText: '' });
+                    return;
+                  }
+                } else {
+                  emit({ type: 'error', error: `All models rate limited. ${fbRateLimit}` });
+                  emit({ type: 'done', sessionId: '', fullText: '' });
+                  return;
+                }
+              } else {
+                emit({ type: 'error', error: cleanErrorMessage(fallbackErr) });
+                emit({ type: 'done', sessionId: '', fullText: '' });
+                return;
+              }
+            } else {
+              emit({ type: 'error', error: cleanErrorMessage(fallbackErr) });
+              emit({ type: 'done', sessionId: '', fullText: '' });
+              return;
+            }
+          }
+
+          // If we got a result from fallback, emit done and return
+          if (result) {
+            emit({
+              type: 'done',
+              sessionId: result.newSessionId,
+              fullText: result.responseText,
+              ...(result.usage ? { usage: result.usage } : {}),
+              ...(result.costUsd !== null ? { costUsd: result.costUsd } : {}),
+            });
+            return;
+          }
+        } else {
+          // No fallback available
+          emit({ type: 'error', error: `${failedName} usage limit reached. ${rateLimitMsg}` });
+          emit({ type: 'done', sessionId: '', fullText: '' });
+          return;
+        }
+      }
+    }
+
+    // Not a rate limit — use standard error handling
     const friendly = cleanErrorMessage(err);
 
     // If we were trying to resume a session and it crashed, retry fresh
@@ -490,7 +658,6 @@ async function handleQuery(prompt, sessionId, cwd) {
         type: 'error',
         error: `Session resume failed: ${friendly}. Starting fresh session...`,
       });
-      // Signal to backend that the old sdkSessionId is invalid
       emit({ type: 'session-reset' });
 
       try {
@@ -502,7 +669,6 @@ async function handleQuery(prompt, sessionId, cwd) {
         return;
       }
     } else {
-      // No session to retry without — report the error
       emit({ type: 'error', error: friendly });
       emit({ type: 'done', sessionId: '', fullText: '' });
       return;
@@ -541,6 +707,7 @@ handleQuery(prompt, sessionId, cwd).catch(err => {
   // Using exit(1) causes the backend to emit a redundant "process exited with code 1" error.
   process.exit(0);
 });
+
 CLAUDE_AGENT_EOF
 
 RUN chmod +x /opt/claude-agent/claude-agent.js
@@ -851,7 +1018,43 @@ const AGENT_SCRIPT = '/opt/claude-agent/claude-agent.js';
 const wss = new WebSocketServer({ port: PORT });
 let activeChild = null;
 
-console.log(`[ws-agent-server] listening on port ${PORT}`);
+// Idle shutdown: exit after 15 min with no active connections or running agent.
+// CF stops billing for the container when the Node process exits.
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+let idleTimer = null;
+
+function resetIdleTimer() {
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (wss.clients.size === 0 && !activeChild) {
+      console.log('[ws-agent-server] idle timeout — exiting to stop container billing');
+      process.exit(0);
+    } else {
+      resetIdleTimer(); // still busy, try again later
+    }
+  }, IDLE_TIMEOUT_MS);
+}
+
+// Detect SDK version, CLI version, and build date at startup for diagnostics
+let sdkVersion = 'unknown';
+let cliVersion = 'unknown';
+try {
+  const sdkPkg = require('@anthropic-ai/claude-agent-sdk/package.json');
+  sdkVersion = sdkPkg.version || 'unknown';
+} catch {}
+try {
+  const cliPkg = require('@anthropic-ai/claude-code/package.json');
+  cliVersion = cliPkg.version || 'unknown';
+} catch {
+  // CLI might not expose package.json — try reading from global install
+  try {
+    const { execFileSync } = require('child_process');
+    cliVersion = execFileSync('node', ['-e', 'try{console.log(require("@anthropic-ai/claude-code/package.json").version)}catch{console.log("unknown")}'], { encoding: 'utf8', timeout: 5000 }).trim();
+  } catch {}
+}
+const buildDate = process.env.VF_CONTAINER_BUILD || 'unknown';
+
+console.log(`[ws-agent-server] listening on port ${PORT} (sdk=${sdkVersion} cli=${cliVersion} build=${buildDate})`);
 
 // Run context-gathering script ONCE at startup (not per-connection).
 // Caches output to /tmp/vf-auto-context.md for claude-agent.js to read.
@@ -877,8 +1080,21 @@ try {
   console.log(`[ws-agent-server] auto-context gathering skipped: ${err.message || err}`);
 }
 
+// Start idle timer on boot — first connection will clear it
+resetIdleTimer();
+
 wss.on('connection', (ws) => {
+  clearTimeout(idleTimer);
   console.log('[ws-agent-server] client connected');
+
+  // Emit system-info so browser diagnostics can detect container SDK + CLI version
+  sendJson(ws, {
+    type: 'system-info',
+    sdkVersion,
+    cliVersion,
+    buildDate,
+    nodeVersion: process.version,
+  });
 
   // Kill any lingering child from a previous aborted connection
   if (activeChild) {
@@ -888,7 +1104,7 @@ wss.on('connection', (ws) => {
 
   // Poll for context file (50ms intervals, 3s max) instead of hardcoded 150ms wait
   const POLL_INTERVAL = 50;
-  const POLL_MAX = 3000;
+  const POLL_MAX = 6000;
   let elapsed = 0;
   const pollTimer = setInterval(() => {
     elapsed += POLL_INTERVAL;
@@ -897,9 +1113,9 @@ wss.on('connection', (ws) => {
       startQuery(ws);
     } else if (elapsed >= POLL_MAX) {
       clearInterval(pollTimer);
-      console.log('[ws-agent-server] context file not found after 3s');
-      sendJson(ws, { type: 'error', error: 'Context file timeout' });
-      sendJson(ws, { type: 'process-exit', exitCode: 1 });
+      console.log(`[ws-agent-server] context file not found after ${POLL_MAX / 1000}s — possible cold start race`);
+      sendJson(ws, { type: 'error', error: 'Sandbox is still warming up. Try sending your message again in a few seconds.' });
+      sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'context-timeout' });
       ws.close();
     }
   }, POLL_INTERVAL);
@@ -913,7 +1129,7 @@ function startQuery(ws) {
     context = JSON.parse(raw);
   } catch (err) {
     sendJson(ws, { type: 'error', error: `Failed to read context: ${err.message}` });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'context-read-error' });
     ws.close();
     return;
   }
@@ -929,12 +1145,13 @@ function startQuery(ws) {
   // Flag set to true when client disconnects before agent finishes.
   // Prevents buffer deletion on close so the replay endpoint can serve it.
   let clientDisconnectedEarly = false;
+
   // Pause/resume: SIGSTOP freezes the child process at kernel level
   let paused = false;
 
   if (!prompt) {
     sendJson(ws, { type: 'error', error: 'No prompt in context file' });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'no-prompt' });
     ws.close();
     return;
   }
@@ -1037,7 +1254,7 @@ function startQuery(ws) {
         try { fs.appendFileSync(bufferPath, stdoutBuf.trim() + '\n'); } catch {}
       }
     }
-    sendJson(ws, { type: 'process-exit', exitCode: code || 0 });
+    sendJson(ws, { type: 'process-exit', exitCode: code || 0, reason: 'child-exit' });
     console.log(`[ws-agent-server] agent exited with code ${code}`);
     // Clean up buffer file on normal completion — client got everything
     if (bufferPath && !clientDisconnectedEarly) {
@@ -1049,7 +1266,7 @@ function startQuery(ws) {
   child.on('error', (err) => {
     activeChild = null;
     sendJson(ws, { type: 'error', error: `Spawn failed: ${err.message}` });
-    sendJson(ws, { type: 'process-exit', exitCode: 1 });
+    sendJson(ws, { type: 'process-exit', exitCode: 1, reason: 'spawn-error' });
     if (bufferPath && !clientDisconnectedEarly) {
       try { fs.unlinkSync(bufferPath); } catch {}
     }
@@ -1074,6 +1291,8 @@ function startQuery(ws) {
       // Clear timer if child exits naturally before grace period expires
       child.once('exit', () => clearTimeout(killTimer));
     }
+    // Restart idle timer — exit if no new connection arrives within timeout
+    resetIdleTimer();
   });
 }
 
@@ -1091,6 +1310,7 @@ process.on('SIGTERM', () => {
   }
   wss.close(() => process.exit(0));
 });
+
 WS_SERVER_EOF
 
 RUN chmod +x /opt/claude-agent/ws-agent-server.js

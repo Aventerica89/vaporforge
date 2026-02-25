@@ -134,6 +134,49 @@ function buildSystemPromptAppend() {
   return BASE_SYSTEM_APPEND;
 }
 
+// Model fallback chain: when a model hits its usage limit, try the next one.
+// Order: sonnet -> haiku -> opus (haiku is cheapest fallback, opus is last resort).
+const MODEL_FALLBACK_CHAIN = {
+  'claude-sonnet-4-6': 'claude-haiku-4-5-20251001',
+  'claude-haiku-4-5-20251001': 'claude-opus-4-6',
+  'claude-opus-4-6': null, // no further fallback
+};
+
+const MODEL_DISPLAY_NAMES = {
+  'claude-sonnet-4-6': 'Sonnet',
+  'claude-haiku-4-5-20251001': 'Haiku',
+  'claude-opus-4-6': 'Opus',
+};
+
+// Detect if an exit-code-1 failure is a rate/usage limit by probing the CLI directly.
+// Returns the rate limit message if detected, null otherwise.
+function detectRateLimit(env, cwd) {
+  try {
+    const { execFileSync } = require('child_process');
+    execFileSync('claude', ['-p', 'ok', '--max-turns', '1', '--output-format', 'json'], {
+      env,
+      cwd: cwd || '/workspace',
+      encoding: 'utf8',
+      timeout: 10000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return null; // succeeded — not a rate limit
+  } catch (probeErr) {
+    const stdout = probeErr.stdout ? probeErr.stdout.toString() : '';
+    if (stdout.includes('hit your limit') || stdout.includes("you've hit") || stdout.includes('resets')) {
+      // Extract the reset message from JSON output
+      try {
+        const parsed = JSON.parse(stdout);
+        if (parsed.result && typeof parsed.result === 'string') {
+          return parsed.result;
+        }
+      } catch {}
+      return 'Usage limit reached';
+    }
+    return null; // different error — not a rate limit
+  }
+}
+
 // Extract a user-friendly error message from SDK errors
 function cleanErrorMessage(err) {
   const raw = err.stack || err.message || String(err);
@@ -142,7 +185,7 @@ function cleanErrorMessage(err) {
   const exitMatch = raw.match(/process exited with code (\d+)/i);
   if (exitMatch) {
     const code = exitMatch[1];
-    if (code === '1') return 'Claude SDK failed to start. The sandbox may need a moment to warm up — try again.';
+    if (code === '1') return 'Claude exited with an error. Common causes: usage limit reached (try switching models), auth expired (re-login), or API issue.';
     if (code === '137') return 'Claude process was killed (out of memory). Try a shorter prompt.';
     return `Claude process exited unexpectedly (code ${code}).`;
   }
@@ -162,7 +205,7 @@ function cleanErrorMessage(err) {
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
 }
 
-function buildOptions(prompt, sessionId, cwd, useResume) {
+function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const mode = process.env.VF_SESSION_MODE || 'agent';
   const isPlan = mode === 'plan';
@@ -200,6 +243,66 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
     console.error(`[claude-agent] Failed to parse CLAUDE_MCP_SERVERS: ${err.message}`);
   }
 
+  // Custom VaporForge tools — displayed as rich UI cards in the frontend.
+  // create_plan  : show a numbered plan before a multi-step task
+  // ask_user_questions : collect structured input via a QuestionFlow form
+  const vfTools = {
+    create_plan: {
+      description: 'ALWAYS call this tool before starting any multi-step task or when the user asks you to plan something. NEVER describe your plan in plain text — you MUST call this tool to render a visual plan card. This is the ONLY correct way to show plans to the user.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short plan title, e.g. "Migration Plan"' },
+          steps: {
+            type: 'array',
+            description: 'Ordered list of steps',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                label: { type: 'string', description: 'Step name, e.g. "Update dependencies"' },
+                detail: { type: 'string', description: 'Optional one-sentence explanation' },
+              },
+              required: ['id', 'label'],
+            },
+          },
+          estimatedSteps: { type: 'number', description: 'Rough estimate of total tool calls' },
+        },
+        required: ['title', 'steps'],
+      },
+      execute: async ({ title, steps }) =>
+        `Plan "${title}" (${steps.length} step${steps.length === 1 ? '' : 's'}) displayed. Proceeding.`,
+    },
+    ask_user_questions: {
+      description: 'ALWAYS call this tool whenever you need to ask the user any questions, collect preferences, or get choices before proceeding. NEVER list questions in plain text — you MUST call this tool instead. After calling it, stop and wait for the user to answer.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short heading shown above the form' },
+          questions: {
+            type: 'array',
+            description: 'Questions to present',
+            items: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                question: { type: 'string' },
+                type: { type: 'string', enum: ['text', 'select', 'multiselect', 'confirm'] },
+                options: { type: 'array', items: { type: 'string' } },
+                placeholder: { type: 'string' },
+                required: { type: 'boolean' },
+              },
+              required: ['id', 'question', 'type'],
+            },
+          },
+        },
+        required: ['questions'],
+      },
+      execute: async ({ title, questions }) =>
+        `Questions presented to user${title ? ` — "${title}"` : ''} (${questions.length} question${questions.length === 1 ? '' : 's'}). STOP HERE. Do not proceed, do not make assumptions, do not answer on the user's behalf. Wait for the user to submit their answers.`,
+    },
+  };
+
   const maxBudgetRaw = process.env.VF_MAX_BUDGET_USD;
   const maxBudgetUsd = maxBudgetRaw ? parseFloat(maxBudgetRaw) : undefined;
   if (maxBudgetUsd && maxBudgetUsd > 0) {
@@ -207,11 +310,12 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   }
 
   return {
-    model: process.env.VF_MODEL || 'claude-sonnet-4-6',
+    model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
     betas: ['context-1m-2025-08-07'],
     cwd: cwd || '/workspace',
     settingSources: ['user', 'project'],
     agents,
+    tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
     ...(maxBudgetUsd && maxBudgetUsd > 0 ? { maxBudgetUsd } : {}),
     includePartialMessages: true,
@@ -244,8 +348,27 @@ function buildOptions(prompt, sessionId, cwd, useResume) {
   };
 }
 
-async function runStream(prompt, sessionId, cwd, useResume) {
-  const options = buildOptions(prompt, sessionId, cwd, useResume);
+async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
+  const options = buildOptions(prompt, sessionId, cwd, useResume, modelOverride);
+
+  // Pre-flight: test CLI binary + real query to capture any startup errors
+  const { execFileSync } = require('child_process');
+  try {
+    const ver = execFileSync('claude', ['--version'], {
+      env: options.env,
+      encoding: 'utf8',
+      timeout: 10000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    console.error(`[claude-agent] CLI pre-flight OK: ${ver}`);
+  } catch (pfErr) {
+    const stderr = pfErr.stderr ? pfErr.stderr.toString().trim() : '';
+    const stdout = pfErr.stdout ? pfErr.stdout.toString().trim() : '';
+    console.error(`[claude-agent] CLI pre-flight FAILED (code=${pfErr.status}): ${pfErr.message}`);
+    if (stderr) console.error(`[claude-agent] CLI pre-flight stderr: ${stderr.slice(0, 500)}`);
+    if (stdout) console.error(`[claude-agent] CLI pre-flight stdout: ${stdout.slice(0, 500)}`);
+  }
+
   const stream = query({ prompt, options });
 
   let newSessionId = sessionId || '';
@@ -353,6 +476,8 @@ async function runStream(prompt, sessionId, cwd, useResume) {
     // "ReadableStream received over RPC disconnected prematurely"
     if (msg.type === 'error') {
       const errorMsg = msg.error || msg.errorText || 'Unknown SDK error';
+      // Log full raw error event to stderr for diagnostics
+      console.error(`[claude-agent] SDK_ERROR: ${JSON.stringify(msg).slice(0, 500)}`);
       const isBudgetError = typeof errorMsg === 'string' &&
         (errorMsg.toLowerCase().includes('max_budget') || errorMsg.toLowerCase().includes('budget'));
       emit({
@@ -380,6 +505,7 @@ async function runStream(prompt, sessionId, cwd, useResume) {
 }
 
 async function handleQuery(prompt, sessionId, cwd) {
+  const currentModel = process.env.VF_MODEL || 'claude-sonnet-4-6';
   let result;
 
   try {
@@ -388,6 +514,103 @@ async function handleQuery(prompt, sessionId, cwd) {
   } catch (err) {
     // Log raw error to stderr for server-side debugging (visible in wrangler tail)
     console.error(`[claude-agent] RAW_ERROR sessionId=${sessionId?.slice(0, 8) || 'none'}: ${err.stack || err.message}`);
+    // Dump all non-standard error properties (SDK may attach stderr, exitCode, etc.)
+    const extraProps = Object.getOwnPropertyNames(err).filter(k => !['message', 'stack', 'name'].includes(k));
+    if (extraProps.length > 0) {
+      for (const k of extraProps) {
+        const v = err[k];
+        const s = typeof v === 'string' ? v : JSON.stringify(v);
+        console.error(`[claude-agent] ERR_PROP ${k}=${String(s).slice(0, 500)}`);
+      }
+    }
+
+    const raw = err.stack || err.message || String(err);
+    const isExitCode1 = /process exited with code 1/i.test(raw);
+
+    // Check for rate/usage limit on exit code 1 — auto-fallback to next model
+    if (isExitCode1) {
+      const rateLimitMsg = detectRateLimit(
+        { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN || '' },
+        cwd
+      );
+
+      if (rateLimitMsg) {
+        const failedModel = currentModel;
+        const nextModel = MODEL_FALLBACK_CHAIN[failedModel] || null;
+        const failedName = MODEL_DISPLAY_NAMES[failedModel] || failedModel;
+
+        if (nextModel) {
+          const nextName = MODEL_DISPLAY_NAMES[nextModel] || nextModel;
+          console.error(`[claude-agent] Rate limit on ${failedName}, falling back to ${nextName}`);
+          emit({
+            type: 'model-fallback',
+            from: failedName,
+            to: nextName,
+            reason: rateLimitMsg,
+          });
+
+          try {
+            // Retry with fallback model (fresh session — no resume)
+            result = await runStream(prompt, '', cwd, false, nextModel);
+          } catch (fallbackErr) {
+            // Fallback also failed — check if THAT model is also rate limited
+            const fbRaw = fallbackErr.stack || fallbackErr.message || '';
+            if (/process exited with code 1/i.test(fbRaw)) {
+              const fbRateLimit = detectRateLimit(
+                { ...process.env, CLAUDE_CODE_OAUTH_TOKEN: process.env.CLAUDE_CODE_OAUTH_TOKEN || '' },
+                cwd
+              );
+              if (fbRateLimit) {
+                const thirdModel = MODEL_FALLBACK_CHAIN[nextModel] || null;
+                if (thirdModel) {
+                  const thirdName = MODEL_DISPLAY_NAMES[thirdModel] || thirdModel;
+                  console.error(`[claude-agent] Rate limit on ${nextName} too, falling back to ${thirdName}`);
+                  emit({ type: 'model-fallback', from: nextName, to: thirdName, reason: fbRateLimit });
+                  try {
+                    result = await runStream(prompt, '', cwd, false, thirdModel);
+                  } catch (thirdErr) {
+                    emit({ type: 'error', error: 'All models rate limited. Wait for your usage to reset.' });
+                    emit({ type: 'done', sessionId: '', fullText: '' });
+                    return;
+                  }
+                } else {
+                  emit({ type: 'error', error: `All models rate limited. ${fbRateLimit}` });
+                  emit({ type: 'done', sessionId: '', fullText: '' });
+                  return;
+                }
+              } else {
+                emit({ type: 'error', error: cleanErrorMessage(fallbackErr) });
+                emit({ type: 'done', sessionId: '', fullText: '' });
+                return;
+              }
+            } else {
+              emit({ type: 'error', error: cleanErrorMessage(fallbackErr) });
+              emit({ type: 'done', sessionId: '', fullText: '' });
+              return;
+            }
+          }
+
+          // If we got a result from fallback, emit done and return
+          if (result) {
+            emit({
+              type: 'done',
+              sessionId: result.newSessionId,
+              fullText: result.responseText,
+              ...(result.usage ? { usage: result.usage } : {}),
+              ...(result.costUsd !== null ? { costUsd: result.costUsd } : {}),
+            });
+            return;
+          }
+        } else {
+          // No fallback available
+          emit({ type: 'error', error: `${failedName} usage limit reached. ${rateLimitMsg}` });
+          emit({ type: 'done', sessionId: '', fullText: '' });
+          return;
+        }
+      }
+    }
+
+    // Not a rate limit — use standard error handling
     const friendly = cleanErrorMessage(err);
 
     // If we were trying to resume a session and it crashed, retry fresh
@@ -396,7 +619,6 @@ async function handleQuery(prompt, sessionId, cwd) {
         type: 'error',
         error: `Session resume failed: ${friendly}. Starting fresh session...`,
       });
-      // Signal to backend that the old sdkSessionId is invalid
       emit({ type: 'session-reset' });
 
       try {
@@ -408,7 +630,6 @@ async function handleQuery(prompt, sessionId, cwd) {
         return;
       }
     } else {
-      // No session to retry without — report the error
       emit({ type: 'error', error: friendly });
       emit({ type: 'done', sessionId: '', fullText: '' });
       return;

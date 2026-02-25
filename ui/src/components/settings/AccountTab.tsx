@@ -1,7 +1,127 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check } from 'lucide-react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check, ExternalLink, BarChart3 } from 'lucide-react';
 import { useAuthStore } from '@/hooks/useAuth';
+import { useSandboxStore } from '@/hooks/useSandbox';
 import { authApi } from '@/lib/api';
+
+const ANTHROPIC_USAGE_URL = 'https://console.anthropic.com/settings/usage';
+
+function UsageSection() {
+  const messagesById = useSandboxStore((s) => s.messagesById);
+
+  const stats = useMemo(() => {
+    let totalInput = 0;
+    let totalOutput = 0;
+    let totalCost = 0;
+    let messageCount = 0;
+    let hasCost = false;
+
+    for (const msg of Object.values(messagesById)) {
+      if (msg.role !== 'assistant' || !msg.usage) continue;
+      totalInput += msg.usage.inputTokens || 0;
+      totalOutput += msg.usage.outputTokens || 0;
+      if (msg.usage.costUsd !== undefined) {
+        totalCost += msg.usage.costUsd;
+        hasCost = true;
+      }
+      messageCount++;
+    }
+
+    return {
+      totalInput,
+      totalOutput,
+      totalTokens: totalInput + totalOutput,
+      totalCost: hasCost ? totalCost : undefined,
+      messageCount,
+    };
+  }, [messagesById]);
+
+  const formatTokens = (n: number) => {
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+    return String(n);
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <BarChart3 className="h-4 w-4 text-primary" />
+          Session Usage
+        </h4>
+        <a
+          href={ANTHROPIC_USAGE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground hover:border-foreground/20"
+        >
+          Anthropic Console
+          <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+
+      {stats.messageCount === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          No usage data yet. Send a message to start tracking.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Input
+            </p>
+            <p className="text-lg font-semibold text-foreground tabular-nums">
+              {formatTokens(stats.totalInput)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">tokens</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Output
+            </p>
+            <p className="text-lg font-semibold text-foreground tabular-nums">
+              {formatTokens(stats.totalOutput)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">tokens</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Messages
+            </p>
+            <p className="text-lg font-semibold text-foreground tabular-nums">
+              {stats.messageCount}
+            </p>
+            <p className="text-[10px] text-muted-foreground">responses</p>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/50 p-3 space-y-1">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              Cost
+            </p>
+            <p className="text-lg font-semibold text-foreground tabular-nums">
+              {stats.totalCost !== undefined
+                ? `$${stats.totalCost < 0.01 ? stats.totalCost.toFixed(4) : stats.totalCost.toFixed(2)}`
+                : '--'}
+            </p>
+            <p className="text-[10px] text-muted-foreground">this session</p>
+          </div>
+        </div>
+      )}
+
+      <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+        Usage shown is for the current browser session only. Check the{' '}
+        <a
+          href={ANTHROPIC_USAGE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline"
+        >
+          Anthropic Console
+        </a>{' '}
+        for full account usage and rate limits.
+      </p>
+    </div>
+  );
+}
 
 export function AccountTab() {
   const { user, logout } = useAuthStore();
@@ -65,7 +185,7 @@ export function AccountTab() {
           Account
         </h3>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Manage your session and authentication.
+          Manage your session, usage, and authentication.
         </p>
       </section>
 
@@ -111,6 +231,9 @@ export function AccountTab() {
           </div>
         </div>
       </div>
+
+      {/* Usage */}
+      <UsageSection />
 
       {/* Data Recovery */}
       <div className="space-y-3">

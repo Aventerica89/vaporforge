@@ -72,6 +72,14 @@ const features = [
     pills: ['Resume', 'Any Device'],
   },
   {
+    title: 'Smart Model Fallback',
+    description: 'Hit a rate limit? VaporForge detects it instantly, switches to the next available model, and keeps your session flowing. Real-time usage dashboard tracks tokens and cost per session.',
+    icon: 'refresh',
+    badge: 'Resilient',
+    highlighted: true,
+    pills: ['Auto-Switch', 'Usage Tracking'],
+  },
+  {
     title: 'Visual Website Editor',
     description: 'Click any component in a live Astro preview, describe your edit in natural language, and AI modifies the source. Agency Mode ships full-stack edits from browser to filesystem.',
     icon: 'layout',
@@ -153,6 +161,9 @@ const features = [
               )}
               {icon === 'radio' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+              )}
+              {icon === 'refresh' && (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               )}
               {icon === 'layout' && (
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>

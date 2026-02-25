@@ -505,6 +505,15 @@ export const sdkApi = {
           case 'resume-failed':
             push({ value: { type: 'resume-failed', error: msg.error }, done: false });
             break;
+          case 'system-info':
+            push({ value: { type: 'system-info', sdkVersion: msg.sdkVersion, buildDate: msg.buildDate, nodeVersion: msg.nodeVersion }, done: false });
+            break;
+          case 'stderr':
+            push({ value: { type: 'stderr', content: msg.text }, done: false });
+            break;
+          case 'model-fallback':
+            push({ value: { type: 'model-fallback', from: msg.from, to: msg.to, reason: msg.reason }, done: false });
+            break;
           case 'process-exit':
             push({ value: { type: 'ws-exit', exitCode: msg.exitCode, reason: msg.reason }, done: false });
             // Signal end of stream after a brief delay for final frames

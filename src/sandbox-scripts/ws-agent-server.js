@@ -37,7 +37,26 @@ function resetIdleTimer() {
   }, IDLE_TIMEOUT_MS);
 }
 
-console.log(`[ws-agent-server] listening on port ${PORT}`);
+// Detect SDK version, CLI version, and build date at startup for diagnostics
+let sdkVersion = 'unknown';
+let cliVersion = 'unknown';
+try {
+  const sdkPkg = require('@anthropic-ai/claude-agent-sdk/package.json');
+  sdkVersion = sdkPkg.version || 'unknown';
+} catch {}
+try {
+  const cliPkg = require('@anthropic-ai/claude-code/package.json');
+  cliVersion = cliPkg.version || 'unknown';
+} catch {
+  // CLI might not expose package.json — try reading from global install
+  try {
+    const { execFileSync } = require('child_process');
+    cliVersion = execFileSync('node', ['-e', 'try{console.log(require("@anthropic-ai/claude-code/package.json").version)}catch{console.log("unknown")}'], { encoding: 'utf8', timeout: 5000 }).trim();
+  } catch {}
+}
+const buildDate = process.env.VF_CONTAINER_BUILD || 'unknown';
+
+console.log(`[ws-agent-server] listening on port ${PORT} (sdk=${sdkVersion} cli=${cliVersion} build=${buildDate})`);
 
 // Run context-gathering script ONCE at startup (not per-connection).
 // Caches output to /tmp/vf-auto-context.md for claude-agent.js to read.
@@ -69,6 +88,15 @@ resetIdleTimer();
 wss.on('connection', (ws) => {
   clearTimeout(idleTimer);
   console.log('[ws-agent-server] client connected');
+
+  // Emit system-info so browser diagnostics can detect container SDK + CLI version
+  sendJson(ws, {
+    type: 'system-info',
+    sdkVersion,
+    cliVersion,
+    buildDate,
+    nodeVersion: process.version,
+  });
 
   // Kill any lingering child from a previous aborted connection
   if (activeChild) {
@@ -119,6 +147,9 @@ function startQuery(ws) {
   // Flag set to true when client disconnects before agent finishes.
   // Prevents buffer deletion on close so the replay endpoint can serve it.
   let clientDisconnectedEarly = false;
+
+  // Pause/resume: SIGSTOP freezes the child process at kernel level
+  let paused = false;
 
   if (!prompt) {
     sendJson(ws, { type: 'error', error: 'No prompt in context file' });
@@ -187,8 +218,37 @@ function startQuery(ws) {
     sendJson(ws, { type: 'error', error: firstLine || 'Agent error' });
   });
 
+  // Listen for pause/resume commands from the browser via WS
+  ws.on('message', (data) => {
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'pause' && activeChild && !paused) {
+        try {
+          process.kill(activeChild.pid, 'SIGSTOP');
+          paused = true;
+          sendJson(ws, { type: 'paused' });
+          console.log('[ws-agent-server] agent paused (SIGSTOP)');
+        } catch (err) {
+          sendJson(ws, { type: 'pause-failed', error: err.message });
+          console.error('[ws-agent-server] SIGSTOP failed:', err.message);
+        }
+      } else if (msg.type === 'resume' && activeChild && paused) {
+        try {
+          process.kill(activeChild.pid, 'SIGCONT');
+          paused = false;
+          sendJson(ws, { type: 'resumed' });
+          console.log('[ws-agent-server] agent resumed (SIGCONT)');
+        } catch (err) {
+          sendJson(ws, { type: 'resume-failed', error: err.message });
+          console.error('[ws-agent-server] SIGCONT failed:', err.message);
+        }
+      }
+    } catch {} // outer catch: malformed JSON — ignore
+  });
+
   child.on('close', (code) => {
     activeChild = null;
+    paused = false;
     // Flush any remaining stdout
     if (stdoutBuf.trim() && ws.readyState === 1) {
       ws.send(stdoutBuf.trim());
@@ -216,12 +276,22 @@ function startQuery(ws) {
 
   // If client disconnects while agent is still running, mark dirty disconnect.
   // The buffer file is left intact so the replay endpoint can serve it.
+  // Grace period: wait 30s before killing the agent — transient WS drops should
+  // not abort in-flight work. A new connection kills any lingering activeChild
+  // immediately via the check at the top of wss.on('connection').
   ws.on('close', () => {
     console.log('[ws-agent-server] client disconnected');
     if (child && !child.killed) {
       clientDisconnectedEarly = true;
-      try { child.kill('SIGTERM'); } catch {}
-      activeChild = null;
+      const killTimer = setTimeout(() => {
+        if (child && !child.killed) {
+          console.log('[ws-agent-server] grace period expired, killing agent');
+          try { child.kill('SIGTERM'); } catch {}
+          activeChild = null;
+        }
+      }, 30000);
+      // Clear timer if child exits naturally before grace period expires
+      child.once('exit', () => clearTimeout(killTimer));
     }
     // Restart idle timer — exit if no new connection arrives within timeout
     resetIdleTimer();

@@ -195,6 +195,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Dockerfile `COPY` fails on CF** — use heredoc `RUN cat > file << 'EOF'` instead
 - **Docker cache trap** — run `docker builder prune --all -f` before deploy if Dockerfile changed
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: `docker image prune -a -f && docker builder prune -a -f` then redeploy.
+- **Container scripts MUST stay in sync** — `src/sandbox-scripts/*.js` is the source of truth. After editing ANY sandbox script: (1) update src/sandbox-scripts/, (2) copy into Dockerfile heredoc, (3) bump `VF_CONTAINER_BUILD` env, (4) prune Docker cache before deploy.
 - **AI SDK v6 stream events** — `text-delta` has `.text` property (not `.textDelta`). Same for `reasoning-delta`.
 - **CF Sandbox `execStream()` is UNFIXABLE for streaming** — internal RPC buffering holds output until process exits. Use `sandbox.wsConnect(request, port)` for real-time WebSocket tunnel instead.
 

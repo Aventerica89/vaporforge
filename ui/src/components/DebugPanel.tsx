@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { Bug, X } from 'lucide-react';
+import { Bug, X, Copy, Check } from 'lucide-react';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { ConsoleLogViewer } from '@/components/playground/ConsoleLogViewer';
 import { WikiTab } from '@/components/WikiTab';
@@ -18,11 +18,36 @@ const TAB_LABELS: Record<Tab, string> = {
   latency: 'Latency',
 };
 
+function formatEntriesForClipboard(): string {
+  const { entries } = useDebugLog.getState();
+  if (entries.length === 0) return 'No log entries.';
+  return entries
+    .map((e) => {
+      const time = new Date(e.timestamp).toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      const line = `[${time}] ${e.level.toUpperCase()} [${e.category}] ${e.summary}`;
+      return e.detail ? `${line}\n  ${e.detail}` : line;
+    })
+    .join('\n');
+}
+
 export function DebugPanel() {
   const { unreadErrors, isOpen, toggle, close } =
     useDebugLog();
   const [visible, setVisible] = useState(false);
   const [tab, setTab] = useState<Tab>('log');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyAll = useCallback(async () => {
+    const text = formatEntriesForClipboard();
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, []);
 
   // H7 HIG fix: Focus trap keeps keyboard navigation inside the panel.
   const panelRef = useFocusTrap(isOpen, close) as React.RefObject<HTMLDivElement>;
@@ -98,17 +123,37 @@ export function DebugPanel() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={close}
-              className="flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
-              style={{
-                minWidth: 'var(--touch-target)',
-                minHeight: 'var(--touch-target)',
-              }}
-              aria-label="Close debug panel"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-0.5">
+              {tab === 'log' && (
+                <button
+                  onClick={handleCopyAll}
+                  className="flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
+                  style={{
+                    minWidth: 'var(--touch-target)',
+                    minHeight: 'var(--touch-target)',
+                  }}
+                  aria-label="Copy all log entries"
+                  title="Copy all log entries"
+                >
+                  {copied ? (
+                    <Check className="h-4 w-4 text-green-400" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </button>
+              )}
+              <button
+                onClick={close}
+                className="flex items-center justify-center rounded text-muted-foreground hover:bg-muted transition-colors"
+                style={{
+                  minWidth: 'var(--touch-target)',
+                  minHeight: 'var(--touch-target)',
+                }}
+                aria-label="Close debug panel"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Tab content */}

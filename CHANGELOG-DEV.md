@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-24 · v0.30.0
+FIX     container — Sync Dockerfile scripts with src/sandbox-scripts: add vfTools to src (create_plan/ask_user_questions), sync claude-agent.js (categorized errors, RAW_ERROR, exit(0) catch), sync ws-agent-server.js (6s timeout, reason fields, pause/resume, grace-period, system-info), add VF_CONTAINER_BUILD env; fix persist 400 on empty content; add useDiagnostics store + system-info event pipeline
+
+### 2026-02-24 · v0.30.0
 FIX     mobile — Eliminate iOS keyboard jank: remove position:fixed from html/body, use height:100dvh + flexbox h-full, strip viewportHeight from useKeyboard + 4 layout components, remove scroll-reset hacks
 
 ### 2026-02-24 · 988bccf · v0.30.0
