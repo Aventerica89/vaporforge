@@ -519,6 +519,16 @@ export const sdkApi = {
             // Signal end of stream after a brief delay for final frames
             setTimeout(() => push({ done: true }), 50);
             break;
+          case 'ping':
+            // Keepalive from container — respond with pong to keep connection alive
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'pong' }));
+            }
+            break;
+          case 'replay-complete':
+            // Reconnect replay finished — forward so useSandbox can handle
+            push({ value: { type: 'replay-complete', replayedChunks: msg.replayedChunks }, done: false });
+            break;
           default:
             // Forward unknown types as-is
             push({ value: msg, done: false });

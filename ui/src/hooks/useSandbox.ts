@@ -589,8 +589,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           continue;
         }
 
-        // Skip connection and heartbeat events — just reset the timeout
-        if (chunk.type === 'connected' || chunk.type === 'heartbeat') {
+        // Skip connection, heartbeat, ping, and replay-complete events — just reset the timeout
+        if (chunk.type === 'connected' || chunk.type === 'heartbeat' || chunk.type === 'ping' || chunk.type === 'replay-complete') {
           resetTimeout();
           continue;
         }

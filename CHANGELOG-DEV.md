@@ -75,3 +75,6 @@ FIX     streaming — wsChunkCount now excludes protocol frames (connected/heart
 
 ### 2026-02-25 · PENDING · v0.30.0
 REFACTOR v15 — switch ChatSessionAgent from AIChatAgent to Agent base class; removes broken ai SDK dependency, drops unused WS bridge path (-287 lines), keeps HTTP NDJSON streaming only; fix preview wrangler config for self-hosted CHAT_SESSIONS DO
+
+### 2026-02-25 · PENDING · v0.30.0
+FIX     streaming — WS stability hardening: 25s ping keepalive (prevents CF/iOS idle connection kill during long thinks), 120s grace period on disconnect (was 30s, survives mobile app switches), reconnect-to-running-agent with JSONL buffer replay instead of killing; frontend ping/pong response + replay-complete event handling; Dockerfile synced
