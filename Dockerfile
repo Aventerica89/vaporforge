@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260226a
+ENV VF_CONTAINER_BUILD=20260226c
 
 # Create workspace directory
 RUN mkdir -p /workspace
@@ -384,7 +384,7 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
     console.error(`[claude-agent] Budget ceiling: $${maxBudgetUsd}`);
   }
 
-  // 1M context beta only works for API key users, not OAuth tokens
+  // 1M context beta: only for API key users (CLI rejects betas for OAuth with a warning)
   const isOAuth = oauthToken.startsWith('sk-ant-oat');
   const betas = isOAuth ? undefined : ['context-1m-2025-08-07'];
 
@@ -1410,6 +1410,12 @@ function startQuery() {
           return;
         }
       } catch {}
+    }
+    // Skip known harmless CLI warnings (don't surface as errors)
+    if (text.includes('Custom betas are only available') ||
+        text.includes('Ignoring provided betas')) {
+      console.log(`[ws-agent-server] CLI warning (suppressed): ${text.slice(0, 200)}`);
+      return;
     }
     // Forward cleaned stderr as error
     const firstLine = text.split('\n')[0].replace(/\s+at\s+.+$/, '').trim();

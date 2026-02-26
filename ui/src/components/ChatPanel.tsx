@@ -60,10 +60,12 @@ import type { ImageAttachment } from '@/lib/types';
 // ---------------------------------------------------------------------------
 
 const AGENT_OPTIONS = [
-  { id: 'auto',   label: 'Auto',       description: 'Best model for each task (default)' },
-  { id: 'opus',   label: 'Opus 4.6',   description: 'Most capable — complex reasoning' },
-  { id: 'sonnet', label: 'Sonnet 4.6', description: 'Balanced — fast and highly capable' },
-  { id: 'haiku',  label: 'Haiku 4.5',  description: 'Fastest — lightweight tasks' },
+  { id: 'auto',      label: 'Auto',       description: 'Best model for each task (default)' },
+  { id: 'opus',      label: 'Opus 4.6',   description: 'Most capable — complex reasoning' },
+  { id: 'opusplan',  label: 'Opus Plan',  description: 'Opus for planning, Sonnet for execution' },
+  { id: 'sonnet',    label: 'Sonnet 4.6', description: 'Balanced — fast and highly capable' },
+  { id: 'sonnet1m',  label: 'Sonnet 1M',  description: 'Sonnet with 1M context — requires API key (OAuth tokens limited to 200K)' },
+  { id: 'haiku',     label: 'Haiku 4.5',  description: 'Fastest — lightweight tasks' },
 ] as const;
 
 const GRID_BG = [

@@ -30,6 +30,15 @@ import {
 import { getSandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
 
+/** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
+const MODEL_ALIASES: Record<string, string> = {
+  sonnet: 'claude-sonnet-4-6',
+  haiku: 'claude-haiku-4-5-20251001',
+  opus: 'claude-opus-4-6',
+  opusplan: 'opusplan',
+  sonnet1m: 'claude-sonnet-4-6',
+};
+
 /** HTTP passthrough bridge — forwards container NDJSON to browser as-is. */
 interface HttpBridge {
   writer: WritableStreamDefaultWriter<Uint8Array>;
@@ -383,7 +392,8 @@ export class ChatSessionAgent {
           VF_STREAM_JWT: token,
           VF_SDK_SESSION_ID: sdkSessionId,
           VF_SESSION_MODE: mode || 'agent',
-          ...(model ? { VF_MODEL: model } : {}),
+          ...(model ? { VF_MODEL: MODEL_ALIASES[model] || model } : {}),
+          ...(model === 'sonnet1m' ? { VF_1M_CONTEXT: '1' } : {}),
           ...(autonomy ? { VF_AUTONOMY_MODE: autonomy } : {}),
           CLAUDE_CONFIG_DIR: '/root/.config/claude',
           ...projectSecrets,

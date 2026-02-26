@@ -1,8 +1,8 @@
 {
   "hooks": {
     "postToolUse": {
-      "Edit": "npm run typecheck 2>&1 | head -20 || true; npm run lint 2>&1 | head -10 || true; git status --porcelain Dockerfile 2>/dev/null | grep -q . && echo '⚠️  Dockerfile modified — run: docker builder prune --all -f before npm run deploy' || true",
-      "Write": "npm run typecheck 2>&1 | head -20 || true; npm run lint 2>&1 | head -10 || true; git status --porcelain Dockerfile 2>/dev/null | grep -q . && echo '⚠️  Dockerfile modified — run: docker builder prune --all -f before npm run deploy' || true"
+      "Edit": "npm run typecheck 2>&1 | head -20 || true; npm run lint 2>&1 | head -10 || true; git status --porcelain Dockerfile 2>/dev/null | grep -q . && echo '⚠️  Dockerfile modified — run: docker builder prune --all -f before npm run deploy' || true; git status --porcelain src/sandbox-scripts/ 2>/dev/null | grep -q . && echo '⚠️  sandbox-scripts modified — sync Dockerfile heredocs before deploy' || true; git diff --name-only HEAD 2>/dev/null | grep -q '^src/\\(api\\|agents\\|services\\|utils\\|lib\\|auth\\|sandbox\\|container\\|router\\|config-assembly\\|index\\|types\\)' && git diff HEAD -- $(git diff --name-only HEAD 2>/dev/null | grep '^src/' | grep -v 'sandbox-scripts/') 2>/dev/null | grep -q '+.*console\\.' && echo '⚠️  New console statement in Worker code — remove debug logs before commit' || true",
+      "Write": "npm run typecheck 2>&1 | head -20 || true; npm run lint 2>&1 | head -10 || true; git status --porcelain Dockerfile 2>/dev/null | grep -q . && echo '⚠️  Dockerfile modified — run: docker builder prune --all -f before npm run deploy' || true; git status --porcelain src/sandbox-scripts/ 2>/dev/null | grep -q . && echo '⚠️  sandbox-scripts modified — sync Dockerfile heredocs before deploy' || true"
     }
   },
   "permissions": {

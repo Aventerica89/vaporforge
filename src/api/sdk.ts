@@ -691,8 +691,11 @@ export async function handleSdkWs(
     sonnet: 'claude-sonnet-4-6',
     haiku: 'claude-haiku-4-5-20251001',
     opus: 'claude-opus-4-6',
+    opusplan: 'opusplan',
+    sonnet1m: 'claude-sonnet-4-6',
   };
   const resolvedModel = MODEL_MAP[modelParam] || '';
+  const wants1m = modelParam === 'sonnet1m';
 
   if (!sessionId || !prompt) {
     return new Response('Missing sessionId or prompt', { status: 400 });
@@ -793,6 +796,7 @@ export async function handleSdkWs(
         VF_SESSION_MODE: mode,
         VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
         ...(resolvedModel ? { VF_MODEL: resolvedModel } : {}),
+        ...(wants1m ? { VF_1M_CONTEXT: '1' } : {}),
         VF_AUTONOMY_MODE: autonomyParam,
         ...(msgId ? { VF_MSG_ID: msgId } : {}),
         ...(sandboxConfig.maxBudgetUsd ? { VF_MAX_BUDGET_USD: String(sandboxConfig.maxBudgetUsd) } : {}),
