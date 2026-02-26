@@ -395,7 +395,7 @@ export const sdkApi = {
     cwd?: string,
     signal?: AbortSignal,
     mode?: 'agent' | 'plan',
-    model?: 'auto' | 'sonnet' | 'haiku' | 'opus',
+    model?: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m',
     autonomy?: 'conservative' | 'standard' | 'autonomous'
   ): AsyncGenerator<{
     type: string;
@@ -604,7 +604,7 @@ export const sdkApi = {
     cwd?: string,
     signal?: AbortSignal,
     mode?: 'agent' | 'plan',
-    model?: 'auto' | 'sonnet' | 'haiku' | 'opus',
+    model?: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m',
     autonomy?: 'conservative' | 'standard' | 'autonomous'
   ): AsyncGenerator<{
     type: string;

@@ -5,6 +5,10 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-26 · v0.30.0
+FEAT    ui — Add sonnet[1m] model option: Sonnet with 1M token context window; internal ID sonnet1m resolves to CLI alias in WS + V1.5 paths
+FEAT    ui — Add opusplan model option: Opus for planning, Sonnet for execution (native Claude Code alias); pass through WS + V1.5 paths
+
+### 2026-02-26 · v0.30.0
 SECURITY rate-limit — KV-based rate limiting: auth endpoints 10/min per IP, AI generation 30/min per user
 SECURITY error-msg — Sanitize error responses: remove token format hints (router.ts), internal details (sdk.ts, sessions.ts, test-expose)
 SECURITY files — Path traversal validation on all file endpoints (list, read, write, delete, mkdir, move, search, diff, download-archive)

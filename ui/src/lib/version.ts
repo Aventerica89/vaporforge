@@ -19,6 +19,8 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-26', summary: 'feat(ui): add sonnet[1m] model option — Sonnet with 1M token context window (requires tier 4+ account)' },
+  { date: '2026-02-26', summary: 'feat(ui): add opusplan model option — Opus for planning, Sonnet for execution (native Claude Code alias)' },
   { date: '2026-02-26', summary: 'security: rate limiting (auth 10/min, AI 30/min), error sanitization (5 endpoints), path traversal validation (files.ts), bounded array schemas (quickchat.ts), update hono 4.12.3 + rollup 4.59.0' },
   { date: '2026-02-26', summary: 'fix(v15): stability hardening — remove all v15-diag diagnostic emits, fix betas warning for OAuth users, thread mode/model/autonomy through V1.5 path (fixes /model opusplan), remove token prefix from logs' },
   { date: '2026-02-26', summary: 'feat(settings): add V1.5 HTTP Streaming toggle in Account > Experimental section' },

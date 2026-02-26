@@ -43,7 +43,7 @@ interface SandboxState {
   streamingContent: string;
   streamingParts: MessagePart[];
   sdkMode: 'agent' | 'plan';
-  selectedModel: 'auto' | 'sonnet' | 'haiku' | 'opus';
+  selectedModel: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m';
   autonomyMode: 'conservative' | 'standard' | 'autonomous';
   isCompacting: boolean;
   compactionDone: boolean;
@@ -89,7 +89,7 @@ interface SandboxState {
   loadSessionSummary: () => Promise<void>;
   dismissCompactionDone: () => void;
   setMode: (mode: 'agent' | 'plan') => void;
-  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
+  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m') => void;
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
   useV15: boolean;
   setUseV15: (enabled: boolean) => void;
@@ -1163,7 +1163,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
   setMode: (mode: 'agent' | 'plan') => set({ sdkMode: mode }),
 
-  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
+  setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m') => set({ selectedModel: model }),
 
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => set({ autonomyMode: mode }),
 

@@ -345,7 +345,7 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
     console.error(`[claude-agent] Budget ceiling: $${maxBudgetUsd}`);
   }
 
-  // 1M context beta only works for API key users, not OAuth tokens
+  // 1M context beta: only for API key users (CLI rejects betas for OAuth with a warning)
   const isOAuth = oauthToken.startsWith('sk-ant-oat');
   const betas = isOAuth ? undefined : ['context-1m-2025-08-07'];
 

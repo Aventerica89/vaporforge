@@ -334,6 +334,12 @@ function startQuery() {
         }
       } catch {}
     }
+    // Skip known harmless CLI warnings (don't surface as errors)
+    if (text.includes('Custom betas are only available') ||
+        text.includes('Ignoring provided betas')) {
+      console.log(`[ws-agent-server] CLI warning (suppressed): ${text.slice(0, 200)}`);
+      return;
+    }
     // Forward cleaned stderr as error
     const firstLine = text.split('\n')[0].replace(/\s+at\s+.+$/, '').trim();
     if (activeWs) sendJson(activeWs, { type: 'error', error: firstLine || 'Agent error' });
