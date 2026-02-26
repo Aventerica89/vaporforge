@@ -14,6 +14,7 @@ declare global {
 
     // Durable Objects
     SESSIONS: DurableObjectNamespace;
+    CHAT_SESSIONS: DurableObjectNamespace;
 
     // Containers (Sandboxes) - typed for @cloudflare/sandbox SDK
     SANDBOX_CONTAINER: DurableObjectNamespace<Sandbox>;

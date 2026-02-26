@@ -26,6 +26,10 @@
       {
         "name": "SANDBOX_CONTAINER",
         "class_name": "Sandbox"
+      },
+      {
+        "name": "CHAT_SESSIONS",
+        "class_name": "ChatSessionAgent"
       }
     ]
   },
@@ -48,6 +52,10 @@
           "to": "Sandbox"
         }
       ]
+    },
+    {
+      "tag": "v4",
+      "new_sqlite_classes": ["ChatSessionAgent"]
     }
   ],
 
@@ -148,6 +156,11 @@
           {
             "name": "SANDBOX_CONTAINER",
             "class_name": "Sandbox",
+            "script_name": "vaporforge"
+          },
+          {
+            "name": "CHAT_SESSIONS",
+            "class_name": "ChatSessionAgent",
             "script_name": "vaporforge"
           }
         ]
