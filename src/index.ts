@@ -5,6 +5,7 @@ import { ChatSessionAgent } from './agents/chat-session-agent';
 export { Sandbox } from '@cloudflare/sandbox';
 import { proxyToSandbox } from '@cloudflare/sandbox';
 import { verifyExecutionToken } from './utils/jwt';
+import { AuthService, extractAuth } from './auth';
 
 export { SessionDurableObject, ChatSessionAgent };
 
@@ -37,6 +38,43 @@ export default {
       }
       const id = env.CHAT_SESSIONS.idFromName(payload.sessionId);
       return env.CHAT_SESSIONS.get(id).fetch(request);
+    }
+
+    // V1.5: Browser HTTP streaming endpoint — authenticates user,
+    // routes to ChatSessionAgent DO which dispatches container.
+    const url = new URL(request.url);
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v15/chat'
+    ) {
+      const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
+      const user = await extractAuth(request, authService);
+      if (!user) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+
+      const body = (await request.json()) as {
+        sessionId?: string;
+        prompt?: string;
+        mode?: string;
+        model?: string;
+        autonomy?: string;
+      };
+      if (!body.sessionId || !body.prompt) {
+        return new Response('Missing sessionId or prompt', {
+          status: 400,
+        });
+      }
+
+      const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
+      const stub = env.CHAT_SESSIONS.get(doId);
+      return stub.fetch(
+        new Request('https://do/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      );
     }
 
     // Handle WebSocket upgrade

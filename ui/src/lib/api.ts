@@ -587,6 +587,161 @@ export const sdkApi = {
     if (wsError) throw wsError;
   },
 
+  // V1.5: HTTP streaming via ChatSessionAgent DO (NDJSON passthrough)
+  streamV15: async function* (
+    sessionId: string,
+    prompt: string,
+    cwd?: string,
+    signal?: AbortSignal,
+    mode?: 'agent' | 'plan',
+    model?: 'auto' | 'sonnet' | 'haiku' | 'opus',
+    autonomy?: 'conservative' | 'standard' | 'autonomous'
+  ): AsyncGenerator<{
+    type: string;
+    id?: string;
+    content?: string;
+    sessionId?: string;
+    fullText?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+    output?: string;
+    restoredAt?: string;
+    usage?: { inputTokens: number; outputTokens: number };
+    msgId?: string;
+  }> {
+    const token = localStorage.getItem('session_token');
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetch(`${API_BASE}/v15/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        sessionId,
+        prompt,
+        cwd: cwd || '/workspace',
+        mode: mode || 'agent',
+        ...(model && model !== 'auto' ? { model } : {}),
+        ...(autonomy ? { autonomy } : {}),
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({
+        error: 'V1.5 stream request failed',
+      }));
+      throw new Error(
+        (data as { error?: string }).error || 'V1.5 stream failed'
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) return;
+
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        let msg: Record<string, unknown>;
+        try {
+          msg = JSON.parse(line);
+        } catch {
+          continue;
+        }
+
+        // Map container NDJSON events to VF frontend format
+        // (same mapping as streamWs.onmessage)
+        switch (msg.type) {
+          case 'text-delta':
+            yield {
+              type: 'text',
+              content: msg.text as string,
+            };
+            break;
+          case 'session-init':
+            yield {
+              type: 'session-init',
+              sessionId: msg.sessionId as string,
+            };
+            break;
+          case 'tool-start':
+            yield {
+              type: 'tool-start',
+              id: msg.id as string,
+              name: msg.name as string,
+              input: msg.input as Record<string, unknown>,
+            };
+            break;
+          case 'tool-result':
+            yield {
+              type: 'tool-result',
+              id: msg.id as string,
+              name: msg.name as string,
+              output: msg.output as string,
+            };
+            break;
+          case 'done':
+            yield {
+              type: 'done',
+              sessionId: msg.sessionId as string,
+              fullText: msg.fullText as string,
+              ...(msg.usage
+                ? {
+                    usage: msg.usage as {
+                      inputTokens: number;
+                      outputTokens: number;
+                    },
+                  }
+                : {}),
+            };
+            break;
+          case 'error':
+            yield {
+              type: 'error',
+              content: msg.error as string,
+            };
+            break;
+          case 'system-info':
+            yield {
+              type: 'system-info',
+              ...(msg as Record<string, unknown>),
+            };
+            break;
+          case 'model-fallback':
+            yield {
+              type: 'model-fallback',
+              ...(msg as Record<string, unknown>),
+            };
+            break;
+          case 'reasoning-delta':
+            yield {
+              type: 'reasoning',
+              content: msg.text as string,
+            };
+            break;
+          default:
+            // Forward unknown types as-is
+            yield msg as {
+              type: string;
+              [key: string]: unknown;
+            };
+        }
+      }
+    }
+  },
+
   // Fetch buffered chunks from /tmp/vf-stream-{msgId}.jsonl for reconnect replay
   fetchReplay: async (
     sessionId: string,

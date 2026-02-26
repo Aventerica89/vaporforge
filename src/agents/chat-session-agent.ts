@@ -50,8 +50,17 @@ interface StreamBridge {
   textPartId: string;
 }
 
+/** HTTP passthrough bridge — forwards container NDJSON to browser as-is. */
+interface HttpBridge {
+  writer: WritableStreamDefaultWriter<Uint8Array>;
+  encoder: TextEncoder;
+  resolve: () => void;
+  reject: (err: Error) => void;
+}
+
 export class ChatSessionAgent extends AIChatAgent<Env> {
   private bridges = new Map<string, StreamBridge>();
+  private httpBridges = new Map<string, HttpBridge>();
 
   constructor(ctx: AgentContext, env: Env) {
     super(ctx, env);
@@ -72,6 +81,11 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
 
     if (request.method === 'POST' && url.pathname === '/init') {
       return this.handleInit(request);
+    }
+
+    // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
+    if (request.method === 'POST' && url.pathname === '/chat') {
+      return this.handleChatHttp(request);
     }
 
     return super.onRequest(request);
@@ -168,11 +182,30 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
       return new Response('Unauthorized', { status: 401 });
     }
 
+    // Check WS bridge first (AIChatAgent path)
     const bridge = this.bridges.get(payload.executionId);
-    if (!bridge) {
+
+    // Check HTTP bridge (V1.5 HTTP streaming path)
+    const httpBridge = this.httpBridges.get(payload.executionId);
+
+    if (!bridge && !httpBridge) {
       return new Response('No active stream for this execution', {
         status: 404,
       });
+    }
+
+    // Route to HTTP passthrough handler if using HTTP bridge
+    if (httpBridge) {
+      return this.handleContainerStreamHttp(
+        request,
+        httpBridge,
+        payload
+      );
+    }
+
+    // At this point bridge must be defined (guarded by !bridge && !httpBridge above)
+    if (!bridge) {
+      return new Response('No active stream', { status: 404 });
     }
 
     if (!request.body) {
@@ -344,6 +377,140 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
       default:
         // Unknown event types are silently skipped for now
         break;
+    }
+  }
+
+  /**
+   * HTTP streaming endpoint — browser sends POST /chat,
+   * gets back NDJSON stream of container events.
+   * Same format as WS streamWs events (no UIMessageChunk translation).
+   */
+  private async handleChatHttp(
+    request: Request
+  ): Promise<Response> {
+    const body = (await request.json()) as {
+      prompt: string;
+      mode?: string;
+      model?: string;
+      autonomy?: string;
+    };
+
+    const executionId = crypto.randomUUID();
+    const sessionId = this.name;
+
+    const { readable, writable } = new TransformStream<Uint8Array>();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    const { promise, resolve, reject } = createDeferred<void>();
+
+    this.httpBridges.set(executionId, {
+      writer,
+      encoder,
+      resolve,
+      reject,
+    });
+
+    // Dispatch container (fire-and-forget)
+    this.dispatchContainer(
+      executionId,
+      sessionId,
+      body.prompt
+    ).catch((err) => {
+      const line =
+        JSON.stringify({ type: 'error', error: String(err) }) + '\n';
+      writer.write(encoder.encode(line)).catch(() => {});
+      writer.close().catch(() => {});
+      this.httpBridges.delete(executionId);
+      reject(err instanceof Error ? err : new Error(String(err)));
+    });
+
+    // When container stream completes (or errors), close the HTTP response
+    promise
+      .then(() => writer.close().catch(() => {}))
+      .catch(() => writer.close().catch(() => {}));
+
+    return new Response(readable, {
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'Cache-Control': 'no-cache',
+      },
+    });
+  }
+
+  /**
+   * HTTP bridge version of handleContainerStream.
+   * Pipes container NDJSON events through to the browser as-is.
+   */
+  private async handleContainerStreamHttp(
+    request: Request,
+    bridge: HttpBridge,
+    payload: { executionId: string; sessionId: string }
+  ): Promise<Response> {
+    if (!request.body) {
+      bridge.resolve();
+      this.httpBridges.delete(payload.executionId);
+      return new Response('OK', { status: 200 });
+    }
+
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          // Pipe container NDJSON through to browser
+          await bridge.writer.write(
+            bridge.encoder.encode(line + '\n')
+          );
+          // Extract metadata for DO storage
+          this.extractMetadata(line);
+        }
+      }
+
+      // Flush remaining buffer
+      if (buffer.trim()) {
+        await bridge.writer.write(
+          bridge.encoder.encode(buffer + '\n')
+        );
+        this.extractMetadata(buffer);
+      }
+
+      bridge.resolve();
+    } catch (err) {
+      bridge.reject(
+        err instanceof Error ? err : new Error(String(err))
+      );
+    } finally {
+      this.httpBridges.delete(payload.executionId);
+    }
+
+    return new Response('OK', { status: 200 });
+  }
+
+  /** Persist sdkSessionId from container events. */
+  private extractMetadata(line: string): void {
+    try {
+      const event = JSON.parse(line) as Record<string, unknown>;
+      if (
+        (event.type === 'session-init' || event.type === 'done') &&
+        event.sessionId
+      ) {
+        this.ctx.storage
+          .put('sdkSessionId', String(event.sessionId))
+          .catch(() => {});
+      }
+    } catch {
+      // Skip parse errors
     }
   }
 

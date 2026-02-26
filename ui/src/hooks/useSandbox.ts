@@ -91,6 +91,8 @@ interface SandboxState {
   setMode: (mode: 'agent' | 'plan') => void;
   setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => void;
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
+  useV15: boolean;
+  setUseV15: (enabled: boolean) => void;
 
   // Derived helper — returns messages array from normalized state.
   // Use messageIds + messagesById selectors in components instead for perf.
@@ -148,6 +150,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamAbortController: null,
   isPaused: false,
   pausedAt: null,
+  useV15: false,
 
   gitStatus: null,
 
@@ -568,9 +571,18 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       let processExitReceived = false; // 'ws-exit' frame received = process exited
       let shouldAutoRetry = false; // transient crash detected — eligible for auto-retry
 
-      for await (const chunk of sdkApi.streamWs(
-        session.id, message, undefined, controller.signal, get().sdkMode, get().selectedModel, get().autonomyMode
-      )) {
+      // V1.5 feature flag: use DO-mediated HTTP stream vs direct WS
+      const streamSource = get().useV15
+        ? sdkApi.streamV15(
+            session.id, message, undefined, controller.signal,
+            get().sdkMode, get().selectedModel, get().autonomyMode
+          )
+        : sdkApi.streamWs(
+            session.id, message, undefined, controller.signal,
+            get().sdkMode, get().selectedModel, get().autonomyMode
+          );
+
+      for await (const chunk of streamSource) {
         // Capture msgId from synthetic first event (not a real WS frame)
         if (chunk.type === 'msg-id') {
           streamMsgId = chunk.msgId || '';
@@ -1154,6 +1166,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   setModel: (model: 'auto' | 'sonnet' | 'haiku' | 'opus') => set({ selectedModel: model }),
 
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => set({ autonomyMode: mode }),
+
+  setUseV15: (enabled: boolean) => set({ useV15: enabled }),
 
   getMessages: () => {
     const { messageIds, messagesById } = get();
