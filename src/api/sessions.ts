@@ -117,6 +117,23 @@ sessionRoutes.post('/create', async (c) => {
       );
     }
 
+    // V1.5: Initialize ChatSessionAgent DO with userId for stream bridge
+    c.executionCtx.waitUntil(
+      (async () => {
+        try {
+          const doId = c.env.CHAT_SESSIONS.idFromName(sessionId);
+          const stub = c.env.CHAT_SESSIONS.get(doId);
+          await stub.fetch(new Request('https://do/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: user.id }),
+          }));
+        } catch (err) {
+          console.warn('[sessions/create] ChatSessionAgent init failed (non-fatal):', err);
+        }
+      })()
+    );
+
     // Pre-install npx packages in background so first message doesn't wait for npm
     const allMcpServers: Record<string, Record<string, unknown>> = {
       ...(mcpServers || {}),
