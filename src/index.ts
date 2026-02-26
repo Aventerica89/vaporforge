@@ -66,15 +66,26 @@ export default {
         });
       }
 
-      const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
-      const stub = env.CHAT_SESSIONS.get(doId);
-      return stub.fetch(
-        new Request('https://do/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        })
-      );
+      try {
+        const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
+        const stub = env.CHAT_SESSIONS.get(doId);
+        return await stub.fetch(
+          new Request('https://do/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            // Include userId so DO can fetch OAuth token without relying on /init
+            body: JSON.stringify({ ...body, userId: user.id }),
+          })
+        );
+      } catch (err) {
+        console.error('[v15/chat] DO fetch error:', err);
+        return new Response(
+          JSON.stringify({
+            error: `V1.5 DO error: ${err instanceof Error ? err.message : String(err)}`,
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Handle WebSocket upgrade

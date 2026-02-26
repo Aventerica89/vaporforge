@@ -888,7 +888,7 @@ export async function handleAgencyEditWs(
   const url = new URL(request.url);
   const siteId = url.searchParams.get('siteId') || '';
 
-  console.log(`[agency/ws] handler called: siteId=${siteId}, token=${user.claudeToken?.slice(0, 15)}...`);
+  console.log(`[agency/ws] handler called: siteId=${siteId}, hasToken=${!!user.claudeToken}`);
 
   if (!siteId) {
     console.log(`[agency/ws] missing siteId`);

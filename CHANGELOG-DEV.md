@@ -78,3 +78,10 @@ REFACTOR v15 — switch ChatSessionAgent from AIChatAgent to Agent base class; r
 
 ### 2026-02-25 · PENDING · v0.30.0
 FIX     streaming — WS stability hardening: 25s ping keepalive (prevents CF/iOS idle connection kill during long thinks), 120s grace period on disconnect (was 30s, survives mobile app switches), reconnect-to-running-agent with JSONL buffer replay instead of killing; frontend ping/pong response + replay-complete event handling; Dockerfile synced
+
+### 2026-02-26 · PENDING · v0.30.0
+FEAT    settings — V1.5 HTTP Streaming toggle in Account > Experimental section; wires useV15 store flag to UI switch
+
+### 2026-02-26 · PENDING · v0.30.0
+FIX     v15 — Stability hardening: remove all v15-diag diagnostic emits (7 in claude-agent.js, 1 in chat-session-agent.ts, 1 handler in useSandbox.ts); fix betas warning for OAuth users (skip 1M context beta for sk-ant-oat tokens); thread mode/model/autonomy through V1.5 dispatchContainer (fixes /model and plan mode in V1.5); remove token prefix exposure from agency.ts logs
+SECURITY agency — Replace token prefix logging with boolean hasToken check

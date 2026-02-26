@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260225a
+ENV VF_CONTAINER_BUILD=20260226a
 
 # Create workspace directory
 RUN mkdir -p /workspace
@@ -384,10 +384,21 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
     console.error(`[claude-agent] Budget ceiling: $${maxBudgetUsd}`);
   }
 
+  // 1M context beta only works for API key users, not OAuth tokens
+  const isOAuth = oauthToken.startsWith('sk-ant-oat');
+  const betas = isOAuth ? undefined : ['context-1m-2025-08-07'];
+
   return {
     model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
-    betas: ['context-1m-2025-08-07'],
+    ...(betas ? { betas } : {}),
     cwd: cwd || '/workspace',
+    // Capture raw CLI stderr — surfaces OAuth/auth errors that cause exit code 1
+    stderr: (data) => {
+      const line = data.trim();
+      if (line) {
+        console.error(`[claude-cli-stderr] ${line}`);
+      }
+    },
     settingSources: ['user', 'project'],
     agents,
     tools: vfTools,
@@ -776,7 +787,6 @@ handleQuery(prompt, sessionId, cwd).then(() => {
   // Exit cleanly (code 0) — errors are already reported via protocol.
   process.exit(0);
 });
-
 CLAUDE_AGENT_EOF
 
 RUN chmod +x /opt/claude-agent/claude-agent.js

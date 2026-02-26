@@ -345,10 +345,21 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
     console.error(`[claude-agent] Budget ceiling: $${maxBudgetUsd}`);
   }
 
+  // 1M context beta only works for API key users, not OAuth tokens
+  const isOAuth = oauthToken.startsWith('sk-ant-oat');
+  const betas = isOAuth ? undefined : ['context-1m-2025-08-07'];
+
   return {
     model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
-    betas: ['context-1m-2025-08-07'],
+    ...(betas ? { betas } : {}),
     cwd: cwd || '/workspace',
+    // Capture raw CLI stderr — surfaces OAuth/auth errors that cause exit code 1
+    stderr: (data) => {
+      const line = data.trim();
+      if (line) {
+        console.error(`[claude-cli-stderr] ${line}`);
+      }
+    },
     settingSources: ['user', 'project'],
     agents,
     tools: vfTools,

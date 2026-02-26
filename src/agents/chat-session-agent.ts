@@ -1,5 +1,5 @@
 /**
- * ChatSessionAgent — Durable Object extending Agent (from @cloudflare/agents).
+ * ChatSessionAgent — Durable Object for V1.5 HTTP streaming.
  *
  * Replaces the direct WS proxy (Browser -> Worker -> Container) with a
  * DO-mediated HTTP streaming architecture that provides:
@@ -15,20 +15,20 @@
  * 5. Worker validates JWT, routes to this DO
  * 6. DO pipes container NDJSON through to browser as-is
  * 7. Container finishes -> POST ends -> writer closes -> HTTP response ends
+ *
+ * Uses raw DurableObject (not @cloudflare/agents Agent) because we only
+ * need HTTP request handling — no WS, no partyserver routing headers.
  */
-import { Agent } from '@cloudflare/agents';
-import type { AgentContext } from '@cloudflare/agents';
 import {
   signExecutionToken,
   verifyExecutionToken,
 } from '../utils/jwt';
-import { SandboxManager } from '../sandbox';
-import { assembleSandboxConfig } from '../config-assembly';
 import {
   collectProjectSecrets,
   collectUserSecrets,
 } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
+import type { Session } from '../types';
 
 /** HTTP passthrough bridge — forwards container NDJSON to browser as-is. */
 interface HttpBridge {
@@ -38,11 +38,14 @@ interface HttpBridge {
   reject: (err: Error) => void;
 }
 
-export class ChatSessionAgent extends Agent<Env> {
+export class ChatSessionAgent {
+  private state: DurableObjectState;
+  private env: Env;
   private httpBridges = new Map<string, HttpBridge>();
 
-  constructor(ctx: AgentContext, env: Env) {
-    super(ctx, env);
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
+    this.env = env;
   }
 
   /**
@@ -51,7 +54,7 @@ export class ChatSessionAgent extends Agent<Env> {
    * - POST /init — session initialization with userId
    * - POST /chat — browser HTTP streaming endpoint
    */
-  async onRequest(request: Request): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method === 'POST' && url.pathname === '/internal/stream') {
@@ -64,7 +67,17 @@ export class ChatSessionAgent extends Agent<Env> {
 
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
     if (request.method === 'POST' && url.pathname === '/chat') {
-      return this.handleChatHttp(request);
+      try {
+        return await this.handleChatHttp(request);
+      } catch (err) {
+        console.error('[ChatSessionAgent] handleChatHttp error:', err);
+        return new Response(
+          JSON.stringify({
+            error: 'Chat session error — please try again',
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     return new Response('Not Found', { status: 404 });
@@ -75,7 +88,7 @@ export class ChatSessionAgent extends Agent<Env> {
    */
   private async handleInit(request: Request): Promise<Response> {
     const body = (await request.json()) as { userId: string };
-    await this.ctx.storage.put('userId', body.userId);
+    await this.state.storage.put('userId', body.userId);
     return new Response('OK', { status: 200 });
   }
 
@@ -162,14 +175,34 @@ export class ChatSessionAgent extends Agent<Env> {
     request: Request
   ): Promise<Response> {
     const body = (await request.json()) as {
+      sessionId: string;
       prompt: string;
+      userId?: string;
       mode?: string;
       model?: string;
       autonomy?: string;
     };
 
     const executionId = crypto.randomUUID();
-    const sessionId = this.name;
+    const sessionId = body.sessionId;
+    if (!sessionId) {
+      throw new Error('Missing sessionId in request body');
+    }
+
+    // userId comes from Worker (authenticated user) — more reliable than DO storage
+    // which depends on /init having been called (race condition on new sessions,
+    // never called for sessions created before V1.5).
+    const userId = body.userId ||
+      (await this.state.storage.get<string>('userId')) || '';
+    if (!userId) {
+      throw new Error('No userId available — session may need re-initialization');
+    }
+    if (body.userId) {
+      // Persist for future use (callback stream route doesn't have it)
+      this.state.storage.put('userId', body.userId).catch(() => {});
+    }
+
+    console.log(`[ChatSessionAgent] handleChatHttp: sessionId=${sessionId.slice(0, 8)}, userId=${userId.slice(0, 8)}, promptLen=${body.prompt.length}`);
 
     const { readable, writable } = new TransformStream<Uint8Array>();
     const writer = writable.getWriter();
@@ -184,11 +217,28 @@ export class ChatSessionAgent extends Agent<Env> {
       reject,
     });
 
+    // Bridge timeout — if container never calls back, close the stream
+    const BRIDGE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const bridgeTimeout = setTimeout(() => {
+      const bridge = this.httpBridges.get(executionId);
+      if (bridge) {
+        const line = JSON.stringify({ type: 'error', error: 'Container did not respond within 5 minutes' }) + '\n';
+        bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
+        bridge.resolve();
+        this.httpBridges.delete(executionId);
+      }
+    }, BRIDGE_TIMEOUT_MS);
+    promise.finally(() => clearTimeout(bridgeTimeout));
+
     // Dispatch container (fire-and-forget)
     this.dispatchContainer(
       executionId,
       sessionId,
-      body.prompt
+      body.prompt,
+      userId,
+      body.mode,
+      body.model,
+      body.autonomy
     ).catch((err) => {
       const line =
         JSON.stringify({ type: 'error', error: String(err) }) + '\n';
@@ -219,7 +269,7 @@ export class ChatSessionAgent extends Agent<Env> {
         (event.type === 'session-init' || event.type === 'done') &&
         event.sessionId
       ) {
-        this.ctx.storage
+        this.state.storage
           .put('sdkSessionId', String(event.sessionId))
           .catch(() => {});
       }
@@ -229,39 +279,50 @@ export class ChatSessionAgent extends Agent<Env> {
   }
 
   /**
-   * Wakes container, injects config, spawns claude-agent.js
-   * via startProcess (fire-and-forget, returns immediately).
+   * Read session from KV, get sandbox reference, spawn claude-agent.js.
+   *
+   * Bypasses SandboxManager.getOrWakeSandbox (and its health check)
+   * because the CF Sandbox SDK auto-wakes sleeping containers on
+   * any operation (writeFile, startProcess). The health check was
+   * causing "Sandbox failed to wake" errors from the DO context.
    */
   private async dispatchContainer(
     executionId: string,
     sessionId: string,
-    prompt: string
+    prompt: string,
+    userId: string,
+    mode?: string,
+    model?: string,
+    autonomy?: string
   ): Promise<void> {
-    const sandboxManager = new SandboxManager(
-      this.env.SANDBOX_CONTAINER,
-      this.env.SESSIONS_KV,
-      this.env.FILES_BUCKET
-    );
+    const sid = sessionId.slice(0, 8);
+    console.log(`[ChatSessionAgent] dispatchContainer: sid=${sid} exec=${executionId.slice(0, 8)}`);
 
-    const userId =
-      (await this.ctx.storage.get<string>('userId')) || '';
     const sdkSessionId =
-      (await this.ctx.storage.get<string>('sdkSessionId')) || '';
+      (await this.state.storage.get<string>('sdkSessionId')) || '';
+    console.log(`[ChatSessionAgent] userId=${userId ? userId.slice(0, 8) : 'EMPTY'} sdkSessionId=${sdkSessionId ? sdkSessionId.slice(0, 8) : 'none'}`);
 
-    // Assemble sandbox config from KV
-    const config = await assembleSandboxConfig(
-      this.env.SESSIONS_KV,
-      userId
+    // Read session directly from KV (no health check — SDK auto-wakes)
+    const session = await this.env.SESSIONS_KV.get<Session>(
+      `session:${sessionId}`,
+      'json'
     );
-
-    // Wake sandbox + inject MCP config
-    const session = await sandboxManager.getOrWakeSandbox(
-      sessionId,
-      config
-    );
-    if (!session?.sandboxId) {
-      throw new Error('Sandbox failed to wake');
+    if (!session) {
+      throw new Error(`Session not found in KV: ${sid}`);
     }
+    if (session.status === 'terminated' || session.status === 'pending-delete') {
+      throw new Error(`Session ${session.status}: ${sid}`);
+    }
+    if (!session.sandboxId) {
+      throw new Error(`Session has no sandboxId: ${sid} (status=${session.status})`);
+    }
+    console.log(`[ChatSessionAgent] session found: sandboxId=${session.sandboxId.slice(0, 8)} status=${session.status}`);
+
+    // Get sandbox reference (returns immediately — no container wake yet)
+    const sandbox = getSandbox(
+      this.env.SANDBOX_CONTAINER,
+      session.sandboxId
+    );
 
     // Generate JWT for container callback
     const token = await signExecutionToken(
@@ -276,16 +337,20 @@ export class ChatSessionAgent extends Agent<Env> {
       this.env.SESSIONS_KV,
       userId
     );
-    const oauthToken =
-      (await this.env.AUTH_KV.get(`user:${userId}:token`)) || '';
-
-    // Get sandbox instance for startProcess
-    const sandbox = getSandbox(
-      this.env.SANDBOX_CONTAINER,
-      session.sandboxId
+    // OAuth token is stored as claudeToken inside the user JSON object
+    const userRecord = await this.env.AUTH_KV.get<{ claudeToken?: string }>(
+      `user:${userId}`,
+      'json'
     );
+    const oauthToken = userRecord?.claudeToken || '';
+    if (!oauthToken) {
+      throw new Error('No Claude token found — please re-authenticate');
+    }
+    if (!oauthToken.startsWith('sk-ant-oat01-')) {
+      throw new Error('Only OAuth tokens are accepted for sandbox sessions');
+    }
 
-    // Write prompt to context file (same pattern as current flow)
+    // Write prompt to context file (auto-wakes sandbox if sleeping)
     await sandbox.writeFile(
       '/tmp/vf-pending-query.json',
       JSON.stringify({
@@ -298,24 +363,45 @@ export class ChatSessionAgent extends Agent<Env> {
 
     // Spawn claude-agent.js via startProcess (fire-and-forget).
     // Returns immediately — process runs in background.
+    // CRITICAL: startProcess env REPLACES container env (not merges).
+    // Must include system essentials (PATH, HOME, NODE_PATH) or CLI fails.
     await sandbox.startProcess(
       'node /opt/claude-agent/claude-agent.js',
       {
         cwd: '/workspace',
         env: {
+          // System essentials (container defaults that startProcess strips)
+          PATH: '/usr/local/bin:/usr/bin:/bin',
+          HOME: '/root',
+          NODE_PATH: '/usr/local/lib/node_modules',
+          LANG: 'en_US.UTF-8',
+          TERM: 'xterm',
+          // VF runtime
           IS_SANDBOX: '1',
           CLAUDE_CODE_OAUTH_TOKEN: oauthToken,
           VF_CALLBACK_URL: 'https://vaporforge.dev/internal/stream',
           VF_STREAM_JWT: token,
           VF_SDK_SESSION_ID: sdkSessionId,
-          VF_SESSION_MODE: 'agent',
-          NODE_PATH: '/opt/claude-agent/node_modules',
+          VF_SESSION_MODE: mode || 'agent',
+          ...(model ? { VF_MODEL: model } : {}),
+          ...(autonomy ? { VF_AUTONOMY_MODE: autonomy } : {}),
           CLAUDE_CONFIG_DIR: '/root/.config/claude',
           ...projectSecrets,
           ...userSecrets,
         },
       }
     );
+
+    // Update lastActiveAt in KV (non-blocking)
+    const updated: Session = {
+      ...session,
+      lastActiveAt: new Date().toISOString(),
+      status: 'active',
+    };
+    this.env.SESSIONS_KV.put(
+      `session:${sessionId}`,
+      JSON.stringify(updated)
+    ).catch(() => {});
   }
 }
 
