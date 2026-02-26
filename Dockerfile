@@ -64,11 +64,47 @@ try {
 
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 
-// Synchronous, unbuffered write to stdout (fd 1).
-// Bypasses Node's stream buffering which blocks output when piped.
+// V1.5 callback mode: stream NDJSON via chunked POST to DO instead of stdout.
+// Activated when VF_CALLBACK_URL + VF_STREAM_JWT env vars are set.
+const CALLBACK_URL = process.env.VF_CALLBACK_URL || '';
+const CALLBACK_JWT = process.env.VF_STREAM_JWT || '';
+const IS_CALLBACK_MODE = !!(CALLBACK_URL && CALLBACK_JWT);
+
+let callbackReq = null;
+
+if (IS_CALLBACK_MODE) {
+  const parsed = new URL(CALLBACK_URL);
+  const transport = parsed.protocol === 'https:' ? https : http;
+  callbackReq = transport.request({
+    hostname: parsed.hostname,
+    port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+    path: parsed.pathname + parsed.search,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${CALLBACK_JWT}`,
+      'Content-Type': 'application/x-ndjson',
+      'Transfer-Encoding': 'chunked',
+    },
+  });
+  callbackReq.on('error', (err) => {
+    console.error(`[claude-agent] callback POST error: ${err.message}`);
+  });
+  console.error('[claude-agent] V1.5 callback mode — streaming to DO');
+}
+
+// Emit an event object as NDJSON.
+// V1.0: synchronous write to stdout (fd 1), bypasses Node's stream buffering.
+// V1.5: write to open chunked HTTP POST request to DO callback.
 function emit(obj) {
-  fs.writeSync(1, JSON.stringify(obj) + '\n');
+  const line = JSON.stringify(obj) + '\n';
+  if (IS_CALLBACK_MODE && callbackReq) {
+    callbackReq.write(line);
+  } else {
+    fs.writeSync(1, line);
+  }
 }
 
 // Keys to strip from the env passed to the SDK's CLI child process.
@@ -685,9 +721,41 @@ async function handleQuery(prompt, sessionId, cwd) {
   });
 }
 
-// Read arguments from command line
+// Finalize the callback POST (V1.5 mode) — close the chunked request body.
+function finalizeCallback() {
+  if (IS_CALLBACK_MODE && callbackReq) {
+    callbackReq.end();
+  }
+}
+
+// Read arguments from command line OR context file (V1.5 mode).
+// V1.0: args come from CLI  (ws-agent-server.js passes prompt, sessionId, cwd)
+// V1.5: startProcess has no CLI args, prompt is in /tmp/vf-pending-query.json
+const CONTEXT_FILE = '/tmp/vf-pending-query.json';
 const args = process.argv.slice(2);
-if (args.length < 1) {
+
+let prompt, sessionId, cwd;
+
+if (args.length >= 1) {
+  // V1.0 mode: CLI arguments
+  [prompt, sessionId, cwd] = args;
+} else if (IS_CALLBACK_MODE && fs.existsSync(CONTEXT_FILE)) {
+  // V1.5 mode: read from context file written by ChatSessionAgent.dispatchContainer
+  try {
+    const ctx = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
+    prompt = ctx.prompt;
+    sessionId = ctx.sdkSessionId || '';
+    cwd = '/workspace';
+    // Delete context file after reading (one-shot)
+    fs.unlinkSync(CONTEXT_FILE);
+    console.error(`[claude-agent] V1.5: read prompt from context file (${prompt.length} chars)`);
+  } catch (err) {
+    console.error(`[claude-agent] Failed to read context file: ${err.message}`);
+    emit({ type: 'error', error: 'Failed to read query context' });
+    finalizeCallback();
+    process.exit(1);
+  }
+} else {
   console.error(JSON.stringify({
     type: 'error',
     error: 'Usage: node claude-agent.js <prompt> [sessionId] [cwd]'
@@ -695,16 +763,17 @@ if (args.length < 1) {
   process.exit(1);
 }
 
-const [prompt, sessionId, cwd] = args;
-handleQuery(prompt, sessionId, cwd).catch(err => {
-  // Output clean error to stdout (parsed by backend) — avoid raw stack traces
+handleQuery(prompt, sessionId, cwd).then(() => {
+  finalizeCallback();
+}).catch(err => {
+  // Output clean error to stdout/callback (parsed by backend)
   const friendly = cleanErrorMessage(err);
   emit({ type: 'error', error: friendly });
   emit({ type: 'done', sessionId: '', fullText: '' });
+  finalizeCallback();
   // Log full detail to stderr for server-side debugging only
   console.error(`[claude-agent] fatal: ${err.stack || err.message || err}`);
-  // Exit cleanly (code 0) — errors are already reported via stdout protocol.
-  // Using exit(1) causes the backend to emit a redundant "process exited with code 1" error.
+  // Exit cleanly (code 0) — errors are already reported via protocol.
   process.exit(0);
 });
 
