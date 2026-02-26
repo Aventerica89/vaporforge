@@ -40,14 +40,20 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 ```
 Browser <-> Worker (Hono, auth, orchestration)
               |
-              ├── WebSocket tunnel ──> Sandbox Container (ws-agent-server.js:8765)
-              |                            └── spawns claude-agent.js -> Claude SDK -> Anthropic API
+              ├── [Default] WebSocket tunnel ──> Sandbox Container (ws-agent-server.js:8765)
+              |                                      └── spawns claude-agent.js -> Claude SDK -> Anthropic API
+              |
+              ├── [V1.5 flag] POST /chat ──> ChatSessionAgent DO ──> startProcess in Container
+              |                                   ↑                        |
+              |                                   └── HTTP POST /internal/stream (NDJSON callback)
               |
               └── AI SDK (direct API) ──> Anthropic / Gemini APIs
                   (QuickChat, Transform, Analyze, CommitMsg)
 ```
 
-**Main chat uses WebSocket streaming** (v0.20.0+). One WS connection per message, proxied through `sandbox.wsConnect(request, 8765)`. The container runs `ws-agent-server.js` which spawns `claude-agent.js` per query and pipes stdout as WS frames.
+**Default chat uses WebSocket streaming** (v0.20.0+). One WS connection per message, proxied through `sandbox.wsConnect(request, 8765)`. The container runs `ws-agent-server.js` which spawns `claude-agent.js` per query and pipes stdout as WS frames.
+
+**V1.5 HTTP Streaming** (feature-flagged, `useV15` toggle in Account > Experimental). Routes chat through a `ChatSessionAgent` Durable Object instead of direct WS. The DO spawns `claude-agent.js` via `startProcess`, and the container streams NDJSON back to the DO via an HTTP POST to `/internal/stream` (authenticated with a per-execution JWT). The DO pipes events through to the browser's HTTP response. Enables walk-away persistence and crash recovery (container output collected by DO while browser is away).
 
 ### Monorepo Structure
 
@@ -64,7 +70,8 @@ Browser <-> Worker (Hono, auth, orchestration)
 | Binding | Type | Purpose |
 |---------|------|---------|
 | `SESSIONS` | Durable Object | Session persistence (SQLite-backed) |
-| `SANDBOX_CONTAINER` | Container | Claude SDK runtime (standard-2: 1 vCPU, 6 GiB) |
+| `CHAT_SESSIONS` | Durable Object | V1.5 HTTP streaming bridge (ChatSessionAgent) |
+| `SANDBOX_CONTAINER` | Container | Claude SDK runtime (standard-3: 2 vCPU, 8 GiB) |
 | `AUTH_KV` | KV | User records, plugin config, AI provider settings |
 | `SESSIONS_KV` | KV | Chat history, secrets, VF rules, MCP configs, issue tracker |
 | `FILES_BUCKET` | R2 | VaporFiles persistent storage |
@@ -107,6 +114,8 @@ npm run test         # Vitest tests
 | `src/services/agency-validator.ts` | Agency site validation |
 | `src/services/embeddings.ts` | Embedding generation service |
 | `src/services/files.ts` | File operations service |
+| `src/agents/chat-session-agent.ts` | V1.5 Durable Object — HTTP streaming bridge, container dispatch, JWT callback |
+| `src/utils/jwt.ts` | Execution token signing/verification for V1.5 container callback |
 | `src/api/sdk.ts` | Main chat — WS proxy to container agent + persist endpoint + replay (stream reconnect) |
 | `src/api/sessions.ts` | Session CRUD, sandbox create/resume |
 | `src/api/agency.ts` | Agency mode API (create site, poll status, preview proxy) |
@@ -208,6 +217,16 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **WS auth via query param** `?token=JWT` (WS upgrade requests can't carry custom headers from browser).
 - **`emit()` helper in claude-agent.js**: `fs.writeSync(1, ...)` bypasses Node's block-buffered stdout.
 - **Stream reconnect/replay**: Frontend generates `?msgId=UUID` per WS connection. Container buffers every chunk to `/tmp/vf-stream-{msgId}.jsonl` alongside sending it as a WS frame. On unexpected close (no prior `process-exit` frame), frontend calls `GET /api/sdk/replay/:sessionId?msgId=&offset=N` to recover the partial response. Buffer deleted on clean exit. `msgId` sanitized to `[a-zA-Z0-9-]{1,64}` before use in shell command.
+
+### V1.5 HTTP Streaming (feature-flagged)
+
+- **V1.5 route**: `POST /api/v15/chat` in `src/index.ts` — authenticates user, forwards body (including `userId`) to `ChatSessionAgent` DO.
+- **`startProcess` env REPLACES container env** — must explicitly include `PATH`, `HOME`, `NODE_PATH`, `LANG`, `TERM` or the Claude CLI fails silently. This is the #1 gotcha.
+- **OAuth token location**: Stored as `claudeToken` field inside user JSON at `user:{userId}` in `AUTH_KV`. NOT a separate `user:{userId}:token` key (this was the V1.5 launch bug).
+- **`betas` array causes warnings for OAuth tokens** — `context-1m-2025-08-07` only works for API key users. Container-side `claude-agent.js` detects `sk-ant-oat` prefix and skips the beta.
+- **Bridge timeout**: 5 minutes. If container never calls back to `/internal/stream`, the DO closes the browser's HTTP response with an error event.
+- **Mode/model/autonomy threading**: Frontend sends `mode`, `model`, `autonomy` in POST body. Worker passes through to DO. DO must forward them as `VF_SESSION_MODE`, `VF_MODEL`, `VF_AUTONOMY_MODE` env vars in `startProcess`.
+- **`/init` endpoint**: Called from session creation to persist `userId` in DO storage. Unauthenticated (internal-only). The `/chat` path also passes `userId` in the body as a more reliable source.
 
 ### MCP Servers
 
