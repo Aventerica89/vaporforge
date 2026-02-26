@@ -1,10 +1,12 @@
 import { createRouter } from './router';
 import { SessionDurableObject } from './websocket';
+import { ChatSessionAgent } from './agents/chat-session-agent';
 // Sandbox class is provided by @cloudflare/sandbox SDK
 export { Sandbox } from '@cloudflare/sandbox';
 import { proxyToSandbox } from '@cloudflare/sandbox';
+import { verifyExecutionToken } from './utils/jwt';
 
-export { SessionDurableObject };
+export { SessionDurableObject, ChatSessionAgent };
 
 export default {
   async fetch(
@@ -20,6 +22,22 @@ export default {
       Sandbox: env.SANDBOX_CONTAINER,
     });
     if (proxyResponse) return proxyResponse;
+
+    // V1.5: Route container streaming POST to ChatSessionAgent DO.
+    // JWT validated in Worker to prevent attackers from waking arbitrary DOs.
+    if (
+      request.method === 'POST' &&
+      new URL(request.url).pathname === '/internal/stream'
+    ) {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.replace('Bearer ', '');
+      const payload = await verifyExecutionToken(token, env.JWT_SECRET);
+      if (!payload) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const id = env.CHAT_SESSIONS.idFromName(payload.sessionId);
+      return env.CHAT_SESSIONS.get(id).fetch(request);
+    }
 
     // Handle WebSocket upgrade
     if (request.headers.get('Upgrade') === 'websocket') {
