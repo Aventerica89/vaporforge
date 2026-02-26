@@ -34,6 +34,7 @@ import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
 import { SetupTokenRequestSchema } from './types';
 import type { User } from './types';
+import { authRateLimit, aiRateLimit } from './utils/rate-limit';
 
 // Extend Hono context
 type Variables = {
@@ -122,8 +123,8 @@ export function createRouter(env: Env) {
     });
   });
 
-  // Setup-token auth endpoint (public)
-  app.post('/api/auth/setup', async (c) => {
+  // Setup-token auth endpoint (public, rate-limited)
+  app.post('/api/auth/setup', authRateLimit, async (c) => {
     const authService = c.get('authService');
     const body = await c.req.json();
 
@@ -147,7 +148,7 @@ export function createRouter(env: Env) {
     if (!result) {
       return c.json({
         success: false,
-        error: 'Invalid token format. Token must start with sk-ant-oat01- or sk-ant-api01-',
+        error: 'Invalid token format',
       }, 401);
     }
 
@@ -218,7 +219,7 @@ export function createRouter(env: Env) {
 
   // Recover by old Claude token: hash the old token to derive the old userId,
   // then migrate KV data to the current user.
-  app.post('/api/auth/recover-by-token', async (c) => {
+  app.post('/api/auth/recover-by-token', authRateLimit, async (c) => {
     const authService = c.get('authService');
     const user = await extractAuth(c.req.raw, authService);
     if (!user) {
@@ -230,7 +231,7 @@ export function createRouter(env: Env) {
 
     const validPrefixes = ['sk-ant-oat01-', 'sk-ant-api01-'];
     if (!validPrefixes.some((p) => oldToken.startsWith(p))) {
-      return c.json({ success: false, error: 'Invalid token format. Must start with sk-ant-oat01- or sk-ant-api01-' }, 400);
+      return c.json({ success: false, error: 'Invalid token format' }, 400);
     }
 
     const oldUserId = await authService.getUserIdFromToken(oldToken);
@@ -372,6 +373,10 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/github', githubRoutes);
   protectedRoutes.route('/vaporfiles', vaporFilesRoutes);
   protectedRoutes.route('/ai-providers', aiProvidersRoutes);
+  protectedRoutes.use('/quickchat/*', aiRateLimit);
+  protectedRoutes.use('/transform/*', aiRateLimit);
+  protectedRoutes.use('/analyze/*', aiRateLimit);
+  protectedRoutes.use('/commit-msg/*', aiRateLimit);
   protectedRoutes.route('/quickchat', quickchatRoutes);
   protectedRoutes.route('/transform', transformRoutes);
   protectedRoutes.route('/analyze', analyzeRoutes);
@@ -400,8 +405,8 @@ export function createRouter(env: Env) {
       );
       return c.json({ success: true, data: result });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return c.json({ success: false, error: msg }, 500);
+      console.error('[test-expose] Error:', err instanceof Error ? err.message : String(err));
+      return c.json({ success: false, error: 'Port exposure failed' }, 500);
     }
   });
 

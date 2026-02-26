@@ -215,10 +215,10 @@ function createSandboxTools(
           id: z.string().describe('Unique identifier for this question'),
           question: z.string().describe('The question text shown to the user'),
           type: z.enum(['text', 'select', 'multiselect', 'confirm']).describe('Input type'),
-          options: z.array(z.string()).optional().describe('Choices for select/multiselect types'),
+          options: z.array(z.string()).max(20).optional().describe('Choices for select/multiselect types'),
           placeholder: z.string().optional().describe('Placeholder text for text inputs'),
           required: z.boolean().default(true).describe('Whether an answer is required'),
-        })).describe('List of questions to present'),
+        })).max(20).describe('List of questions to present'),
       }),
       execute: async ({ title, questions }) => {
         return `Presenting ${questions.length} question(s) to user${title ? `: "${title}"` : ''}. Waiting for answers.`;
@@ -232,7 +232,7 @@ function createSandboxTools(
           id: z.string().describe('Step identifier, e.g. "1", "2a"'),
           label: z.string().describe('Short step label, e.g. "Analyze dependencies"'),
           detail: z.string().optional().describe('Optional one-sentence explanation of the step'),
-        })).describe('Ordered steps in the plan'),
+        })).max(50).describe('Ordered steps in the plan'),
         estimatedSteps: z.number().optional().describe('Rough estimate of total tool calls needed'),
       }),
       execute: async ({ title, steps }) => {

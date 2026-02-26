@@ -813,8 +813,7 @@ export async function handleSdkWs(
     // Proxy the WebSocket connection to the container
     return sandboxManager.wsConnectToSandbox(session.sandboxId!, request);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[sdk/ws] FAILED after ${Date.now() - t0}ms: ${msg}`);
-    return new Response(`WebSocket setup failed: ${msg}`, { status: 500 });
+    console.error(`[sdk/ws] FAILED after ${Date.now() - t0}ms:`, err instanceof Error ? err.message : String(err));
+    return new Response('WebSocket setup failed', { status: 500 });
   }
 }

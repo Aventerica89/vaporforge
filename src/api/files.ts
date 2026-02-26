@@ -9,12 +9,25 @@ type Variables = {
 
 export const fileRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+/** Reject paths containing traversal sequences */
+function validatePath(path: string): string | null {
+  const normalized = path.replace(/\\/g, '/');
+  if (normalized.includes('..') || normalized.includes('\0')) {
+    return null;
+  }
+  return normalized;
+}
+
 // List files in directory
 fileRoutes.get('/list/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
-  const path = c.req.query('path') || '/workspace';
+  const rawPath = c.req.query('path') || '/workspace';
+  const path = validatePath(rawPath);
+  if (!path) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
+  }
 
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
   if (!session || session.userId !== user.id) {
@@ -47,13 +60,18 @@ fileRoutes.get('/read/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
-  const path = c.req.query('path');
+  const rawPath = c.req.query('path');
 
-  if (!path) {
+  if (!rawPath) {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Path is required',
     }, 400);
+  }
+
+  const path = validatePath(rawPath);
+  if (!path) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
   }
 
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
@@ -87,7 +105,10 @@ fileRoutes.get('/read/:sessionId', async (c) => {
 });
 
 const WriteFileSchema = z.object({
-  path: z.string().min(1),
+  path: z.string().min(1).refine(
+    (p) => !p.includes('..') && !p.includes('\0'),
+    { message: 'Invalid path' }
+  ),
   content: z.string(),
 });
 
@@ -146,13 +167,18 @@ fileRoutes.delete('/delete/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
-  const path = c.req.query('path');
+  const rawPath = c.req.query('path');
 
-  if (!path) {
+  if (!rawPath) {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Path is required',
     }, 400);
+  }
+
+  const path = validatePath(rawPath);
+  if (!path) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
   }
 
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
@@ -203,6 +229,11 @@ fileRoutes.post('/mkdir/:sessionId', async (c) => {
     }, 400);
   }
 
+  const dirPath = validatePath(body.path);
+  if (!dirPath) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
+  }
+
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
@@ -220,7 +251,7 @@ fileRoutes.post('/mkdir/:sessionId', async (c) => {
 
   const result = await sandboxManager.execInSandbox(
     session.sandboxId,
-    ['mkdir', '-p', body.path]
+    ['mkdir', '-p', dirPath]
   );
 
   if (result.exitCode !== 0) {
@@ -232,7 +263,7 @@ fileRoutes.post('/mkdir/:sessionId', async (c) => {
 
   return c.json<ApiResponse<{ path: string }>>({
     success: true,
-    data: { path: body.path },
+    data: { path: dirPath },
   });
 });
 
@@ -251,6 +282,12 @@ fileRoutes.post('/move/:sessionId', async (c) => {
     }, 400);
   }
 
+  const fromPath = validatePath(body.from);
+  const toPath = validatePath(body.to);
+  if (!fromPath || !toPath) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
+  }
+
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
   if (!session || session.userId !== user.id) {
     return c.json<ApiResponse<never>>({
@@ -268,7 +305,7 @@ fileRoutes.post('/move/:sessionId', async (c) => {
 
   const result = await sandboxManager.execInSandbox(
     session.sandboxId,
-    ['mv', body.from, body.to]
+    ['mv', fromPath, toPath]
   );
 
   if (result.exitCode !== 0) {
@@ -290,7 +327,11 @@ fileRoutes.get('/search/:sessionId', async (c) => {
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
   const query = c.req.query('q');
-  const path = c.req.query('path') || '/workspace';
+  const rawPath = c.req.query('path') || '/workspace';
+  const path = validatePath(rawPath);
+  if (!path) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
+  }
   const type = c.req.query('type') || 'name'; // 'name' or 'content'
 
   if (!query) {
@@ -345,13 +386,18 @@ fileRoutes.get('/diff/:sessionId', async (c) => {
   const user = c.get('user');
   const sandboxManager = c.get('sandboxManager');
   const sessionId = c.req.param('sessionId');
-  const path = c.req.query('path');
+  const rawPath = c.req.query('path');
 
-  if (!path) {
+  if (!rawPath) {
     return c.json<ApiResponse<never>>({
       success: false,
       error: 'Path is required',
     }, 400);
+  }
+
+  const path = validatePath(rawPath);
+  if (!path) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
   }
 
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
@@ -522,7 +568,11 @@ fileRoutes.post('/download-archive/:sessionId', async (c) => {
   const sessionId = c.req.param('sessionId');
 
   const body = await c.req.json<{ path?: string }>().catch(() => ({}));
-  const targetPath = (body as { path?: string }).path || '/workspace';
+  const rawTargetPath = (body as { path?: string }).path || '/workspace';
+  const targetPath = validatePath(rawTargetPath);
+  if (!targetPath) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Invalid path' }, 400);
+  }
 
   const session = await sandboxManager.getOrWakeSandbox(sessionId);
   if (!session || session.userId !== user.id) {

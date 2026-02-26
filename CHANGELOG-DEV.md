@@ -4,6 +4,13 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-26 · v0.30.0
+SECURITY rate-limit — KV-based rate limiting: auth endpoints 10/min per IP, AI generation 30/min per user
+SECURITY error-msg — Sanitize error responses: remove token format hints (router.ts), internal details (sdk.ts, sessions.ts, test-expose)
+SECURITY files — Path traversal validation on all file endpoints (list, read, write, delete, mkdir, move, search, diff, download-archive)
+SECURITY quickchat — Bound array schemas: questions .max(20), options .max(20), steps .max(50)
+CHORE    deps — Update hono 4.11.7->4.12.3 (timing fix), rollup 4.57.1->4.59.0 (path traversal CVE)
+
 ### 2026-02-24 · v0.30.0
 FIX     container — Sync Dockerfile scripts with src/sandbox-scripts: add vfTools to src (create_plan/ask_user_questions), sync claude-agent.js (categorized errors, RAW_ERROR, exit(0) catch), sync ws-agent-server.js (6s timeout, reason fields, pause/resume, grace-period, system-info), add VF_CONTAINER_BUILD env; fix persist 400 on empty content; add useDiagnostics store + system-info event pipeline
 

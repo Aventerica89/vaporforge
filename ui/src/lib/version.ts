@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-26', summary: 'security: rate limiting (auth 10/min, AI 30/min), error sanitization (5 endpoints), path traversal validation (files.ts), bounded array schemas (quickchat.ts), update hono 4.12.3 + rollup 4.59.0' },
   { date: '2026-02-26', summary: 'fix(v15): stability hardening — remove all v15-diag diagnostic emits, fix betas warning for OAuth users, thread mode/model/autonomy through V1.5 path (fixes /model opusplan), remove token prefix from logs' },
   { date: '2026-02-26', summary: 'feat(settings): add V1.5 HTTP Streaming toggle in Account > Experimental section' },
   { date: '2026-02-25', summary: 'fix(streaming): WS stability hardening — 25s ping keepalive (prevents CF/iOS idle kill), 120s grace period (was 30s, survives mobile app switches), reconnect-to-running-agent with JSONL buffer replay; frontend ping/pong + replay-complete handling' },

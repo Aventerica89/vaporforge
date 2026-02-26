@@ -1026,10 +1026,10 @@ sessionRoutes.post('/:sessionId/sync-config', async (c) => {
       data: { synced: true },
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[config-sync] Error:', err instanceof Error ? err.message : String(err));
     return c.json<ApiResponse<never>>({
       success: false,
-      error: `Config sync failed: ${msg}`,
+      error: 'Config sync failed',
     }, 500);
   }
 });
