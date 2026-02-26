@@ -72,3 +72,6 @@ FEAT    ws-agent — buffer stdout chunks to /tmp/vf-stream-{msgId}.jsonl per me
 FEAT    sdk — new GET /api/sdk/replay/:sessionId endpoint for chunk-offset recovery
 FEAT    streaming — frontend auto-replays missed chunks on unexpected WS close
 FIX     streaming — wsChunkCount now excludes protocol frames (connected/heartbeat/ws-exit)
+
+### 2026-02-25 · PENDING · v0.30.0
+REFACTOR v15 — switch ChatSessionAgent from AIChatAgent to Agent base class; removes broken ai SDK dependency, drops unused WS bridge path (-287 lines), keeps HTTP NDJSON streaming only; fix preview wrangler config for self-hosted CHAT_SESSIONS DO

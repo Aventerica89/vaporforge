@@ -160,8 +160,7 @@
           },
           {
             "name": "CHAT_SESSIONS",
-            "class_name": "ChatSessionAgent",
-            "script_name": "vaporforge"
+            "class_name": "ChatSessionAgent"
           }
         ]
       }

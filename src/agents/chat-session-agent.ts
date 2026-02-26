@@ -1,30 +1,23 @@
 /**
- * ChatSessionAgent — Durable Object extending AIChatAgent.
+ * ChatSessionAgent — Durable Object extending Agent (from @cloudflare/agents).
  *
  * Replaces the direct WS proxy (Browser -> Worker -> Container) with a
- * DO-mediated architecture that provides:
- * - Automatic stream persistence via ResumableStream (SQLite-backed)
- * - Crash recovery (container can restart, DO keeps buffered chunks)
- * - Walk-away-and-come-back (reconnecting clients get replayed chunks)
+ * DO-mediated HTTP streaming architecture that provides:
+ * - Stream persistence in DO storage (survives container crashes)
+ * - Walk-away-and-come-back (DO collects output while browser is away)
+ * - sdkSessionId continuity across reconnects
  *
  * Data flow:
- * 1. Client sends chat message via WS -> onChatMessage fires
- * 2. DO creates bridge (writer stored in Map, keyed by executionId)
- * 3. DO dispatches container (fire-and-forget via startProcess)
- * 4. Returns createUIMessageStreamResponse wrapping createUIMessageStream
- * 5. Container boots, runs claude-agent.js
- * 6. claude-agent.js opens chunked POST to /internal/stream
- * 7. Worker validates JWT, routes to this DO
- * 8. onRequest intercepts, pipes NDJSON -> UIMessageChunk via writer
- * 9. Container finishes -> POST ends -> writer closes -> stream finalizes
+ * 1. Browser POST /chat with prompt -> handleChatHttp creates NDJSON stream
+ * 2. DO dispatches container (fire-and-forget via startProcess)
+ * 3. Container boots, runs claude-agent.js with VF_CALLBACK_URL
+ * 4. claude-agent.js opens chunked POST to /internal/stream
+ * 5. Worker validates JWT, routes to this DO
+ * 6. DO pipes container NDJSON through to browser as-is
+ * 7. Container finishes -> POST ends -> writer closes -> HTTP response ends
  */
-import { AIChatAgent } from '@cloudflare/agents/ai-chat-agent';
+import { Agent } from '@cloudflare/agents';
 import type { AgentContext } from '@cloudflare/agents';
-import {
-  createUIMessageStream,
-  createUIMessageStreamResponse,
-} from 'ai';
-import type { StreamTextOnFinishCallback } from 'ai';
 import {
   signExecutionToken,
   verifyExecutionToken,
@@ -37,19 +30,6 @@ import {
 } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
 
-interface StreamBridge {
-  // Writer from createUIMessageStream's execute callback
-  writer: {
-    write(part: Record<string, unknown>): void;
-  };
-  // Resolves when container stream completes
-  resolve: () => void;
-  reject: (err: Error) => void;
-  // Track whether we've sent the initial text-start
-  textStarted: boolean;
-  textPartId: string;
-}
-
 /** HTTP passthrough bridge — forwards container NDJSON to browser as-is. */
 interface HttpBridge {
   writer: WritableStreamDefaultWriter<Uint8Array>;
@@ -58,8 +38,7 @@ interface HttpBridge {
   reject: (err: Error) => void;
 }
 
-export class ChatSessionAgent extends AIChatAgent<Env> {
-  private bridges = new Map<string, StreamBridge>();
+export class ChatSessionAgent extends Agent<Env> {
   private httpBridges = new Map<string, HttpBridge>();
 
   constructor(ctx: AgentContext, env: Env) {
@@ -70,7 +49,7 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
    * HTTP request handler. Intercepts:
    * - POST /internal/stream — container callback with chunked NDJSON
    * - POST /init — session initialization with userId
-   * Everything else delegates to AIChatAgent (WS upgrades, RPC, etc.)
+   * - POST /chat — browser HTTP streaming endpoint
    */
   async onRequest(request: Request): Promise<Response> {
     const url = new URL(request.url);
@@ -88,71 +67,7 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
       return this.handleChatHttp(request);
     }
 
-    return super.onRequest(request);
-  }
-
-  /**
-   * Called by AIChatAgent when client sends a chat message via WS.
-   * Returns a streaming Response that feeds ResumableStream.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async onChatMessage(
-    onFinish: StreamTextOnFinishCallback<any>
-  ): Promise<Response> {
-    const executionId = crypto.randomUUID();
-    const sessionId = this.name;
-
-    // Get the latest user message content
-    const latestMessage = this.messages[this.messages.length - 1];
-    const prompt =
-      typeof latestMessage?.content === 'string'
-        ? latestMessage.content
-        : '';
-
-    // Create a promise pair — execute() awaits, handleContainerStream resolves
-    const { promise, resolve, reject } = createDeferred<void>();
-
-    // Build the UIMessageStream with an execute callback that blocks
-    // until the container stream completes.
-    const stream = createUIMessageStream({
-      execute: async ({ writer }) => {
-        const bridge: StreamBridge = {
-          writer: writer as { write(part: Record<string, unknown>): void },
-          resolve,
-          reject,
-          textStarted: false,
-          textPartId: crypto.randomUUID(),
-        };
-
-        this.bridges.set(executionId, bridge);
-
-        // Fire-and-forget: dispatch container.
-        // The pending `await promise` below keeps the execute callback
-        // alive, which keeps the DO alive (pending I/O).
-        this.dispatchContainer(executionId, sessionId, prompt).catch(
-          (err) => {
-            console.error(
-              '[ChatSessionAgent] dispatch failed:',
-              err
-            );
-            try {
-              writer.write({
-                type: 'error',
-                errorText: String(err),
-              });
-            } catch { /* writer may be closed */ }
-            this.bridges.delete(executionId);
-            reject(err instanceof Error ? err : new Error(String(err)));
-          }
-        );
-
-        // Block until container stream completes or errors
-        await promise;
-      },
-      originalMessages: this.messages,
-    });
-
-    return createUIMessageStreamResponse({ stream });
+    return new Response('Not Found', { status: 404 });
   }
 
   /**
@@ -165,8 +80,8 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
   }
 
   /**
-   * Receives chunked POST from container, parses NDJSON lines,
-   * maps VF event format to UIMessageChunk, and writes to the bridge.
+   * Receives chunked POST from container, verifies JWT,
+   * and pipes NDJSON events through to the browser's HTTP response.
    */
   private async handleContainerStream(
     request: Request
@@ -182,35 +97,16 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    // Check WS bridge first (AIChatAgent path)
-    const bridge = this.bridges.get(payload.executionId);
-
-    // Check HTTP bridge (V1.5 HTTP streaming path)
-    const httpBridge = this.httpBridges.get(payload.executionId);
-
-    if (!bridge && !httpBridge) {
+    const bridge = this.httpBridges.get(payload.executionId);
+    if (!bridge) {
       return new Response('No active stream for this execution', {
         status: 404,
       });
     }
 
-    // Route to HTTP passthrough handler if using HTTP bridge
-    if (httpBridge) {
-      return this.handleContainerStreamHttp(
-        request,
-        httpBridge,
-        payload
-      );
-    }
-
-    // At this point bridge must be defined (guarded by !bridge && !httpBridge above)
-    if (!bridge) {
-      return new Response('No active stream', { status: 404 });
-    }
-
     if (!request.body) {
       bridge.resolve();
-      this.bridges.delete(payload.executionId);
+      this.httpBridges.delete(payload.executionId);
       return new Response('OK', { status: 200 });
     }
 
@@ -225,28 +121,25 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
-        // Keep the last incomplete line in buffer
         buffer = lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          this.processContainerEvent(line, bridge, payload.sessionId);
+          await bridge.writer.write(
+            bridge.encoder.encode(line + '\n')
+          );
+          this.extractMetadata(line);
         }
       }
 
-      // Process any remaining buffer
+      // Flush remaining buffer
       if (buffer.trim()) {
-        this.processContainerEvent(buffer, bridge, payload.sessionId);
+        await bridge.writer.write(
+          bridge.encoder.encode(buffer + '\n')
+        );
+        this.extractMetadata(buffer);
       }
 
-      // Container POST ended cleanly — finalize
-      if (bridge.textStarted) {
-        bridge.writer.write({ type: 'text-end' });
-      }
-      bridge.writer.write({
-        type: 'finish',
-        finishReason: 'stop',
-      });
       bridge.resolve();
     } catch (err) {
       console.error('[ChatSessionAgent] stream pipe error:', err);
@@ -254,130 +147,10 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
         err instanceof Error ? err : new Error(String(err))
       );
     } finally {
-      this.bridges.delete(payload.executionId);
+      this.httpBridges.delete(payload.executionId);
     }
 
     return new Response('OK', { status: 200 });
-  }
-
-  /**
-   * Map a single VF NDJSON event to UIMessageChunk writes.
-   *
-   * VF format:
-   *   { type: "text-delta", text: "..." }
-   *   { type: "tool-start", name: "...", input: {...} }
-   *   { type: "tool-result", name: "...", output: "..." }
-   *   { type: "done", sessionId: "..." }
-   *   { type: "error", error: "..." }
-   *
-   * UIMessageChunk format:
-   *   { type: "text-start", id: "..." }
-   *   { type: "text-delta", delta: "..." }
-   *   { type: "text-end" }
-   *   { type: "finish", finishReason: "stop" }
-   */
-  private processContainerEvent(
-    line: string,
-    bridge: StreamBridge,
-    sessionId: string
-  ): void {
-    let event: Record<string, unknown>;
-    try {
-      event = JSON.parse(line);
-    } catch {
-      return; // Skip malformed lines
-    }
-
-    switch (event.type) {
-      case 'text-delta': {
-        if (!bridge.textStarted) {
-          bridge.writer.write({
-            type: 'text-start',
-            id: bridge.textPartId,
-          });
-          bridge.textStarted = true;
-        }
-        bridge.writer.write({
-          type: 'text-delta',
-          delta: String(event.text || ''),
-        });
-        break;
-      }
-
-      case 'session-init': {
-        // Store sdkSessionId for next invocation's resume
-        if (event.sessionId) {
-          this.ctx.storage
-            .put('sdkSessionId', String(event.sessionId))
-            .catch(() => {});
-        }
-        break;
-      }
-
-      case 'done': {
-        // Persist sdkSessionId from done event (more authoritative)
-        if (event.sessionId) {
-          this.ctx.storage
-            .put('sdkSessionId', String(event.sessionId))
-            .catch(() => {});
-        }
-        // Text finalization happens in handleContainerStream after loop
-        break;
-      }
-
-      case 'error': {
-        bridge.writer.write({
-          type: 'error',
-          errorText: String(event.error || 'Unknown error'),
-        });
-        break;
-      }
-
-      case 'tool-start': {
-        // End any open text part before tool
-        if (bridge.textStarted) {
-          bridge.writer.write({ type: 'text-end' });
-          bridge.textStarted = false;
-          bridge.textPartId = crypto.randomUUID();
-        }
-        bridge.writer.write({
-          type: 'tool-call-start',
-          toolCallId: String(event.toolCallId || crypto.randomUUID()),
-          toolName: String(event.name || ''),
-        });
-        // Send input as tool-input if available
-        if (event.input) {
-          bridge.writer.write({
-            type: 'tool-input-delta',
-            toolCallId: String(event.toolCallId || ''),
-            delta: JSON.stringify(event.input),
-          });
-        }
-        break;
-      }
-
-      case 'tool-result': {
-        bridge.writer.write({
-          type: 'tool-result',
-          toolCallId: String(event.toolCallId || ''),
-          toolName: String(event.name || ''),
-          result: String(event.output || ''),
-        });
-        break;
-      }
-
-      case 'reasoning-delta': {
-        bridge.writer.write({
-          type: 'reasoning',
-          text: String(event.text || ''),
-        });
-        break;
-      }
-
-      default:
-        // Unknown event types are silently skipped for now
-        break;
-    }
   }
 
   /**
@@ -436,65 +209,6 @@ export class ChatSessionAgent extends AIChatAgent<Env> {
         'Cache-Control': 'no-cache',
       },
     });
-  }
-
-  /**
-   * HTTP bridge version of handleContainerStream.
-   * Pipes container NDJSON events through to the browser as-is.
-   */
-  private async handleContainerStreamHttp(
-    request: Request,
-    bridge: HttpBridge,
-    payload: { executionId: string; sessionId: string }
-  ): Promise<Response> {
-    if (!request.body) {
-      bridge.resolve();
-      this.httpBridges.delete(payload.executionId);
-      return new Response('OK', { status: 200 });
-    }
-
-    const reader = request.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          // Pipe container NDJSON through to browser
-          await bridge.writer.write(
-            bridge.encoder.encode(line + '\n')
-          );
-          // Extract metadata for DO storage
-          this.extractMetadata(line);
-        }
-      }
-
-      // Flush remaining buffer
-      if (buffer.trim()) {
-        await bridge.writer.write(
-          bridge.encoder.encode(buffer + '\n')
-        );
-        this.extractMetadata(buffer);
-      }
-
-      bridge.resolve();
-    } catch (err) {
-      bridge.reject(
-        err instanceof Error ? err : new Error(String(err))
-      );
-    } finally {
-      this.httpBridges.delete(payload.executionId);
-    }
-
-    return new Response('OK', { status: 200 });
   }
 
   /** Persist sdkSessionId from container events. */

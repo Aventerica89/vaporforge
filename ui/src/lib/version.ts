@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-25', summary: 'refactor(v15): switch ChatSessionAgent from AIChatAgent to Agent base — removes broken ai SDK dependency (appendResponseMessages), drops unused WS bridge path, keeps HTTP NDJSON streaming only' },
   { date: '2026-02-24', summary: 'fix(container): sync Dockerfile scripts with src/sandbox-scripts — add vfTools (create_plan/ask_user_questions) to src, sync claude-agent.js (categorized errors, RAW_ERROR, exit(0)), sync ws-agent-server.js (6s timeout, reason fields, pause/resume, grace-period, system-info emission), add VF_CONTAINER_BUILD env; fix persist 400 on empty content; add useDiagnostics store + system-info event pipeline' },
   { date: '2026-02-24', summary: 'fix(mobile): eliminate iOS keyboard jank — remove position:fixed from html/body (blocks browser keyboard handling), use height:100dvh + flexbox h-full instead of JS viewportHeight switching, strip viewportHeight from useKeyboard + 4 layout components, remove scroll-reset hacks from PromptInputTextarea' },
   { date: '2026-02-24', summary: 'fix(streaming): structured error diagnostics + auto-retry for transient crashes — categorized cleanErrorMessage in claude-agent.js (exit codes, auth, rate limit, overloaded); 6s context-file timeout (was 3s) with reason field on all ws-agent-server exit paths; auto-retry once on context-timeout/child-exit in useSandbox; Retry button on crash errors in MessageContent; reason forwarded through api.ts ws-exit + sdk.ts SSE exit' },
