@@ -618,6 +618,7 @@ export const sdkApi = {
     restoredAt?: string;
     usage?: { inputTokens: number; outputTokens: number };
     msgId?: string;
+    offset?: number;
   }> {
     const token = localStorage.getItem('session_token');
     if (!token) throw new Error('Not authenticated');
