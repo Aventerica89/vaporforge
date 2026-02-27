@@ -48,7 +48,8 @@ function resetIdleTimer() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
     if (wss.clients.size === 0 && !activeChild) {
-      console.log('[ws-agent-server] idle timeout — exiting to stop container billing');
+      console.log('[ws-agent-server] idle timeout — autosaving then exiting');
+      runAutoSave();
       process.exit(0);
     } else {
       resetIdleTimer(); // still busy, try again later
@@ -362,6 +363,7 @@ function startQuery() {
     activeChild = null;
     paused = false;
     if (!sentinelAlwaysOn) stopGroqAgent(); // keep Groq alive in always-on mode
+    runAutoSave(); // commit + push any workspace changes to vf-autosave branch
     // Flush any remaining stdout
     if (stdoutBuf.trim()) {
       if (activeWs && activeWs.readyState === 1) {
@@ -455,6 +457,36 @@ function stopSentinelLoop() {
   if (sentinelInterval) { clearInterval(sentinelInterval); sentinelInterval = null; }
   stopGroqAgent();
   console.log('[ws-agent-server] sentinel always-on stopped');
+}
+
+// ─── Auto-save ───────────────────────────────────────────────────────────────
+// After every agent completion (and before idle exit), commit all changes to
+// a dedicated vf-autosave branch and push. Non-fatal if git isn't configured.
+
+const AUTOSAVE_BRANCH = 'vf-autosave';
+
+function runAutoSave() {
+  const workspace = '/workspace';
+  if (!fs.existsSync(path.join(workspace, '.git'))) return;
+  try {
+    const { execFileSync } = require('child_process');
+    const status = execFileSync('git', ['status', '--porcelain'], {
+      cwd: workspace, encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    if (!status) return; // Nothing changed
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    execFileSync('git', ['add', '-A'], { cwd: workspace, timeout: 15000, stdio: 'ignore' });
+    execFileSync('git', ['commit', '-m', `vf-autosave ${timestamp}`], {
+      cwd: workspace, timeout: 15000, stdio: 'ignore',
+    });
+    execFileSync('git', ['push', 'origin', `HEAD:refs/heads/${AUTOSAVE_BRANCH}`, '--force'], {
+      cwd: workspace, timeout: 30000, stdio: 'ignore',
+    });
+    console.log(`[ws-agent-server] autosave: pushed to ${AUTOSAVE_BRANCH}`);
+  } catch (err) {
+    // Non-fatal: no remote, no git user config, network down, etc.
+    console.log(`[ws-agent-server] autosave skipped: ${(err.message || String(err)).split('\n')[0]}`);
+  }
 }
 
 // ─── Utilities ───────────────────────────────────────────────────────────────

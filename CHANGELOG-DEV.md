@@ -127,3 +127,6 @@ FIX     v15 — Forward costUsd in streamV15 done event mapping (cost meter now 
 FIX     v15 — Await clearBuffer() in handleChatHttp to eliminate storeLine/delete race condition
 FIX     v15 — Add reasoning-delta and error recovery to resumeV15 replay path (was only handling text-delta + done)
 FIX     v15 — Guard resumeV15 and WS replay set() calls with session ID check; prevents recovered stream content bleeding into a different session when user switches tabs during async replay
+
+### 2026-02-27 · PENDING · v0.30.0
+FEAT    container — Auto-git autosave: ws-agent-server commits all /workspace changes to vf-autosave branch after every Claude response and before idle exit; force-push preserves only latest state; respects .gitignore; non-fatal if no remote; container build 20260227g
