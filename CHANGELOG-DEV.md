@@ -120,6 +120,9 @@ FEAT    sentinel — Manual flow: remove auto-inject, emit sentinel-data-ready W
 FEAT    sentinel — Predictive co-pilot prompt: rewrite groq-background-agent with "What changed / Likely Next / Watch Out" structure; git diff HEAD~5 instead of raw file content; DeepSeek V3 support (DEEPSEEK_API_KEY priority over GROQ_API_KEY); report path renamed to .vf-sentinel-report.md; container build 20260227f
 
 ### 2026-02-27 · PENDING · v0.30.0
+FIX     terminal — execStream first-byte timeout: 10s AbortController aborts on dead sandbox (no data received); cleared on first chunk so long-running commands are unaffected; "Command timed out — sandbox may be unavailable" shown in terminal; add signal param to sessionsApi.execStream
+
+### 2026-02-27 · PENDING · v0.30.0
 FIX     v15 — Forward costUsd in streamV15 done event mapping (cost meter now works for V1.5 sessions)
 FIX     v15 — Await clearBuffer() in handleChatHttp to eliminate storeLine/delete race condition
 FIX     v15 — Add reasoning-delta and error recovery to resumeV15 replay path (was only handling text-delta + done)

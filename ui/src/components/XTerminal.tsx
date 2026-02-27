@@ -107,6 +107,7 @@ export function XTerminal({ compact }: XTerminalProps) {
     if (!term || !session) return;
 
     isRunning.current = true;
+    let execTimedOut = false;
 
     const trimmed = command.trim();
     const isShell = isShellCommand(trimmed);
@@ -153,30 +154,50 @@ export function XTerminal({ compact }: XTerminalProps) {
           cmd = cmd.replace(/^claude /, 'claude -p ');
         }
 
-        for await (const chunk of sessionsApi.execStream(session.id, cmd)) {
-          if (chunk.type === 'stdout' && chunk.content) {
-            term.write(chunk.content.replace(/\n/g, '\r\n'));
-          } else if (chunk.type === 'stderr' && chunk.content) {
-            term.write(`\x1b[31m${chunk.content.replace(/\n/g, '\r\n')}\x1b[0m`);
-          } else if (chunk.type === 'error' && chunk.content) {
-            term.write(`\r\n\x1b[31mError: ${chunk.content}\x1b[0m\r\n`);
+        const execCtrl = new AbortController();
+        let seenChunk = false;
+        const execTimeout = setTimeout(() => {
+          if (!seenChunk) { execTimedOut = true; execCtrl.abort(); }
+        }, 10_000);
+        try {
+          for await (const chunk of sessionsApi.execStream(session.id, cmd, undefined, execCtrl.signal)) {
+            if (!seenChunk) { seenChunk = true; clearTimeout(execTimeout); }
+            if (chunk.type === 'stdout' && chunk.content) {
+              term.write(chunk.content.replace(/\n/g, '\r\n'));
+            } else if (chunk.type === 'stderr' && chunk.content) {
+              term.write(`\x1b[31m${chunk.content.replace(/\n/g, '\r\n')}\x1b[0m`);
+            } else if (chunk.type === 'error' && chunk.content) {
+              term.write(`\r\n\x1b[31mError: ${chunk.content}\x1b[0m\r\n`);
+            }
           }
+        } finally {
+          clearTimeout(execTimeout);
         }
       } else {
         // Shell commands + Claude utilities -> exec-stream for real-time output
         let outputBuffer = '';
         let stderrBuffer = '';
-        for await (const chunk of sessionsApi.execStream(session.id, trimmed)) {
-          if (chunk.type === 'stdout' && chunk.content) {
-            outputBuffer += chunk.content;
-            term.write(chunk.content.replace(/\n/g, '\r\n'));
-          } else if (chunk.type === 'stderr' && chunk.content) {
-            stderrBuffer += chunk.content;
-            term.write(`\x1b[31m${chunk.content.replace(/\n/g, '\r\n')}\x1b[0m`);
-          } else if (chunk.type === 'error' && chunk.content) {
-            stderrBuffer += chunk.content;
-            term.write(`\r\n\x1b[31mError: ${chunk.content}\x1b[0m\r\n`);
+        const execCtrl = new AbortController();
+        let seenChunk = false;
+        const execTimeout = setTimeout(() => {
+          if (!seenChunk) { execTimedOut = true; execCtrl.abort(); }
+        }, 10_000);
+        try {
+          for await (const chunk of sessionsApi.execStream(session.id, trimmed, undefined, execCtrl.signal)) {
+            if (!seenChunk) { seenChunk = true; clearTimeout(execTimeout); }
+            if (chunk.type === 'stdout' && chunk.content) {
+              outputBuffer += chunk.content;
+              term.write(chunk.content.replace(/\n/g, '\r\n'));
+            } else if (chunk.type === 'stderr' && chunk.content) {
+              stderrBuffer += chunk.content;
+              term.write(`\x1b[31m${chunk.content.replace(/\n/g, '\r\n')}\x1b[0m`);
+            } else if (chunk.type === 'error' && chunk.content) {
+              stderrBuffer += chunk.content;
+              term.write(`\r\n\x1b[31mError: ${chunk.content}\x1b[0m\r\n`);
+            }
           }
+        } finally {
+          clearTimeout(execTimeout);
         }
 
         // Auto-detect test results
@@ -196,7 +217,11 @@ export function XTerminal({ compact }: XTerminalProps) {
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        term.write('\r\n\x1b[33m^C\x1b[0m\r\n');
+        if (execTimedOut) {
+          term.write('\r\n\x1b[31mCommand timed out — sandbox may be unavailable\x1b[0m\r\n');
+        } else {
+          term.write('\r\n\x1b[33m^C\x1b[0m\r\n');
+        }
       } else {
         const msg = error instanceof Error ? error.message : 'Command failed';
         term.write(`\r\n\x1b[31mError: ${msg}\x1b[0m\r\n`);

@@ -203,7 +203,8 @@ export const sessionsApi = {
   execStream: async function* (
     sessionId: string,
     command: string,
-    cwd?: string
+    cwd?: string,
+    signal?: AbortSignal
   ): AsyncGenerator<{ type: string; content?: string; exitCode?: number }> {
     const token = localStorage.getItem('session_token');
 
@@ -214,6 +215,7 @@ export const sessionsApi = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ command, cwd }),
+      signal,
     });
 
     if (!response.ok) {
