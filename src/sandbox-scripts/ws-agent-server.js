@@ -34,6 +34,10 @@ let clientDisconnectedEarly = false; // True when client drops before agent fini
 let paused = false;                // SIGSTOP pause state
 let graceTimer = null;             // Grace period kill timer (cancellable on reconnect)
 let pingInterval = null;           // Ping keepalive interval
+let groqChild = null;              // Background Groq analysis agent (runs during pause)
+let sentinelAlwaysOn = false;      // Always-on mode: Groq scans continuously between messages
+let sentinelInterval = null;       // Re-run timer for always-on mode
+const SENTINEL_INTERVAL_MS = 5 * 60 * 1000; // Re-scan every 5 min
 
 // Idle shutdown: exit after 15 min with no active connections or running agent.
 // CF stops billing for the container when the Node process exits.
@@ -113,12 +117,14 @@ function setupWsHandlers(ws) {
           paused = true;
           sendJson(ws, { type: 'paused' });
           console.log('[ws-agent-server] agent paused (SIGSTOP)');
+          if (!sentinelAlwaysOn) startGroqAgent(); // always-on already has it running
         } catch (err) {
           sendJson(ws, { type: 'pause-failed', error: err.message });
           console.error('[ws-agent-server] SIGSTOP failed:', err.message);
         }
       } else if (msg.type === 'resume' && activeChild && paused) {
         try {
+          if (!sentinelAlwaysOn) stopGroqAgent(); // always-on keeps running
           process.kill(activeChild.pid, 'SIGCONT');
           paused = false;
           sendJson(ws, { type: 'resumed' });
@@ -129,6 +135,12 @@ function setupWsHandlers(ws) {
         }
       } else if (msg.type === 'pong') {
         // Client responded to ping — connection is alive
+      } else if (msg.type === 'sentinel-on') {
+        startSentinelLoop();
+        sendJson(ws, { type: 'sentinel-state', active: true });
+      } else if (msg.type === 'sentinel-off') {
+        stopSentinelLoop();
+        sendJson(ws, { type: 'sentinel-state', active: false });
       }
     } catch {} // malformed JSON — ignore
   });
@@ -177,6 +189,7 @@ wss.on('connection', (ws) => {
     cliVersion,
     buildDate,
     nodeVersion: process.version,
+    sentinelActive: sentinelAlwaysOn,
   });
 
   // ── Reconnect path: new client picking up a running agent ──
@@ -262,7 +275,7 @@ function startQuery() {
   // Delete context file immediately (contains secrets)
   try { fs.unlinkSync(CONTEXT_FILE); } catch {}
 
-  const { prompt, sessionId, cwd, env: extraEnv, mode } = context;
+  let { prompt, sessionId, cwd, env: extraEnv, mode } = context;
 
   // Stream replay: buffer every chunk to JSONL so client can reconnect
   const msgId = (extraEnv && extraEnv.VF_MSG_ID) || '';
@@ -348,6 +361,7 @@ function startQuery() {
   child.on('close', (code) => {
     activeChild = null;
     paused = false;
+    if (!sentinelAlwaysOn) stopGroqAgent(); // keep Groq alive in always-on mode
     // Flush any remaining stdout
     if (stdoutBuf.trim()) {
       if (activeWs && activeWs.readyState === 1) {
@@ -380,6 +394,69 @@ function startQuery() {
   });
 }
 
+// ─── Groq background agent ────────────────────────────────────────────────────
+
+const GROQ_AGENT_SCRIPT = '/opt/claude-agent/groq-background-agent.js';
+const SENTINEL_REPORT_PATH = '/workspace/.vf-sentinel-report.md';
+
+function startGroqAgent() {
+  if (!process.env.DEEPSEEK_API_KEY && !process.env.GROQ_API_KEY) return;
+  if (groqChild && !groqChild.killed) return; // already running
+  try {
+    if (!fs.existsSync(GROQ_AGENT_SCRIPT)) return;
+    groqChild = spawn('node', [GROQ_AGENT_SCRIPT], {
+      cwd: '/workspace',
+      env: { ...process.env },
+      stdio: 'pipe',
+    });
+    groqChild.stdout.on('data', (d) => console.log(d.toString().trim()));
+    groqChild.stderr.on('data', (d) => console.log('[sentinel-agent stderr]', d.toString().trim()));
+    groqChild.on('close', (code) => {
+      console.log(`[ws-agent-server] sentinel-agent exited (code ${code})`);
+      groqChild = null;
+      // Notify frontend that a briefing is ready
+      if (code === 0 && activeWs && fs.existsSync(SENTINEL_REPORT_PATH)) {
+        try {
+          const sizeBytes = fs.statSync(SENTINEL_REPORT_PATH).size;
+          if (sizeBytes > 0) {
+            sendJson(activeWs, { type: 'sentinel-data-ready', sizeBytes });
+          }
+        } catch { /* non-fatal */ }
+      }
+    });
+    console.log('[ws-agent-server] sentinel background agent started');
+  } catch (err) {
+    console.error('[ws-agent-server] sentinel agent spawn failed:', err.message);
+    groqChild = null;
+  }
+}
+
+function stopGroqAgent() {
+  if (groqChild && !groqChild.killed) {
+    try { groqChild.kill('SIGTERM'); } catch {}
+    groqChild = null;
+    console.log('[ws-agent-server] groq background agent stopped');
+  }
+}
+
+function startSentinelLoop() {
+  if (!process.env.DEEPSEEK_API_KEY && !process.env.GROQ_API_KEY) return;
+  sentinelAlwaysOn = true;
+  startGroqAgent();
+  if (sentinelInterval) clearInterval(sentinelInterval);
+  sentinelInterval = setInterval(() => {
+    if (!groqChild || groqChild.killed) startGroqAgent();
+  }, SENTINEL_INTERVAL_MS);
+  console.log('[ws-agent-server] sentinel always-on started (interval: 5 min)');
+}
+
+function stopSentinelLoop() {
+  sentinelAlwaysOn = false;
+  if (sentinelInterval) { clearInterval(sentinelInterval); sentinelInterval = null; }
+  stopGroqAgent();
+  console.log('[ws-agent-server] sentinel always-on stopped');
+}
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 function sendJson(ws, obj) {
@@ -393,8 +470,7 @@ process.on('SIGTERM', () => {
   console.log('[ws-agent-server] shutting down');
   if (pingInterval) clearInterval(pingInterval);
   if (graceTimer) clearTimeout(graceTimer);
-  if (activeChild) {
-    try { activeChild.kill('SIGTERM'); } catch {}
-  }
+  if (activeChild) { try { activeChild.kill('SIGTERM'); } catch {} }
+  stopSentinelLoop();
   wss.close(() => process.exit(0));
 });

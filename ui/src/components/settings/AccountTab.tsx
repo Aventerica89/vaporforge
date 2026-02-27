@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check, ExternalLink, BarChart3, FlaskConical } from 'lucide-react';
+import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check, ExternalLink, BarChart3, FlaskConical, Activity } from 'lucide-react';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { authApi } from '@/lib/api';
@@ -128,6 +128,7 @@ export function AccountTab() {
   const currentUserId = localStorage.getItem('vf-user-id') || user?.id || '';
 
   const [v15Enabled, setV15Enabled] = useState(() => useSandboxStore.getState().useV15);
+  const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem('vf-sentinel-enabled') === '1');
   const [recoverInput, setRecoverInput] = useState('');
   const [recovering, setRecovering] = useState(false);
   const [recoverResult, setRecoverResult] = useState<{ recovered: number } | null>(null);
@@ -316,6 +317,40 @@ export function AccountTab() {
             className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${v15Enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
           >
             <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${v15Enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+          </button>
+        </label>
+      </div>
+
+      {/* Sentinel Intelligence */}
+      <div className="space-y-3">
+        <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Activity className="h-4 w-4 text-primary" />
+          Sentinel Intelligence
+        </h4>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Enable background analysis that runs while you work.
+          Scans your workspace every 5 minutes for git changes,
+          TODOs, and potential issues. Results appear as a glowing button
+          in the session controls — click to review.
+        </p>
+        <label className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3 cursor-pointer">
+          <div className="space-y-0.5">
+            <p className="text-xs font-medium text-foreground">Enable Sentinel background analysis</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Requires GROQ_API_KEY or DEEPSEEK_API_KEY in your Secrets.
+            </p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={sentinelEnabled}
+            onClick={() => {
+              const next = !sentinelEnabled;
+              setSentinelEnabled(next);
+              localStorage.setItem('vf-sentinel-enabled', next ? '1' : '0');
+            }}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${sentinelEnabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${sentinelEnabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
           </button>
         </label>
       </div>

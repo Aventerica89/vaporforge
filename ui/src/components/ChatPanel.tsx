@@ -36,7 +36,7 @@ import {
   ContextInputUsage,
   ContextOutputUsage,
 } from '@/components/ai-elements/context';
-import { SessionIsland } from '@/components/playground/SessionIsland';
+import { SandboxIsland } from '@/components/chat/SandboxIsland';
 import { useReforge } from '@/hooks/useReforge';
 import {
   Message,
@@ -496,6 +496,9 @@ export function ChatPanel({
   const pausedAt = useSandboxStore((s) => s.pausedAt);
   const pauseStreaming = useSandboxStore((s) => s.pauseStreaming);
   const resumeStreaming = useSandboxStore((s) => s.resumeStreaming);
+  const sentinelActive = useSandboxStore((s) => s.sentinelActive);
+  const sentinelDataReady = useSandboxStore((s) => s.sentinelDataReady);
+  const toggleSentinel = useSandboxStore((s) => s.toggleSentinel);
 
   // Warn if paused too long — API TCP connection times out at 60-120s
   useEffect(() => {
@@ -507,14 +510,30 @@ export function ChatPanel({
     return () => clearTimeout(timer);
   }, [isPaused, pausedAt]);
 
+  const handleToggleSentinel = useCallback(() => {
+    if (sentinelDataReady) {
+      useSandboxStore.setState({ sentinelDataReady: false, sentinelDataSizeBytes: 0 });
+      const sendMessage = useSandboxStore.getState().sendMessage;
+      void sendMessage('Sentinel has a background scan ready. Read /workspace/.vf-sentinel-report.md, summarize what was found, then ask me if I want to address anything.');
+      return;
+    }
+    if (!sentinelActive) {
+      toast.info("Unlock Sentinel with Pro \u2014 Automated intelligence scanning while you're away.", 6000);
+    }
+    toggleSentinel();
+  }, [sentinelActive, sentinelDataReady, toggleSentinel]);
+
   const sessionIsland = (
-    <SessionIsland
+    <SandboxIsland
       status={isPaused ? 'paused' : isStreaming ? 'streaming' : 'idle'}
       controlsOpen={sessionOpen}
       onNew={clearMessages}
       onPause={pauseStreaming}
       onResume={resumeStreaming}
       onStop={stopStreaming}
+      sentinelActive={sentinelActive}
+      sentinelDataReady={sentinelDataReady}
+      onToggleSentinel={handleToggleSentinel}
     />
   );
 
@@ -705,7 +724,7 @@ export function ChatPanel({
         <div className="relative flex h-full flex-col items-center px-4 pb-4 md:justify-center">
           {/* Grid background — matches PlaygroundPage */}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-          <div className="flex flex-1 md:flex-none min-h-0 flex-col items-center justify-center overflow-y-auto w-full">
+          <div className="flex flex-1 md:flex-none min-h-0 flex-col items-center justify-center w-full">
             <div className="w-full max-w-2xl space-y-5 flex flex-col items-center">
               <div className="text-center">
                 <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
@@ -760,7 +779,7 @@ export function ChatPanel({
           )}
 
           <div className="px-4 pb-4 flex flex-col gap-2 max-w-2xl mx-auto w-full">
-            <div className="flex justify-center">
+            <div className="flex items-center justify-center">
               <motion.div
                 layoutId="session-island"
                 transition={{ type: 'spring', stiffness: 400, damping: 35 }}

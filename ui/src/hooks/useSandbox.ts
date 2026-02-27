@@ -61,6 +61,9 @@ interface SandboxState {
   streamAbortController: AbortController | null;
   isPaused: boolean;
   pausedAt: number | null;
+  sentinelActive: boolean;
+  sentinelDataReady: boolean;
+  sentinelDataSizeBytes: number;
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -85,6 +88,7 @@ interface SandboxState {
   stopStreaming: () => void;
   pauseStreaming: () => void;
   resumeStreaming: () => void;
+  toggleSentinel: () => void;
   clearMessages: () => void;
   loadSessionSummary: () => Promise<void>;
   dismissCompactionDone: () => void;
@@ -150,6 +154,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamAbortController: null,
   isPaused: false,
   pausedAt: null,
+  sentinelActive: false,
+  sentinelDataReady: false,
+  sentinelDataSizeBytes: 0,
   useV15: localStorage.getItem('vf_use_v15') === '1',
 
   gitStatus: null,
@@ -619,6 +626,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
             })
           );
           debugLog('sandbox', 'info', `Container: SDK ${info.sdkVersion}, CLI ${info.cliVersion || '?'}, build ${info.buildDate}, Node ${info.nodeVersion}`);
+          if (info.sentinelActive !== undefined) set({ sentinelActive: !!info.sentinelActive });
           continue;
         }
 
@@ -821,6 +829,12 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           // SIGCONT failed — roll back
           set({ isPaused: true });
           toast.warning('Resume failed — try stopping the session');
+          continue;
+        } else if (chunk.type === 'sentinel-state') {
+          set({ sentinelActive: !!(chunk as Record<string, unknown>).active });
+          continue;
+        } else if (chunk.type === 'sentinel-data-ready') {
+          set({ sentinelDataReady: true, sentinelDataSizeBytes: (chunk as Record<string, unknown>).sizeBytes as number || 0 });
           continue;
         } else if (chunk.type === 'done') {
           doneReceived = true;
@@ -1190,7 +1204,13 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
     }
   },
 
-  clearMessages: () => set({ messagesById: {}, messageIds: [] }),
+  toggleSentinel: () => {
+    const active = !get().sentinelActive;
+    sendWsCommand({ type: active ? 'sentinel-on' : 'sentinel-off' });
+    set({ sentinelActive: active, ...(!active && { sentinelDataReady: false, sentinelDataSizeBytes: 0 }) });
+  },
+
+  clearMessages: () => set({ messagesById: {}, messageIds: [], sentinelDataReady: false, sentinelDataSizeBytes: 0 }),
 
   loadSessionSummary: async () => {
     const sessionId = get().currentSession?.id;
