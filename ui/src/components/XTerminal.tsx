@@ -156,12 +156,21 @@ export function XTerminal({ compact }: XTerminalProps) {
 
         const execCtrl = new AbortController();
         let seenChunk = false;
+        let showedWaiting = false;
+        const waitTimer = setTimeout(() => {
+          if (!seenChunk) { showedWaiting = true; term.write('\x1b[90mWaiting for sandbox...\x1b[0m'); }
+        }, 2_000);
         const execTimeout = setTimeout(() => {
           if (!seenChunk) { execTimedOut = true; execCtrl.abort(); }
         }, 10_000);
         try {
           for await (const chunk of sessionsApi.execStream(session.id, cmd, undefined, execCtrl.signal)) {
-            if (!seenChunk) { seenChunk = true; clearTimeout(execTimeout); }
+            if (!seenChunk) {
+              seenChunk = true;
+              clearTimeout(waitTimer);
+              clearTimeout(execTimeout);
+              if (showedWaiting) { term.write('\r\x1b[2K'); }
+            }
             if (chunk.type === 'stdout' && chunk.content) {
               term.write(chunk.content.replace(/\n/g, '\r\n'));
             } else if (chunk.type === 'stderr' && chunk.content) {
@@ -171,6 +180,7 @@ export function XTerminal({ compact }: XTerminalProps) {
             }
           }
         } finally {
+          clearTimeout(waitTimer);
           clearTimeout(execTimeout);
         }
       } else {
@@ -179,12 +189,21 @@ export function XTerminal({ compact }: XTerminalProps) {
         let stderrBuffer = '';
         const execCtrl = new AbortController();
         let seenChunk = false;
+        let showedWaiting = false;
+        const waitTimer = setTimeout(() => {
+          if (!seenChunk) { showedWaiting = true; term.write('\x1b[90mWaiting for sandbox...\x1b[0m'); }
+        }, 2_000);
         const execTimeout = setTimeout(() => {
           if (!seenChunk) { execTimedOut = true; execCtrl.abort(); }
         }, 10_000);
         try {
           for await (const chunk of sessionsApi.execStream(session.id, trimmed, undefined, execCtrl.signal)) {
-            if (!seenChunk) { seenChunk = true; clearTimeout(execTimeout); }
+            if (!seenChunk) {
+              seenChunk = true;
+              clearTimeout(waitTimer);
+              clearTimeout(execTimeout);
+              if (showedWaiting) { term.write('\r\x1b[2K'); }
+            }
             if (chunk.type === 'stdout' && chunk.content) {
               outputBuffer += chunk.content;
               term.write(chunk.content.replace(/\n/g, '\r\n'));
@@ -197,6 +216,7 @@ export function XTerminal({ compact }: XTerminalProps) {
             }
           }
         } finally {
+          clearTimeout(waitTimer);
           clearTimeout(execTimeout);
         }
 
