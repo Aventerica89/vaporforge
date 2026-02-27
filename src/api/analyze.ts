@@ -118,7 +118,7 @@ analyzeRoutes.post('/structured', async (c) => {
         await write({ type: 'partial', data: partial });
       }
 
-      const final = await result.object;
+      const final = await result.output;
       await write({ type: 'done', data: final });
     } catch (err) {
       const errMsg =

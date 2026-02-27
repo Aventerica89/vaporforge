@@ -13,7 +13,7 @@ import {
 } from '../services/ai-provider-factory';
 import { searchEmbeddings } from '../services/embeddings';
 
-type Variables = { user: User };
+type Variables = { user: User; sandboxManager: SandboxManager };
 
 export const quickchatRoutes = new Hono<{
   Bindings: Env;
@@ -171,7 +171,7 @@ function createSandboxTools(
   const baseTools = {
     readFile: tool({
       description: 'Read a file from the workspace',
-      parameters: z.object({
+      inputSchema: z.object({
         path: z.string().describe('Absolute path to the file'),
       }),
       execute: async ({ path }) => {
@@ -181,7 +181,7 @@ function createSandboxTools(
     }),
     listFiles: tool({
       description: 'List files in a directory',
-      parameters: z.object({
+      inputSchema: z.object({
         path: z.string().default('/workspace').describe('Directory path'),
       }),
       execute: async ({ path }) => {
@@ -195,7 +195,7 @@ function createSandboxTools(
     }),
     searchCode: tool({
       description: 'Search for a pattern in source files (literal/regex grep)',
-      parameters: z.object({
+      inputSchema: z.object({
         pattern: z.string().describe('Search pattern (regex)'),
         path: z.string().default('/workspace').describe('Directory to search'),
       }),
@@ -209,7 +209,7 @@ function createSandboxTools(
     }),
     ask_user_questions: tool({
       description: 'Present a structured form to collect user input before proceeding. Use when you need preferences, choices, or details from the user before starting a task.',
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().optional().describe('Brief title shown above the questions'),
         questions: z.array(z.object({
           id: z.string().describe('Unique identifier for this question'),
@@ -226,7 +226,7 @@ function createSandboxTools(
     }),
     create_plan: tool({
       description: 'Display a structured execution plan before starting a multi-step task. Call this to show your approach so the user understands what you are about to do.',
-      parameters: z.object({
+      inputSchema: z.object({
         title: z.string().describe('Plan title, e.g. "Refactoring Plan" or "Migration Steps"'),
         steps: z.array(z.object({
           id: z.string().describe('Step identifier, e.g. "1", "2a"'),
@@ -241,7 +241,7 @@ function createSandboxTools(
     }),
     runCommand: tool({
       description: 'Execute a shell command in the sandbox',
-      parameters: z.object({
+      inputSchema: z.object({
         command: z.string().describe('Shell command to execute'),
       }),
       needsApproval: true,
@@ -270,7 +270,7 @@ function createSandboxTools(
     ...baseTools,
     semanticSearch: tool({
       description: 'Search workspace files by meaning/concept. Use for architecture, functionality, or "where is X?" questions. More powerful than grep for conceptual queries.',
-      parameters: z.object({
+      inputSchema: z.object({
         query: z.string().describe('Natural language description of what to find'),
         topK: z.number().min(1).max(20).default(5).describe('Number of results'),
       }),

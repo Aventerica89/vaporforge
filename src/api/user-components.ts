@@ -153,7 +153,7 @@ userComponentsRoutes.post('/generate', async (c) => {
   }
 
   const creds = await getProviderCredentials(c.env.AUTH_KV, user.id);
-  const model = createModel('claude', 'claude-haiku-4-5-20251001', creds);
+  const model = createModel('claude', creds, 'claude-haiku-4-5-20251001');
 
   const systemPrompt = [
     'You are a component registry assistant for a React + Tailwind v3 codebase.',

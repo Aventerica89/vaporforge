@@ -108,3 +108,6 @@ FEAT    settings — V1.5 HTTP Streaming toggle in Account > Experimental sectio
 ### 2026-02-26 · PENDING · v0.30.0
 FIX     v15 — Stability hardening: remove all v15-diag diagnostic emits (7 in claude-agent.js, 1 in chat-session-agent.ts, 1 handler in useSandbox.ts); fix betas warning for OAuth users (skip 1M context beta for sk-ant-oat tokens); thread mode/model/autonomy through V1.5 dispatchContainer (fixes /model and plan mode in V1.5); remove token prefix exposure from agency.ts logs
 SECURITY agency — Replace token prefix logging with boolean hasToken check
+
+### 2026-02-27 · PENDING · v0.30.0
+FIX     ts — Resolve 7 TypeScript build errors: AI SDK v6 renames `parameters` -> `inputSchema` and `result.object` -> `result.output` (quickchat.ts x7, analyze.ts, commit-msg.ts); fix createModel arg order in user-components.ts; cast R2ListOptions for missing `include` field in files.ts; add sandboxManager to quickchat Variables type; bump JWT TTL 300s -> 360s for margin over bridge timeout

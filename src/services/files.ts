@@ -111,7 +111,7 @@ export class FileService {
       const listed = await this.bucket.list({
         include: ['customMetadata', 'httpMetadata'],
         cursor,
-      });
+      } as R2ListOptions & { include: string[] });
 
       for (const object of listed.objects) {
         if (object.customMetadata?.userId === userId) {

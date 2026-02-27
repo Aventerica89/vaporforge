@@ -91,7 +91,7 @@ commitMsgRoutes.post('/generate', async (c) => {
       output: Output.object({ schema: CommitMessageSchema }),
     });
 
-    if (!result.object) {
+    if (!result.output) {
       return c.json<ApiResponse<never>>(
         { success: false, error: 'Failed to parse commit message' },
         500
@@ -100,7 +100,7 @@ commitMsgRoutes.post('/generate', async (c) => {
 
     return c.json<ApiResponse<CommitMessage>>({
       success: true,
-      data: result.object,
+      data: result.output,
     });
   } catch (err) {
     return c.json<ApiResponse<never>>(

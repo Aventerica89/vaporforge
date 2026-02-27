@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-27', summary: 'fix(ts): resolve 7 TypeScript build errors — AI SDK v6 renames parameters→inputSchema and result.object→result.output; fix createModel arg order in user-components; cast R2ListOptions for include field; add sandboxManager to quickchat Variables type; bump JWT TTL to 360s' },
   { date: '2026-02-27', summary: 'fix(settings): persist V1.5 toggle to localStorage (vf_use_v15) — survives hard refresh and new tabs' },
   { date: '2026-02-27', summary: 'fix(v15): add response handler to V1.5 callback POST — surfaces 401/404 from /internal/stream instead of silently timing out after 5 minutes; consume response body to prevent socket leak; bump container build to 20260227b' },
   { date: '2026-02-27', summary: 'fix(agent): add post-tool-use summary instruction to system prompt — Claude now always responds after tool use so user knows task is complete or input is needed' },
