@@ -125,14 +125,15 @@ export class ChatSessionAgent {
 
   /**
    * Clear the stream buffer from a previous execution.
-   * Called at the start of each new chat request.
+   * Called at the start of each new chat request. Awaited so new storeLine()
+   * calls cannot interleave with the delete of the previous buffer's entries.
    */
-  private clearBuffer(): void {
+  private async clearBuffer(): Promise<void> {
     this.bufferSeq = 0;
-    this.state.storage
-      .list({ prefix: 'buf:' })
-      .then((entries) => this.state.storage.delete([...entries.keys()]))
-      .catch(() => {});
+    const entries = await this.state.storage.list({ prefix: 'buf:' });
+    if (entries.size > 0) {
+      await this.state.storage.delete([...entries.keys()]);
+    }
   }
 
   /**
@@ -291,8 +292,9 @@ export class ChatSessionAgent {
       autonomy?: string;
     };
 
-    // Clear buffer from previous execution before starting a new one
-    this.clearBuffer();
+    // Clear buffer from previous execution before starting a new one.
+    // Awaited to prevent delete from racing with new storeLine() calls.
+    await this.clearBuffer();
 
     const executionId = crypto.randomUUID();
     const sessionId = body.sessionId;

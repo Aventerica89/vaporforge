@@ -984,6 +984,21 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
                 currentTextPart = merged;
                 parts[parts.length - 1] = merged;
               }
+            } else if (rType === 'reasoning-delta' && rc.text) {
+              const rText = rc.text as string;
+              currentTextPart = null;
+              if (!currentReasoningPart) {
+                currentReasoningPart = { type: 'reasoning', content: rText };
+                parts.push(currentReasoningPart);
+              } else {
+                const merged: MessagePart = { type: 'reasoning', content: (currentReasoningPart.content || '') + rText };
+                currentReasoningPart = merged;
+                parts[parts.length - 1] = merged;
+              }
+            } else if (rType === 'error' && rc.error) {
+              currentTextPart = null;
+              currentReasoningPart = null;
+              parts.push({ type: 'error', content: rc.error as string });
             } else if (rType === 'done') {
               if (rc.usage) {
                 const u = rc.usage as { inputTokens: number; outputTokens: number };

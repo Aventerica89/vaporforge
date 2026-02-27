@@ -617,6 +617,7 @@ export const sdkApi = {
     output?: string;
     restoredAt?: string;
     usage?: { inputTokens: number; outputTokens: number };
+    costUsd?: number;
     msgId?: string;
     offset?: number;
   }> {
@@ -720,6 +721,7 @@ export const sdkApi = {
                     },
                   }
                 : {}),
+              ...(typeof msg.costUsd === 'number' ? { costUsd: msg.costUsd as number } : {}),
             };
             break;
           case 'error':

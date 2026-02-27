@@ -1,195 +1,61 @@
-# Plan: Dev Playground & Universal Issue Tracker
+# VaporForge — Plan Index
 
-## Problem Statement
+Master index of all feature plans. This file tracks status only — full details live in `docs/plans/`.
 
-Three related needs:
-1. **Dev Playground** — A dedicated workspace for building/tweaking UI component panels interactively, with access to a shadcn component catalog to build from
-2. **Universal Issue Tracker** — The current issue tracker (`issues:${userId}` in KV) is scoped to a single tab. Need it to sync across all open tabs/sessions so editing on one updates everywhere
-3. **Bug/Debug/Console Logger** — Consolidate the existing DebugPanel into the dev tools experience
+## Conventions
 
-## Architecture Decision: NOT a monorepo restructure
-
-The project is already a functional monorepo (`src/` backend, `ui/` frontend, `landing/`). Adding npm workspaces would be over-engineering. We build on existing patterns:
-
-- **Full-screen overlay** for the playground UI (same pattern as SettingsPage/IssueTracker — z-50 fixed overlay)
-- **KV + Zustand + polling** for universal sync (same pattern as issue tracker, add sync layer)
-- **Static component catalog** at build time (same pattern as `generate-plugin-catalog.mjs`)
-
----
-
-## Phase 1: Universal Issue Tracker Sync
-
-**Goal**: Single source of truth — edit issues in any tab/session, changes appear everywhere.
-
-### How it works today
-- `useIssueTracker.ts` stores issues in Zustand + localStorage (`vf-issue-tracker`)
-- Debounced sync to `PUT /api/issues` → KV key `issues:${userId}`
-- Per-user scoping via `userId` derived from Claude token hash
-
-### What changes
-
-**Backend (`src/api/issues.ts` + `src/api/issues-routes.ts`)**:
-- Add `GET /api/issues/sync` endpoint returning `{ issues, lastModified }` with ETag support
-- Add `updatedAt` timestamp to the issue store data, returned on every write
-- Add `PATCH /api/issues/:id` for single-issue updates (avoids full-list overwrites)
-
-**Frontend (`ui/src/hooks/useIssueTracker.ts`)**:
-- Add visibility-based polling sync (every 30s when tab is visible, pause when hidden)
-- Compare `lastModified` — server wins for conflicts (last-write-wins with timestamp)
-- localStorage becomes offline cache only, KV backend is source of truth
-
-**Why this already "works across sites"**: All VaporForge sessions share the same KV namespace and the same `userId`. Issues are already universal — the missing piece is just real-time sync (polling) so changes in one tab reflect in another without reload.
-
-### Files to modify
-| File | Change |
+| Rule | Detail |
 |------|--------|
-| `src/api/issues.ts` | Add `getWithEtag()`, `patchIssue()` methods |
-| `src/api/issues-routes.ts` | Add `GET /sync`, `PATCH /:id` routes |
-| `ui/src/hooks/useIssueTracker.ts` | Add polling sync, visibility-based refresh |
-| `src/types.ts` | Add `updatedAt` to `IssueTrackerData` schema |
+| New plan | Create `docs/plans/YYYY-MM-DD-{feature}-plan.md` |
+| New design | Create `docs/plans/YYYY-MM-DD-{feature}-design.md` (no task list) |
+| Status change | Update the table in this file only — do not edit the plan file |
+| New feature ideas | Add to `docs/plans/BACKLOG.md` first |
+| Architecture docs | Add to `docs/` without date prefix |
 
 ---
 
-## Phase 2: Dev Playground
+## Active
 
-**Goal**: Dedicated page for visually building/tweaking UI components. Browse shadcn components, drop them in, adjust live.
+| Plan | Date | Description |
+|------|------|-------------|
+| [V1.5 DO Stability](docs/plans/2026-02-25-v15-stability-hardening-plan.md) | 2026-02-25 | Migrate chat to ChatSessionAgent DO: HTTP streaming, crash recovery, DO sentinel keepalive, reconnect replay |
 
-### UI Structure
-
-Accessible from:
-- Settings → Developer → "Open Playground" button
-- Mobile drawer footer (alongside Home, Bug Tracker)
-- Keyboard shortcut (Cmd+Shift+D)
-
-Opens as a **full-screen overlay** with its own tab system:
-
-```
-┌─────────────────────────────────────────────┐
-│  DEV PLAYGROUND                        [X]  │
-│  ┌──────┬───────────┬────────┬─────────┐    │
-│  │Canvas│ Components│ Console│ Issues  │    │
-│  └──────┴───────────┴────────┴─────────┘    │
-│                                             │
-│  [Tab content area]                         │
-│                                             │
-└─────────────────────────────────────────────┘
-```
-
-**Tab 1: Canvas** — Live preview panel
-- Renders user-created component panels in a sandboxed div
-- Hot-reloads on code changes
-- Resizable viewport presets (mobile/tablet/desktop)
-- Props editor sidebar (JSON or form-based)
-
-**Tab 2: Components** — shadcn/ui catalog browser
-- Static catalog of shadcn components (Button, Card, Dialog, Input, Select, Table, etc.)
-- Each entry: preview snippet, copy-paste code, Tailwind class variants
-- Click to insert into active canvas panel
-- Search + filter by category (Form, Layout, Data Display, Feedback, Navigation)
-- **Not installed as a dependency** — catalog is reference/copy-paste only
-
-**Tab 3: Console** — Upgraded debug/console logger
-- Merges existing `DebugPanel` functionality into this tab
-- Categorized logs: API, Stream, Sandbox, Error, Info (reuses `useDebugLog.ts`)
-- Filter by level, search by text, export as JSON
-- Persists last 500 entries in localStorage
-
-**Tab 4: Issues** — Embedded issue tracker
-- Renders the existing `IssueTracker` component inline (not as a separate modal)
-- Same Zustand store, same sync — just a different mount point
-- Benefits from Phase 1 universal sync
-
-### Data Model
-
-```typescript
-interface PlaygroundPanel {
-  id: string;
-  name: string;
-  code: string;           // TSX/JSX source
-  props: Record<string, unknown>;
-  tailwindClasses: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PlaygroundState {
-  panels: PlaygroundPanel[];
-  activePanel: string | null;
-  viewport: 'mobile' | 'tablet' | 'desktop';
-  isOpen: boolean;
-}
-```
-
-**Storage**: `playground:${userId}` in AUTH_KV. Syncs universally via same polling pattern from Phase 1.
-
-### shadcn Component Catalog
-
-Generated at build time (same approach as `scripts/generate-plugin-catalog.mjs`):
-- Script reads shadcn component registry and outputs a static TypeScript catalog
-- Each entry: name, category, code snippet, dependencies, Tailwind classes
-- Browseable in the Components tab — "Use" copies code into active panel
-- No runtime shadcn dependency
-
-### Files to create/modify
-| File | Purpose |
-|------|---------|
-| `ui/src/components/DevPlayground.tsx` | **NEW** — Main overlay (tabs, layout) |
-| `ui/src/components/playground/CanvasTab.tsx` | **NEW** — Live preview + props editor |
-| `ui/src/components/playground/ComponentsTab.tsx` | **NEW** — shadcn catalog browser |
-| `ui/src/components/playground/ConsoleTab.tsx` | **NEW** — Debug/console (absorbs DebugPanel) |
-| `ui/src/hooks/usePlayground.ts` | **NEW** — Zustand store |
-| `ui/src/lib/generated/component-catalog.ts` | **NEW** — Static shadcn catalog |
-| `scripts/generate-component-catalog.mjs` | **NEW** — Build script for catalog |
-| `src/api/playground.ts` | **NEW** — KV persistence service |
-| `src/api/playground-routes.ts` | **NEW** — API routes (GET/PUT) |
-| `ui/src/components/MobileDrawer.tsx` | Add "Dev Playground" button |
-| `ui/src/components/Layout.tsx` | Mount `<DevPlayground />` |
-| `ui/src/components/settings/DevToolsTab.tsx` | Add "Open Playground" button |
+**Supporting research:**
+- `~/.claude/plans/2026-02-25-vaporforge-v15-research-synthesis.md` — multi-model research synthesis (Gemini/MiniMax/DeepSeek, 11 responses)
 
 ---
 
-## Phase 3: Console Logger Integration
+## Planned
 
-**Goal**: Unify the debug experience.
-
-### Changes
-- Extract log display from `DebugPanel.tsx` into reusable `<ConsoleLogViewer />` component
-- Use `ConsoleLogViewer` in both: playground Console tab AND floating mini-panel
-- Add log levels: `debug`, `info`, `warn`, `error` (currently category-based only)
-- Persist last 500 entries in localStorage (currently in-memory only)
-- Floating mini-panel (existing DebugPanel) stays as a quick-access shortcut
-
-### Files to modify
-| File | Change |
-|------|--------|
-| `ui/src/components/DebugPanel.tsx` | Extract `<ConsoleLogViewer />`, keep floating mini-panel |
-| `ui/src/components/playground/ConsoleTab.tsx` | Use `<ConsoleLogViewer />` full-size |
-| `ui/src/hooks/useDebugLog.ts` | Add log levels, localStorage persistence, 500-entry cap |
+| Plan | Date | Description |
+|------|------|-------------|
+| [Dev Tools Overlay + Issue Sync](docs/plans/2026-02-27-dev-tools-plan.md) | 2026-02-27 | Full-screen dev overlay (canvas, shadcn browser, console, issues) + KV-backed universal issue sync |
+| [Apple HIG Polish](docs/plans/2026-02-17-apple-hig-polish-design.md) | 2026-02-17 | Design doc — bring all interactive elements to full HIG compliance. Needs implementation plan. |
+| [Smart Context System](docs/plans/2026-02-16-smart-context-design.md) | 2026-02-16 | Auto-inject git state, gotchas, decisions into every session. Design doc only — needs implementation plan. |
+| [GitHub App Integration](docs/plans/github-app-integration.md) | ongoing | OAuth-free repo access via GitHub App; seamless clone without user token management |
 
 ---
 
-## Implementation Order
+## Shipped
 
-1. **Phase 1** (Universal Issue Sync) — ~3 commits
-   - Backend: sync endpoint + patch endpoint + updatedAt tracking
-   - Frontend: polling sync in useIssueTracker
-   - Test the sync across multiple tabs
+| Plan | Shipped | Version |
+|------|---------|---------|
+| [Agency Code Mode](docs/plans/2026-02-19-agency-code-mode-plan.md) | 2026-02-19 | v0.27.0 |
+| [Agency Editor v2](docs/plans/2026-02-18-agency-editor-v2-plan.md) | 2026-02-18 | v0.26.0 |
+| [Agency Mode Phase 1 — Component Library](docs/plans/2026-02-17-agency-mode-phase1-plan.md) | 2026-02-17 | v0.25.0 |
+| [Agency Editor](docs/plans/2026-02-17-agency-editor-plan.md) | 2026-02-17 | v0.25.0 |
+| [Agency Mode Foundation](docs/plans/2026-02-17-agency-mode-plan.md) | 2026-02-17 | v0.25.0 |
+| [Streaming Latency Optimization](docs/plans/2026-02-17-streaming-latency-plan.md) | 2026-02-17 | v0.20.0 |
+| [Mobile UX Hardening](docs/plans/2026-02-16-mobile-ux-hardening-plan.md) | 2026-02-16 | v0.21.0 |
+| [Mobile Layout Redesign](docs/plans/2026-02-16-mobile-layout-redesign-plan.md) | 2026-02-16 | v0.21.0 |
+| [MCP Server Management](docs/plans/2026-02-15-mcp-server-update-plan.md) | 2026-02-15 | v0.21.0 |
+| [WebSocket Streaming](docs/plans/2026-02-15-websocket-streaming-plan.md) | 2026-02-15 | v0.20.0 |
 
-2. **Phase 2** (Dev Playground) — ~6 commits
-   - Zustand store + API routes for playground persistence
-   - Main overlay shell with tab system
-   - Component catalog build script + browser UI
-   - Canvas tab with live preview
-   - Wire up entry points (Settings, MobileDrawer, keyboard shortcut)
-   - Embed issue tracker as tab
+---
 
-3. **Phase 3** (Console Logger) — ~2 commits
-   - Extract ConsoleLogViewer from DebugPanel
-   - Integrate into playground Console tab + add log levels/persistence
+## Reference
 
-## What this does NOT do
-- Does NOT restructure the monorepo (npm workspaces, etc.)
-- Does NOT install shadcn/ui as a runtime dependency (catalog is static reference only)
-- Does NOT require Cloudflare Workers config changes (uses existing KV namespaces)
-- Does NOT add WebSocket sync (polling is sufficient; WS can come later if needed)
-- Does NOT inject code into other projects — VaporForge itself is the shared layer, data syncs via KV
+| Doc | Description |
+|-----|-------------|
+| [Feature Backlog](docs/plans/BACKLOG.md) | Prioritized list of future features with effort estimates |
+| [Platform Architecture](docs/PLAN.md) | Original Cloudflare Workers + Sandboxes architecture reference |

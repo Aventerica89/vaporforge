@@ -118,3 +118,8 @@ FEAT    sentinel — Always-on mode: 5th Activity button keeps Groq running cont
 FEAT    groq-agent — Background code reviewer during pause: Groq llama-3.3-70b scans git diff + TODOs + recent files, writes /workspace/.vf-background-report.md; ws-agent-server injects report into next Claude prompt on resume; requires GROQ_API_KEY in user secrets; container build 20260227d
 FEAT    sentinel — Manual flow: remove auto-inject, emit sentinel-data-ready WS event after scan; amber glow ring on Activity button when briefing ready; click sends briefing prompt to Claude (reads /workspace/.vf-sentinel-report.md); sentinelDataReady + sentinelDataSizeBytes state in Zustand; AccountTab consent checkbox (localStorage vf-sentinel-enabled)
 FEAT    sentinel — Predictive co-pilot prompt: rewrite groq-background-agent with "What changed / Likely Next / Watch Out" structure; git diff HEAD~5 instead of raw file content; DeepSeek V3 support (DEEPSEEK_API_KEY priority over GROQ_API_KEY); report path renamed to .vf-sentinel-report.md; container build 20260227f
+
+### 2026-02-27 · PENDING · v0.30.0
+FIX     v15 — Forward costUsd in streamV15 done event mapping (cost meter now works for V1.5 sessions)
+FIX     v15 — Await clearBuffer() in handleChatHttp to eliminate storeLine/delete race condition
+FIX     v15 — Add reasoning-delta and error recovery to resumeV15 replay path (was only handling text-delta + done)
