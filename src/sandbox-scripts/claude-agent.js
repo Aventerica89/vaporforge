@@ -423,6 +423,13 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
     if (stdout) console.error(`[claude-agent] CLI pre-flight stdout: ${stdout.slice(0, 500)}`);
   }
 
+  // Emit ping before query starts — resets frontend 5-min abort timer after container wake.
+  // The DO already emits 'connected' on request receipt; this second ping fires after
+  // CLI pre-flight, giving the timer a fresh 5 min before the SDK query begins.
+  if (IS_CALLBACK_MODE) {
+    emit({ type: 'ping' });
+  }
+
   const stream = query({ prompt, options });
 
   let newSessionId = sessionId || '';

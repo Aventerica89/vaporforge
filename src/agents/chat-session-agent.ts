@@ -1,11 +1,12 @@
 /**
- * ChatSessionAgent — Durable Object for V1.5 HTTP streaming.
+ * ChatSessionAgent — Durable Object for V1.5 HTTP streaming and workspace keepalive.
  *
  * Replaces the direct WS proxy (Browser -> Worker -> Container) with a
  * DO-mediated HTTP streaming architecture that provides:
  * - Stream persistence in DO storage (survives container crashes)
  * - Walk-away-and-come-back (DO collects output while browser is away)
  * - sdkSessionId continuity across reconnects
+ * - Workspace keepalive sentinel via DO alarms (both WS and V1.5 paths)
  *
  * Data flow:
  * 1. Browser POST /chat with prompt -> handleChatHttp creates NDJSON stream
@@ -15,6 +16,10 @@
  * 5. Worker validates JWT, routes to this DO
  * 6. DO pipes container NDJSON through to browser as-is
  * 7. Container finishes -> POST ends -> writer closes -> HTTP response ends
+ *
+ * Sentinel: DO alarm fires every 8 min while session is active.
+ * alarm() pings the sandbox to reset the container's 10-min idle timer,
+ * keeping /workspace intact. Stopped on session sleep/delete.
  *
  * Uses raw DurableObject (not @cloudflare/agents Agent) because we only
  * need HTTP request handling — no WS, no partyserver routing headers.
@@ -28,6 +33,7 @@ import {
   collectUserSecrets,
 } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
+import type { Process } from '@cloudflare/sandbox';
 import type { Session } from '../types';
 
 /** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
@@ -47,6 +53,9 @@ interface HttpBridge {
   reject: (err: Error) => void;
 }
 
+/** Interval between sentinel keepalive pings (8 min — under the 10-min idle limit). */
+const SENTINEL_INTERVAL_MS = 8 * 60 * 1000;
+
 export class ChatSessionAgent {
   private state: DurableObjectState;
   private env: Env;
@@ -56,6 +65,52 @@ export class ChatSessionAgent {
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+  }
+
+  /**
+   * DO alarm handler — fires every 8 minutes while sentinel is active.
+   * Pings the sandbox to reset the container's 10-min idle timer, keeping
+   * /workspace alive. Reschedules itself automatically.
+   */
+  async alarm(): Promise<void> {
+    const sandboxId = await this.state.storage.get<string>('sentinel:sandboxId');
+    if (!sandboxId) return; // sentinel was stopped before alarm fired
+
+    try {
+      const sandbox = getSandbox(this.env.SANDBOX_CONTAINER, sandboxId);
+      await sandbox.writeFile('/tmp/.vf-keepalive', String(Date.now()));
+      console.log(`[ChatSessionAgent] sentinel ping: sandboxId=${sandboxId.slice(0, 8)}`);
+    } catch (err) {
+      // Container may be sleeping — ping attempt wakes it (that's fine too)
+      console.log(`[ChatSessionAgent] sentinel ping (container wake): ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    // Reschedule next alarm only if sentinel is still active
+    const stillActive = await this.state.storage.get<string>('sentinel:sandboxId');
+    if (stillActive) {
+      await this.state.storage.setAlarm(Date.now() + SENTINEL_INTERVAL_MS);
+    }
+  }
+
+  /**
+   * Start the keepalive sentinel for a sandbox.
+   * Schedules an alarm 8 minutes from now that pings the container.
+   * Safe to call multiple times — idempotent (replaces existing alarm).
+   */
+  private async startSentinel(sandboxId: string): Promise<void> {
+    await this.state.storage.put('sentinel:sandboxId', sandboxId);
+    await this.state.storage.setAlarm(Date.now() + SENTINEL_INTERVAL_MS);
+    console.log(`[ChatSessionAgent] sentinel started: sandboxId=${sandboxId.slice(0, 8)}`);
+  }
+
+  /**
+   * Stop the keepalive sentinel.
+   * Deletes the stored sandboxId (so alarm() is a no-op) and cancels the alarm.
+   */
+  private async stopSentinel(): Promise<void> {
+    await this.state.storage.delete('sentinel:sandboxId');
+    await this.state.storage.deleteAlarm();
+    console.log('[ChatSessionAgent] sentinel stopped');
   }
 
   /**
@@ -95,6 +150,20 @@ export class ChatSessionAgent {
 
     if (request.method === 'POST' && url.pathname === '/init') {
       return this.handleInit(request);
+    }
+
+    if (request.method === 'POST' && url.pathname === '/sentinel/start') {
+      const body = (await request.json()) as { sandboxId: string };
+      if (!body.sandboxId) {
+        return new Response('Missing sandboxId', { status: 400 });
+      }
+      await this.startSentinel(body.sandboxId);
+      return new Response('OK', { status: 200 });
+    }
+
+    if (request.method === 'POST' && url.pathname === '/sentinel/stop') {
+      await this.stopSentinel();
+      return new Response('OK', { status: 200 });
     }
 
     // Resume: serve buffered NDJSON lines from a given offset (reconnect after disconnect)
@@ -259,6 +328,11 @@ export class ChatSessionAgent {
       reject,
     });
 
+    // Emit connected immediately so the browser knows the request was received.
+    // This resets the frontend's 5-min AbortController timeout, which is critical
+    // when the container is sleeping and needs 20-60s to wake before responding.
+    writer.write(encoder.encode(JSON.stringify({ type: 'connected' }) + '\n')).catch(() => {});
+
     // Bridge timeout — if container never calls back, close the stream
     const BRIDGE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
     const bridgeTimeout = setTimeout(() => {
@@ -339,6 +413,49 @@ export class ChatSessionAgent {
       }
     } catch {
       // Skip parse errors
+    }
+  }
+
+  /**
+   * Watch for process crashes using the SDK's waitForExit() SSE stream.
+   * If claude-agent.js exits with a non-zero code (or the SSE stream errors)
+   * before the bridge resolves, we emit an error event and close the bridge
+   * immediately instead of waiting for the 5-minute bridge timeout.
+   *
+   * Called fire-and-forget after startProcess().
+   */
+  private async watchProcessCrash(
+    executionId: string,
+    process: Process
+  ): Promise<void> {
+    try {
+      const result = await process.waitForExit();
+      // Process exited — if bridge is still open and exit was non-zero, it crashed.
+      const bridge = this.httpBridges.get(executionId);
+      if (bridge && result.exitCode !== 0) {
+        const line =
+          JSON.stringify({
+            type: 'error',
+            error: `Container process exited with code ${result.exitCode}`,
+          }) + '\n';
+        bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
+        bridge.resolve();
+        this.httpBridges.delete(executionId);
+      }
+      // exit code 0: normal completion — bridge should already have resolved
+      // via handleContainerStream; if it hasn't, bridge timeout will handle it.
+    } catch (err) {
+      // SSE stream error (container sleep, network error, etc.) — close bridge
+      const bridge = this.httpBridges.get(executionId);
+      if (bridge) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const line =
+          JSON.stringify({ type: 'error', error: `Container error: ${msg}` }) +
+          '\n';
+        bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
+        bridge.resolve();
+        this.httpBridges.delete(executionId);
+      }
     }
   }
 
@@ -429,7 +546,7 @@ export class ChatSessionAgent {
     // Returns immediately — process runs in background.
     // CRITICAL: startProcess env REPLACES container env (not merges).
     // Must include system essentials (PATH, HOME, NODE_PATH) or CLI fails.
-    await sandbox.startProcess(
+    const process = await sandbox.startProcess(
       'node /opt/claude-agent/claude-agent.js',
       {
         cwd: '/workspace',
@@ -456,6 +573,12 @@ export class ChatSessionAgent {
         },
       }
     );
+
+    // Monitor process for crashes. waitForExit() streams process logs via SSE
+    // and resolves when the process emits an exit event. If the process crashes
+    // (non-zero exit or SSE stream error) before the bridge resolves, we close
+    // the bridge immediately rather than waiting for the 5-min bridge timeout.
+    this.watchProcessCrash(executionId, process);
 
     // Update lastActiveAt in KV (non-blocking)
     const updated: Session = {

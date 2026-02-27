@@ -18,6 +18,57 @@ type Variables = {
 
 export const sessionRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+/**
+ * Start the workspace keepalive sentinel for a session.
+ * Fire-and-forget — errors are non-fatal.
+ */
+function startSentinel(
+  env: Env,
+  sessionId: string,
+  sandboxId: string,
+  ctx: ExecutionContext
+): void {
+  ctx.waitUntil(
+    (async () => {
+      try {
+        const doId = env.CHAT_SESSIONS.idFromName(sessionId);
+        const stub = env.CHAT_SESSIONS.get(doId);
+        await stub.fetch(new Request('https://do/sentinel/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sandboxId }),
+        }));
+      } catch (err) {
+        console.warn('[sentinel] start failed (non-fatal):', err);
+      }
+    })()
+  );
+}
+
+/**
+ * Stop the workspace keepalive sentinel for a session.
+ * Fire-and-forget — errors are non-fatal.
+ */
+function stopSentinel(
+  env: Env,
+  sessionId: string,
+  ctx: ExecutionContext
+): void {
+  ctx.waitUntil(
+    (async () => {
+      try {
+        const doId = env.CHAT_SESSIONS.idFromName(sessionId);
+        const stub = env.CHAT_SESSIONS.get(doId);
+        await stub.fetch(new Request('https://do/sentinel/stop', {
+          method: 'POST',
+        }));
+      } catch (err) {
+        console.warn('[sentinel] stop failed (non-fatal):', err);
+      }
+    })()
+  );
+}
+
 const CreateSessionSchema = z.object({
   name: z.string().optional(),
   gitRepo: z.string().url().optional(),
@@ -133,6 +184,11 @@ sessionRoutes.post('/create', async (c) => {
         }
       })()
     );
+
+    // Start workspace keepalive sentinel to prevent container idle eviction
+    if (session.sandboxId) {
+      startSentinel(c.env, sessionId, session.sandboxId, c.executionCtx);
+    }
 
     // Pre-install npx packages in background so first message doesn't wait for npm
     const allMcpServers: Record<string, Record<string, unknown>> = {
@@ -287,6 +343,11 @@ sessionRoutes.post('/:sessionId/resume', async (c) => {
     }, 404);
   }
 
+  // Restart sentinel — container is awake, keep it alive
+  if (session.sandboxId) {
+    startSentinel(c.env, sessionId, session.sandboxId, c.executionCtx);
+  }
+
   return c.json<ApiResponse<Session>>({
     success: true,
     data: session,
@@ -311,6 +372,9 @@ sessionRoutes.post('/:sessionId/sleep', async (c) => {
       error: 'Session not found',
     }, 404);
   }
+
+  // Stop sentinel — user is explicitly sleeping the session
+  stopSentinel(c.env, sessionId, c.executionCtx);
 
   await sandboxManager.sleepSandbox(sessionId);
 
@@ -338,6 +402,9 @@ sessionRoutes.delete('/:sessionId', async (c) => {
       error: 'Session not found',
     }, 404);
   }
+
+  // Stop sentinel — session is being deleted
+  stopSentinel(c.env, sessionId, c.executionCtx);
 
   // Mark as pending-delete instead of immediate removal
   await sandboxManager.terminateSandbox(sessionId);
