@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-27 · v0.30.0
+FIX     settings — Persist V1.5 toggle to localStorage (vf_use_v15): survives hard refresh and new tabs; initialize useV15 from localStorage on store creation
+
+### 2026-02-27 · v0.30.0
 FIX     v15 — V1.5 callback response handler: add response event to callbackReq (consume body to prevent socket leak; log HTTP status if non-200 instead of silent 5-minute timeout); bump container build to 20260227b
 
 ### 2026-02-27 · v0.30.0

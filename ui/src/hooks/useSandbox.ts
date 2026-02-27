@@ -150,7 +150,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamAbortController: null,
   isPaused: false,
   pausedAt: null,
-  useV15: false,
+  useV15: localStorage.getItem('vf_use_v15') === '1',
 
   gitStatus: null,
 
@@ -1213,7 +1213,10 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
 
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => set({ autonomyMode: mode }),
 
-  setUseV15: (enabled: boolean) => set({ useV15: enabled }),
+  setUseV15: (enabled: boolean) => {
+    localStorage.setItem('vf_use_v15', enabled ? '1' : '0');
+    set({ useV15: enabled });
+  },
 
   getMessages: () => {
     const { messageIds, messagesById } = get();
