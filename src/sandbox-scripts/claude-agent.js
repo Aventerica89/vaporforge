@@ -53,6 +53,13 @@ if (IS_CALLBACK_MODE) {
   callbackReq.on('error', (err) => {
     console.error(`[claude-agent] callback POST error: ${err.message}`);
   });
+  callbackReq.on('response', (res) => {
+    // Consume response body (required or socket leaks)
+    res.resume();
+    if (res.statusCode !== 200) {
+      console.error(`[claude-agent] callback POST rejected: HTTP ${res.statusCode} — bridge may have expired or JWT is invalid`);
+    }
+  });
   console.error('[claude-agent] V1.5 callback mode — streaming to DO');
 }
 

@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-27', summary: 'fix(v15): add response handler to V1.5 callback POST — surfaces 401/404 from /internal/stream instead of silently timing out after 5 minutes; consume response body to prevent socket leak; bump container build to 20260227b' },
   { date: '2026-02-27', summary: 'fix(agent): add post-tool-use summary instruction to system prompt — Claude now always responds after tool use so user knows task is complete or input is needed' },
   { date: '2026-02-26', summary: 'feat(v15): stream buffering + reconnect — DO stores every NDJSON line to SQLite; browser detects dropped stream and resumes from offset via GET /api/v15/resume; hardcoded callback URL moved to WORKER_BASE_URL var' },
   { date: '2026-02-26', summary: 'feat(ui): add sonnet[1m] model option — Sonnet with 1M token context window (requires tier 4+ account)' },

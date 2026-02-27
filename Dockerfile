@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260227a
+ENV VF_CONTAINER_BUILD=20260227b
 
 # Create workspace directory
 RUN mkdir -p /workspace
@@ -91,6 +91,13 @@ if (IS_CALLBACK_MODE) {
   });
   callbackReq.on('error', (err) => {
     console.error(`[claude-agent] callback POST error: ${err.message}`);
+  });
+  callbackReq.on('response', (res) => {
+    // Consume response body (required or socket leaks)
+    res.resume();
+    if (res.statusCode !== 200) {
+      console.error(`[claude-agent] callback POST rejected: HTTP ${res.statusCode} — bridge may have expired or JWT is invalid`);
+    }
   });
   console.error('[claude-agent] V1.5 callback mode — streaming to DO');
 }
