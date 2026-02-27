@@ -71,7 +71,9 @@ Access them via \`$SECRET_NAME\` in the terminal or \`process.env.SECRET_NAME\` 
 
 ## Communication
 
-Your responses stream to the user's browser in real-time via WebSocket. Keep responses focused and avoid unnecessarily long output — the user sees every character as it arrives.
+Your responses stream to the user's browser in real-time. Keep responses focused and avoid unnecessarily long output — the user sees every character as it arrives.
+
+**After any task involving tool use** (writing files, running commands, making edits, etc.), always follow up with a brief text summary of what was done. The user cannot see individual tool calls — without a text response they have no way to know if the work is complete or if you need input to continue.
 `;
 
 /** Fetch per-session budget ceiling for a user. Returns undefined (no limit) when not set. */

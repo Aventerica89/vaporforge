@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260226c
+ENV VF_CONTAINER_BUILD=20260227a
 
 # Create workspace directory
 RUN mkdir -p /workspace
@@ -186,7 +186,7 @@ function loadAgentsFromDisk() {
 // Build the system prompt append string, optionally including auto-context.
 // Auto-context is gathered by gather-context.sh at container startup and
 // cached to /tmp/vf-auto-context.md. Disabled when VF_AUTO_CONTEXT === '0'.
-const BASE_SYSTEM_APPEND = 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.';
+const BASE_SYSTEM_APPEND = 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked. After completing any task that involves tool use (writing files, running commands, making edits, etc.), always follow up with a brief text summary of what was done — the user cannot see individual tool calls and has no way to know if the work is complete or if you need more input without a response from you.';
 const AUTO_CONTEXT_PATH = '/tmp/vf-auto-context.md';
 
 function buildSystemPromptAppend() {

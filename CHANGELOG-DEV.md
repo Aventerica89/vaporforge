@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-27 · v0.30.0
+FIX     agent — Post-tool-use summary: add instruction to BASE_SYSTEM_APPEND and DEFAULT_VF_RULES so Claude always responds after tool use; bump container build to 20260227a
+
 ### 2026-02-26 · v0.30.0
 FEAT    v15 — Stream buffering + reconnect: DO stores every NDJSON line to SQLite (buf:NNNNNNNNNN keys); browser detects v15-incomplete and resumes via GET /api/v15/resume?sessionId&offset; WORKER_BASE_URL var replaces hardcoded callback URL
 
