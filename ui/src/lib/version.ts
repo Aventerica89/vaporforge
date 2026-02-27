@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-27', summary: 'fix(v15): cross-session state bleed — guard resumeV15 and WS replay set() calls with currentSession?.id === session.id check; prevents recovered stream content from overwriting a different session if user switches tabs during async replay' },
   { date: '2026-02-27', summary: 'fix(v15): stream buffering + reconnect — forward costUsd in streamV15 done event (cost meter now works on V1.5); await clearBuffer() to eliminate race with storeLine(); add reasoning-delta and error recovery to resumeV15 replay path' },
   { date: '2026-02-27', summary: 'feat(sentinel): manual flow — replace auto-inject with amber glow button; sentinel emits sentinel-data-ready WS event; clicking glow sends briefing prompt to Claude; rewrite groq-background-agent with predictive co-pilot prompt + DeepSeek V3 support; git diffs instead of raw file content; AccountTab sentinel consent checkbox; container build 20260227f' },
   { date: '2026-02-27', summary: 'feat(sentinel): always-on mode — 5th toggle button keeps Groq background agent running continuously (5-min scan loop); skips start/stop on pause/resume when active; sentinel-on/off WS commands; sentinelActive state in Zustand; container build 20260227e' },

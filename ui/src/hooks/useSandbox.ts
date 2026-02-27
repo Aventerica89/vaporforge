@@ -951,7 +951,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
                 if (typeof rc.fullText === 'string' && rc.fullText) content = rc.fullText;
               }
             }
-            set({ streamingContent: content, streamingParts: [...parts] });
+            if (get().currentSession?.id === session.id) {
+              set({ streamingContent: content, streamingParts: [...parts] });
+            }
           } else if (!content && parts.length === 0) {
             parts.push({ type: 'error', content: 'Stream interrupted. Could not reconnect.' });
           }
@@ -1011,7 +1013,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
               if (typeof rc.fullText === 'string' && rc.fullText) content = rc.fullText;
             }
           }
-          set({ streamingContent: content, streamingParts: [...parts] });
+          if (get().currentSession?.id === session.id) {
+            set({ streamingContent: content, streamingParts: [...parts] });
+          }
           // Persist recovered content
           if (content) {
             sdkApi.persistMessage(

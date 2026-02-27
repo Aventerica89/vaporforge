@@ -123,3 +123,4 @@ FEAT    sentinel — Predictive co-pilot prompt: rewrite groq-background-agent w
 FIX     v15 — Forward costUsd in streamV15 done event mapping (cost meter now works for V1.5 sessions)
 FIX     v15 — Await clearBuffer() in handleChatHttp to eliminate storeLine/delete race condition
 FIX     v15 — Add reasoning-delta and error recovery to resumeV15 replay path (was only handling text-delta + done)
+FIX     v15 — Guard resumeV15 and WS replay set() calls with session ID check; prevents recovered stream content bleeding into a different session when user switches tabs during async replay
