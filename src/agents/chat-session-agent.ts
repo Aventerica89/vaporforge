@@ -51,10 +51,33 @@ export class ChatSessionAgent {
   private state: DurableObjectState;
   private env: Env;
   private httpBridges = new Map<string, HttpBridge>();
+  private bufferSeq = 0;
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+  }
+
+  /**
+   * Store a buffered NDJSON line to DO SQLite for replay after disconnects.
+   * Keys are zero-padded so storage.list() returns them in emission order.
+   * Fire-and-forget — CF guarantees durability before DO eviction.
+   */
+  private storeLine(line: string): void {
+    const key = 'buf:' + String(this.bufferSeq++).padStart(10, '0');
+    this.state.storage.put(key, line);
+  }
+
+  /**
+   * Clear the stream buffer from a previous execution.
+   * Called at the start of each new chat request.
+   */
+  private clearBuffer(): void {
+    this.bufferSeq = 0;
+    this.state.storage
+      .list({ prefix: 'buf:' })
+      .then((entries) => this.state.storage.delete([...entries.keys()]))
+      .catch(() => {});
   }
 
   /**
@@ -72,6 +95,11 @@ export class ChatSessionAgent {
 
     if (request.method === 'POST' && url.pathname === '/init') {
       return this.handleInit(request);
+    }
+
+    // Resume: serve buffered NDJSON lines from a given offset (reconnect after disconnect)
+    if (request.method === 'GET' && url.pathname === '/chat/resume') {
+      return this.handleResume(url);
     }
 
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
@@ -150,6 +178,7 @@ export class ChatSessionAgent {
           await bridge.writer.write(
             bridge.encoder.encode(line + '\n')
           );
+          this.storeLine(line);
           this.extractMetadata(line);
         }
       }
@@ -159,6 +188,7 @@ export class ChatSessionAgent {
         await bridge.writer.write(
           bridge.encoder.encode(buffer + '\n')
         );
+        this.storeLine(buffer);
         this.extractMetadata(buffer);
       }
 
@@ -191,6 +221,9 @@ export class ChatSessionAgent {
       model?: string;
       autonomy?: string;
     };
+
+    // Clear buffer from previous execution before starting a new one
+    this.clearBuffer();
 
     const executionId = crypto.randomUUID();
     const sessionId = body.sessionId;
@@ -267,6 +300,28 @@ export class ChatSessionAgent {
         'Content-Type': 'application/x-ndjson',
         'Cache-Control': 'no-cache',
       },
+    });
+  }
+
+  /**
+   * Resume endpoint — serves buffered NDJSON lines from a given offset.
+   * Called by the browser after a dropped V1.5 HTTP stream to recover
+   * any missed events without re-running the agent.
+   */
+  private async handleResume(url: URL): Promise<Response> {
+    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
+    const entries = await this.state.storage.list<string>({ prefix: 'buf:' });
+    const allLines = [...entries.values()];
+    const fromOffset = allLines.slice(offset);
+
+    if (fromOffset.length === 0) {
+      return new Response('', {
+        headers: { 'Content-Type': 'application/x-ndjson' },
+      });
+    }
+
+    return new Response(fromOffset.join('\n') + '\n', {
+      headers: { 'Content-Type': 'application/x-ndjson' },
     });
   }
 
@@ -388,7 +443,7 @@ export class ChatSessionAgent {
           // VF runtime
           IS_SANDBOX: '1',
           CLAUDE_CODE_OAUTH_TOKEN: oauthToken,
-          VF_CALLBACK_URL: 'https://vaporforge.dev/internal/stream',
+          VF_CALLBACK_URL: `${this.env.WORKER_BASE_URL}/internal/stream`,
           VF_STREAM_JWT: token,
           VF_SDK_SESSION_ID: sdkSessionId,
           VF_SESSION_MODE: mode || 'agent',

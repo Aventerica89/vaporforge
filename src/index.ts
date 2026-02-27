@@ -88,6 +88,28 @@ export default {
       }
     }
 
+    // V1.5: Resume endpoint — serves buffered NDJSON from a given offset after disconnect
+    if (
+      request.method === 'GET' &&
+      url.pathname === '/api/v15/resume'
+    ) {
+      const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
+      const user = await extractAuth(request, authService);
+      if (!user) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const sessionId = url.searchParams.get('sessionId');
+      const offset = url.searchParams.get('offset') || '0';
+      if (!sessionId) {
+        return new Response('Missing sessionId', { status: 400 });
+      }
+      const doId = env.CHAT_SESSIONS.idFromName(sessionId);
+      const stub = env.CHAT_SESSIONS.get(doId);
+      return stub.fetch(
+        new Request(`https://do/chat/resume?offset=${offset}`, { method: 'GET' })
+      );
+    }
+
     // Handle WebSocket upgrade
     if (request.headers.get('Upgrade') === 'websocket') {
       const url = new URL(request.url);

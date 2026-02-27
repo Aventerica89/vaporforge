@@ -84,7 +84,8 @@
   //                 wrangler secret put STRIPE_WEBHOOK_SECRET
   "vars": {
     "ENVIRONMENT": "production",
-    "STRIPE_PRO_PRICE_ID": "price_1T3Dr7H6aZ92e8Tx0GsEMHP0"
+    "STRIPE_PRO_PRICE_ID": "price_1T3Dr7H6aZ92e8Tx0GsEMHP0",
+    "WORKER_BASE_URL": "https://vaporforge.dev"
   },
 
   // Static assets for UI

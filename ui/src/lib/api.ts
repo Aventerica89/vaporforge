@@ -653,6 +653,8 @@ export const sdkApi = {
 
     const decoder = new TextDecoder();
     let buffer = '';
+    let lineOffset = 0;
+    let doneEmitted = false;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -670,6 +672,7 @@ export const sdkApi = {
         } catch {
           continue;
         }
+        lineOffset++;
 
         // Map container NDJSON events to VF frontend format
         // (same mapping as streamWs.onmessage)
@@ -703,6 +706,7 @@ export const sdkApi = {
             };
             break;
           case 'done':
+            doneEmitted = true;
             yield {
               type: 'done',
               sessionId: msg.sessionId as string,
@@ -749,6 +753,47 @@ export const sdkApi = {
             };
         }
       }
+    }
+
+    // If stream ended without a 'done' frame, signal offset for resume
+    if (!doneEmitted && !signal?.aborted) {
+      yield { type: 'v15-incomplete', offset: lineOffset };
+    }
+  },
+
+  // V1.5 resume: fetch buffered NDJSON from DO storage starting at offset (raw container events)
+  resumeV15: async function* (
+    sessionId: string,
+    offset: number
+  ): AsyncGenerator<Record<string, unknown>> {
+    const token = localStorage.getItem('session_token');
+    if (!token) return;
+
+    const res = await fetch(
+      `${API_BASE}/v15/resume?sessionId=${encodeURIComponent(sessionId)}&offset=${offset}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok || !res.body) return;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          yield JSON.parse(line) as Record<string, unknown>;
+        } catch { continue; }
+      }
+    }
+    if (buffer.trim()) {
+      try { yield JSON.parse(buffer) as Record<string, unknown>; } catch { /* ignore */ }
     }
   },
 

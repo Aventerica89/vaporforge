@@ -46,6 +46,7 @@ declare global {
 
     // Environment variables
     ENVIRONMENT: string;
+    WORKER_BASE_URL: string;
   }
 }
 

@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-26', summary: 'feat(v15): stream buffering + reconnect — DO stores every NDJSON line to SQLite; browser detects dropped stream and resumes from offset via GET /api/v15/resume; hardcoded callback URL moved to WORKER_BASE_URL var' },
   { date: '2026-02-26', summary: 'feat(ui): add sonnet[1m] model option — Sonnet with 1M token context window (requires tier 4+ account)' },
   { date: '2026-02-26', summary: 'feat(ui): add opusplan model option — Opus for planning, Sonnet for execution (native Claude Code alias)' },
   { date: '2026-02-26', summary: 'security: rate limiting (auth 10/min, AI 30/min), error sanitization (5 endpoints), path traversal validation (files.ts), bounded array schemas (quickchat.ts), update hono 4.12.3 + rollup 4.59.0' },

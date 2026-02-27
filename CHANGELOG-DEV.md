@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-26 · v0.30.0
+FEAT    v15 — Stream buffering + reconnect: DO stores every NDJSON line to SQLite (buf:NNNNNNNNNN keys); browser detects v15-incomplete and resumes via GET /api/v15/resume?sessionId&offset; WORKER_BASE_URL var replaces hardcoded callback URL
+
+### 2026-02-26 · v0.30.0
 FEAT    ui — Add sonnet[1m] model option: Sonnet with 1M token context window; internal ID sonnet1m resolves to CLI alias in WS + V1.5 paths
 FEAT    ui — Add opusplan model option: Opus for planning, Sonnet for execution (native Claude Code alias); pass through WS + V1.5 paths
 

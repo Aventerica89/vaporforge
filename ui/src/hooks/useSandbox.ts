@@ -570,6 +570,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       let doneReceived = false;   // 'done' frame received = agent finished normally
       let processExitReceived = false; // 'ws-exit' frame received = process exited
       let shouldAutoRetry = false; // transient crash detected — eligible for auto-retry
+      let v15IncompleteOffset = -1; // set when V1.5 stream ends without 'done' (reconnect offset)
 
       // V1.5 feature flag: use DO-mediated HTTP stream vs direct WS
       const streamSource = get().useV15
@@ -854,6 +855,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
               }
             }).catch(() => {});
           }
+        } else if (chunk.type === 'v15-incomplete') {
+          // V1.5 HTTP stream ended without 'done' — capture offset for resume
+          v15IncompleteOffset = (chunk as Record<string, unknown>).offset as number ?? 0;
         } else if (chunk.type === 'stderr' && chunk.content) {
           // Forward container stderr to diagnostics store + debug log
           useDiagnostics.getState().addStderr(chunk.content);
@@ -947,6 +951,48 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
             ).catch(() => {});
           }
         } catch { /* replay is best-effort — failures fall through to normal completion */ }
+      }
+
+      // V1.5 resume: if the HTTP stream dropped mid-response, fetch remaining lines from DO buffer
+      if (!doneReceived && get().useV15 && v15IncompleteOffset >= 0 && !controller.signal.aborted) {
+        try {
+          for await (const rc of sdkApi.resumeV15(session.id, v15IncompleteOffset)) {
+            const rType = rc.type as string;
+            if (rType === 'text-delta' && rc.text) {
+              const rText = rc.text as string;
+              content += rText;
+              currentReasoningPart = null;
+              if (!currentTextPart) {
+                currentTextPart = { type: 'text', content: rText };
+                parts.push(currentTextPart);
+              } else {
+                const merged: MessagePart = { type: 'text', content: (currentTextPart.content || '') + rText };
+                currentTextPart = merged;
+                parts[parts.length - 1] = merged;
+              }
+            } else if (rType === 'done') {
+              if (rc.usage) {
+                const u = rc.usage as { inputTokens: number; outputTokens: number };
+                streamUsage = {
+                  inputTokens: u.inputTokens,
+                  outputTokens: u.outputTokens,
+                  ...(typeof rc.costUsd === 'number' ? { costUsd: rc.costUsd as number } : {}),
+                };
+              }
+              if (typeof rc.fullText === 'string' && rc.fullText) content = rc.fullText;
+            }
+          }
+          set({ streamingContent: content, streamingParts: [...parts] });
+          // Persist recovered content
+          if (content) {
+            sdkApi.persistMessage(
+              session.id,
+              content,
+              '',
+              streamUsage?.costUsd
+            ).catch(() => {});
+          }
+        } catch { /* resume is best-effort */ }
       }
 
       // Post-stream: promote Write/Edit tool-starts to artifact blocks
