@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check, ExternalLink, BarChart3, FlaskConical, Activity } from 'lucide-react';
+import { User, LogOut, Shield, Clock, RotateCcw, Copy, Check, ExternalLink, BarChart3, Activity } from 'lucide-react';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { authApi } from '@/lib/api';
@@ -127,7 +127,6 @@ export function AccountTab() {
   const { user, logout } = useAuthStore();
   const currentUserId = localStorage.getItem('vf-user-id') || user?.id || '';
 
-  const [v15Enabled, setV15Enabled] = useState(() => useSandboxStore.getState().useV15);
   const [sentinelEnabled, setSentinelEnabled] = useState(() => localStorage.getItem('vf-sentinel-enabled') === '1');
   const [recoverInput, setRecoverInput] = useState('');
   const [recovering, setRecovering] = useState(false);
@@ -290,35 +289,6 @@ export function AccountTab() {
           <code className="text-primary">claude setup-token</code>{' '}
           in your local terminal.
         </p>
-      </div>
-
-      {/* V1.5 Experimental */}
-      <div className="space-y-3">
-        <h4 className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <FlaskConical className="h-4 w-4 text-primary" />
-          Experimental
-        </h4>
-        <label className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-3 cursor-pointer">
-          <div className="space-y-0.5">
-            <p className="text-xs font-medium text-foreground">V1.5 HTTP Streaming</p>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Route chat through Durable Object instead of direct WebSocket.
-              Enables walk-away persistence and crash recovery.
-            </p>
-          </div>
-          <button
-            role="switch"
-            aria-checked={v15Enabled}
-            onClick={() => {
-              const current = useSandboxStore.getState().useV15;
-              useSandboxStore.getState().setUseV15(!current);
-              setV15Enabled(!current);
-            }}
-            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${v15Enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
-          >
-            <span className={`inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform ${v15Enabled ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
-          </button>
-        </label>
       </div>
 
       {/* Sentinel Intelligence */}

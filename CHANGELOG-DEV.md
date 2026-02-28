@@ -141,4 +141,13 @@ FIX     v15 — Heartbeat padding: pad DO heartbeat to >1KB (1024 whitespace byt
 FIX     v15 — Bridge timeout: increase BRIDGE_TIMEOUT_MS from 5 to 10 minutes; cancel timeout immediately when container first connects to /internal/stream (handleContainerStream calls bridge.cancelBridgeTimeout()); add cancelBridgeTimeout field to HttpBridge; fixes "Container did not respond within 5 minutes" error on cold-start + heavy skills
 
 ### 2026-02-28 · PENDING · v0.30.0
+FIX     plugins — SKILL.md-based skills injected into container with filename SKILL.md instead of <skill-name>.md; session init wipes /root/.claude/commands/ then repopulates, so Dockerfile embed was overwritten; fix: derive filename from parent dir name (plugins.ts x2, both fetchFileContent and buildItems paths); skills now land at /root/.claude/commands/claude-automation-recommender.md as expected
+
+### 2026-02-28 · PENDING · v0.30.0
+FIX     container — Remove tools: frontmatter from claude-automation-recommender skill (build 20260228b); tools field caused SDK tool mismatch — Read/Glob/Grep/Bash listed but not in custom tools registry, silently killed command execution
+
+### 2026-02-28 · PENDING · v0.30.0
 FIX     container — Embed /claude-automation-recommender skill in container image (build 20260228a); skill was absent from /root/.claude/commands/ so claude CLI exited silently producing empty response; embedded SKILL.md via heredoc since COPY is disabled on CF Sandboxes
+
+### 2026-02-28 · PENDING · v0.30.0
+FEAT    v15 — Graduate V1.5 HTTP streaming to default; flip useV15 from opt-in (=== '1') to opt-out (!== '0') so all users route through ChatSessionAgent DO by default; remove Experimental settings section from AccountTab; users who explicitly disabled V1.5 (localStorage vf_use_v15=0) stay on legacy WS

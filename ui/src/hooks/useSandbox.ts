@@ -157,7 +157,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   sentinelActive: false,
   sentinelDataReady: false,
   sentinelDataSizeBytes: 0,
-  useV15: localStorage.getItem('vf_use_v15') === '1',
+  useV15: localStorage.getItem('vf_use_v15') !== '0',
 
   gitStatus: null,
 

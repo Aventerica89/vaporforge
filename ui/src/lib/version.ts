@@ -19,6 +19,9 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-28', summary: 'feat(v15): graduate V1.5 HTTP streaming to default — flip useV15 from opt-in to opt-out (localStorage vf_use_v15 !==\'0\'); remove Experimental settings section; all users now route through ChatSessionAgent DO with walk-away persistence and crash recovery' },
+  { date: '2026-02-28', summary: 'fix(container): remove tools: frontmatter from claude-automation-recommender skill — tools field caused SDK tool mismatch (Read/Glob/Grep/Bash not found in custom tools registry), silently killing command execution; build 20260228b' },
+  { date: '2026-02-28', summary: 'fix(plugins): SKILL.md skills written as SKILL.md into container — use parent dir name as filename (e.g. claude-automation-recommender.md) so claude CLI resolves slash commands correctly; session init wipes /root/.claude/commands/ so Dockerfile embed alone was insufficient' },
   { date: '2026-02-28', summary: 'fix(container): embed /claude-automation-recommender skill in image via heredoc — skill was missing from container so claude CLI exited silently; build 20260228a' },
   { date: '2026-02-28', summary: 'fix(v15): bridge timeout — increase BRIDGE_TIMEOUT_MS from 5 to 10 minutes for cold container starts on heavy skills; cancel timeout immediately when container first connects to /internal/stream (no need to wait once data flows); store cancelBridgeTimeout on HttpBridge so handleContainerStream can cancel it' },
   { date: '2026-02-28', summary: 'fix(v15): heartbeat padding — pad DO heartbeat to >1KB so Chrome Fetch ReadableStream flushes chunk immediately to reader.read(); also call resetTimeout() on every for-await iteration in useSandbox for defence-in-depth; fixes stream timeout at exactly 300s on heavy skills like /claude-automation-recommender' },
