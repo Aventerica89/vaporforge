@@ -37,7 +37,7 @@ async function writeConfig(
 }
 
 const EnableGeminiSchema = z.object({
-  defaultModel: z.enum(['flash', 'pro']).default('flash'),
+  defaultModel: z.enum(['flash', 'pro', '3.1-pro']).default('flash'),
 });
 
 const EnableClaudeSchema = z.object({

@@ -283,7 +283,7 @@ export type ConfigCategory = typeof CONFIG_CATEGORIES[number];
 export const AIProviderConfigSchema = z.object({
   gemini: z.object({
     enabled: z.boolean(),
-    defaultModel: z.enum(['flash', 'pro']).default('flash'),
+    defaultModel: z.enum(['flash', 'pro', '3.1-pro']).default('flash'),
     addedAt: z.string(),
   }).optional(),
   claude: z.object({

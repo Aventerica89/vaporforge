@@ -1237,7 +1237,7 @@ export const aiProvidersApi = {
   get: () =>
     request<AIProviderConfig>('/ai-providers'),
 
-  enableGemini: (config: { defaultModel: 'flash' | 'pro' }) =>
+  enableGemini: (config: { defaultModel: 'flash' | 'pro' | '3.1-pro' }) =>
     request<AIProviderConfig>('/ai-providers/gemini', {
       method: 'PUT',
       body: JSON.stringify(config),

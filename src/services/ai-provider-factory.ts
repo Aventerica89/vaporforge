@@ -16,6 +16,7 @@ const MODEL_MAP: Record<ProviderName, Record<string, string>> = {
   gemini: {
     flash: 'gemini-2.5-flash',
     pro: 'gemini-2.5-pro',
+    '3.1-pro': 'gemini-3.1-pro-preview',
   },
   openai: {
     'gpt-4o': 'gpt-4o',

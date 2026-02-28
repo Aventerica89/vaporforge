@@ -247,7 +247,7 @@ export type ConfigCategory = 'rules' | 'commands' | 'agents';
 export interface AIProviderConfig {
   gemini?: {
     enabled: boolean;
-    defaultModel: 'flash' | 'pro';
+    defaultModel: 'flash' | 'pro' | '3.1-pro';
     addedAt: string;
   };
   claude?: {

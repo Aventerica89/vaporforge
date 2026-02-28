@@ -42,7 +42,7 @@ export function AIProvidersTab() {
   });
 
   // Model preferences
-  const [geminiModel, setGeminiModel] = useState<'flash' | 'pro'>('flash');
+  const [geminiModel, setGeminiModel] = useState<'flash' | 'pro' | '3.1-pro'>('flash');
   const [claudeModel, setClaudeModel] = useState<
     'sonnet' | 'haiku' | 'opus'
   >('sonnet');
@@ -376,8 +376,8 @@ function GeminiProviderCard({
   setConfig: (c: AIProviderConfig) => void;
   keyState: ProviderKeyState;
   setKeyState: (s: ProviderKeyState) => void;
-  model: 'flash' | 'pro';
-  setModel: (m: 'flash' | 'pro') => void;
+  model: 'flash' | 'pro' | '3.1-pro';
+  setModel: (m: 'flash' | 'pro' | '3.1-pro') => void;
   error: string;
   setError: (e: string) => void;
 }) {
@@ -451,7 +451,7 @@ function GeminiProviderCard({
     }
   };
 
-  const handleModelChange = async (newModel: 'flash' | 'pro') => {
+  const handleModelChange = async (newModel: 'flash' | 'pro' | '3.1-pro') => {
     setModel(newModel);
     if (config.gemini?.enabled) {
       try {
@@ -512,20 +512,27 @@ function GeminiProviderCard({
           <label className="text-xs font-medium text-muted-foreground">
             Default Model
           </label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <ModelButton
               icon={<Zap className="h-4 w-4 flex-shrink-0" />}
               label="Flash"
-              sublabel="Fast responses"
+              sublabel="Free tier"
               selected={model === 'flash'}
               onClick={() => handleModelChange('flash')}
             />
             <ModelButton
               icon={<Brain className="h-4 w-4 flex-shrink-0" />}
               label="Pro"
-              sublabel="Deep analysis"
+              sublabel="2.5 Pro"
               selected={model === 'pro'}
               onClick={() => handleModelChange('pro')}
+            />
+            <ModelButton
+              icon={<Crown className="h-4 w-4 flex-shrink-0" />}
+              label="3.1 Pro"
+              sublabel="Latest"
+              selected={model === '3.1-pro'}
+              onClick={() => handleModelChange('3.1-pro')}
             />
           </div>
         </div>
