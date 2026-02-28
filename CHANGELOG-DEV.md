@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-28 · v0.30.0
+FEAT    providers — Add Gemini 3.1 Pro preview model (gemini-3.1-pro-preview) alongside Flash and 2.5 Pro; 3-column model selector in settings
+
+### 2026-02-28 · v0.30.0
 FEAT    providers — Add OpenAI as third AI provider (GPT-4o, GPT-4o-mini, o3, o3-mini) for QuickChat, Code Transform, Analyze, Commit Message; full settings card with model selector; @ai-sdk/openai integration across 15 files
 
 ### 2026-02-27 · v0.30.0
