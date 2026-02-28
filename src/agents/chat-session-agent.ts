@@ -354,7 +354,11 @@ export class ChatSessionAgent {
     const heartbeatInterval = setInterval(() => {
       const bridge = this.httpBridges.get(executionId);
       if (bridge) {
-        bridge.writer.write(bridge.encoder.encode(JSON.stringify({ type: 'heartbeat' }) + '\n')).catch(() => {});
+        // Pad to >1KB so Chrome's Fetch ReadableStream flushes the chunk immediately.
+        // Chrome buffers small chunks below ~1KB before delivering them to reader.read().
+        // The padding line is all whitespace — streamV15's `if (!line.trim()) continue` skips it.
+        const hbPayload = JSON.stringify({ type: 'heartbeat' }) + '\n' + ' '.repeat(1024) + '\n';
+        bridge.writer.write(bridge.encoder.encode(hbPayload)).catch(() => {});
       } else {
         clearInterval(heartbeatInterval);
       }

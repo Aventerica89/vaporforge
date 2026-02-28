@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-28', summary: 'fix(v15): heartbeat padding — pad DO heartbeat to >1KB so Chrome Fetch ReadableStream flushes chunk immediately to reader.read(); also call resetTimeout() on every for-await iteration in useSandbox for defence-in-depth; fixes stream timeout at exactly 300s on heavy skills like /claude-automation-recommender' },
   { date: '2026-02-28', summary: 'fix(v15): DO heartbeat every 60s — prevents 5-min AbortController timeout during long tool-use sequences where container produces no output (e.g. heavy agent skills); heartbeat NDJSON event resets frontend timer without any container changes' },
   { date: '2026-02-27', summary: 'feat(container): auto-git autosave — after every Claude response and before idle exit, ws-agent-server commits all workspace changes to a vf-autosave branch and force-pushes; prevents work loss on container eviction; respects .gitignore; non-fatal if no git remote; container build 20260227g' },
   { date: '2026-02-27', summary: 'fix(terminal): "Waiting for sandbox..." dim indicator after 2s of no output; cleared with ANSI \\r\\x1b[2K when first chunk arrives (cold-start UX)' },

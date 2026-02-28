@@ -591,15 +591,18 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           );
 
       for await (const chunk of streamSource) {
+        // Reset timeout on every yielded event. Primary protection is the DO heartbeat padding
+        // (>1KB forces Chrome to flush), but this guards against any other silent gap.
+        resetTimeout();
+
         // Capture msgId from synthetic first event (not a real WS frame)
         if (chunk.type === 'msg-id') {
           streamMsgId = chunk.msgId || '';
           continue;
         }
 
-        // Skip connection, heartbeat, ping, and replay-complete events — just reset the timeout
+        // Skip connection, heartbeat, ping, and replay-complete events (timeout already reset above)
         if (chunk.type === 'connected' || chunk.type === 'heartbeat' || chunk.type === 'ping' || chunk.type === 'replay-complete') {
-          resetTimeout();
           continue;
         }
 
