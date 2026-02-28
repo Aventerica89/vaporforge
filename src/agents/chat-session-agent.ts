@@ -600,7 +600,7 @@ export class ChatSessionAgent {
           ...(model ? { VF_MODEL: MODEL_ALIASES[model] || model } : {}),
           ...(model === 'sonnet1m' ? { VF_1M_CONTEXT: '1' } : {}),
           ...(autonomy ? { VF_AUTONOMY_MODE: autonomy } : {}),
-          CLAUDE_CONFIG_DIR: '/root/.config/claude',
+          CLAUDE_CONFIG_DIR: '/root/.claude',
           ...projectSecrets,
           ...userSecrets,
         },

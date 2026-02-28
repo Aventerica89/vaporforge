@@ -132,6 +132,10 @@ FIX     v15 — Guard resumeV15 and WS replay set() calls with session ID check;
 FEAT    container — Auto-git autosave: ws-agent-server commits all /workspace changes to vf-autosave branch after every Claude response and before idle exit; force-push preserves only latest state; respects .gitignore; non-fatal if no remote; container build 20260227g
 
 ### 2026-02-28 · PENDING · v0.30.0
+FIX     v15 — JWT TTL 360s→660s: bump DEFAULT_TTL_SECONDS to cover 10-min bridge timeout (comment and value were stale from 5-min era); container callbacks arriving after T+6min were getting 401 Unauthorized, closing bridge silently
+FIX     v15 — CLAUDE_CONFIG_DIR: change /root/.config/claude → /root/.claude (standard Claude Code config path); wrong path caused heavy skills to silently fail — agents, session state, project config not found
+
+### 2026-02-28 · PENDING · v0.30.0
 FIX     v15 — DO heartbeat every 60s: ChatSessionAgent emits {"type":"heartbeat"} NDJSON line every 60s while stream is active; resets frontend 5-min AbortController during long tool-use sequences where container produces no output; frontend already handled heartbeat type (resetTimeout call); no container changes required
 FIX     v15 — Heartbeat padding: pad DO heartbeat to >1KB (1024 whitespace bytes appended) so Chrome Fetch ReadableStream flushes chunk immediately; 21-byte heartbeat arrived at network layer but Chrome buffered it below reader.read() delivery threshold; also add resetTimeout() at top of every for-await iteration in useSandbox (defence-in-depth); fixes "Stream stopped" AbortError at exactly 300014ms on heavy skills
 FIX     v15 — Bridge timeout: increase BRIDGE_TIMEOUT_MS from 5 to 10 minutes; cancel timeout immediately when container first connects to /internal/stream (handleContainerStream calls bridge.cancelBridgeTimeout()); add cancelBridgeTimeout field to HttpBridge; fixes "Container did not respond within 5 minutes" error on cold-start + heavy skills

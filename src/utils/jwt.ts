@@ -6,7 +6,7 @@ export interface ExecutionTokenPayload {
 }
 
 const ALGORITHM = { name: 'HMAC', hash: 'SHA-256' };
-const DEFAULT_TTL_SECONDS = 360; // 60s margin over the 5-minute bridge timeout
+const DEFAULT_TTL_SECONDS = 660; // 60s margin over the 10-minute bridge timeout
 
 function base64UrlEncode(data: Uint8Array): string {
   return btoa(String.fromCharCode(...data))
