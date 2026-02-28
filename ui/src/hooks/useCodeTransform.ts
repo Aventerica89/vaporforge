@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { streamTransform } from '@/lib/transform-api';
 import { useQuickChat } from '@/hooks/useQuickChat';
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 interface CodeTransformState {
   isOpen: boolean;
@@ -86,7 +86,7 @@ export const useCodeTransform = create<CodeTransformState>((set, get) => ({
 
     const { availableProviders } = useQuickChat.getState();
     if (availableProviders.length > 0 && !availableProviders.includes(provider)) {
-      const name = provider === 'claude' ? 'Claude' : 'Gemini';
+      const name = provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'Gemini';
       set({ error: `No API key configured for ${name}. Add one in Settings > AI Providers.` });
       return;
     }

@@ -1,9 +1,10 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAI } from '@ai-sdk/openai';
 import type { EmbeddingModel, LanguageModel } from 'ai';
 
 /** Supported provider names */
-export type ProviderName = 'claude' | 'gemini';
+export type ProviderName = 'claude' | 'gemini' | 'openai';
 
 /** Short model aliases mapped to full model IDs */
 const MODEL_MAP: Record<ProviderName, Record<string, string>> = {
@@ -16,17 +17,25 @@ const MODEL_MAP: Record<ProviderName, Record<string, string>> = {
     flash: 'gemini-2.5-flash',
     pro: 'gemini-2.5-pro',
   },
+  openai: {
+    'gpt-4o': 'gpt-4o',
+    'gpt-4o-mini': 'gpt-4o-mini',
+    'o3': 'o3',
+    'o3-mini': 'o3-mini',
+  },
 };
 
 /** Default model per provider */
 const DEFAULT_MODEL: Record<ProviderName, string> = {
   claude: 'sonnet',
   gemini: 'flash',
+  openai: 'gpt-4o',
 };
 
 export interface ProviderCredentials {
   claude?: { apiKey: string };
   gemini?: { apiKey: string };
+  openai?: { apiKey: string };
 }
 
 /**
@@ -75,6 +84,17 @@ export function createModel(
     return google(modelId);
   }
 
+  if (provider === 'openai') {
+    const key = credentials.openai?.apiKey;
+    if (!key) {
+      throw new Error(
+        'OpenAI API key required. Add an API key (sk-proj-*) in Settings > AI Providers.'
+      );
+    }
+    const openai = createOpenAI({ apiKey: key });
+    return openai(modelId);
+  }
+
   throw new Error(`Unknown provider: ${provider}`);
 }
 
@@ -120,6 +140,9 @@ export async function getProviderCredentials(
     gemini: secrets.GEMINI_API_KEY
       ? { apiKey: secrets.GEMINI_API_KEY }
       : undefined,
+    openai: secrets.OPENAI_API_KEY
+      ? { apiKey: secrets.OPENAI_API_KEY }
+      : undefined,
   };
 }
 
@@ -146,5 +169,6 @@ export async function getAvailableProviders(
   const available: ProviderName[] = [];
   if (creds.claude) available.push('claude');
   if (creds.gemini) available.push('gemini');
+  if (creds.openai) available.push('openai');
   return available;
 }

@@ -8,6 +8,7 @@ import {
   Square,
   Crown,
   Sparkles,
+  Bot,
 } from 'lucide-react';
 import { useCodeTransform } from '@/hooks/useCodeTransform';
 import { useQuickChat } from '@/hooks/useQuickChat';
@@ -137,6 +138,14 @@ export function CodeTransformPanel() {
               onClick={() => setProvider('gemini')}
               icon={<Sparkles className="h-3.5 w-3.5" />}
               label="Gemini"
+            />
+            <ProviderToggle
+              provider="openai"
+              selected={provider === 'openai'}
+              available={availableProviders.length === 0 || availableProviders.includes('openai')}
+              onClick={() => setProvider('openai')}
+              icon={<Bot className="h-3.5 w-3.5" />}
+              label="OpenAI"
             />
           </div>
 

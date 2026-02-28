@@ -3,7 +3,7 @@ import { streamAnalyze } from '@/lib/analyze-api';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import type { CodeAnalysis } from '@/lib/types';
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 interface CodeAnalysisState {
   isOpen: boolean;
@@ -79,7 +79,7 @@ export const useCodeAnalysis = create<CodeAnalysisState>((set, get) => ({
       availableProviders.length > 0 &&
       !availableProviders.includes(provider)
     ) {
-      const name = provider === 'claude' ? 'Claude' : 'Gemini';
+      const name = provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'Gemini';
       set({
         error: `No API key configured for ${name}. Add one in Settings > AI Providers.`,
       });

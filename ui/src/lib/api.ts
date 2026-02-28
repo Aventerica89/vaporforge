@@ -1258,6 +1258,17 @@ export const aiProvidersApi = {
     request<AIProviderConfig>('/ai-providers/claude', {
       method: 'DELETE',
     }),
+
+  enableOpenai: (config: { defaultModel: 'gpt-4o' | 'gpt-4o-mini' | 'o3' | 'o3-mini' }) =>
+    request<AIProviderConfig>('/ai-providers/openai', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+
+  disableOpenai: () =>
+    request<AIProviderConfig>('/ai-providers/openai', {
+      method: 'DELETE',
+    }),
 };
 
 // Config API (standalone rules, commands, agents)

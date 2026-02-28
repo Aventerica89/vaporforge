@@ -255,6 +255,11 @@ export interface AIProviderConfig {
     defaultModel: 'sonnet' | 'haiku' | 'opus';
     addedAt: string;
   };
+  openai?: {
+    enabled: boolean;
+    defaultModel: 'gpt-4o' | 'gpt-4o-mini' | 'o3' | 'o3-mini';
+    addedAt: string;
+  };
 }
 
 // Code Analysis (structured AI output)

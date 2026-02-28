@@ -19,6 +19,7 @@ import {
   Database,
   Loader2,
   RefreshCw,
+  Bot,
 } from 'lucide-react';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
@@ -52,6 +53,7 @@ const SUGGESTIONS = [
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
   claude: ['sonnet', 'haiku', 'opus'],
   gemini: ['flash', 'pro'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini'],
 };
 
 function getAuthHeaders(): Record<string, string> {
@@ -236,7 +238,7 @@ export function QuickChatPanel() {
 
     if (!hasAnyProvider) {
       setError(
-        `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : 'Gemini'}. Add one in Settings > AI Providers.`
+        `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : selectedProvider === 'openai' ? 'OpenAI' : 'Gemini'}. Add one in Settings > AI Providers.`
       );
       return;
     }
@@ -385,6 +387,14 @@ export function QuickChatPanel() {
                 icon={<Sparkles className="h-3.5 w-3.5" />}
                 label="Gemini"
               />
+              <ProviderToggle
+                provider="openai"
+                selected={selectedProvider === 'openai'}
+                available={availableProviders.includes('openai')}
+                onClick={() => setProvider('openai')}
+                icon={<Bot className="h-3.5 w-3.5" />}
+                label="OpenAI"
+              />
               <div className="ml-auto">
                 <select
                   value={selectedModel || MODEL_OPTIONS[selectedProvider][0]}
@@ -437,7 +447,7 @@ export function QuickChatPanel() {
                       </p>
                       <p className="text-[10px] leading-relaxed">
                         Add an API key in Settings &gt; AI Providers to enable
-                        Quick Chat with Claude or Gemini.
+                        Quick Chat with Claude, Gemini, or OpenAI.
                       </p>
                     </div>
                   )}
@@ -787,19 +797,25 @@ function QuickChatMessage({
 }
 
 function ProviderBadge({ provider }: { provider: ProviderName }) {
+  const style =
+    provider === 'claude'
+      ? 'bg-orange-500/10 text-orange-400'
+      : provider === 'openai'
+        ? 'bg-green-500/10 text-green-400'
+        : 'bg-blue-500/10 text-blue-400';
+  const icon =
+    provider === 'claude' ? (
+      <Crown className="h-2.5 w-2.5" />
+    ) : provider === 'openai' ? (
+      <Bot className="h-2.5 w-2.5" />
+    ) : (
+      <Sparkles className="h-2.5 w-2.5" />
+    );
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-medium ${
-        provider === 'claude'
-          ? 'bg-orange-500/10 text-orange-400'
-          : 'bg-blue-500/10 text-blue-400'
-      }`}
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-medium ${style}`}
     >
-      {provider === 'claude' ? (
-        <Crown className="h-2.5 w-2.5" />
-      ) : (
-        <Sparkles className="h-2.5 w-2.5" />
-      )}
+      {icon}
       {provider}
     </span>
   );

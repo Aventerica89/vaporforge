@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-02-28', summary: 'feat(providers): add OpenAI as third AI provider — GPT-4o, GPT-4o-mini, o3, o3-mini models available in QuickChat, Code Transform, Analyze, and Commit Message; full settings UI card with model selector and API key management; @ai-sdk/openai integration' },
   { date: '2026-02-28', summary: 'feat(v15): graduate V1.5 HTTP streaming to default — flip useV15 from opt-in to opt-out (localStorage vf_use_v15 !==\'0\'); remove Experimental settings section; all users now route through ChatSessionAgent DO with walk-away persistence and crash recovery' },
   { date: '2026-02-28', summary: 'fix(container): remove tools: frontmatter from claude-automation-recommender skill — tools field caused SDK tool mismatch (Read/Glob/Grep/Bash not found in custom tools registry), silently killing command execution; build 20260228b' },
   { date: '2026-02-28', summary: 'fix(plugins): SKILL.md skills written as SKILL.md into container — use parent dir name as filename (e.g. claude-automation-recommender.md) so claude CLI resolves slash commands correctly; session init wipes /root/.claude/commands/ so Dockerfile embed alone was insufficient' },

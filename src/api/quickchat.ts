@@ -121,7 +121,7 @@ const UIMessagePartSchema = z.object({
 
 const StreamRequestSchema = z.object({
   chatId: z.string().min(1).max(100),
-  provider: z.enum(['claude', 'gemini']),
+  provider: z.enum(['claude', 'gemini', 'openai']),
   model: z.string().max(50).optional(),
   sessionId: z.string().max(100).optional(),
   // AI SDK v6 transport fields

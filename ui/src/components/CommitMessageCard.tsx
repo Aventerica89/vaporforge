@@ -5,12 +5,13 @@ import {
   GitCommitHorizontal,
   Crown,
   Sparkles,
+  Bot,
   AlertTriangle,
 } from 'lucide-react';
 import { useCommitMessage } from '@/hooks/useCommitMessage';
 import { useQuickChat } from '@/hooks/useQuickChat';
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 const COMMIT_TYPES: Array<{ value: string; label: string; color: string }> = [
   { value: 'feat', label: 'feat', color: 'bg-green-500/10 text-green-400' },
@@ -103,6 +104,17 @@ export function CommitMessageCard() {
             onClick={() => setProvider('gemini')}
             icon={<Sparkles className="h-3.5 w-3.5" />}
             label="Gemini"
+          />
+          <ProviderToggle
+            provider="openai"
+            selected={provider === 'openai'}
+            available={
+              availableProviders.length === 0 ||
+              availableProviders.includes('openai')
+            }
+            onClick={() => setProvider('openai')}
+            icon={<Bot className="h-3.5 w-3.5" />}
+            label="OpenAI"
           />
         </div>
 

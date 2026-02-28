@@ -11,6 +11,8 @@ import {
   CheckCircle,
   XCircle,
   Crown,
+  Bot,
+  Cpu,
 } from 'lucide-react';
 import { aiProvidersApi, secretsApi } from '@/lib/api';
 import type { AIProviderConfig } from '@/lib/types';
@@ -34,12 +36,19 @@ export function AIProvidersTab() {
     hint: '',
     status: 'none',
   });
+  const [openaiKey, setOpenaiKey] = useState<ProviderKeyState>({
+    hint: '',
+    status: 'none',
+  });
 
   // Model preferences
   const [geminiModel, setGeminiModel] = useState<'flash' | 'pro'>('flash');
   const [claudeModel, setClaudeModel] = useState<
     'sonnet' | 'haiku' | 'opus'
   >('sonnet');
+  const [openaiModel, setOpenaiModel] = useState<
+    'gpt-4o' | 'gpt-4o-mini' | 'o3' | 'o3-mini'
+  >('gpt-4o');
 
   const loadConfig = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +66,9 @@ export function AIProvidersTab() {
         if (configResult.data.claude?.defaultModel) {
           setClaudeModel(configResult.data.claude.defaultModel);
         }
+        if (configResult.data.openai?.defaultModel) {
+          setOpenaiModel(configResult.data.openai.defaultModel);
+        }
       }
 
       if (secretsResult.success && secretsResult.data) {
@@ -71,6 +83,12 @@ export function AIProvidersTab() {
         );
         if (cKey) {
           setClaudeKey({ hint: cKey.hint, status: 'set' });
+        }
+        const oKey = secretsResult.data.find(
+          (s) => s.name === 'OPENAI_API_KEY'
+        );
+        if (oKey) {
+          setOpenaiKey({ hint: oKey.hint, status: 'set' });
         }
       }
     } catch {
@@ -125,6 +143,18 @@ export function AIProvidersTab() {
         setKeyState={setGeminiKey}
         model={geminiModel}
         setModel={setGeminiModel}
+        error={error}
+        setError={setError}
+      />
+
+      {/* OpenAI Card */}
+      <OpenAIProviderCard
+        config={config}
+        setConfig={setConfig}
+        keyState={openaiKey}
+        setKeyState={setOpenaiKey}
+        model={openaiModel}
+        setModel={setOpenaiModel}
         error={error}
         setError={setError}
       />
@@ -507,6 +537,205 @@ function GeminiProviderCard({
             <code className="text-primary">gemini_quick_query</code>,{' '}
             <code className="text-primary">gemini_analyze_code</code>,{' '}
             <code className="text-primary">gemini_codebase_analysis</code>.
+          </p>
+        </div>
+
+        {error && <p className="text-xs text-red-400">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* ── OpenAI Provider Card ─────────────────── */
+
+type OpenAIModel = 'gpt-4o' | 'gpt-4o-mini' | 'o3' | 'o3-mini';
+
+function OpenAIProviderCard({
+  config,
+  setConfig,
+  keyState,
+  setKeyState,
+  model,
+  setModel,
+  error,
+  setError,
+}: {
+  config: AIProviderConfig;
+  setConfig: (c: AIProviderConfig) => void;
+  keyState: ProviderKeyState;
+  setKeyState: (s: ProviderKeyState) => void;
+  model: OpenAIModel;
+  setModel: (m: OpenAIModel) => void;
+  error: string;
+  setError: (e: string) => void;
+}) {
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [isSavingKey, setSavingKey] = useState(false);
+  const [isSaving, setSaving] = useState(false);
+
+  const isEnabled = !!config.openai?.enabled;
+
+  const handleSaveKey = async () => {
+    if (!apiKeyInput.trim()) return;
+    setSavingKey(true);
+    setError('');
+    try {
+      const result = await secretsApi.add(
+        'OPENAI_API_KEY',
+        apiKeyInput.trim()
+      );
+      if (result.success && result.data) {
+        setKeyState({ hint: result.data.hint, status: 'set' });
+        setApiKeyInput('');
+        setShowKey(false);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to save API key'
+      );
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
+  const handleRemoveKey = async () => {
+    try {
+      await secretsApi.remove('OPENAI_API_KEY');
+      setKeyState({ hint: '', status: 'none' });
+      if (config.openai?.enabled) {
+        const result = await aiProvidersApi.disableOpenai();
+        if (result.success && result.data) setConfig(result.data);
+      }
+    } catch {
+      // Remove failed
+    }
+  };
+
+  const handleToggle = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      if (isEnabled) {
+        const result = await aiProvidersApi.disableOpenai();
+        if (result.success && result.data) setConfig(result.data);
+      } else {
+        if (keyState.status !== 'set') {
+          setError('Add your OpenAI API key first');
+          setSaving(false);
+          return;
+        }
+        const result = await aiProvidersApi.enableOpenai({
+          defaultModel: model,
+        });
+        if (result.success && result.data) setConfig(result.data);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to update'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleModelChange = async (newModel: OpenAIModel) => {
+    setModel(newModel);
+    if (config.openai?.enabled) {
+      try {
+        const result = await aiProvidersApi.enableOpenai({
+          defaultModel: newModel,
+        });
+        if (result.success && result.data) setConfig(result.data);
+      } catch {
+        // Silent fail
+      }
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-500/10">
+            <Bot className="h-5 w-5 text-green-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">
+              OpenAI
+            </h4>
+            <p className="text-[10px] text-muted-foreground">
+              GPT-4o, o3 reasoning — Quick Chat + Code Transform
+            </p>
+          </div>
+        </div>
+        <ToggleSwitch
+          enabled={isEnabled}
+          saving={isSaving}
+          onToggle={handleToggle}
+        />
+      </div>
+
+      {/* Body */}
+      <div className="px-4 py-3 space-y-4">
+        <KeySection
+          keyState={keyState}
+          apiKeyInput={apiKeyInput}
+          setApiKeyInput={(v) => {
+            setApiKeyInput(v);
+            setError('');
+          }}
+          showKey={showKey}
+          setShowKey={setShowKey}
+          isSavingKey={isSavingKey}
+          onSave={handleSaveKey}
+          onRemove={handleRemoveKey}
+          placeholder="sk-proj-..."
+          getKeyLabel="Get API key"
+          getKeyUrl="https://platform.openai.com/api-keys"
+        />
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">
+            Default Model
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <ModelButton
+              icon={<Zap className="h-4 w-4 flex-shrink-0" />}
+              label="GPT-4o"
+              sublabel="Balanced"
+              selected={model === 'gpt-4o'}
+              onClick={() => handleModelChange('gpt-4o')}
+            />
+            <ModelButton
+              icon={<Brain className="h-4 w-4 flex-shrink-0" />}
+              label="GPT-4o Mini"
+              sublabel="Fast"
+              selected={model === 'gpt-4o-mini'}
+              onClick={() => handleModelChange('gpt-4o-mini')}
+            />
+            <ModelButton
+              icon={<Cpu className="h-4 w-4 flex-shrink-0" />}
+              label="o3"
+              sublabel="Reasoning"
+              selected={model === 'o3'}
+              onClick={() => handleModelChange('o3')}
+            />
+            <ModelButton
+              icon={<Zap className="h-4 w-4 flex-shrink-0" />}
+              label="o3-mini"
+              sublabel="Fast reasoning"
+              selected={model === 'o3-mini'}
+              onClick={() => handleModelChange('o3-mini')}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-md bg-muted/50 px-3 py-2">
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Enables Quick Chat + Code Transform with OpenAI models.
+            Uses your API key directly — no OpenRouter needed.
           </p>
         </div>
 

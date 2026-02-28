@@ -44,6 +44,10 @@ const EnableClaudeSchema = z.object({
   defaultModel: z.enum(['sonnet', 'haiku', 'opus']).default('sonnet'),
 });
 
+const EnableOpenAISchema = z.object({
+  defaultModel: z.enum(['gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini']).default('gpt-4o'),
+});
+
 // GET / — get all provider configs
 aiProvidersRoutes.get('/', async (c) => {
   const user = c.get('user');
@@ -136,6 +140,51 @@ aiProvidersRoutes.delete('/claude', async (c) => {
   const user = c.get('user');
   const config = await readConfig(c.env.SESSIONS_KV, user.id);
   const { claude: _, ...rest } = config;
+
+  await writeConfig(c.env.SESSIONS_KV, user.id, rest);
+
+  return c.json<ApiResponse<AIProviderConfig>>({
+    success: true,
+    data: rest,
+  });
+});
+
+// PUT /openai — enable OpenAI
+aiProvidersRoutes.put('/openai', async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+
+  const parsed = EnableOpenAISchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: parsed.error.issues[0]?.message || 'Invalid input',
+    }, 400);
+  }
+
+  const config = await readConfig(c.env.SESSIONS_KV, user.id);
+  const updated: AIProviderConfig = {
+    ...config,
+    openai: {
+      enabled: true,
+      defaultModel: parsed.data.defaultModel,
+      addedAt: config.openai?.addedAt || new Date().toISOString(),
+    },
+  };
+
+  await writeConfig(c.env.SESSIONS_KV, user.id, updated);
+
+  return c.json<ApiResponse<AIProviderConfig>>({
+    success: true,
+    data: updated,
+  });
+});
+
+// DELETE /openai — disable OpenAI
+aiProvidersRoutes.delete('/openai', async (c) => {
+  const user = c.get('user');
+  const config = await readConfig(c.env.SESSIONS_KV, user.id);
+  const { openai: _, ...rest } = config;
 
   await writeConfig(c.env.SESSIONS_KV, user.id, rest);
 

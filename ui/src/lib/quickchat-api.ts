@@ -13,7 +13,7 @@ function getAuthHeaders(): Record<string, string> {
 export interface QuickChatMeta {
   id: string;
   title: string;
-  provider: 'claude' | 'gemini';
+  provider: 'claude' | 'gemini' | 'openai';
   model?: string;
   createdAt: string;
   updatedAt: string;
@@ -24,13 +24,13 @@ export interface QuickChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  provider: 'claude' | 'gemini';
+  provider: 'claude' | 'gemini' | 'openai';
   model?: string;
   reasoning?: string;
   createdAt: string;
 }
 
-export type ProviderName = 'claude' | 'gemini';
+export type ProviderName = 'claude' | 'gemini' | 'openai';
 
 export interface QuickChatListResponse {
   chats: QuickChatMeta[];

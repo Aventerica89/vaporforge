@@ -6,6 +6,7 @@ import {
   Square,
   Crown,
   Sparkles,
+  Bot,
   AlertCircle,
   AlertTriangle,
   Info,
@@ -16,7 +17,7 @@ import {
 import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
 import { useQuickChat } from '@/hooks/useQuickChat';
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 export function CodeAnalysisPanel() {
   const {
@@ -116,6 +117,17 @@ export function CodeAnalysisPanel() {
             onClick={() => setProvider('gemini')}
             icon={<Sparkles className="h-3.5 w-3.5" />}
             label="Gemini"
+          />
+          <ProviderToggle
+            provider="openai"
+            selected={provider === 'openai'}
+            available={
+              availableProviders.length === 0 ||
+              availableProviders.includes('openai')
+            }
+            onClick={() => setProvider('openai')}
+            icon={<Bot className="h-3.5 w-3.5" />}
+            label="OpenAI"
           />
           <div className="flex-1" />
           {isStreaming ? (

@@ -22,7 +22,7 @@ const AnalyzeRequestSchema = z.object({
   code: z.string().min(1).max(100_000),
   language: z.string().max(50).default('plaintext'),
   filePath: z.string().max(500).optional(),
-  provider: z.enum(['claude', 'gemini']),
+  provider: z.enum(['claude', 'gemini', 'openai']),
   model: z.string().max(50).optional(),
 });
 

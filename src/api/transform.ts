@@ -22,7 +22,7 @@ const TransformRequestSchema = z.object({
   instruction: z.string().min(1).max(10_000),
   language: z.string().max(50).default('plaintext'),
   filePath: z.string().max(500).optional(),
-  provider: z.enum(['claude', 'gemini']),
+  provider: z.enum(['claude', 'gemini', 'openai']),
   model: z.string().max(50).optional(),
 });
 

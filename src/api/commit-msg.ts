@@ -21,7 +21,7 @@ export const commitMsgRoutes = new Hono<{
 const CommitMsgRequestSchema = z.object({
   diff: z.string().min(1).max(200_000),
   stagedFiles: z.array(z.string()).max(500),
-  provider: z.enum(['claude', 'gemini']),
+  provider: z.enum(['claude', 'gemini', 'openai']),
   model: z.string().max(50).optional(),
 });
 

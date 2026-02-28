@@ -20,7 +20,7 @@ export async function* streamTransform(params: {
   instruction: string;
   language: string;
   filePath?: string;
-  provider: 'claude' | 'gemini';
+  provider: 'claude' | 'gemini' | 'openai';
   model?: string;
   signal?: AbortSignal;
 }): AsyncGenerator<TransformStreamEvent> {

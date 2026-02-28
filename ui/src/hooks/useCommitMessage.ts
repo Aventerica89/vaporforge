@@ -4,7 +4,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { gitApi } from '@/lib/api';
 import type { CommitMessage, ApiResponse } from '@/lib/types';
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 const API_BASE = '/api';
 
@@ -53,7 +53,7 @@ export const useCommitMessage = create<CommitMessageState>((set, get) => ({
       availableProviders.length > 0 &&
       !availableProviders.includes(provider)
     ) {
-      const name = provider === 'claude' ? 'Claude' : 'Gemini';
+      const name = provider === 'claude' ? 'Claude' : provider === 'openai' ? 'OpenAI' : 'Gemini';
       set({
         isOpen: true,
         error: `No API key for ${name}. Add one in Settings > AI Providers.`,

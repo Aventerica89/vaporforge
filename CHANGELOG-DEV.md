@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-02-28 · v0.30.0
+FEAT    providers — Add OpenAI as third AI provider (GPT-4o, GPT-4o-mini, o3, o3-mini) for QuickChat, Code Transform, Analyze, Commit Message; full settings card with model selector; @ai-sdk/openai integration across 15 files
+
 ### 2026-02-27 · v0.30.0
 FIX     settings — Persist V1.5 toggle to localStorage (vf_use_v15): survives hard refresh and new tabs; initialize useV15 from localStorage on store creation
 

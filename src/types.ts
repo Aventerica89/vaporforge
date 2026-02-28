@@ -291,6 +291,11 @@ export const AIProviderConfigSchema = z.object({
     defaultModel: z.enum(['sonnet', 'haiku', 'opus']).default('sonnet'),
     addedAt: z.string(),
   }).optional(),
+  openai: z.object({
+    enabled: z.boolean(),
+    defaultModel: z.enum(['gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini']).default('gpt-4o'),
+    addedAt: z.string(),
+  }).optional(),
 });
 
 export type AIProviderConfig = z.infer<typeof AIProviderConfigSchema>;

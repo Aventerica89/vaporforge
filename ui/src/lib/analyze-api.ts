@@ -21,7 +21,7 @@ export async function* streamAnalyze(params: {
   code: string;
   language: string;
   filePath?: string;
-  provider: 'claude' | 'gemini';
+  provider: 'claude' | 'gemini' | 'openai';
   model?: string;
   signal?: AbortSignal;
 }): AsyncGenerator<AnalyzeStreamEvent> {
