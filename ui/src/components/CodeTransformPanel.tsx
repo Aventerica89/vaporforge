@@ -19,7 +19,7 @@ const MonacoDiffEditor = lazy(() =>
   }))
 );
 
-type ProviderName = 'claude' | 'gemini';
+type ProviderName = 'claude' | 'gemini' | 'openai';
 
 export function CodeTransformPanel() {
   const {
