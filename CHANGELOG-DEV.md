@@ -160,3 +160,6 @@ FIX     container — Embed /claude-automation-recommender skill in container im
 
 ### 2026-02-28 · PENDING · v0.30.0
 FEAT    v15 — Graduate V1.5 HTTP streaming to default; flip useV15 from opt-in (=== '1') to opt-out (!== '0') so all users route through ChatSessionAgent DO by default; remove Experimental settings section from AccountTab; users who explicitly disabled V1.5 (localStorage vf_use_v15=0) stay on legacy WS
+
+### 2026-02-28 · PENDING · v0.30.0
+FIX     settings — Integrations detail pane vertical scroll; replace flex-1 with h-full + overflow-hidden constraint

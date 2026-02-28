@@ -83,7 +83,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
       : 'Active only in the selected repository. Overrides global settings for this project.';
 
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex h-full overflow-hidden">
       {/* Left column — info + components + file tree */}
       <div className="flex min-w-[280px] w-[42%] flex-col overflow-hidden border-r border-border">
         <div className="flex-1 overflow-y-auto p-5">

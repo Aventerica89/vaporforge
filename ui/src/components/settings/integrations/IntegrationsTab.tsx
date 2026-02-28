@@ -56,7 +56,7 @@ export function IntegrationsTab() {
         <div style={{ width: sidebarWidth }} className="shrink-0 border-r border-border">
           <IntegrationsSidebar />
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <IntegrationsDetail />
         </div>
       </div>
