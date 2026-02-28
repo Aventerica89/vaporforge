@@ -51,6 +51,8 @@ interface HttpBridge {
   encoder: TextEncoder;
   resolve: () => void;
   reject: (err: Error) => void;
+  /** Called by handleContainerStream when container first connects — cancels the bridge timeout. */
+  cancelBridgeTimeout: () => void;
 }
 
 /** Interval between sentinel keepalive pings (8 min — under the 10-min idle limit). */
@@ -224,6 +226,11 @@ export class ChatSessionAgent {
       });
     }
 
+    // Container connected — cancel the bridge timeout immediately.
+    // The timeout only exists to handle containers that never call back at all.
+    // Once data starts flowing there is no need for it.
+    bridge.cancelBridgeTimeout();
+
     if (!request.body) {
       bridge.resolve();
       this.httpBridges.delete(payload.executionId);
@@ -323,11 +330,20 @@ export class ChatSessionAgent {
 
     const { promise, resolve, reject } = createDeferred<void>();
 
+    // Bridge timeout — if container never calls back to /internal/stream within the window,
+    // close the stream with an error. Increased to 10 min to allow for cold container starts
+    // plus heavy skill pre-flight (e.g. /claude-automation-recommender takes >5 min to boot).
+    // Cancelled immediately when the container first connects (cancelBridgeTimeout below).
+    const BRIDGE_TIMEOUT_MS = 10 * 60 * 1000;
+    let bridgeTimeoutId: ReturnType<typeof setTimeout>;
+    const cancelBridgeTimeout = () => clearTimeout(bridgeTimeoutId);
+
     this.httpBridges.set(executionId, {
       writer,
       encoder,
       resolve,
       reject,
+      cancelBridgeTimeout,
     });
 
     // Emit connected immediately so the browser knows the request was received.
@@ -335,18 +351,16 @@ export class ChatSessionAgent {
     // when the container is sleeping and needs 20-60s to wake before responding.
     writer.write(encoder.encode(JSON.stringify({ type: 'connected' }) + '\n')).catch(() => {});
 
-    // Bridge timeout — if container never calls back, close the stream
-    const BRIDGE_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
-    const bridgeTimeout = setTimeout(() => {
+    bridgeTimeoutId = setTimeout(() => {
       const bridge = this.httpBridges.get(executionId);
       if (bridge) {
-        const line = JSON.stringify({ type: 'error', error: 'Container did not respond within 5 minutes' }) + '\n';
+        const line = JSON.stringify({ type: 'error', error: 'Container did not respond within 10 minutes' }) + '\n';
         bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
         bridge.resolve();
         this.httpBridges.delete(executionId);
       }
     }, BRIDGE_TIMEOUT_MS);
-    promise.finally(() => clearTimeout(bridgeTimeout));
+    promise.finally(cancelBridgeTimeout);
 
     // Heartbeat: emit every 60s to reset frontend's 5-min AbortController
     // during long tool-use sequences where the container produces no output
