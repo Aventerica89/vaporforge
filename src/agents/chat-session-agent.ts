@@ -348,6 +348,19 @@ export class ChatSessionAgent {
     }, BRIDGE_TIMEOUT_MS);
     promise.finally(() => clearTimeout(bridgeTimeout));
 
+    // Heartbeat: emit every 60s to reset frontend's 5-min AbortController
+    // during long tool-use sequences where the container produces no output
+    // for minutes at a time (e.g. heavy agent skills doing multi-step tool use).
+    const heartbeatInterval = setInterval(() => {
+      const bridge = this.httpBridges.get(executionId);
+      if (bridge) {
+        bridge.writer.write(bridge.encoder.encode(JSON.stringify({ type: 'heartbeat' }) + '\n')).catch(() => {});
+      } else {
+        clearInterval(heartbeatInterval);
+      }
+    }, 60000);
+    promise.finally(() => clearInterval(heartbeatInterval));
+
     // Dispatch container (fire-and-forget)
     this.dispatchContainer(
       executionId,

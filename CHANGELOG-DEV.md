@@ -130,3 +130,6 @@ FIX     v15 — Guard resumeV15 and WS replay set() calls with session ID check;
 
 ### 2026-02-27 · PENDING · v0.30.0
 FEAT    container — Auto-git autosave: ws-agent-server commits all /workspace changes to vf-autosave branch after every Claude response and before idle exit; force-push preserves only latest state; respects .gitignore; non-fatal if no remote; container build 20260227g
+
+### 2026-02-28 · PENDING · v0.30.0
+FIX     v15 — DO heartbeat every 60s: ChatSessionAgent emits {"type":"heartbeat"} NDJSON line every 60s while stream is active; resets frontend 5-min AbortController during long tool-use sequences where container produces no output; frontend already handled heartbeat type (resetTimeout call); no container changes required
