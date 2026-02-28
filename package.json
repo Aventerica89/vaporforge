@@ -27,7 +27,6 @@
     "@anthropic-ai/sdk": "^0.32.0",
     "@cloudflare/agents": "^0.0.16",
     "@cloudflare/sandbox": "^0.7.0",
-    "@cloudflare/workerd-darwin-arm64": "^1.20260228.1",
     "ai": "^6.0.101",
     "hono": "^4.6.0",
     "react-resizable-panels": "^4.6.4",
