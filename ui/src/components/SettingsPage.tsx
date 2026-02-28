@@ -7,7 +7,6 @@ import {
   Terminal,
   ScrollText,
   Bot,
-  Server,
   Puzzle,
   Key,
   User,
@@ -31,8 +30,7 @@ import { ClaudeMdTab } from '@/components/settings/ClaudeMdTab';
 import { CommandsTab } from '@/components/settings/CommandsTab';
 import { RulesTab } from '@/components/settings/RulesTab';
 import { AgentsTab } from '@/components/settings/AgentsTab';
-import { McpTab } from '@/components/settings/McpTab';
-import { PluginsTab } from '@/components/settings/PluginsTab';
+import { IntegrationsTab } from '@/components/settings/integrations';
 import { SecretsTab } from '@/components/settings/SecretsTab';
 import { AccountTab } from '@/components/settings/AccountTab';
 import { GuideTab } from '@/components/settings/GuideTab';
@@ -71,8 +69,7 @@ const TAB_GROUPS: TabGroup[] = [
       { id: 'rules', label: 'Rules', icon: <ScrollText className="h-[18px] w-[18px]" /> },
       { id: 'commands', label: 'Commands', icon: <Terminal className="h-[18px] w-[18px]" /> },
       { id: 'agents', label: 'Agents', icon: <Bot className="h-[18px] w-[18px]" /> },
-      { id: 'mcp', label: 'MCP Servers', icon: <Server className="h-[18px] w-[18px]" /> },
-      { id: 'plugins', label: 'Plugins', icon: <Puzzle className="h-[18px] w-[18px]" /> },
+      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="h-[18px] w-[18px]" /> },
       { id: 'secrets', label: 'Secrets', icon: <Key className="h-[18px] w-[18px]" /> },
       { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-[18px] w-[18px]" /> },
       { id: 'command-center', label: 'Command Center', icon: <Shield className="h-[18px] w-[18px]" /> },
@@ -110,8 +107,7 @@ const TAB_CONTENT: Record<SettingsTab, () => JSX.Element> = {
   rules: RulesTab,
   commands: CommandsTab,
   agents: AgentsTab,
-  mcp: McpTab,
-  plugins: PluginsTab,
+  integrations: IntegrationsTab,
   secrets: SecretsTab,
   'ai-providers': AIProvidersTab,
   'command-center': CommandCenterTab,
@@ -236,21 +232,27 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
         )}
 
         {/* Content area */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
-          <div className="max-w-2xl">
-            {/* Section title (desktop only — mobile/subview shows in tab bar) */}
-            {!isMobile && !inMobileSubView && (
-              <h2 className={`mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${
-                activeTab === 'dev-tools'
-                  ? 'from-amber-400 to-orange-500'
-                  : 'from-foreground to-muted-foreground'
-              }`}>
-                {activeLabel}
-              </h2>
-            )}
+        {activeTab === 'integrations' ? (
+          <div className="flex-1 overflow-hidden">
             <TabContent />
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-5 py-5 md:px-8 md:py-6">
+            <div className="max-w-2xl">
+              {/* Section title (desktop only — mobile/subview shows in tab bar) */}
+              {!isMobile && !inMobileSubView && (
+                <h2 className={`mb-6 font-display text-lg font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${
+                  activeTab === 'dev-tools'
+                    ? 'from-amber-400 to-orange-500'
+                    : 'from-foreground to-muted-foreground'
+                }`}>
+                  {activeLabel}
+                </h2>
+              )}
+              <TabContent />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

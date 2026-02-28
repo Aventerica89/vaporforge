@@ -5,6 +5,9 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-02-28 · v0.30.0
+FEAT    settings — Unified Integrations panel replacing separate Plugins + MCP Servers tabs; master/detail layout with tier-grouped sidebar, file preview, marketplace slide-in, MCP add modal
+
+### 2026-02-28 · v0.30.0
 FEAT    providers — Add Gemini 3.1 Pro preview model (gemini-3.1-pro-preview) alongside Flash and 2.5 Pro; 3-column model selector in settings
 
 ### 2026-02-28 · v0.30.0
