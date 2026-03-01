@@ -100,37 +100,36 @@ BuildKit heredocs require Docker 20.10+ with BuildKit. GitHub Actions `ubuntu-la
 DOCKER_BUILDKIT=1 docker build --no-cache -f Dockerfile .
 ```
 
-### Check 5: If Cloudflare's remote builder rejects `# syntax`
-Fall back to COPY approach:
-1. Move scripts from Dockerfile heredocs to `src/sandbox-scripts/` (already the source of truth)
-2. Replace `RUN cat > file << 'EOF' ... EOF` with `COPY src/sandbox-scripts/file.js /opt/claude-agent/file.js`
-3. Note: This requires Cloudflare's builder to send the full build context (not just the Dockerfile). Test with a small COPY first.
+## Resolution (2026-03-01)
 
-## Heredoc Syntax Reference
+**`# syntax=docker/dockerfile:1` did NOT fix the issue.** The Cloudflare / GH Actions builder still failed to parse heredocs even with the BuildKit syntax directive.
 
-Valid BuildKit heredoc forms:
+**Final fix: Replace all heredocs with COPY instructions.**
 
 ```dockerfile
-# Form 1: Shell heredoc with cat (VaporForge uses this)
-RUN cat > /path/to/file << 'EOF'
-content here
-EOF
+# Before (broken — heredocs need BuildKit):
+RUN cat > /opt/claude-agent/claude-agent.js << 'CLAUDE_AGENT_EOF'
+#!/usr/bin/env node
+...
+CLAUDE_AGENT_EOF
 
-# Form 2: Heredoc before command
-RUN <<'EOF' cat > /path/to/file
-content here
-EOF
-
-# Form 3: COPY with heredoc (if COPY works on CF)
-COPY <<'EOF' /path/to/file
-content here
-EOF
+# After (works everywhere — standard COPY):
+COPY src/sandbox-scripts/claude-agent.js /opt/claude-agent/claude-agent.js
+RUN chmod +x /opt/claude-agent/claude-agent.js
 ```
 
-All require `# syntax=docker/dockerfile:1` or BuildKit with a compatible frontend.
+The Dockerfile shrank from 1981 lines to 56. `COPY` works because wrangler builds locally on the GH Actions runner where the full repo is the build context. The old CLAUDE.md warning ("Dockerfile COPY fails on CF") was outdated.
+
+## Current Script Sync Workflow
+
+After editing ANY sandbox script:
+1. Edit the file in `src/sandbox-scripts/`
+2. Bump `VF_CONTAINER_BUILD` env in Dockerfile
+3. The `COPY` instructions pick up changes automatically — no heredoc duplication needed
+4. Deploy workflow prunes Docker cache automatically
 
 ## Related CLAUDE.md Gotchas
 
-- **Dockerfile COPY fails on CF** — historically true; heredoc was the workaround. If heredocs also break, try COPY as fallback (CF may have added support).
+- **Dockerfile uses COPY for scripts** — Do NOT reintroduce heredocs. They require BuildKit which builders may lack.
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: full prune before deploy.
-- **Container scripts MUST stay in sync** — `src/sandbox-scripts/*.js` is source of truth. After editing any sandbox script: update `src/sandbox-scripts/`, copy into Dockerfile heredoc, bump `VF_CONTAINER_BUILD`, prune Docker cache.
+- **Container scripts MUST stay in sync** — `src/sandbox-scripts/*.js` is source of truth. Edit there, bump `VF_CONTAINER_BUILD`, and COPY handles the rest.
