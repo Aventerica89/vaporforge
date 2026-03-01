@@ -24,7 +24,7 @@
         "class_name": "SessionDurableObject"
       },
       {
-        "name": "SANDBOX_CONTAINER",
+        "name": "Sandbox",
         "class_name": "Sandbox"
       },
       {
@@ -116,6 +116,13 @@
     "crons": ["0 4 * * *"]
   },
 
+  // Raise sub-request ceiling for long-lived WS sessions.
+  // Each sandbox.exec/writeFile/readFile is an HTTP sub-request.
+  // Default 10k can be exhausted during extended coding sessions.
+  "limits": {
+    "subrequests": 50000
+  },
+
   // Dev settings
   "dev": {
     "port": 8787,
@@ -155,7 +162,7 @@
             "script_name": "vaporforge"
           },
           {
-            "name": "SANDBOX_CONTAINER",
+            "name": "Sandbox",
             "class_name": "Sandbox",
             "script_name": "vaporforge"
           },

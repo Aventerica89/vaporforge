@@ -79,7 +79,7 @@ export class ChatSessionAgent {
     if (!sandboxId) return; // sentinel was stopped before alarm fired
 
     try {
-      const sandbox = getSandbox(this.env.SANDBOX_CONTAINER, sandboxId);
+      const sandbox = getSandbox(this.env.Sandbox, sandboxId);
       await sandbox.writeFile('/tmp/.vf-keepalive', String(Date.now()));
       console.log(`[ChatSessionAgent] sentinel ping: sandboxId=${sandboxId.slice(0, 8)}`);
     } catch (err) {
@@ -534,7 +534,7 @@ export class ChatSessionAgent {
 
     // Get sandbox reference (returns immediately — no container wake yet)
     const sandbox = getSandbox(
-      this.env.SANDBOX_CONTAINER,
+      this.env.Sandbox,
       session.sandboxId
     );
 

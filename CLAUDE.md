@@ -53,7 +53,7 @@ Browser <-> Worker (Hono, auth, orchestration)
 |---------|------|---------|
 | `SESSIONS` | Durable Object | Session persistence (SQLite-backed) |
 | `CHAT_SESSIONS` | Durable Object | V1.5 HTTP streaming bridge (ChatSessionAgent) |
-| `SANDBOX_CONTAINER` | Container | Claude SDK runtime (standard-3: 2 vCPU, 8 GiB) |
+| `Sandbox` | Container | Claude SDK runtime (standard-3: 2 vCPU, 8 GiB) |
 | `AUTH_KV` | KV | User records, plugin config, AI provider settings |
 | `SESSIONS_KV` | KV | Chat history, secrets, VF rules, MCP configs, issue tracker |
 | `FILES_BUCKET` | R2 | VaporFiles persistent storage |

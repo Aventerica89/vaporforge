@@ -96,7 +96,7 @@ export function createRouter(env: Env) {
     );
 
     const sandboxManager = new SandboxManager(
-      env.SANDBOX_CONTAINER,
+      env.Sandbox,
       env.SESSIONS_KV,
       env.FILES_BUCKET
     );
