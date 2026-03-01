@@ -85,8 +85,8 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
       {/* Left column — info + components + file tree */}
-      <div className="flex min-w-[280px] w-[42%] flex-col overflow-hidden border-r border-border">
-        <div className="flex-1 overflow-y-auto p-5">
+      <div className="flex min-w-[280px] w-[42%] flex-col min-h-0 overflow-hidden border-r border-border">
+        <div className="h-0 flex-1 overflow-y-auto p-5">
           {/* Header */}
           <div className="mb-3.5">
             <div className="mb-2.5 flex items-start gap-2">
