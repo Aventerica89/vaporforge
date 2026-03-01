@@ -1,6 +1,6 @@
 # VaporForge Sandbox - Cloudflare Container
 # Based on official cloudflare/sandbox-sdk/examples/claude-code pattern
-FROM docker.io/cloudflare/sandbox:0.7.0
+FROM docker.io/cloudflare/sandbox:0.7.8
 
 # Install Claude Code CLI (required by Agent SDK)
 RUN npm install -g @anthropic-ai/claude-code
@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260301c
+ENV VF_CONTAINER_BUILD=20260301d
 
 # Create workspace directory
 RUN mkdir -p /workspace

@@ -27,7 +27,7 @@
     "@ai-sdk/openai": "^3.0.37",
     "@anthropic-ai/sdk": "^0.32.0",
     "@cloudflare/agents": "^0.0.16",
-    "@cloudflare/sandbox": "^0.7.0",
+    "@cloudflare/sandbox": "^0.7.8",
     "ai": "^6.0.101",
     "hono": "^4.6.0",
     "react-resizable-panels": "^4.6.4",
