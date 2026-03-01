@@ -29,8 +29,8 @@ interface ReforgeState {
 }
 
 function extractHeading(text: string): string {
-  // Strip [command:...] prefix
-  const stripped = text.replace(/^\[command:[^\]]*\]\s*/, '');
+  // Strip [command:...] or [agent:...] prefix (legacy format)
+  const stripped = text.replace(/^\[(command|agent):[^\]]*\]\s*/, '');
   const firstLine = stripped.split('\n')[0] || '';
   return firstLine.length > 60
     ? firstLine.slice(0, 57) + '...'
