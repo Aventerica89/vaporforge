@@ -727,15 +727,21 @@ export async function handleSdkWs(
   const t2 = Date.now();
   console.log(`[sdk/ws] Phase 2 (wake): ${t2 - t1}ms`);
 
-  // Strip command/agent prefix (same logic as SSE handler)
-  const cmdPrefixMatch = prompt.match(/^\[(command|agent):\/([^\]]+)\]\n/);
+  // Commands: sent as raw "/command-name" — SDK resolves from ~/.claude/commands/
+  // Agents:  still use [agent:/name] prefix — expand to delegation prompt
+  const agentPrefixMatch = prompt.match(/^\[agent:\/([^\]]+)\]\n/);
   let sdkPrompt = prompt;
-  if (cmdPrefixMatch) {
-    const [fullMatch, kind, name] = cmdPrefixMatch;
+  if (agentPrefixMatch) {
+    const [fullMatch, name] = agentPrefixMatch;
     const body = prompt.slice(fullMatch.length);
-    sdkPrompt = kind === 'agent'
-      ? `Use the "${name}" agent (available via the Task tool) to handle this request. The agent's instructions:\n\n${body}`
-      : `The user is running the /${name} command. Follow the instructions below:\n\n${body}`;
+    sdkPrompt = `Use the "${name}" agent (available via the Task tool) to handle this request. The agent's instructions:\n\n${body}`;
+  }
+  // Legacy compat: still handle [command:/...] from older clients
+  const legacyCmdMatch = !agentPrefixMatch && prompt.match(/^\[command:\/([^\]]+)\]\n/);
+  if (legacyCmdMatch) {
+    const cmdName = legacyCmdMatch[1].toLowerCase();
+    const body = prompt.slice(legacyCmdMatch[0].length).trim();
+    sdkPrompt = body ? `/${cmdName} ${body}` : `/${cmdName}`;
   }
 
   const sdkSessionId = session.sdkSessionId || '';

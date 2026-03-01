@@ -526,6 +526,8 @@ export const sdkApi = {
             if (ws.readyState === WebSocket.OPEN) {
               ws.send(JSON.stringify({ type: 'pong' }));
             }
+            // Push to queue so the abort timeout resets (useSandbox resets on every chunk)
+            push({ value: { type: 'ping' }, done: false });
             break;
           case 'replay-complete':
             // Reconnect replay finished — forward so useSandbox can handle

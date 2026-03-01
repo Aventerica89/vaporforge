@@ -139,6 +139,8 @@ export function MessageFooter({ children, timestamp, className = '' }: MessageFo
 
 const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
 const COMMAND_RE = /^\[command:(\/[^\]]+)\]\n/;
+// Native SDK slash commands: "/docs", "/review args", etc.
+const NATIVE_CMD_RE = /^(\/\w[\w-]*)(\s.*)?$/;
 
 interface MessageAttachmentsProps {
   message: MessageType;
@@ -151,6 +153,15 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
     return (
       <span className="font-mono text-sm font-semibold text-primary-foreground/90">
         {commandMatch[1]}
+      </span>
+    );
+  }
+  // Native SDK slash command (e.g., "/docs", "/review src/auth.ts")
+  const nativeCmdMatch = message.content.match(NATIVE_CMD_RE);
+  if (nativeCmdMatch) {
+    return (
+      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+        {nativeCmdMatch[1]}{nativeCmdMatch[2] ? <span className="text-primary-foreground/60">{nativeCmdMatch[2]}</span> : null}
       </span>
     );
   }

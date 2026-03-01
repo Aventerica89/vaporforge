@@ -3,6 +3,8 @@ import { configApi, pluginsApi } from '@/lib/api';
 
 export interface CommandEntry {
   name: string;
+  /** Original filename (e.g. 'docs.md') — used to derive the SDK slash command name */
+  filename: string;
   description: string;
   source: 'user' | string;
   content: string;
@@ -50,6 +52,7 @@ export function useCommandRegistry() {
           if (!file.enabled) continue;
           entries.push({
             name: stripExtension(file.filename),
+            filename: file.filename,
             description: extractDescription(file.content),
             source: 'user',
             content: file.content,
@@ -64,6 +67,7 @@ export function useCommandRegistry() {
           if (!file.enabled) continue;
           entries.push({
             name: stripExtension(file.filename),
+            filename: file.filename,
             description: extractDescription(file.content),
             source: 'user',
             content: file.content,
@@ -80,6 +84,7 @@ export function useCommandRegistry() {
             if (!cmd.enabled) continue;
             entries.push({
               name: cmd.name || stripExtension(cmd.filename),
+              filename: cmd.filename,
               description: extractDescription(cmd.content),
               source: plugin.name,
               content: cmd.content,
@@ -90,6 +95,7 @@ export function useCommandRegistry() {
             if (!agent.enabled) continue;
             entries.push({
               name: agent.name || stripExtension(agent.filename),
+              filename: agent.filename,
               description: extractDescription(agent.content),
               source: plugin.name,
               content: agent.content,
