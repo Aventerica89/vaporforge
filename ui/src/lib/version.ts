@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-03-01', summary: 'fix(settings): plugin sidebar scroll — add h-full to sidebar wrapper and aside so overflow-y-auto on tier groups actually scrolls' },
   { date: '2026-02-28', summary: 'fix(settings): integrations detail pane scroll — replace h-full with flex-1+min-h-0 throughout component chain so percentage heights resolve correctly in flex-stretched containers' },
   { date: '2026-02-28', summary: 'feat(settings): unified Integrations panel — replace separate Plugins + MCP Servers tabs with single master/detail Integrations tab; tier-grouped sidebar, plugin file preview with markdown rendering, MCP status/tools detail, marketplace slide-in, add-server modal; 16 new files, Zustand store, drag-resizable sidebar' },
   { date: '2026-02-28', summary: 'feat(providers): add Gemini 3.1 Pro preview model — third Gemini model option alongside Flash (free) and 2.5 Pro; 3-column settings selector; gemini-3.1-pro-preview model ID' },

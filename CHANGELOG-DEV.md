@@ -166,3 +166,6 @@ FIX     settings — Integrations detail pane vertical scroll; replace flex-1 wi
 
 ### 2026-02-28 · PENDING · v0.30.0
 FIX     settings — Integrations scroll fix v2; replace h-full with flex-1+min-h-0 through full component chain (SettingsPage -> IntegrationsTab -> Detail -> Plugin/McpDetail)
+
+### 2026-03-01 · PENDING · v0.30.0
+FIX     settings — Plugin sidebar scroll; add h-full to sidebar wrapper and aside so overflow-y-auto on tier groups actually triggers
