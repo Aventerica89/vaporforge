@@ -233,7 +233,7 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
 
         {/* Content area */}
         {activeTab === 'integrations' ? (
-          <div className="flex-1 overflow-hidden">
+          <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
             <TabContent />
           </div>
         ) : (

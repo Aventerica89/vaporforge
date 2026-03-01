@@ -20,7 +20,7 @@ export function IntegrationsDetail() {
 
   // Empty state
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2.5">
+    <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2.5">
       <span className="text-2xl text-muted-foreground/30">[_]</span>
       <span className="text-[11px] text-muted-foreground">
         Select a plugin or integration

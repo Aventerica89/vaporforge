@@ -19,7 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
-  { date: '2026-02-28', summary: 'fix(settings): integrations detail pane scroll — replace flex-1 with h-full + overflow-hidden constraint so plugin/MCP detail content scrolls vertically' },
+  { date: '2026-02-28', summary: 'fix(settings): integrations detail pane scroll — replace h-full with flex-1+min-h-0 throughout component chain so percentage heights resolve correctly in flex-stretched containers' },
   { date: '2026-02-28', summary: 'feat(settings): unified Integrations panel — replace separate Plugins + MCP Servers tabs with single master/detail Integrations tab; tier-grouped sidebar, plugin file preview with markdown rendering, MCP status/tools detail, marketplace slide-in, add-server modal; 16 new files, Zustand store, drag-resizable sidebar' },
   { date: '2026-02-28', summary: 'feat(providers): add Gemini 3.1 Pro preview model — third Gemini model option alongside Flash (free) and 2.5 Pro; 3-column settings selector; gemini-3.1-pro-preview model ID' },
   { date: '2026-02-28', summary: 'feat(providers): add OpenAI as third AI provider — GPT-4o, GPT-4o-mini, o3, o3-mini models available in QuickChat, Code Transform, Analyze, and Commit Message; full settings UI card with model selector and API key management; @ai-sdk/openai integration' },

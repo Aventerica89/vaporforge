@@ -163,3 +163,6 @@ FEAT    v15 — Graduate V1.5 HTTP streaming to default; flip useV15 from opt-in
 
 ### 2026-02-28 · PENDING · v0.30.0
 FIX     settings — Integrations detail pane vertical scroll; replace flex-1 with h-full + overflow-hidden constraint
+
+### 2026-02-28 · PENDING · v0.30.0
+FIX     settings — Integrations scroll fix v2; replace h-full with flex-1+min-h-0 through full component chain (SettingsPage -> IntegrationsTab -> Detail -> Plugin/McpDetail)
