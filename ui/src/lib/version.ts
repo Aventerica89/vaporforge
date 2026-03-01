@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-03-01', summary: 'fix(github): add detailed error logging to repos endpoint — log actual GitHub API status and response body to diagnose 502 failures' },
   { date: '2026-03-01', summary: 'fix(ci): replace all Dockerfile heredocs with COPY from src/sandbox-scripts/ — heredocs need BuildKit which GH Actions Docker lacks; standard COPY works everywhere; Dockerfile shrinks from 1981 to 56 lines' },
   { date: '2026-03-01', summary: 'fix(ci): add # syntax=docker/dockerfile:1 to Dockerfile so BuildKit heredocs parse correctly; add DOCKER_BUILDKIT=1 + docker prune to deploy workflow; fixes container image build on GitHub Actions' },
   { date: '2026-03-01', summary: 'fix(ci): remove claude-automation-recommender skill from Dockerfile — YAML frontmatter (---) caused Docker BuildKit parse error breaking all deploys; also switch to npx wrangler deploy for better error visibility' },
