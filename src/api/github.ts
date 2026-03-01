@@ -23,7 +23,7 @@ export async function getGithubRepos(c: Context<{ Bindings: Env; Variables: Vari
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const username = c.req.query('username');
+  const username = sanitizeGitHubUsername(c.req.query('username') || '');
   if (!username) {
     return c.json({ error: 'username query param required' }, 400);
   }
@@ -46,7 +46,7 @@ export async function syncGithubRepos(c: Context<{ Bindings: Env; Variables: Var
   }
 
   const body = await c.req.json<{ username: string }>();
-  const username = body.username?.trim();
+  const username = sanitizeGitHubUsername(body.username || '');
   if (!username) {
     return c.json({ error: 'username required' }, 400);
   }
@@ -67,6 +67,11 @@ export async function getGithubUsername(c: Context<{ Bindings: Env; Variables: V
   return c.json({ success: true, data: { username: username || '' } });
 }
 
+// GitHub usernames: alphanumeric + hyphens, max 39 chars, no leading/trailing hyphens
+function sanitizeGitHubUsername(raw: string): string {
+  return raw.trim().replace(/[^a-zA-Z0-9-]/g, '').replace(/^-+|-+$/g, '').slice(0, 39);
+}
+
 // Save default GitHub username
 export async function saveGithubUsername(c: Context<{ Bindings: Env; Variables: Variables }>) {
   const user = c.get('user');
@@ -76,8 +81,9 @@ export async function saveGithubUsername(c: Context<{ Bindings: Env; Variables: 
 
   const body = await c.req.json<{ username: string }>();
   const key = `github-username:${user.id}`;
+  const username = sanitizeGitHubUsername(body.username || '');
 
-  await c.env.AUTH_KV.put(key, body.username || '');
+  await c.env.AUTH_KV.put(key, username);
 
   return c.json({ success: true });
 }

@@ -178,7 +178,7 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
   // Detect [command:/name] marker — show just the command chip
   if (commandMatch) {
     return (
-      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+      <span className="text-sm font-semibold text-primary-foreground/90">
         {commandMatch[1]}
       </span>
     );
@@ -187,7 +187,7 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
   // Native SDK slash command (e.g., "/docs", "/review src/auth.ts")
   if (nativeCmdMatch) {
     return (
-      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+      <span className="text-sm font-semibold text-primary-foreground/90">
         {nativeCmdMatch[1]}{nativeCmdMatch[2] ? <span className="text-primary-foreground/60">{nativeCmdMatch[2]}</span> : null}
       </span>
     );
