@@ -265,6 +265,8 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
   if (!isPlan) console.error(`[claude-agent] Autonomy: ${autonomy} -> permissionMode: ${permissionMode}`);
 
   const agents = loadAgentsFromDisk();
+  const pluginDir = process.env.CLAUDE_CONFIG_DIR || '/root/.claude';
+  console.error(`[claude-agent] Plugin dir: ${pluginDir} (exists: ${fs.existsSync(pluginDir)})`);
 
   // Filter out keys the SDK's CLI child process shouldn't see
   const filteredEnv = Object.fromEntries(
@@ -368,6 +370,10 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
       }
     },
     settingSources: ['user', 'project'],
+    // Load plugins from ~/.claude so SDK discovers agents + commands properly.
+    // Per Anthropic docs: options.plugins is the canonical way to inject local
+    // plugins (agents, commands, rules). Manual options.agents is kept as fallback.
+    plugins: [{ type: 'local', path: process.env.CLAUDE_CONFIG_DIR || '/root/.claude' }],
     agents,
     tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
