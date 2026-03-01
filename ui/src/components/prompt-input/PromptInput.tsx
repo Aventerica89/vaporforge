@@ -12,9 +12,6 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/cn';
 import type { ImageAttachment } from '@/lib/types';
 
-function stripExtension(filename: string): string {
-  return filename.replace(/\.(md|txt)$/, '');
-}
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -131,18 +128,12 @@ export function PromptInput({
       const pattern = new RegExp(`(?:^|\\s)[${prefixChar}]\\S*$`);
       const textBefore = input.replace(pattern, '').trim();
 
-      let fullMessage: string;
-      if (cmd.kind === 'command') {
-        // Send native slash command — SDK resolves from ~/.claude/commands/
-        // Use filename (without .md) as the command name per Anthropic SDK docs
-        const cmdName = stripExtension(cmd.filename || `${cmd.name}.md`);
-        fullMessage = textBefore ? `/${cmdName} ${textBefore}` : `/${cmdName}`;
-      } else {
-        // Agent: keep [agent:/name] format — agents aren't slash commands
-        fullMessage = textBefore
-          ? `${textBefore}\n\n[agent:/${cmd.name}]\n${cmd.content}`
-          : `[agent:/${cmd.name}]\n${cmd.content}`;
-      }
+      // Embed full content in prompt — pass programmatically, don't rely on
+      // SDK filesystem resolution (1code pattern / Gemini research).
+      const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
+      const fullMessage = textBefore
+        ? `${textBefore}\n\n[${prefix}:/${cmd.name}]\n${cmd.content}`
+        : `[${prefix}:/${cmd.name}]\n${cmd.content}`;
 
       onSubmit(fullMessage);
       onInputChange('');

@@ -139,8 +139,7 @@ export function MessageFooter({ children, timestamp, className = '' }: MessageFo
 
 const IMAGE_PATH_RE = /\[Image attached: ([^\]]+)\]/g;
 const COMMAND_RE = /^\[command:(\/[^\]]+)\]\n/;
-// Native SDK slash commands: "/docs", "/review args", etc.
-const NATIVE_CMD_RE = /^(\/\w[\w-]*)(\s.*)?$/;
+// (removed NATIVE_CMD_RE — commands use [command:/name] format with embedded content)
 
 interface MessageAttachmentsProps {
   message: MessageType;
@@ -150,7 +149,7 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
   // Hooks MUST be called unconditionally (Rules of Hooks).
   // Compute all derived state up front, then branch on the results.
   const commandMatch = message.content.match(COMMAND_RE);
-  const nativeCmdMatch = message.content.match(NATIVE_CMD_RE);
+  const nativeCmdMatch = null; // disabled — commands use [command:/name] format
 
   const { textOnly, imagePaths } = useMemo(() => {
     const paths: string[] = [];

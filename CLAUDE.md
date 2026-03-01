@@ -182,7 +182,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 - **`IS_SANDBOX: '1'` env var REQUIRED** in container or CLI exits code 1
 - **`options.env` REPLACES, not merges** — always spread `...process.env` first
-- **`options.plugins` for agent/command injection** — Use `plugins: [{ type: 'local', path: '/root/.claude' }]` in `query()` options so the SDK discovers agents + commands from disk. Manual `options.agents` is kept as a fallback but `options.plugins` is the canonical Anthropic approach.
+- **NO `options.plugins`** — `plugins: [{ type: 'local', path }]` requires `.claude-plugin/plugin.json` manifest and crashes on AJV validation without it (Gemini 1code research). Use `settingSources: ['user', 'project']` for filesystem discovery. Commands/agents are passed programmatically via embedded prompt content (1code pattern).
 - **Dockerfile uses `COPY` for scripts** — `COPY src/sandbox-scripts/file.js /opt/claude-agent/file.js`. Do NOT use heredocs (`RUN cat > file << 'EOF'`) — they require BuildKit which GH Actions / CF builders may lack.
 - **Docker cache trap** — deploy workflow runs `docker builder prune --all -f` automatically. If deploying manually, prune first.
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: `docker image prune -a -f && docker builder prune -a -f` then redeploy.
