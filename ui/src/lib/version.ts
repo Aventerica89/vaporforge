@@ -19,6 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
+  { date: '2026-03-01', summary: 'fix(ci): add # syntax=docker/dockerfile:1 to Dockerfile so BuildKit heredocs parse correctly; add DOCKER_BUILDKIT=1 + docker prune to deploy workflow; fixes container image build on GitHub Actions' },
   { date: '2026-03-01', summary: 'fix(ci): remove claude-automation-recommender skill from Dockerfile — YAML frontmatter (---) caused Docker BuildKit parse error breaking all deploys; also switch to npx wrangler deploy for better error visibility' },
   { date: '2026-03-01', summary: 'fix(ci): use npx wrangler deploy directly instead of wrangler-action (action swallows errors); pass CLOUDFLARE_API_TOKEN via env' },
   { date: '2026-03-01', summary: 'fix(github): pass GITHUB_TOKEN in all GitHub API calls (repos, plugin discover, plugin refresh, custom sources) — unauthenticated calls share CF Worker IP rate limit (60/hr); graceful fallback to stale localStorage data on rate limit' },

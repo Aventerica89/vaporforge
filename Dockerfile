@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # VaporForge Sandbox - Cloudflare Container
 # Based on official cloudflare/sandbox-sdk/examples/claude-code pattern
 FROM docker.io/cloudflare/sandbox:0.7.0

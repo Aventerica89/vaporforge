@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · d04cd9a · v0.30.0
+FIX     ci — Add # syntax=docker/dockerfile:1 directive to Dockerfile so BuildKit heredocs parse correctly; add DOCKER_BUILDKIT=1 + docker prune to deploy workflow; fixes container image build failure on GitHub Actions
+
 ### 2026-03-01 · a024bc4 · v0.30.0
 FIX     ci — Remove claude-automation-recommender skill from Dockerfile; YAML frontmatter (---) caused Docker BuildKit parse error breaking all deploys; also switch to npx wrangler deploy for better error visibility
 

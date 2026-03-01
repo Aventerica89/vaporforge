@@ -22,7 +22,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Prune Docker cache
+        run: docker builder prune --all -f && docker image prune -a -f
+
       - name: Deploy to Cloudflare Workers
         run: npx wrangler deploy
         env:
+          DOCKER_BUILDKIT: "1"
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
