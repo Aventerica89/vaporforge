@@ -29,7 +29,7 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260301e
+ENV VF_CONTAINER_BUILD=20260301g
 
 # Create workspace directory
 RUN mkdir -p /workspace

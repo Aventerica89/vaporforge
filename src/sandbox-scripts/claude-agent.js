@@ -410,6 +410,10 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
 }
 
 async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
+  const t0 = Date.now();
+  console.error(`[claude-agent] runStream: promptLen=${prompt.length} sessionId=${sessionId?.slice(0, 8) || 'none'} resume=${!!useResume} model=${modelOverride || process.env.VF_MODEL || 'default'}`);
+  console.error(`[claude-agent] prompt preview: ${prompt.slice(0, 200).replace(/\n/g, '\\n')}`);
+
   const options = buildOptions(prompt, sessionId, cwd, useResume, modelOverride);
 
   // Pre-flight: test CLI binary + real query to capture any startup errors
@@ -421,7 +425,7 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
       timeout: 10000,
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
-    console.error(`[claude-agent] CLI pre-flight OK: ${ver}`);
+    console.error(`[claude-agent] CLI pre-flight OK: ${ver} (${Date.now() - t0}ms)`);
   } catch (pfErr) {
     const stderr = pfErr.stderr ? pfErr.stderr.toString().trim() : '';
     const stdout = pfErr.stdout ? pfErr.stdout.toString().trim() : '';
@@ -437,7 +441,9 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
     emit({ type: 'ping' });
   }
 
+  console.error(`[claude-agent] calling query() at ${Date.now() - t0}ms...`);
   const stream = query({ prompt, options });
+  console.error(`[claude-agent] query() returned stream at ${Date.now() - t0}ms`);
 
   let newSessionId = sessionId || '';
   let responseText = '';
@@ -458,7 +464,34 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
   const makeCompositeId = (originalId, parentId) =>
     parentId ? `${parentId}:${originalId}` : originalId;
 
+  // Inactivity timeout: if the SDK stream produces no events for 4 min, bail.
+  // This prevents silent hangs (e.g. broken session resume) from waiting for
+  // the frontend's 5-min AbortController. Emits a clear error so we can debug.
+  const QUERY_INACTIVITY_MS = 4 * 60 * 1000;
+  let lastEventAt = Date.now();
+  let eventCount = 0;
+  const inactivityChecker = setInterval(() => {
+    const silentMs = Date.now() - lastEventAt;
+    if (silentMs > QUERY_INACTIVITY_MS) {
+      console.error(`[claude-agent] INACTIVITY TIMEOUT: no SDK events for ${Math.round(silentMs / 1000)}s (received ${eventCount} events total)`);
+      emit({ type: 'error', error: `Agent stream stalled — no activity for ${Math.round(silentMs / 60000)} minutes. This may indicate a session resume issue or API hang.` });
+      emit({ type: 'done', sessionId: newSessionId, fullText: responseText });
+      clearInterval(inactivityChecker);
+      // Force-exit so watchProcessCrash detects it immediately
+      finalizeCallback();
+      process.exit(0);
+    }
+  }, 30000);
+
   for await (const msg of stream) {
+    lastEventAt = Date.now();
+    eventCount++;
+
+    // Log first few events for diagnostics
+    if (eventCount <= 3) {
+      console.error(`[claude-agent] event #${eventCount} at ${Date.now() - t0}ms: type=${msg.type}${msg.subtype ? '/' + msg.subtype : ''}`);
+    }
+
     // Session ID from system init event (snake_case per SDK)
     if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
       newSessionId = msg.session_id;
@@ -569,6 +602,8 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
     }
   }
 
+  clearInterval(inactivityChecker);
+  console.error(`[claude-agent] stream complete: ${eventCount} events in ${Date.now() - t0}ms`);
   return { newSessionId, responseText, usage: resultUsage, costUsd: resultCostUsd };
 }
 
@@ -737,11 +772,14 @@ if (args.length >= 1) {
   try {
     const ctx = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
     prompt = ctx.prompt;
-    sessionId = ctx.sdkSessionId || '';
+    // V1.5: skip SDK session resume — each startProcess is a fresh process,
+    // and the DO manages persistence/continuity. Resuming a stale SDK session
+    // can hang indefinitely (the CLI tries to reconnect to a dead session file).
+    sessionId = '';
     cwd = '/workspace';
     // Delete context file after reading (one-shot)
     fs.unlinkSync(CONTEXT_FILE);
-    console.error(`[claude-agent] V1.5: read prompt from context file (${prompt.length} chars)`);
+    console.error(`[claude-agent] V1.5: read prompt from context file (${prompt.length} chars, resume=disabled)`);
   } catch (err) {
     console.error(`[claude-agent] Failed to read context file: ${err.message}`);
     emit({ type: 'error', error: 'Failed to read query context' });
