@@ -564,11 +564,25 @@ export class ChatSessionAgent {
       throw new Error('Only OAuth tokens are accepted for sandbox sessions');
     }
 
+    // Strip [command:/name] or [agent:/name] UI prefix before sending to Claude.
+    // Same logic as WS path (sdk.ts handleSdkWs). Without this, Claude sees
+    // the raw prefix and tries to invoke a Skill tool that doesn't exist in
+    // the sandbox, causing a 5-minute hang until the bridge times out.
+    const cmdPrefixMatch = prompt.match(/^\[(command|agent):\/([^\]]+)\]\n/);
+    let sdkPrompt = prompt;
+    if (cmdPrefixMatch) {
+      const [fullMatch, kind, name] = cmdPrefixMatch;
+      const body = prompt.slice(fullMatch.length);
+      sdkPrompt = kind === 'agent'
+        ? `Use the "${name}" agent (available via the Task tool) to handle this request. The agent's instructions:\n\n${body}`
+        : `The user is running the /${name} command. Follow the instructions below:\n\n${body}`;
+    }
+
     // Write prompt to context file (auto-wakes sandbox if sleeping)
     await sandbox.writeFile(
       '/tmp/vf-pending-query.json',
       JSON.stringify({
-        prompt,
+        prompt: sdkPrompt,
         sessionId,
         sdkSessionId,
         timestamp: Date.now(),
