@@ -147,24 +147,10 @@ interface MessageAttachmentsProps {
 }
 
 export function MessageAttachments({ message }: MessageAttachmentsProps) {
-  // Detect slash command marker — show just the command chip
+  // Hooks MUST be called unconditionally (Rules of Hooks).
+  // Compute all derived state up front, then branch on the results.
   const commandMatch = message.content.match(COMMAND_RE);
-  if (commandMatch) {
-    return (
-      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
-        {commandMatch[1]}
-      </span>
-    );
-  }
-  // Native SDK slash command (e.g., "/docs", "/review src/auth.ts")
   const nativeCmdMatch = message.content.match(NATIVE_CMD_RE);
-  if (nativeCmdMatch) {
-    return (
-      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
-        {nativeCmdMatch[1]}{nativeCmdMatch[2] ? <span className="text-primary-foreground/60">{nativeCmdMatch[2]}</span> : null}
-      </span>
-    );
-  }
 
   const { textOnly, imagePaths } = useMemo(() => {
     const paths: string[] = [];
@@ -177,11 +163,6 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
     return { textOnly: cleaned, imagePaths: paths };
   }, [message.content]);
 
-  if (imagePaths.length === 0) {
-    return <MessageContent message={message} />;
-  }
-
-  // Build a path -> dataUrl lookup from message.images
   const pathToDataUrl = useMemo(() => {
     const map = new Map<string, string>();
     if (message.images) {
@@ -191,6 +172,30 @@ export function MessageAttachments({ message }: MessageAttachmentsProps) {
     }
     return map;
   }, [message.images]);
+
+  // Now safe to branch — all hooks have been called.
+
+  // Detect [command:/name] marker — show just the command chip
+  if (commandMatch) {
+    return (
+      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+        {commandMatch[1]}
+      </span>
+    );
+  }
+
+  // Native SDK slash command (e.g., "/docs", "/review src/auth.ts")
+  if (nativeCmdMatch) {
+    return (
+      <span className="font-mono text-sm font-semibold text-primary-foreground/90">
+        {nativeCmdMatch[1]}{nativeCmdMatch[2] ? <span className="text-primary-foreground/60">{nativeCmdMatch[2]}</span> : null}
+      </span>
+    );
+  }
+
+  if (imagePaths.length === 0) {
+    return <MessageContent message={message} />;
+  }
 
   const hasPreview = imagePaths.some((p) => pathToDataUrl.has(p));
 
