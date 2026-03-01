@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · v0.30.0
+FIX     ci — Replace all Dockerfile heredocs with COPY from src/sandbox-scripts/; heredocs require BuildKit frontend which GitHub Actions Docker lacks; COPY uses standard Dockerfile syntax; shrinks from 1981 to 56 lines; build 20260301a
+
 ### 2026-03-01 · d04cd9a · v0.30.0
 FIX     ci — Add # syntax=docker/dockerfile:1 directive to Dockerfile so BuildKit heredocs parse correctly; add DOCKER_BUILDKIT=1 + docker prune to deploy workflow; fixes container image build failure on GitHub Actions
 
