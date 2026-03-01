@@ -10,6 +10,12 @@ FIX     github — Pass GITHUB_TOKEN in all GitHub API calls (repos, plugin disc
 ### 2026-03-01 · v0.30.0
 FIX     plugins — Allow deleting community plugins from Integrations settings; remove button was gated to custom-tier only; sync marketplace installed state on removal; remove dead legacy usePlugins.ts store
 
+### 2026-03-01 · 856c165 · v0.29.0
+CHORE   deploy — docker-shim enables in-sandbox deploys via docker+1password CLI auth
+
+### 2026-03-01 · 2fd7d8b · v0.29.0
+CHORE   deploy — fix(settings): deploy scroll and overflow layout fixes
+
 ### 2026-02-28 · v0.30.0
 FEAT    settings — Unified Integrations panel replacing separate Plugins + MCP Servers tabs; master/detail layout with tier-grouped sidebar, file preview, marketplace slide-in, MCP add modal
 
@@ -175,3 +181,6 @@ FIX     settings — Integrations scroll fix v2; replace h-full with flex-1+min-
 
 ### 2026-03-01 · PENDING · v0.30.0
 FIX     settings — Plugin sidebar scroll; add h-full to sidebar wrapper and aside so overflow-y-auto on tier groups actually triggers
+
+### 2026-03-01 · ff745cc · v0.29.0
+CHORE   deploy — sandbox deploy via docker-shim + 1password auth
