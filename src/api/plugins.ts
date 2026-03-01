@@ -640,7 +640,7 @@ pluginsRoutes.post('/discover', async (c) => {
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'VaporForge/1.0',
     };
-    if (c.env.GITHUB_TOKEN) ghHeaders['Authorization'] = `token ${c.env.GITHUB_TOKEN}`;
+    if (c.env.GITHUB_TOKEN) ghHeaders['Authorization'] = `Bearer ${c.env.GITHUB_TOKEN}`;
 
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,

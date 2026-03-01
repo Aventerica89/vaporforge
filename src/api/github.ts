@@ -94,7 +94,7 @@ async function fetchAndCacheRepos(
     headers: {
       'Accept': 'application/vnd.github.v3+json',
       'User-Agent': 'VaporForge/1.0',
-      ...(c.env.GITHUB_TOKEN ? { 'Authorization': `token ${c.env.GITHUB_TOKEN}` } : {}),
+      ...(c.env.GITHUB_TOKEN ? { 'Authorization': `Bearer ${c.env.GITHUB_TOKEN}` } : {}),
     },
   });
 
