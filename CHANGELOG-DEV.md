@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · 856c165 · v0.29.0
+CHORE   deploy — docker-shim enables in-sandbox deploys via docker+1password CLI auth
+
 ### 2026-03-01 · 2fd7d8b · v0.29.0
 CHORE   deploy — fix(settings): deploy scroll and overflow layout fixes
 
