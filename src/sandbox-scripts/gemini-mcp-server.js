@@ -3,11 +3,6 @@
 // Gemini MCP Server — runs inside the Cloudflare Sandbox container.
 // Zero-dependency MCP server using JSON-RPC 2.0 over stdin/stdout.
 // Reads GEMINI_API_KEY from env. Calls Gemini REST API via Node https.
-//
-// Tools:
-//   gemini_quick_query    — Gemini 2.5 Flash for fast Q&A
-//   gemini_analyze_code   — Gemini 2.5 Pro for code review/analysis
-//   gemini_codebase_analysis — Gemini 2.5 Pro with file reading
 
 const https = require('https');
 const fs = require('fs');
@@ -20,10 +15,7 @@ const MODELS = {
   pro: 'gemini-2.5-pro',
 };
 
-// Allowed directories for file reading (security boundary)
 const ALLOWED_ROOTS = ['/workspace', '/root'];
-
-// ── Tool definitions ──
 
 const TOOLS = [
   {
@@ -32,10 +24,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        query: {
-          type: 'string',
-          description: 'The question or prompt to send to Gemini',
-        },
+        query: { type: 'string', description: 'The question or prompt to send to Gemini' },
       },
       required: ['query'],
     },
@@ -46,116 +35,69 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        code: {
-          type: 'string',
-          description: 'The code to analyze',
-        },
-        language: {
-          type: 'string',
-          description: 'Programming language (e.g. typescript, python)',
-        },
-        focus: {
-          type: 'string',
-          description: 'Analysis focus: security, performance, architecture, refactoring, bugs, or general',
-          enum: ['security', 'performance', 'architecture', 'refactoring', 'bugs', 'general'],
-        },
+        code: { type: 'string', description: 'The code to analyze' },
+        language: { type: 'string', description: 'Programming language (e.g. typescript, python)' },
+        focus: { type: 'string', description: 'Analysis focus', enum: ['security', 'performance', 'architecture', 'refactoring', 'bugs', 'general'] },
       },
       required: ['code'],
     },
   },
   {
     name: 'gemini_codebase_analysis',
-    description: 'Analyze multiple files from the workspace using Google Gemini. Reads files from disk and sends them to Gemini 2.5 Pro for cross-file analysis. Good for architecture review, dependency analysis, and finding patterns across files.',
+    description: 'Analyze multiple files from the workspace using Google Gemini. Reads files from disk and sends them to Gemini 2.5 Pro for cross-file analysis.',
     inputSchema: {
       type: 'object',
       properties: {
-        file_paths: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Array of absolute file paths to read and analyze (must be under /workspace or /root)',
-        },
-        question: {
-          type: 'string',
-          description: 'What to analyze about these files',
-        },
+        file_paths: { type: 'array', items: { type: 'string' }, description: 'Absolute file paths to analyze (must be under /workspace or /root)' },
+        question: { type: 'string', description: 'What to analyze about these files' },
       },
       required: ['file_paths', 'question'],
     },
   },
 ];
 
-// ── Gemini API call with retry ──
-
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 2000;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 function callGeminiOnce(model, prompt) {
   return new Promise((resolve, reject) => {
     const apiPath = `/v1beta/models/${model}:generateContent?key=${API_KEY}`;
     const payload = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        maxOutputTokens: 8192,
-        temperature: 0.7,
-      },
+      generationConfig: { maxOutputTokens: 8192, temperature: 0.7 },
     });
-
-    const req = https.request(
-      {
-        hostname: API_HOST,
-        path: apiPath,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
-        },
-        timeout: 120000,
-      },
-      (res) => {
-        const statusCode = res.statusCode || 0;
-        const chunks = [];
-        res.on('data', (chunk) => chunks.push(chunk));
-        res.on('end', () => {
-          const raw = Buffer.concat(chunks).toString();
-          try {
-            const data = JSON.parse(raw);
-            if (statusCode === 429 || data.error?.status === 'RESOURCE_EXHAUSTED') {
-              const retryAfter = res.headers['retry-after'];
-              const err = new Error(data.error?.message || 'Rate limit exceeded');
-              err.retryable = true;
-              err.retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 0;
-              reject(err);
-              return;
-            }
-            if (statusCode === 503 || statusCode === 500) {
-              const err = new Error(data.error?.message || `Server error ${statusCode}`);
-              err.retryable = true;
-              reject(err);
-              return;
-            }
-            if (data.error) {
-              reject(new Error(data.error.message || 'Gemini API error'));
-              return;
-            }
-            const text =
-              data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            resolve(text);
-          } catch {
-            reject(new Error('Failed to parse Gemini response'));
+    const req = https.request({
+      hostname: API_HOST, path: apiPath, method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      timeout: 120000,
+    }, (res) => {
+      const statusCode = res.statusCode || 0;
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString();
+        try {
+          const data = JSON.parse(raw);
+          if (statusCode === 429 || data.error?.status === 'RESOURCE_EXHAUSTED') {
+            const retryAfter = res.headers['retry-after'];
+            const err = new Error(data.error?.message || 'Rate limit exceeded');
+            err.retryable = true;
+            err.retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 0;
+            reject(err); return;
           }
-        });
-      }
-    );
-
-    req.on('error', (err) => reject(err));
-    req.on('timeout', () => {
-      req.destroy();
-      reject(new Error('Gemini API request timed out'));
+          if (statusCode === 503 || statusCode === 500) {
+            const err = new Error(data.error?.message || `Server error ${statusCode}`);
+            err.retryable = true;
+            reject(err); return;
+          }
+          if (data.error) { reject(new Error(data.error.message || 'Gemini API error')); return; }
+          resolve(data.candidates?.[0]?.content?.parts?.[0]?.text || '');
+        } catch { reject(new Error('Failed to parse Gemini response')); }
+      });
     });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('Gemini API request timed out')); });
     req.write(payload);
     req.end();
   });
@@ -163,174 +105,81 @@ function callGeminiOnce(model, prompt) {
 
 async function callGemini(model, prompt) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await callGeminiOnce(model, prompt);
-    } catch (err) {
-      const isRetryable = err.retryable === true;
-      if (!isRetryable || attempt === MAX_RETRIES) throw err;
+    try { return await callGeminiOnce(model, prompt); }
+    catch (err) {
+      if (!err.retryable || attempt === MAX_RETRIES) throw err;
       const delay = err.retryAfterMs || BASE_DELAY_MS * Math.pow(2, attempt);
-      process.stderr.write(`[gemini-mcp] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})...\n`);
+      process.stderr.write(`[gemini-mcp] Rate limited, retrying in ${delay}ms (${attempt + 1}/${MAX_RETRIES})...\n`);
       await sleep(delay);
     }
   }
 }
 
-// ── File reading (for codebase_analysis) ──
+function isPathAllowed(fp) { return ALLOWED_ROOTS.some((r) => path.resolve(fp).startsWith(r)); }
 
-function isPathAllowed(filePath) {
-  const resolved = path.resolve(filePath);
-  return ALLOWED_ROOTS.some((root) => resolved.startsWith(root));
+function readFilesSafe(fps) {
+  return fps.map((fp) => {
+    if (!isPathAllowed(fp)) return { path: fp, error: 'Path not allowed' };
+    try { return { path: fp, content: fs.readFileSync(fp, 'utf8') }; }
+    catch (e) { return { path: fp, error: e.message }; }
+  });
 }
-
-function readFilesSafe(filePaths) {
-  const results = [];
-  for (const fp of filePaths) {
-    if (!isPathAllowed(fp)) {
-      results.push({ path: fp, error: 'Path not allowed (must be under /workspace or /root)' });
-      continue;
-    }
-    try {
-      const content = fs.readFileSync(fp, 'utf8');
-      results.push({ path: fp, content });
-    } catch (err) {
-      results.push({ path: fp, error: err.message });
-    }
-  }
-  return results;
-}
-
-// ── Tool handlers ──
 
 async function handleToolCall(name, args) {
-  if (!API_KEY) {
-    return { isError: true, content: [{ type: 'text', text: 'GEMINI_API_KEY not configured. Add it in Settings > AI Providers.' }] };
-  }
-
+  if (!API_KEY) return { isError: true, content: [{ type: 'text', text: 'GEMINI_API_KEY not configured. Add it in Settings > AI Providers.' }] };
   switch (name) {
     case 'gemini_quick_query': {
       const text = await callGemini(MODELS.flash, args.query);
       return { content: [{ type: 'text', text }] };
     }
-
     case 'gemini_analyze_code': {
       const lang = args.language || 'unknown';
       const focus = args.focus || 'general';
-      const prompt = [
-        `Analyze the following ${lang} code. Focus: ${focus}.`,
-        'Provide specific, actionable feedback.',
-        '',
-        '```' + lang,
-        args.code,
-        '```',
-      ].join('\n');
-      const text = await callGemini(MODELS.pro, prompt);
-      return { content: [{ type: 'text', text }] };
+      const prompt = `Analyze the following ${lang} code. Focus: ${focus}.\nProvide specific, actionable feedback.\n\n\`\`\`${lang}\n${args.code}\n\`\`\``;
+      return { content: [{ type: 'text', text: await callGemini(MODELS.pro, prompt) }] };
     }
-
     case 'gemini_codebase_analysis': {
       const files = readFilesSafe(args.file_paths || []);
-      const fileBlocks = files.map((f) => {
-        if (f.error) return `--- ${f.path} ---\n[Error: ${f.error}]`;
-        return `--- ${f.path} ---\n${f.content}`;
-      });
-      const prompt = [
-        args.question,
-        '',
-        'Files:',
-        '',
-        ...fileBlocks,
-      ].join('\n');
-      const text = await callGemini(MODELS.pro, prompt);
-      return { content: [{ type: 'text', text }] };
+      const blocks = files.map((f) => f.error ? `--- ${f.path} ---\n[Error: ${f.error}]` : `--- ${f.path} ---\n${f.content}`);
+      return { content: [{ type: 'text', text: await callGemini(MODELS.pro, `${args.question}\n\nFiles:\n\n${blocks.join('\n\n')}`) }] };
     }
-
-    default:
-      return { isError: true, content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
+    default: return { isError: true, content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
   }
 }
 
-// ── JSON-RPC 2.0 / MCP protocol ──
-
-function makeResponse(id, result) {
-  return JSON.stringify({ jsonrpc: '2.0', id, result });
-}
-
-function makeError(id, code, message) {
-  return JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } });
-}
+function makeResponse(id, result) { return JSON.stringify({ jsonrpc: '2.0', id, result }); }
+function makeError(id, code, msg) { return JSON.stringify({ jsonrpc: '2.0', id, error: { code, message: msg } }); }
 
 async function handleMessage(msg) {
   const { id, method, params } = msg;
-
   switch (method) {
     case 'initialize':
-      return makeResponse(id, {
-        protocolVersion: '2024-11-05',
-        capabilities: { tools: {} },
-        serverInfo: { name: 'gemini-mcp-server', version: '1.0.0' },
-      });
-
-    case 'notifications/initialized':
-      // No response needed for notifications
-      return null;
-
-    case 'tools/list':
-      return makeResponse(id, { tools: TOOLS });
-
+      return makeResponse(id, { protocolVersion: '2024-11-05', capabilities: { tools: {} }, serverInfo: { name: 'gemini-mcp-server', version: '1.0.0' } });
+    case 'notifications/initialized': return null;
+    case 'tools/list': return makeResponse(id, { tools: TOOLS });
     case 'tools/call': {
-      const toolName = params?.name;
-      const toolArgs = params?.arguments || {};
-      try {
-        const result = await handleToolCall(toolName, toolArgs);
-        return makeResponse(id, result);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        return makeResponse(id, {
-          isError: true,
-          content: [{ type: 'text', text: `Gemini error: ${errMsg}` }],
-        });
-      }
+      try { return makeResponse(id, await handleToolCall(params?.name, params?.arguments || {})); }
+      catch (e) { return makeResponse(id, { isError: true, content: [{ type: 'text', text: `Gemini error: ${e.message || e}` }] }); }
     }
-
-    case 'ping':
-      return makeResponse(id, {});
-
-    default:
-      return makeError(id, -32601, `Method not found: ${method}`);
+    case 'ping': return makeResponse(id, {});
+    default: return makeError(id, -32601, `Method not found: ${method}`);
   }
 }
 
-// ── stdin/stdout transport ──
-
 let buffer = '';
-
 process.stdin.setEncoding('utf8');
 process.stdin.on('data', async (chunk) => {
   buffer += chunk;
-
-  // Process complete JSON-RPC messages (newline-delimited)
   const lines = buffer.split('\n');
   buffer = lines.pop() || '';
-
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-
     try {
-      const msg = JSON.parse(trimmed);
-      const response = await handleMessage(msg);
-      if (response) {
-        process.stdout.write(response + '\n');
-      }
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      process.stderr.write(`[gemini-mcp] Parse error: ${errMsg}\n`);
-    }
+      const response = await handleMessage(JSON.parse(trimmed));
+      if (response) process.stdout.write(response + '\n');
+    } catch (e) { process.stderr.write(`[gemini-mcp] Parse error: ${e.message || e}\n`); }
   }
 });
-
-process.stdin.on('end', () => {
-  process.exit(0);
-});
-
+process.stdin.on('end', () => process.exit(0));
 process.stderr.write('[gemini-mcp] Server started\n');

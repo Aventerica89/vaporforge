@@ -460,8 +460,6 @@ function stopSentinelLoop() {
 }
 
 // ─── Auto-save ───────────────────────────────────────────────────────────────
-// After every agent completion (and before idle exit), commit all changes to
-// a dedicated vf-autosave branch and push. Non-fatal if git isn't configured.
 
 const AUTOSAVE_BRANCH = 'vf-autosave';
 
@@ -484,7 +482,6 @@ function runAutoSave() {
     });
     console.log(`[ws-agent-server] autosave: pushed to ${AUTOSAVE_BRANCH}`);
   } catch (err) {
-    // Non-fatal: no remote, no git user config, network down, etc.
     console.log(`[ws-agent-server] autosave skipped: ${(err.message || String(err)).split('\n')[0]}`);
   }
 }
