@@ -19,7 +19,7 @@ export interface DevLogEntry {
 }
 
 export const DEV_CHANGELOG: readonly DevLogEntry[] = [
-  { date: '2026-03-01', summary: 'fix(github): pass GITHUB_TOKEN in repo fetch requests — unauthenticated calls share CF Worker IP rate limit (60/hr); token bumps to 5000/hr per token' },
+  { date: '2026-03-01', summary: 'fix(github): pass GITHUB_TOKEN in all GitHub API calls (repos, plugin discover, plugin refresh, custom sources) — unauthenticated calls share CF Worker IP rate limit (60/hr); graceful fallback to stale localStorage data on rate limit' },
   { date: '2026-03-01', summary: 'fix(plugins): allow deleting community plugins from Integrations settings — remove button was gated to custom-tier only; sync marketplace installed state on removal; remove dead legacy usePlugins.ts store' },
   { date: '2026-03-01', summary: 'fix(settings): plugin sidebar scroll — add h-full to sidebar wrapper and aside so overflow-y-auto on tier groups actually scrolls' },
   { date: '2026-02-28', summary: 'fix(settings): integrations detail pane scroll — replace h-full with flex-1+min-h-0 throughout component chain so percentage heights resolve correctly in flex-stretched containers' },

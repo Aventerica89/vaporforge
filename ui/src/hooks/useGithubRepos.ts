@@ -36,7 +36,7 @@ export const useGithubRepos = create<GithubReposState>()(
       isLoaded: false,
 
       loadRepos: async () => {
-        const { username, isSyncing } = get();
+        const { username, isSyncing, repos } = get();
         if (!username.trim() || isSyncing) return;
 
         try {
@@ -49,9 +49,16 @@ export const useGithubRepos = create<GithubReposState>()(
               lastSynced: new Date().toISOString(),
               isLoaded: true,
             });
+          } else if (repos.length > 0) {
+            // API failed (e.g. rate limit) but we have stale localStorage data
+            set({ isLoaded: true });
           }
         } catch (error) {
           console.error('[GitHub Repos] Failed to load:', error);
+          // Use stale localStorage data if available
+          if (repos.length > 0) {
+            set({ isLoaded: true });
+          }
         } finally {
           set({ isSyncing: false });
         }

@@ -207,7 +207,8 @@ function parseTreeForPlugins(
  * Returns CatalogPlugin[] format for frontend consumption.
  */
 async function discoverSourceCatalog(
-  source: PluginSource
+  source: PluginSource,
+  githubToken?: string
 ): Promise<CatalogPluginRuntime[]> {
   const parsed = parseGitHubUrl(source.url);
   if (!parsed) return [];
@@ -217,14 +218,15 @@ async function discoverSourceCatalog(
   const sourceId = `custom:${source.id}`;
 
   try {
+    const ghHeaders: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'VaporForge/1.0',
+    };
+    if (githubToken) ghHeaders['Authorization'] = `token ${githubToken}`;
+
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`,
-      {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'VaporForge/1.0',
-        },
-      }
+      { headers: ghHeaders }
     );
 
     if (!treeRes.ok) return [];
@@ -347,7 +349,7 @@ pluginSourcesRoutes.post('/refresh', async (c) => {
 
   // Discover all sources in parallel
   const results = await Promise.all(
-    sources.map((s) => discoverSourceCatalog(s))
+    sources.map((s) => discoverSourceCatalog(s, c.env.GITHUB_TOKEN))
   );
   const allPlugins = results.flat();
 

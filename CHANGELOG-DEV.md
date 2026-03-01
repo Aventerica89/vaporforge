@@ -5,7 +5,7 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-03-01 · v0.30.0
-FIX     github — Pass GITHUB_TOKEN in repo fetch requests; unauthenticated calls share CF Worker IP rate limit (60/hr), token bumps to 5000/hr
+FIX     github — Pass GITHUB_TOKEN in all GitHub API calls (repos, plugin discover, refresh, custom sources); graceful fallback to stale localStorage on rate limit
 
 ### 2026-03-01 · v0.30.0
 FIX     plugins — Allow deleting community plugins from Integrations settings; remove button was gated to custom-tier only; sync marketplace installed state on removal; remove dead legacy usePlugins.ts store
