@@ -636,14 +636,15 @@ pluginsRoutes.post('/discover', async (c) => {
 
   try {
     // Fetch repo tree
+    const ghHeaders: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'VaporForge/1.0',
+    };
+    if (c.env.GITHUB_TOKEN) ghHeaders['Authorization'] = `token ${c.env.GITHUB_TOKEN}`;
+
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
-      {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'VaporForge/1.0',
-        },
-      }
+      { headers: ghHeaders }
     );
 
     if (!treeRes.ok) {
@@ -724,12 +725,7 @@ pluginsRoutes.post('/discover', async (c) => {
     async function fetchFileContent(path: string): Promise<string> {
       const res = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-        {
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            'User-Agent': 'VaporForge/1.0',
-          },
-        }
+        { headers: ghHeaders }
       );
       if (!res.ok) return '';
       const data = await res.json() as { content?: string };
@@ -828,7 +824,8 @@ pluginsRoutes.post('/discover', async (c) => {
 // ---------------------------------------------------------------------------
 
 async function discoverPluginContent(
-  repoUrl: string
+  repoUrl: string,
+  githubToken?: string
 ): Promise<{
   name: string;
   description: string;
@@ -844,14 +841,15 @@ async function discoverPluginContent(
   const repo = rawRepo.replace(/\.git$/, '');
 
   try {
+    const ghHeaders: Record<string, string> = {
+      Accept: 'application/vnd.github.v3+json',
+      'User-Agent': 'VaporForge/1.0',
+    };
+    if (githubToken) ghHeaders['Authorization'] = `token ${githubToken}`;
+
     const treeRes = await fetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/HEAD?recursive=1`,
-      {
-        headers: {
-          Accept: 'application/vnd.github.v3+json',
-          'User-Agent': 'VaporForge/1.0',
-        },
-      }
+      { headers: ghHeaders }
     );
     if (!treeRes.ok) return null;
 
@@ -889,12 +887,7 @@ async function discoverPluginContent(
     const fetchContent = async (path: string): Promise<string> => {
       const res = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-        {
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            'User-Agent': 'VaporForge/1.0',
-          },
-        }
+        { headers: ghHeaders }
       );
       if (!res.ok) return '';
       const d = await res.json() as { content?: string };
@@ -968,7 +961,7 @@ pluginsRoutes.post('/refresh', async (c) => {
     const plugin = updated[i];
     if (plugin.builtIn || !plugin.repoUrl) continue;
 
-    const discovered = await discoverPluginContent(plugin.repoUrl);
+    const discovered = await discoverPluginContent(plugin.repoUrl, c.env.GITHUB_TOKEN);
     if (!discovered) continue;
 
     const hasContent = discovered.agents.length > 0

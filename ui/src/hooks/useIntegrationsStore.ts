@@ -3,6 +3,7 @@ import { pluginsApi, mcpApi } from '@/lib/api';
 import type { Plugin, McpServerConfig } from '@/lib/types';
 import type { ViewTab, McpStatus } from '@/components/settings/integrations/types';
 import { toast } from '@/hooks/useToast';
+import { useMarketplace } from '@/hooks/useMarketplace';
 
 interface IntegrationsState {
   // Tab + selection
@@ -262,6 +263,7 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   },
 
   removePlugin: async (id) => {
+    const plugin = get().plugins.find((p) => p.id === id);
     try {
       await pluginsApi.remove(id);
       set((state) => ({
@@ -269,6 +271,13 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         selectedPluginId: state.selectedPluginId === id ? null : state.selectedPluginId,
         confirmRemove: null,
       }));
+      // Sync marketplace installed state so it shows as uninstalled
+      if (plugin?.repoUrl) {
+        const mkt = useMarketplace.getState();
+        const next = new Set(mkt.installedRepoUrls);
+        next.delete(plugin.repoUrl);
+        useMarketplace.setState({ installedRepoUrls: next });
+      }
       toast.success('Plugin removed');
     } catch {
       toast.error('Failed to remove plugin');

@@ -4,6 +4,12 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · v0.30.0
+FIX     github — Pass GITHUB_TOKEN in all GitHub API calls (repos, plugin discover, refresh, custom sources); graceful fallback to stale localStorage on rate limit
+
+### 2026-03-01 · v0.30.0
+FIX     plugins — Allow deleting community plugins from Integrations settings; remove button was gated to custom-tier only; sync marketplace installed state on removal; remove dead legacy usePlugins.ts store
+
 ### 2026-03-01 · 856c165 · v0.29.0
 CHORE   deploy — docker-shim enables in-sandbox deploys via docker+1password CLI auth
 
