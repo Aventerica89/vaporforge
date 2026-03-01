@@ -38,7 +38,7 @@ export function IntegrationsSidebar() {
 
   return (
     <aside
-      className="relative flex shrink-0 flex-col overflow-hidden border-r border-border bg-card/50"
+      className="relative flex h-full shrink-0 flex-col overflow-hidden border-r border-border bg-card/50"
       style={{ width: sidebarWidth, minWidth: 220, maxWidth: 500 }}
     >
       {/* Tab row */}
