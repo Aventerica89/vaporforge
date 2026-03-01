@@ -5,7 +5,7 @@ Technical log. Updated on every deploy.
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
 ### 2026-03-01 · v0.30.0
-FIX     ci — Use npx wrangler deploy directly instead of wrangler-action (action swallows errors); pass CLOUDFLARE_API_TOKEN via env
+FIX     ci — Remove claude-automation-recommender skill from Dockerfile; YAML frontmatter (---) caused Docker BuildKit parse error breaking all deploys; also switch to npx wrangler deploy for better error visibility
 
 ### 2026-03-01 · v0.30.0
 FIX     github — Pass GITHUB_TOKEN in all GitHub API calls (repos, plugin discover, refresh, custom sources); graceful fallback to stale localStorage on rate limit
