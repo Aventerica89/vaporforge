@@ -172,3 +172,6 @@ FIX     settings — Integrations scroll fix v2; replace h-full with flex-1+min-
 
 ### 2026-03-01 · PENDING · v0.30.0
 FIX     settings — Plugin sidebar scroll; add h-full to sidebar wrapper and aside so overflow-y-auto on tier groups actually triggers
+
+### 2026-03-01 · ff745cc · v0.29.0
+CHORE   deploy — sandbox deploy via docker-shim + 1password auth
