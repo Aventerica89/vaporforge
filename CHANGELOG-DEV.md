@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · 2fd7d8b · v0.29.0
+CHORE   deploy — fix(settings): deploy scroll and overflow layout fixes
+
 ### 2026-02-28 · v0.30.0
 FEAT    settings — Unified Integrations panel replacing separate Plugins + MCP Servers tabs; master/detail layout with tier-grouped sidebar, file preview, marketplace slide-in, MCP add modal
 
