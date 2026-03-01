@@ -29,7 +29,7 @@ export function IntegrationsTab() {
   const enabledMcps = mcpServers.filter((s) => s.enabled).length;
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
       {/* Header stats */}
       <div className="flex shrink-0 items-center gap-5 border-b border-border/40 px-5 py-3">
         <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
@@ -52,7 +52,7 @@ export function IntegrationsTab() {
       </div>
 
       {/* Master / Detail */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 overflow-hidden">
         <div style={{ width: sidebarWidth }} className="shrink-0 border-r border-border">
           <IntegrationsSidebar />
         </div>

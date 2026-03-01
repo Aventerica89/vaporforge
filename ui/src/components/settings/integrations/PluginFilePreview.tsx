@@ -89,7 +89,7 @@ export function PluginFilePreview({ plugin }: PluginFilePreviewProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 text-[11px] leading-relaxed text-muted-foreground animate-in fade-in duration-150">
+      <div className="h-0 flex-1 overflow-y-auto p-4 text-[11px] leading-relaxed text-muted-foreground animate-in fade-in duration-150">
         {fileViewMode === 'rendered' ? (
           <div className="prose prose-invert prose-sm max-w-none [&_h1]:mb-3 [&_h1]:border-b [&_h1]:border-border/40 [&_h1]:pb-2 [&_h1]:text-[15px] [&_h1]:font-bold [&_h1]:text-foreground [&_h2]:mb-1.5 [&_h2]:mt-4 [&_h2]:text-xs [&_h2]:font-bold [&_h2]:tracking-wide [&_h2]:text-foreground [&_h3]:mb-1 [&_h3]:mt-3 [&_h3]:text-[11px] [&_h3]:font-bold [&_h3]:text-foreground [&_p]:mb-2 [&_p]:text-[11px] [&_p]:text-muted-foreground [&_code]:rounded-sm [&_code]:border [&_code]:border-border/40 [&_code]:bg-card [&_code]:px-1.5 [&_code]:py-px [&_code]:font-mono [&_code]:text-[10px] [&_code]:text-primary [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border/40 [&_pre]:bg-card [&_pre]:p-3 [&_pre_code]:border-0 [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-foreground [&_a]:text-primary [&_a]:no-underline hover:[&_a]:underline [&_strong]:text-foreground [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground/60 [&_table]:text-[10px] [&_th]:bg-card [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-bold [&_th]:text-foreground [&_td]:border [&_td]:border-border/40 [&_td]:px-2 [&_td]:py-1 [&_hr]:border-border/40">
             <ReactMarkdown>{content}</ReactMarkdown>
