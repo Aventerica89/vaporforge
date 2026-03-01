@@ -105,7 +105,9 @@ async function fetchAndCacheRepos(
     return c.json({ error: 'GitHub API rate limit reached' }, 429);
   }
   if (!res.ok) {
-    return c.json({ error: 'Failed to fetch repositories from GitHub' }, 502);
+    const body = await res.text().catch(() => '');
+    console.error(`[github] repos fetch failed: status=${res.status} body=${body.slice(0, 200)} hasToken=${!!c.env.GITHUB_TOKEN}`);
+    return c.json({ error: `Failed to fetch repositories from GitHub (${res.status})` }, 502);
   }
 
   const repos: GitHubRepoData[] = await res.json();
