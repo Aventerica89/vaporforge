@@ -73,7 +73,6 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
   const tier = deriveTier(plugin);
   const tierCfg = TIER_CONFIG[tier];
   const scope = pluginScopes[plugin.id] || 'global';
-  const isCustom = tier === 'custom';
   const tree = useMemo(() => buildFileTree(plugin), [plugin]);
   const isRemoving = confirmRemove === plugin.id;
 
@@ -94,7 +93,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
                 {plugin.name}
               </span>
               <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                {isCustom && (
+                {!plugin.builtIn && (
                   <button
                     className={`rounded-sm px-1.5 py-0.5 font-mono text-[9px] text-red-500 transition-all ${
                       isRemoving

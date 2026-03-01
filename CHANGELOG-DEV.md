@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-01 · v0.30.0
+FIX     plugins — Allow deleting community plugins from Integrations settings; remove button was gated to custom-tier only; sync marketplace installed state on removal; remove dead legacy usePlugins.ts store
+
 ### 2026-02-28 · v0.30.0
 FEAT    settings — Unified Integrations panel replacing separate Plugins + MCP Servers tabs; master/detail layout with tier-grouped sidebar, file preview, marketplace slide-in, MCP add modal
 
