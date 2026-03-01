@@ -17,11 +17,7 @@ export default {
   ): Promise<Response> {
     // Preview URL proxy — intercepts requests to exposed sandbox ports
     // URL format: https://{port}-{sandboxId}-{token}.vaporforge.dev
-    // proxyToSandbox expects env.Sandbox but our binding is SANDBOX_CONTAINER
-    const proxyResponse = await proxyToSandbox(request, {
-      ...env,
-      Sandbox: env.SANDBOX_CONTAINER,
-    });
+    const proxyResponse = await proxyToSandbox(request, env);
     if (proxyResponse) return proxyResponse;
 
     // V1.5: Route container streaming POST to ChatSessionAgent DO.

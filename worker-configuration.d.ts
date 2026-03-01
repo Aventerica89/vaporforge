@@ -17,7 +17,7 @@ declare global {
     CHAT_SESSIONS: DurableObjectNamespace;
 
     // Containers (Sandboxes) - typed for @cloudflare/sandbox SDK
-    SANDBOX_CONTAINER: DurableObjectNamespace<Sandbox>;
+    Sandbox: DurableObjectNamespace<Sandbox>;
 
     // Secrets (set via wrangler secret put)
     JWT_SECRET: string;

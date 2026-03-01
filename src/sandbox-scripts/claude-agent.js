@@ -369,11 +369,12 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
         console.error(`[claude-cli-stderr] ${line}`);
       }
     },
+    // settingSources scans ~/.claude and cwd/.claude for commands, agents,
+    // skills, and rules using graceful filesystem traversal.  Unlike the
+    // `plugins` array (which requires a .claude-plugin/plugin.json manifest
+    // and crashes on AJV validation failure), settingSources degrades
+    // gracefully when files are missing or malformed.
     settingSources: ['user', 'project'],
-    // Load plugins from ~/.claude so SDK discovers agents + commands properly.
-    // Per Anthropic docs: options.plugins is the canonical way to inject local
-    // plugins (agents, commands, rules). Manual options.agents is kept as fallback.
-    plugins: [{ type: 'local', path: process.env.CLAUDE_CONFIG_DIR || '/root/.claude' }],
     agents,
     tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
