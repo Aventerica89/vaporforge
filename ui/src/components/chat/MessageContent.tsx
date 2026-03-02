@@ -7,10 +7,11 @@ import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { PlanCard } from '@/components/ai-elements/PlanCard';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
+import { Confirmation } from '@/components/ai-elements/Confirmation';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSmoothText } from '@/hooks/useSmoothText';
 import { useSandboxStore } from '@/hooks/useSandbox';
-import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/prompt-kit/reasoning';
+import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
 import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
 import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
@@ -106,32 +107,13 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
   if (!conf) return null;
 
   return (
-    <div className="my-1.5">
-      {/* Rendered as a UnifiedToolBlock in approval-responded state once handled */}
-      <UnifiedToolBlock
-        name={conf.toolName}
-        state="input-available"
-        input={conf.input as Record<string, unknown>}
-        toolId={conf.approvalId}
-      />
-      <div className="flex items-center gap-2 px-3 py-1.5">
-        <button
-          type="button"
-          onClick={() => void sendMessage(`Approved: ${conf.toolName}`)}
-          className="flex items-center gap-1.5 rounded-md bg-green-600/20 px-3 py-1.5 text-[11px] font-medium text-green-400 transition-opacity hover:opacity-80"
-        >
-          <Check className="size-3" />
-          Approve
-        </button>
-        <button
-          type="button"
-          onClick={() => void sendMessage(`Denied: ${conf.toolName}`)}
-          className="flex items-center gap-1.5 rounded-md bg-red-600/20 px-3 py-1.5 text-[11px] font-medium text-red-400 transition-opacity hover:opacity-80"
-        >
-          Deny
-        </button>
-      </div>
-    </div>
+    <Confirmation
+      toolName={conf.toolName}
+      input={conf.input}
+      approvalId={conf.approvalId}
+      onApprove={() => void sendMessage(`Approved: ${conf.toolName}`)}
+      onDeny={() => void sendMessage(`Denied: ${conf.toolName}`)}
+    />
   );
 }
 
@@ -268,13 +250,9 @@ function renderPart(
 
     case 'reasoning':
       return (
-        <Reasoning key={index} isStreaming={isStreaming}>
-          <ReasoningTrigger className="text-xs text-muted-foreground">
-            {part.duration ? `Thought for ${part.duration}s` : 'Thinking...'}
-          </ReasoningTrigger>
-          <ReasoningContent markdown contentClassName="mt-2 text-xs">
-            {part.content || ''}
-          </ReasoningContent>
+        <Reasoning key={index} isStreaming={isStreaming} duration={part.duration}>
+          <ReasoningTrigger />
+          <ReasoningContent>{part.content || ''}</ReasoningContent>
         </Reasoning>
       );
 
