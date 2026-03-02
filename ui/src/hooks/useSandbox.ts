@@ -863,7 +863,8 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
               session.id,
               textToSave,
               (doneChunk.sessionId as string) || '',
-              typeof doneChunk.costUsd === 'number' ? (doneChunk.costUsd as number) : undefined
+              typeof doneChunk.costUsd === 'number' ? (doneChunk.costUsd as number) : undefined,
+              (doneChunk.containerBuild as string) || undefined
             ).then(({ triggeredAlerts }) => {
               if (triggeredAlerts && triggeredAlerts.length > 0) {
                 for (const alert of triggeredAlerts) {

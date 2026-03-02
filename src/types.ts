@@ -11,6 +11,7 @@ export const SessionSchema = z.object({
   createdAt: z.string(),
   lastActiveAt: z.string(),
   sdkSessionId: z.string().optional(), // Claude SDK session ID for conversation continuity
+  containerBuild: z.string().optional(), // VF_CONTAINER_BUILD when sdkSessionId was last set
   metadata: z.record(z.unknown()).optional(),
 });
 

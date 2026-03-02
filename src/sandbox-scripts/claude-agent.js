@@ -609,6 +609,17 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
 
 async function handleQuery(prompt, sessionId, cwd) {
   const currentModel = process.env.VF_MODEL || 'claude-sonnet-4-6';
+  const currentBuild = process.env.VF_CONTAINER_BUILD || '';
+  const storedBuild = process.env.VF_STORED_BUILD || '';
+
+  // Build-version guard: only resume if the container build matches what
+  // was running when the session was created. After a redeploy, old SDK
+  // session files are gone — resuming would hang or crash.
+  if (sessionId && currentBuild && storedBuild && currentBuild !== storedBuild) {
+    console.error(`[claude-agent] build mismatch: stored=${storedBuild} current=${currentBuild} — skipping resume`);
+    sessionId = '';
+  }
+
   let result;
 
   try {
@@ -744,6 +755,7 @@ async function handleQuery(prompt, sessionId, cwd) {
     type: 'done',
     sessionId: result.newSessionId,
     fullText: result.responseText,
+    containerBuild: currentBuild,
     ...(result.usage ? { usage: result.usage } : {}),
     ...(result.costUsd !== null ? { costUsd: result.costUsd } : {}),
   });
@@ -772,14 +784,14 @@ if (args.length >= 1) {
   try {
     const ctx = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
     prompt = ctx.prompt;
-    // V1.5: skip SDK session resume — each startProcess is a fresh process,
-    // and the DO manages persistence/continuity. Resuming a stale SDK session
-    // can hang indefinitely (the CLI tries to reconnect to a dead session file).
-    sessionId = '';
+    // V1.5: resume is now guarded by build-version check in handleQuery().
+    // The DO passes sdkSessionId + storedBuild; handleQuery() clears sessionId
+    // if the build doesn't match (container was redeployed since last message).
+    sessionId = ctx.sdkSessionId || '';
     cwd = '/workspace';
     // Delete context file after reading (one-shot)
     fs.unlinkSync(CONTEXT_FILE);
-    console.error(`[claude-agent] V1.5: read prompt from context file (${prompt.length} chars, resume=disabled)`);
+    console.error(`[claude-agent] V1.5: read prompt from context file (${prompt.length} chars, sessionId=${sessionId ? sessionId.slice(0, 8) : 'none'})`);
   } catch (err) {
     console.error(`[claude-agent] Failed to read context file: ${err.message}`);
     emit({ type: 'error', error: 'Failed to read query context' });

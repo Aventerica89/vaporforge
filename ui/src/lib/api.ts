@@ -833,7 +833,8 @@ export const sdkApi = {
     sessionId: string,
     content: string,
     sdkSessionId: string,
-    costUsd?: number
+    costUsd?: number,
+    containerBuild?: string
   ): Promise<{ triggeredAlerts?: AlertConfig[] }> => {
     try {
       const token = localStorage.getItem('session_token');
@@ -843,7 +844,11 @@ export const sdkApi = {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ sessionId, content, sdkSessionId, ...(typeof costUsd === 'number' ? { costUsd } : {}) }),
+        body: JSON.stringify({
+          sessionId, content, sdkSessionId,
+          ...(typeof costUsd === 'number' ? { costUsd } : {}),
+          ...(containerBuild ? { containerBuild } : {}),
+        }),
       });
       if (res.ok) return await res.json();
     } catch {

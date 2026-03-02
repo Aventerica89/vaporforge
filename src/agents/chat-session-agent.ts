@@ -432,7 +432,7 @@ export class ChatSessionAgent {
     });
   }
 
-  /** Persist sdkSessionId from container events. */
+  /** Persist sdkSessionId and containerBuild from container events. */
   private extractMetadata(line: string): void {
     try {
       const event = JSON.parse(line) as Record<string, unknown>;
@@ -443,6 +443,14 @@ export class ChatSessionAgent {
         this.state.storage
           .put('sdkSessionId', String(event.sessionId))
           .catch(() => {});
+      }
+      if (event.type === 'done' && event.containerBuild) {
+        this.state.storage
+          .put('containerBuild', String(event.containerBuild))
+          .catch(() => {});
+      }
+      if (event.type === 'session-reset') {
+        this.state.storage.put('sdkSessionId', '').catch(() => {});
       }
     } catch {
       // Skip parse errors
@@ -514,7 +522,9 @@ export class ChatSessionAgent {
 
     const sdkSessionId =
       (await this.state.storage.get<string>('sdkSessionId')) || '';
-    console.log(`[ChatSessionAgent] userId=${userId ? userId.slice(0, 8) : 'EMPTY'} sdkSessionId=${sdkSessionId ? sdkSessionId.slice(0, 8) : 'none'}`);
+    const storedBuild =
+      (await this.state.storage.get<string>('containerBuild')) || '';
+    console.log(`[ChatSessionAgent] userId=${userId ? userId.slice(0, 8) : 'EMPTY'} sdkSessionId=${sdkSessionId ? sdkSessionId.slice(0, 8) : 'none'} storedBuild=${storedBuild || 'none'}`);
 
     // Read session directly from KV (no health check — SDK auto-wakes)
     const session = await this.env.SESSIONS_KV.get<Session>(
@@ -610,6 +620,7 @@ export class ChatSessionAgent {
           VF_CALLBACK_URL: `${this.env.WORKER_BASE_URL}/internal/stream`,
           VF_STREAM_JWT: token,
           VF_SDK_SESSION_ID: sdkSessionId,
+          VF_STORED_BUILD: storedBuild,
           VF_SESSION_MODE: mode || 'agent',
           ...(model ? { VF_MODEL: MODEL_ALIASES[model] || model } : {}),
           ...(model === 'sonnet1m' ? { VF_1M_CONTEXT: '1' } : {}),

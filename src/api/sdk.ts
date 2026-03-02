@@ -147,6 +147,7 @@ sdkRoutes.post('/stream', async (c) => {
           ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
           VF_SESSION_MODE: mode,
           VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
+          VF_STORED_BUILD: session.containerBuild || '',
         },
         timeout: 300000,
       }
@@ -170,6 +171,7 @@ sdkRoutes.post('/stream', async (c) => {
       let sseBuffer = '';     // Level 1: sandbox SSE line buffer
       let stdoutBuffer = '';  // Level 2: JSON line buffer from script stdout
       let newSdkSessionId = sdkSessionId;
+      let newContainerBuild = session.containerBuild || '';
       let fullText = '';
       let hasData = false;
 
@@ -285,6 +287,7 @@ sdkRoutes.post('/stream', async (c) => {
                   case 'done':
                     fullText = (msg.fullText as string) || fullText;
                     newSdkSessionId = (msg.sessionId as string) || newSdkSessionId;
+                    if (msg.containerBuild) newContainerBuild = msg.containerBuild as string;
                     await writeEvent({
                       type: 'done',
                       sessionId: newSdkSessionId,
@@ -364,13 +367,16 @@ sdkRoutes.post('/stream', async (c) => {
           });
         }
 
-        // Update session with new SDK sessionId for continuity.
+        // Update session with new SDK sessionId + container build for continuity.
         // Also persist when sdkSessionId was cleared (session-reset) so we
         // don't keep retrying a stale session on the next message.
-        if (newSdkSessionId !== (session.sdkSessionId || '')) {
+        const sessionIdChanged = newSdkSessionId !== (session.sdkSessionId || '');
+        const buildChanged = newContainerBuild !== (session.containerBuild || '');
+        if (sessionIdChanged || buildChanged) {
           const updatedSession: Session = {
             ...session,
             sdkSessionId: newSdkSessionId || undefined,
+            containerBuild: newContainerBuild || undefined,
           };
           await c.env.SESSIONS_KV.put(
             `session:${sessionId}`,
@@ -450,24 +456,27 @@ sdkRoutes.post('/persist', async (c) => {
     sessionId: string;
     content: string;
     sdkSessionId?: string;
+    containerBuild?: string;
     costUsd?: number;
   }>();
 
-  const { sessionId, content, sdkSessionId, costUsd } = body;
+  const { sessionId, content, sdkSessionId, containerBuild, costUsd } = body;
   if (!sessionId) {
     return c.json<ApiResponse<never>>({ success: false, error: 'Missing sessionId' }, 400);
   }
   // If content is empty (e.g. agent crashed before producing text), skip persist
-  // but still update sdkSessionId and return success to avoid 400 noise
+  // but still update sdkSessionId/containerBuild and return success to avoid 400 noise
   if (!content) {
-    if (sdkSessionId !== undefined) {
+    if (sdkSessionId !== undefined || containerBuild) {
       const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
       if (rawSession) {
         const session = JSON.parse(rawSession) as Session;
-        if ((session.sdkSessionId || '') !== sdkSessionId) {
-          const updated: Session = { ...session, sdkSessionId: sdkSessionId || undefined };
-          await c.env.SESSIONS_KV.put(`session:${sessionId}`, JSON.stringify(updated));
-        }
+        const updated: Session = {
+          ...session,
+          ...(sdkSessionId !== undefined ? { sdkSessionId: sdkSessionId || undefined } : {}),
+          ...(containerBuild ? { containerBuild } : {}),
+        };
+        await c.env.SESSIONS_KV.put(`session:${sessionId}`, JSON.stringify(updated));
       }
     }
     return c.json({ success: true, triggeredAlerts: [] });
@@ -488,13 +497,19 @@ sdkRoutes.post('/persist', async (c) => {
     { expirationTtl: 7 * 24 * 60 * 60 }
   );
 
-  // Update sdkSessionId if changed
-  if (sdkSessionId !== undefined) {
+  // Update sdkSessionId + containerBuild if changed
+  if (sdkSessionId !== undefined || containerBuild) {
     const rawSession = await c.env.SESSIONS_KV.get(`session:${sessionId}`);
     if (rawSession) {
       const session = JSON.parse(rawSession) as Session;
-      if ((session.sdkSessionId || '') !== sdkSessionId) {
-        const updated: Session = { ...session, sdkSessionId: sdkSessionId || undefined };
+      const sessionIdChanged = sdkSessionId !== undefined && (session.sdkSessionId || '') !== sdkSessionId;
+      const buildChanged = containerBuild && (session.containerBuild || '') !== containerBuild;
+      if (sessionIdChanged || buildChanged) {
+        const updated: Session = {
+          ...session,
+          ...(sdkSessionId !== undefined ? { sdkSessionId: sdkSessionId || undefined } : {}),
+          ...(containerBuild ? { containerBuild } : {}),
+        };
         await c.env.SESSIONS_KV.put(`session:${sessionId}`, JSON.stringify(updated));
       }
     }
