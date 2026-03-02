@@ -17,7 +17,7 @@ import {
 } from '@/components/ai-elements/message';
 import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
 
-import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
+import { AutonomySelectorPopup } from '@/components/AutonomySelectorPopup';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
 import type { SubView } from '@/hooks/useMobileNav';
 import { MessageActions } from '@/components/chat/MessageActions';

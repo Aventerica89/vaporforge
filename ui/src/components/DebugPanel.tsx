@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Bug, X, Copy, Check } from 'lucide-react';
 import { useDebugLog } from '@/hooks/useDebugLog';
-import { ConsoleLogViewer } from '@/components/playground/ConsoleLogViewer';
 import { WikiTab } from '@/components/WikiTab';
 import { StreamDebugger } from '@/components/devtools/StreamDebugger';
 import { TokenViewer } from '@/components/devtools/TokenViewer';
@@ -157,7 +156,16 @@ export function DebugPanel() {
           </div>
 
           {/* Tab content */}
-          {tab === 'log' && <ConsoleLogViewer compact />}
+          {tab === 'log' && (
+            <div className="flex-1 overflow-y-auto p-2 text-xs font-mono space-y-1">
+              {useDebugLog.getState().entries.map((e, i) => (
+                <div key={i} className={`px-2 py-1 rounded ${e.level === 'error' ? 'bg-red-500/10 text-red-400' : e.level === 'warn' ? 'bg-yellow-500/10 text-yellow-400' : 'text-muted-foreground'}`}>
+                  <span className="opacity-50">[{new Date(e.timestamp).toLocaleTimeString('en-US', { hour12: false })}]</span>{' '}
+                  <span className="font-semibold">[{e.category}]</span> {e.summary}
+                </div>
+              ))}
+            </div>
+          )}
           {tab === 'wiki' && <WikiTab />}
           {tab === 'stream' && <StreamDebugger />}
           {tab === 'tokens' && <TokenViewer />}

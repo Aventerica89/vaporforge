@@ -16,7 +16,6 @@ import { DebugPanel } from './DebugPanel';
 
 import { IssueTracker } from './IssueTracker';
 import { DevChangelog } from './DevChangelog';
-import { DevPlayground } from './DevPlayground';
 import { QuickChatPanel } from './QuickChatPanel';
 import { CodeTransformPanel } from './CodeTransformPanel';
 import { CodeAnalysisPanel } from './CodeAnalysisPanel';
@@ -296,7 +295,6 @@ export function Layout() {
         <StackTraceOverlay />
         <IssueTracker />
         <DevChangelog />
-        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -315,7 +313,6 @@ export function Layout() {
         <StackTraceOverlay />
         <IssueTracker />
         <DevChangelog />
-        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -339,7 +336,6 @@ export function Layout() {
         <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
-        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -353,7 +349,6 @@ export function Layout() {
         <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
-        <DevPlayground />
         <DebugPanel />
       </>
     );
@@ -479,7 +474,6 @@ export function Layout() {
       <StackTraceOverlay />
       <IssueTracker />
       <DevChangelog />
-      <DevPlayground />
       <DebugPanel />
     </div>
   );
