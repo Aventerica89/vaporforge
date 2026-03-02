@@ -14,7 +14,7 @@ import { CloneRepoModal } from './CloneRepoModal';
 import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
-import { MarketplacePage } from './marketplace';
+
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { usePlayground } from '@/hooks/usePlayground';
 
@@ -97,8 +97,6 @@ export function MobileLayout() {
       switch (subView) {
         case 'settings':
           return <SettingsPage inMobileSubView />;
-        case 'marketplace':
-          return <MarketplacePage />;
         case 'issues':
           // Open floating overlay and return to More
           useIssueTracker.getState().openTracker();

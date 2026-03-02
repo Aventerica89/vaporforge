@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { pluginsApi, pluginSourcesApi } from '@/lib/api';
 import type { PluginSource } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
-import { useDevChangelog } from '@/hooks/useDevChangelog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 
@@ -45,30 +44,10 @@ function syncToActiveSession(): void {
   }
 }
 
-export type CardSize = 'compact' | 'normal' | 'large';
-export type StatusTab = 'all' | 'installed' | 'favorites';
-
 interface MarketplaceState {
-  isOpen: boolean;
-  searchQuery: string;
-  statusTab: StatusTab;
-  cardSize: CardSize;
-  selectedSource: string;
-  selectedCategories: string[];
-  selectedTypes: string[];
-  selectedCompatibility: 'all' | 'cloud-ready' | 'relay-required';
   installedRepoUrls: Set<string>;
-  favoriteRepoUrls: Set<string>;
   installing: Set<string>;
   installError: string | null;
-
-  // Discover from URL
-  discoveredPlugin: Plugin | null;
-  isDiscovering: boolean;
-  discoverError: string | null;
-
-  // Refresh installed
-  isRefreshing: boolean;
 
   // Custom sources
   customSources: PluginSource[];
@@ -76,25 +55,10 @@ interface MarketplaceState {
   isLoadingSources: boolean;
   sourcesRefreshedAt: string | null;
 
-  openMarketplace: () => void;
-  closeMarketplace: () => void;
-  setSearchQuery: (query: string) => void;
-  setStatusTab: (tab: StatusTab) => void;
-  setCardSize: (size: CardSize) => void;
-  setSelectedSource: (source: string) => void;
-  toggleCategory: (category: string) => void;
-  toggleType: (type: string) => void;
-  setSelectedCompatibility: (c: MarketplaceState['selectedCompatibility']) => void;
-  clearFilters: () => void;
   clearInstallError: () => void;
   installPlugin: (catalogPlugin: CatalogPlugin) => Promise<void>;
   uninstallPlugin: (repoUrl: string) => Promise<void>;
   syncInstalledPlugins: () => Promise<void>;
-  toggleFavorite: (repoUrl: string) => void;
-  discoverFromUrl: (url: string) => Promise<void>;
-  clearDiscovered: () => void;
-  installDiscovered: () => Promise<void>;
-  refreshInstalled: () => Promise<{ refreshed: number }>;
   loadCustomSources: () => Promise<void>;
   addSource: (url: string) => Promise<void>;
   removeSource: (id: string) => Promise<void>;
@@ -102,85 +66,17 @@ interface MarketplaceState {
 }
 
 export const useMarketplace = create<MarketplaceState>((set, get) => ({
-  isOpen: false,
-  searchQuery: '',
-  statusTab: 'all',
-  cardSize: 'normal',
-  selectedSource: 'all',
-  selectedCategories: [],
-  selectedTypes: [],
-  selectedCompatibility: 'all',
   installedRepoUrls: new Set(),
-  favoriteRepoUrls: new Set(
-    (() => {
-      try {
-        const raw = JSON.parse(localStorage.getItem('vf-favorites') || '[]');
-        return Array.isArray(raw) ? raw : [];
-      } catch {
-        return [];
-      }
-    })()
-  ),
   installing: new Set(),
   installError: null,
-  discoveredPlugin: null,
-  isDiscovering: false,
-  discoverError: null,
-  isRefreshing: false,
   customSources: [],
   customCatalog: [],
   isLoadingSources: false,
   sourcesRefreshedAt: null,
 
-  openMarketplace: () => {
-    useDevChangelog.getState().closeChangelog();
-    set({ isOpen: true });
-    get().syncInstalledPlugins();
-    get().loadCustomSources();
-  },
-
-  closeMarketplace: () => set({ isOpen: false }),
-
-  setSearchQuery: (query) => set({ searchQuery: query }),
-
-  setStatusTab: (tab) => set({ statusTab: tab }),
-
-  setCardSize: (size) => set({ cardSize: size }),
-
-  setSelectedSource: (source) => set({ selectedSource: source }),
-
-  toggleCategory: (category) =>
-    set((state) => {
-      const cats = state.selectedCategories.includes(category)
-        ? state.selectedCategories.filter((c) => c !== category)
-        : [...state.selectedCategories, category];
-      return { selectedCategories: cats };
-    }),
-
-  toggleType: (type) =>
-    set((state) => {
-      const types = state.selectedTypes.includes(type)
-        ? state.selectedTypes.filter((t) => t !== type)
-        : [...state.selectedTypes, type];
-      return { selectedTypes: types };
-    }),
-
-  setSelectedCompatibility: (c) => set({ selectedCompatibility: c }),
-
-  clearFilters: () =>
-    set({
-      searchQuery: '',
-      selectedSource: 'all',
-      selectedCategories: [],
-      selectedTypes: [],
-      selectedCompatibility: 'all',
-    }),
-
   clearInstallError: () => set({ installError: null }),
 
   installPlugin: async (catalogPlugin) => {
-    // Store the full repository_url (including /tree/main/plugins/X subpath)
-    // as the repoUrl. This ensures monorepo plugins each have a unique ID.
     const repoUrl = catalogPlugin.repository_url;
     set((state) => ({
       installing: new Set([...state.installing, catalogPlugin.id]),
@@ -188,20 +84,14 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
     }));
 
     try {
-      // Discover from GitHub — pass full URL so subpath plugins are found
       const result = await pluginsApi.discover(repoUrl);
 
-      // Build plugin from discovery results + catalog metadata as fallback
       const discovered = result.success && result.data ? result.data : null;
       const hasDiscoveredContent = discovered &&
         (discovered.agents.length > 0 ||
          discovered.commands.length > 0 ||
          discovered.rules.length > 0);
 
-      // If discovery found nothing, create placeholder commands from catalog
-      // components so the plugin isn't completely empty.
-      // Include the plugin description + actionable instructions so the SDK
-      // can actually do something useful (not just "Run the X command").
       let fallbackCommands: Array<{
         name: string; filename: string; content: string; enabled: boolean;
       }> = [];
@@ -287,77 +177,6 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
     }
   },
 
-  toggleFavorite: (repoUrl) => {
-    set((state) => {
-      const favorites = new Set(state.favoriteRepoUrls);
-      if (favorites.has(repoUrl)) {
-        favorites.delete(repoUrl);
-      } else {
-        favorites.add(repoUrl);
-      }
-      // Persist to localStorage
-      localStorage.setItem('vf-favorites', JSON.stringify([...favorites]));
-      return { favoriteRepoUrls: favorites };
-    });
-  },
-
-  discoverFromUrl: async (url) => {
-    set({ isDiscovering: true, discoverError: null, discoveredPlugin: null });
-    try {
-      const result = await pluginsApi.discover(url);
-      if (result.success && result.data) {
-        set({ discoveredPlugin: result.data, isDiscovering: false });
-      } else {
-        set({ discoverError: result.error || 'Discovery failed', isDiscovering: false });
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Discovery failed';
-      set({ discoverError: msg, isDiscovering: false });
-    }
-  },
-
-  clearDiscovered: () => set({ discoveredPlugin: null, discoverError: null }),
-
-  installDiscovered: async () => {
-    const { discoveredPlugin } = get();
-    if (!discoveredPlugin) return;
-
-    const repoUrl = discoveredPlugin.repoUrl || '';
-    set({ installError: null });
-
-    try {
-      await pluginsApi.add(discoveredPlugin);
-      set((state) => ({
-        installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
-        discoveredPlugin: null,
-        discoverError: null,
-      }));
-      syncToActiveSession();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Install failed';
-      set({ installError: `Failed to install: ${msg}` });
-    }
-  },
-
-  refreshInstalled: async () => {
-    set({ isRefreshing: true });
-    try {
-      const result = await pluginsApi.refresh();
-      if (result.success && result.data) {
-        // Re-sync installed URLs after refresh
-        await get().syncInstalledPlugins();
-        syncToActiveSession();
-        set({ isRefreshing: false });
-        return { refreshed: result.data.refreshed };
-      }
-      set({ isRefreshing: false });
-      return { refreshed: 0 };
-    } catch {
-      set({ isRefreshing: false });
-      return { refreshed: 0 };
-    }
-  },
-
   loadCustomSources: async () => {
     try {
       const [sourcesRes, catalogRes] = await Promise.all([
@@ -389,7 +208,6 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
           customSources: [...state.customSources, result.data!],
           isLoadingSources: false,
         }));
-        // Auto-refresh to discover plugins from the new source
         await get().refreshSources();
       } else {
         set({ isLoadingSources: false });

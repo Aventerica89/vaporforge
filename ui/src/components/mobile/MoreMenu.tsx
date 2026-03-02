@@ -163,8 +163,8 @@ export function MoreMenu({
         />
         <MenuItem
           icon={<Puzzle className="h-4.5 w-4.5 text-primary" />}
-          label="Plugins"
-          onClick={() => onNavigate('marketplace')}
+          label="Integrations"
+          onClick={() => onNavigate('settings')}
         />
         <MenuItem
           icon={<Settings className="h-4.5 w-4.5 text-muted-foreground" />}

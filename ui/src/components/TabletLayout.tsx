@@ -4,7 +4,7 @@ import {
   FolderTree,
   Terminal,
   Settings,
-  Puzzle,
+
   Bug,
   Hammer,
   LogOut,
@@ -21,7 +21,7 @@ import { CloneRepoModal } from './CloneRepoModal';
 import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
-import { MarketplacePage } from './marketplace';
+
 import { useAuthStore } from '@/hooks/useAuth';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { usePlayground } from '@/hooks/usePlayground';
@@ -33,7 +33,6 @@ type SidebarView =
   | 'files'
   | 'terminal'
   | 'settings'
-  | 'marketplace'
   | 'issues'
   | 'playground';
 
@@ -50,7 +49,6 @@ const SESSION_NAV: readonly NavItem[] = [
 ];
 
 const TOOLS_NAV: readonly NavItem[] = [
-  { id: 'marketplace', label: 'Plugins', icon: Puzzle },
   { id: 'issues', label: 'Bug Tracker', icon: Bug },
   { id: 'playground', label: 'Dev Playground', icon: Hammer },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -70,9 +68,9 @@ export function TabletLayout() {
   useAutoReconnect();
   const logout = useAuthStore((s) => s.logout);
   const [activeView, setActiveView] = useState<SidebarView>('chat');
-  // M7 HIG fix: Settings and Marketplace render as full-screen overlay sheets,
+  // M7 HIG fix: Settings renders as a full-screen overlay sheet,
   // not replacing the content area (which caused a double-sidebar layout).
-  const [overlayView, setOverlayView] = useState<'settings' | 'marketplace' | null>(null);
+  const [overlayView, setOverlayView] = useState<'settings' | null>(null);
   const [showCloneModal, setShowCloneModal] = useState(false);
   const hasSession = !!currentSession;
 
@@ -101,9 +99,9 @@ export function TabletLayout() {
         usePlayground.getState().openPlayground();
         return;
       }
-      // M7: Settings and Marketplace open as full-screen overlay sheets
-      if (view === 'settings' || view === 'marketplace') {
-        setOverlayView(view);
+      // M7: Settings opens as a full-screen overlay sheet
+      if (view === 'settings') {
+        setOverlayView('settings');
         return;
       }
       setActiveView(view);
@@ -254,8 +252,8 @@ export function TabletLayout() {
               icon={item.icon}
               label={item.label}
               active={
-                item.id === 'settings' || item.id === 'marketplace'
-                  ? overlayView === item.id
+                item.id === 'settings'
+                  ? overlayView === 'settings'
                   : activeView === item.id
               }
               onClick={() => handleNavClick(item.id)}
@@ -352,9 +350,9 @@ export function TabletLayout() {
         onClose={() => setShowCloneModal(false)}
       />
 
-      {/* M7 HIG fix: Settings and Marketplace as full-screen overlay sheets,
+      {/* M7 HIG fix: Settings as full-screen overlay sheet,
           preventing the double-sidebar layout bug. */}
-      {overlayView && (
+      {overlayView === 'settings' && (
         <div
           className="fixed inset-0 z-50 flex flex-col"
           style={{ background: 'rgba(10, 10, 15, 0.98)' }}
@@ -365,7 +363,7 @@ export function TabletLayout() {
             style={{ minHeight: '52px' }}
           >
             <span className="text-sm font-semibold text-foreground">
-              {overlayView === 'settings' ? 'Settings' : 'Plugins'}
+              Settings
             </span>
             <button
               onClick={() => setOverlayView(null)}
@@ -378,7 +376,7 @@ export function TabletLayout() {
           </div>
           {/* Sheet content */}
           <div className="flex-1 overflow-y-auto">
-            {overlayView === 'settings' ? <SettingsPage /> : <MarketplacePage />}
+            <SettingsPage />
           </div>
         </div>
       )}

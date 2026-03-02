@@ -9,7 +9,7 @@ import {
   Sun,
   Settings,
   LogOut,
-  Puzzle,
+
   Bug,
   MessageSquare,
   Globe,
@@ -18,7 +18,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/hooks/useSettings';
-import { useMarketplace } from '@/hooks/useMarketplace';
+
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { useQuickChat } from '@/hooks/useQuickChat';
@@ -300,15 +300,6 @@ export function SessionTabBar() {
           title="Agency Sites"
         >
           <Globe className="h-3.5 w-3.5" />
-        </button>
-
-        {/* Marketplace */}
-        <button
-          onClick={() => useMarketplace.getState().openMarketplace()}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
-          title="Plugin Marketplace (Cmd+Shift+P)"
-        >
-          <Puzzle className="h-3.5 w-3.5" />
         </button>
 
         {/* Quick Chat */}

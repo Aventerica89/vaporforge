@@ -5,11 +5,10 @@ const TAB_ORDER: readonly MobileTab[] = ['home', 'chat', 'files', 'terminal', 'm
 
 export type SwipeDirection = 'left' | 'right' | null;
 
-export type SubView = null | 'settings' | 'marketplace' | 'issues' | 'playground';
+export type SubView = null | 'settings' | 'issues' | 'playground';
 
 const SUB_VIEW_TITLES: Record<Exclude<SubView, null>, string> = {
   settings: 'Settings',
-  marketplace: 'Plugins',
   issues: 'Bug Tracker',
   playground: 'Dev Playground',
 };

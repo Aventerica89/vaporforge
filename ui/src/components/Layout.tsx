@@ -13,7 +13,7 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
-import { MarketplacePage } from './marketplace';
+
 import { IssueTracker } from './IssueTracker';
 import { DevChangelog } from './DevChangelog';
 import { DevPlayground } from './DevPlayground';
@@ -30,7 +30,7 @@ import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useDeviceInfo } from '@/hooks/useDeviceInfo';
 import { useSettingsStore } from '@/hooks/useSettings';
 import type { SettingsTab } from '@/hooks/useSettings';
-import { useMarketplace } from '@/hooks/useMarketplace';
+
 import { useAgencyStore } from '@/hooks/useAgencyStore';
 import { parseHash, buildHash } from '@/lib/hash-nav';
 import type { HashState } from '@/lib/hash-nav';
@@ -44,13 +44,11 @@ import { useLayoutStore } from '@/hooks/useLayoutStore';
 function applyHashState(parsed: HashState) {
   const { sessions, selectSession } = useSandboxStore.getState();
   const { openSettings, closeSettings } = useSettingsStore.getState();
-  const { openMarketplace, closeMarketplace } = useMarketplace.getState();
   const { openDashboard, closeDashboard, closeEditor } = useAgencyStore.getState();
 
   switch (parsed.type) {
     case 'session': {
       closeSettings();
-      closeMarketplace();
       closeDashboard();
       closeEditor();
       const session = sessions.find((s) => s.id === parsed.id);
@@ -58,25 +56,16 @@ function applyHashState(parsed: HashState) {
       break;
     }
     case 'settings':
-      closeMarketplace();
       closeDashboard();
       closeEditor();
       openSettings(parsed.tab as SettingsTab | undefined);
       break;
-    case 'marketplace':
-      closeSettings();
-      closeDashboard();
-      closeEditor();
-      openMarketplace();
-      break;
     case 'agency':
       closeSettings();
-      closeMarketplace();
       openDashboard();
       break;
     case 'home':
       closeSettings();
-      closeMarketplace();
       closeDashboard();
       closeEditor();
       break;
@@ -89,7 +78,6 @@ export function Layout() {
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen, activeTab: settingsTab } = useSettingsStore();
-  const { isOpen: marketplaceOpen } = useMarketplace();
   const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
     useAgencyStore();
 
@@ -190,8 +178,6 @@ export function Layout() {
     let hash: string;
     if (agencyEditorOpen || agencyDashboardOpen) {
       hash = buildHash({ type: 'agency' });
-    } else if (marketplaceOpen) {
-      hash = buildHash({ type: 'marketplace' });
     } else if (settingsOpen) {
       hash = buildHash({ type: 'settings', tab: settingsTab });
     } else if (currentSession) {
@@ -203,7 +189,7 @@ export function Layout() {
     if (window.location.hash !== hash) {
       history.replaceState(null, '', hash || window.location.pathname);
     }
-  }, [currentSession, settingsOpen, settingsTab, marketplaceOpen, agencyDashboardOpen, agencyEditorOpen]);
+  }, [currentSession, settingsOpen, settingsTab, agencyDashboardOpen, agencyEditorOpen]);
 
   // Handle browser back/forward button navigation via hash changes
   useEffect(() => {
@@ -224,14 +210,14 @@ export function Layout() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
 
-      // Cmd+Shift+P — open marketplace
+      // Cmd+Shift+P — open Settings > Integrations
       if (e.shiftKey && e.key === 'p') {
         e.preventDefault();
-        const mp = useMarketplace.getState();
-        if (mp.isOpen) {
-          mp.closeMarketplace();
+        const settings = useSettingsStore.getState();
+        if (settings.isOpen && settings.activeTab === 'integrations') {
+          settings.closeSettings();
         } else {
-          mp.openMarketplace();
+          settings.openSettings('integrations');
         }
         return;
       }
@@ -350,20 +336,6 @@ export function Layout() {
     return (
       <>
         <AgencyDashboard />
-        <QuickChatPanel />
-        <IssueTracker />
-        <DevChangelog />
-        <DevPlayground />
-        <DebugPanel />
-      </>
-    );
-  }
-
-  // Desktop-only: Full-page marketplace view
-  if (marketplaceOpen) {
-    return (
-      <>
-        <MarketplacePage />
         <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />

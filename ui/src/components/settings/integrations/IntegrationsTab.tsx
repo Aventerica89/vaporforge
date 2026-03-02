@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
+import { useMarketplace } from '@/hooks/useMarketplace';
 import { IntegrationsSidebar } from './IntegrationsSidebar';
 import { IntegrationsDetail } from './IntegrationsDetail';
 import { McpAddModal } from './McpAddModal';
@@ -17,10 +18,11 @@ export function IntegrationsTab() {
     sidebarWidth,
   } = useIntegrationsStore();
 
-  // Load data on mount
+  // Load data on mount — including custom plugin sources for MarketplaceSlideIn
   useEffect(() => {
     loadPlugins();
     loadMcpServers().then(() => pingAllMcps());
+    useMarketplace.getState().loadCustomSources();
   }, [loadPlugins, loadMcpServers, pingAllMcps]);
 
   const pluginCount = plugins.length;
