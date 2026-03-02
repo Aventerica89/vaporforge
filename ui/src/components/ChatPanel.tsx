@@ -52,6 +52,11 @@ import {
   PromptInputAttachments,
 } from '@/components/prompt-input';
 import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
+import {
+  ChatContainerRoot,
+  ChatContainerContent,
+} from '@/components/prompt-kit/chat-container';
+import { ScrollButton } from '@/components/prompt-kit/scroll-button';
 import type { ImageAttachment } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
@@ -327,20 +332,13 @@ export function ChatPanel({
     return hasAny ? total : undefined;
   }, [messagesById]);
 
-  const hasStreamingContent = useSandboxStore((s) => s.streamingContent.length > 0);
-
   const [input, setInput] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
   const agentRef = useRef<HTMLDivElement>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const { isVisible: keyboardOpen } = useKeyboard();
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messageCount, hasStreamingContent]);
 
   useEffect(() => {
     if (!agentOpen) return;
@@ -748,31 +746,35 @@ export function ChatPanel({
         /* Chat state — messages + input + pills at bottom */
         <>
           {compact ? (
-            /* Mobile: plain scroll div — respects visualViewport from MobileLayout */
-            <div className="flex-1 overflow-y-auto">
-              <div className="flex flex-col gap-4 px-4 py-3">
+            /* Mobile: ChatContainer for smooth stick-to-bottom scrolling */
+            <ChatContainerRoot className="relative flex-1">
+              <ChatContainerContent className="flex flex-col gap-4 px-4 py-3">
                 {messageIds.map((id) => (
                   <MobileMemoizedMessageItem key={id} id={id} />
                 ))}
                 <CompactionBanner />
                 <MobileStreamingMessage />
                 <FeedbackPrompt />
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
+                <div className="flex w-full items-end justify-end px-2 pb-2">
+                  <ScrollButton />
+                </div>
+              </ChatContainerContent>
+            </ChatContainerRoot>
           ) : (
-            /* Desktop: existing rendering (unchanged) */
-            <div className="flex-1 overflow-y-auto px-4 py-3">
-              <div className="mx-auto max-w-3xl space-y-1">
+            /* Desktop: ChatContainer for smooth stick-to-bottom scrolling */
+            <ChatContainerRoot className="relative flex-1">
+              <ChatContainerContent className="mx-auto max-w-3xl space-y-1 px-4 py-3">
                 {messageIds.map((id) => (
                   <MemoizedMessageItem key={id} id={id} />
                 ))}
                 <CompactionBanner />
                 <StreamingMessage />
                 <FeedbackPrompt />
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
+                <div className="flex w-full items-end justify-end px-2 pb-2">
+                  <ScrollButton />
+                </div>
+              </ChatContainerContent>
+            </ChatContainerRoot>
           )}
 
           <div className="px-4 pb-4 flex flex-col gap-2 max-w-2xl mx-auto w-full">
