@@ -1,5 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
+import { cn } from '@/lib/cn';
 import { ChatMarkdown } from './ChatMarkdown';
 import { UnifiedToolBlock } from './UnifiedToolBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';
@@ -17,7 +18,7 @@ import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } 
 import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
 import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
 import { Persona } from '@/components/prompt-kit/persona';
-import { AlertCircle, Check, Copy, RotateCw } from 'lucide-react';
+import { AlertCircle, Check, ChevronRight, Copy, RotateCw } from 'lucide-react';
 
 interface MessageContentProps {
   message: Message;
@@ -169,6 +170,84 @@ function CodeBlockWithCopy({ code, language, filename }: CodeBlockWithCopyProps)
       </CodeBlockGroup>
       <CodeBlockCode code={code} language={language} />
     </CodeBlock>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tool Grouping — collapse consecutive tool-result parts into accordion
+// ---------------------------------------------------------------------------
+
+type GroupedItem =
+  | { kind: 'part'; part: MessagePart; index: number }
+  | { kind: 'tool-group'; parts: Array<{ part: MessagePart; index: number }> };
+
+const CUSTOM_TOOLS = new Set(['create_plan', 'ask_user_questions']);
+
+function groupPartsForRender(parts: MessagePart[]): GroupedItem[] {
+  const result: GroupedItem[] = [];
+  let toolRun: Array<{ part: MessagePart; index: number }> = [];
+
+  const flushToolRun = () => {
+    if (toolRun.length >= 2) {
+      result.push({ kind: 'tool-group', parts: toolRun });
+    } else if (toolRun.length === 1) {
+      result.push({ kind: 'part', part: toolRun[0].part, index: toolRun[0].index });
+    }
+    toolRun = [];
+  };
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    const isGroupable =
+      part.type === 'tool-result' && !CUSTOM_TOOLS.has(part.name ?? '');
+
+    if (isGroupable) {
+      toolRun.push({ part, index: i });
+    } else {
+      flushToolRun();
+      result.push({ kind: 'part', part, index: i });
+    }
+  }
+  flushToolRun();
+  return result;
+}
+
+function ToolGroup({ items, allParts }: { items: Array<{ part: MessagePart; index: number }>; allParts: MessagePart[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const names = items.map((t) => t.part.name).filter(Boolean);
+  const uniqueNames = [...new Set(names)];
+  const summary = uniqueNames.length <= 3
+    ? uniqueNames.join(', ')
+    : `${uniqueNames.slice(0, 3).join(', ')} +${uniqueNames.length - 3}`;
+
+  return (
+    <div className="my-1.5 overflow-hidden rounded-lg border border-border/40">
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/30"
+      >
+        <ChevronRight
+          className={cn(
+            'h-3 w-3 flex-shrink-0 transition-transform duration-200',
+            expanded && 'rotate-90',
+          )}
+        />
+        <span className="font-medium text-foreground">
+          {items.length} tool calls
+        </span>
+        {!expanded && summary && (
+          <span className="truncate font-mono text-muted-foreground/60">
+            {summary}
+          </span>
+        )}
+      </button>
+      {expanded && (
+        <div className="border-t border-border/30 px-1 py-1">
+          {items.map((item) => renderPart(item.part, item.index, false, allParts))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -388,11 +467,18 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
   );
 
   if (message.parts && message.parts.length > 0) {
+    const grouped = groupPartsForRender(message.parts);
     return (
       <>
         {taskPlan && <TaskPlanBlock plan={taskPlan} />}
         <HandoffChain parts={message.parts} />
-        {message.parts.map((part, i) => renderPart(part, i, false, message.parts))}
+        {grouped.map((item, gi) =>
+          item.kind === 'tool-group' ? (
+            <ToolGroup key={`tg-${gi}`} items={item.parts} allParts={message.parts!} />
+          ) : (
+            renderPart(item.part, item.index, false, message.parts)
+          ),
+        )}
       </>
     );
   }

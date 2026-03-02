@@ -744,6 +744,7 @@ export function ChatPanel({
           {compact ? (
             /* Mobile: ChatContainer for smooth stick-to-bottom scrolling */
             <ChatContainerRoot className="relative flex-1">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
               <ChatContainerContent className="flex flex-col gap-4 px-4 py-3">
                 {messageIds.map((id) => (
                   <MemoizedMessageItem key={id} id={id} compact />
@@ -759,6 +760,7 @@ export function ChatPanel({
           ) : (
             /* Desktop: ChatContainer for smooth stick-to-bottom scrolling */
             <ChatContainerRoot className="relative flex-1">
+              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
               <ChatContainerContent className="mx-auto max-w-3xl space-y-1 px-4 py-3">
                 {messageIds.map((id) => (
                   <MemoizedMessageItem key={id} id={id} />
