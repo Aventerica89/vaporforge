@@ -1,49 +1,22 @@
-import { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/cn';
 import {
-  Trash2, Paperclip, BrainCircuit, X,
-  Flame, Eye, Zap, Bookmark, MoreHorizontal, ChevronDown, Check,
+  Trash2, Paperclip, X,
+  Flame, Eye, Zap, Bookmark, MoreHorizontal,
 } from 'lucide-react';
-import { useSandboxStore, useMessage, useMessageIds, useMessageCount } from '@/hooks/useSandbox';
+import { useSandboxStore, useMessageCount } from '@/hooks/useSandbox';
 import { filesApi } from '@/lib/api';
 import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { toast } from '@/hooks/useToast';
-import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
-import {
-  Message as AIMessage,
-  MessageContent as AIMessageContent,
-} from '@/components/ai-elements/message';
-import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
 
-import { AutonomySelectorPopup } from '@/components/AutonomySelectorPopup';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
 import type { SubView } from '@/hooks/useMobileNav';
-import { MessageActions } from '@/components/chat/MessageActions';
-import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
-import { TypingCursor } from '@/components/chat/TypingCursor';
-import { ReforgeModal } from '@/components/chat/ReforgeModal';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
-import {
-  Context,
-  ContextTrigger,
-  ContextContent,
-  ContextContentHeader,
-  ContextContentBody,
-  ContextContentFooter,
-  ContextInputUsage,
-  ContextOutputUsage,
-} from '@/components/ai-elements/context';
 import { SandboxIsland } from '@/components/chat/SandboxIsland';
 import { useReforge } from '@/hooks/useReforge';
-import {
-  Message,
-  MessageBubble,
-  MessageBody,
-  MessageFooter,
-  MessageAttachments,
-} from '@/components/chat/message';
+import { ReforgeModal } from '@/components/chat/ReforgeModal';
 import {
   PromptInput,
   PromptInputBody,
@@ -52,200 +25,16 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
-import {
-  ChatContainerRoot,
-  ChatContainerContent,
-} from '@/components/prompt-kit/chat-container';
-import { ScrollButton } from '@/components/prompt-kit/scroll-button';
 import type { ImageAttachment } from '@/lib/types';
-import { useCommandRegistry, type CommandEntry } from '@/hooks/useCommandRegistry';
-import { useSettingsStore } from '@/hooks/useSettings';
 import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
 import { GlowEffect } from '@/components/motion-primitives/glow-effect';
 import { haptics } from '@/lib/haptics';
 import { ArrowUp, Square } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Agent options — model selector dropdown
-// ---------------------------------------------------------------------------
-
-const AGENT_OPTIONS = [
-  { id: 'auto',      label: 'Auto',       description: 'Best model for each task (default)' },
-  { id: 'opus',      label: 'Opus 4.6',   description: 'Most capable — complex reasoning' },
-  { id: 'opusplan',  label: 'Opus Plan',  description: 'Opus for planning, Sonnet for execution' },
-  { id: 'sonnet',    label: 'Sonnet 4.6', description: 'Balanced — fast and highly capable' },
-  { id: 'sonnet1m',  label: 'Sonnet 1M',  description: 'Sonnet with 1M context — requires API key (OAuth tokens limited to 200K)' },
-  { id: 'haiku',     label: 'Haiku 4.5',  description: 'Fastest — lightweight tasks' },
-] as const;
-
-const GRID_BG = [
-  'before:absolute before:inset-0 before:pointer-events-none before:z-0',
-  'before:bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)]',
-  'before:bg-[size:24px_24px]',
-  'before:[mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_40%,transparent_100%)]',
-  '[&>*]:relative [&>*]:z-10',
-].join(' ');
-
-// ---------------------------------------------------------------------------
-// MemoizedMessageItem — unified responsive (desktop: full footer, mobile: compact)
-// ---------------------------------------------------------------------------
-
-const SENTINEL_RE = /^\[sentinel\]\s*/;
-
-const MemoizedMessageItem = memo(function MessageItem({ id, compact }: { id: string; compact?: boolean }) {
-  const message = useMessage(id);
-  if (!message) return null;
-
-  const isSentinel = message.role === 'user' && SENTINEL_RE.test(message.content);
-  const displayMessage = isSentinel
-    ? { ...message, content: message.content.replace(SENTINEL_RE, '') }
-    : message;
-
-  if (compact) {
-    return (
-      <AIMessage from={message.role}>
-        {message.role === 'user' ? (
-          <AIMessageContent className={isSentinel ? 'group-[.is-user]:bg-amber-500/15 group-[.is-user]:border group-[.is-user]:border-amber-500/30' : 'group-[.is-user]:bg-primary'}>
-            <MessageAttachments message={displayMessage} />
-          </AIMessageContent>
-        ) : (
-          <AIMessageContent>
-            <MessageContent message={message} />
-            <div className="mt-1 flex items-center">
-              <MessageActions content={message.content} messageId={message.id} />
-            </div>
-          </AIMessageContent>
-        )}
-      </AIMessage>
-    );
-  }
-
-  return (
-    <Message role={message.role}>
-      {message.role === 'user' ? (
-        <MessageBubble variant={isSentinel ? 'sentinel' : 'default'}>
-          <MessageAttachments message={displayMessage} />
-        </MessageBubble>
-      ) : (
-        <MessageBody>
-          <MessageContent message={message} />
-          <MessageFooter timestamp={message.timestamp}>
-            <MessageActions content={message.content} messageId={message.id} />
-            {message.usage && (
-              <span className="ml-auto text-[9px] tabular-nums text-muted-foreground/50" title="Token usage: input / output">
-                {message.usage.inputTokens.toLocaleString()}↑ {message.usage.outputTokens.toLocaleString()}↓
-                {message.usage.costUsd !== undefined && (
-                  <> · ${message.usage.costUsd < 0.001 ? message.usage.costUsd.toFixed(5) : message.usage.costUsd.toFixed(4)}</>
-                )}
-              </span>
-            )}
-          </MessageFooter>
-        </MessageBody>
-      )}
-    </Message>
-  );
-});
-
-// ---------------------------------------------------------------------------
-// CompactionBanner
-// ---------------------------------------------------------------------------
-
-function CompactionBanner() {
-  const isCompacting = useSandboxStore((s) => s.isCompacting);
-  const compactionDone = useSandboxStore((s) => s.compactionDone);
-  const dismissCompactionDone = useSandboxStore((s) => s.dismissCompactionDone);
-
-  useEffect(() => {
-    if (!compactionDone) return;
-    const timer = setTimeout(() => dismissCompactionDone(), 4000);
-    return () => clearTimeout(timer);
-  }, [compactionDone, dismissCompactionDone]);
-
-  if (isCompacting) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-400/80">
-        <BrainCircuit className="h-3.5 w-3.5 shrink-0 animate-pulse" />
-        <span>Compacting context — Claude is condensing the conversation to free up memory...</span>
-      </div>
-    );
-  }
-
-  if (compactionDone) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-400/80">
-        <BrainCircuit className="h-3.5 w-3.5 shrink-0" />
-        <span>Context compacted — session summary saved</span>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-// ---------------------------------------------------------------------------
-// FeedbackPrompt
-// ---------------------------------------------------------------------------
-
-function StreamingMessage({ compact }: { compact?: boolean }) {
-  const isStreaming = useSandboxStore((s) => s.isStreaming);
-  const streamingContent = useSandboxStore((s) => s.streamingContent);
-  const streamingParts = useSandboxStore((s) => s.streamingParts);
-  if (!isStreaming) return null;
-
-  const hasContent = !!(streamingContent || streamingParts.length > 0);
-
-  if (compact) {
-    return (
-      <AIMessage from="assistant">
-        <AIMessageContent>
-          {hasContent ? (
-            <>
-              <StreamingContent
-                parts={streamingParts}
-                fallbackContent={streamingContent}
-              />
-              <div className="mt-2 flex items-center">
-                <MessageActions
-                  content={streamingContent}
-                  isStreaming
-                />
-              </div>
-            </>
-          ) : (
-            <ThinkingBar text="Claude is thinking..." />
-          )}
-        </AIMessageContent>
-      </AIMessage>
-    );
-  }
-
-  return (
-    <Message role="assistant" isStreaming>
-      <MessageBody>
-        {hasContent ? (
-          <>
-            <StreamingContent
-              parts={streamingParts}
-              fallbackContent={streamingContent}
-            />
-            <TypingCursor />
-          </>
-        ) : (
-          <StreamingIndicator
-            parts={streamingParts}
-            hasContent={false}
-          />
-        )}
-        <MessageFooter>
-          <MessageActions
-            content={streamingContent}
-            isStreaming
-          />
-        </MessageFooter>
-      </MessageBody>
-    </Message>
-  );
-}
+import { MessageList } from '@/components/chat/MessageList';
+import { PillsRow } from '@/components/chat/PillsRow';
+import { useSlashCommands } from '@/hooks/useSlashCommands';
+import { useEffect } from 'react';
 
 // ---------------------------------------------------------------------------
 // ChatPanel
@@ -262,7 +51,6 @@ export function ChatPanel({
   primary = false,
   onMobileNavigate,
 }: ChatPanelProps) {
-  const messageIds = useMessageIds();
   const messageCount = useMessageCount();
   const sendMessage = useSandboxStore((s) => s.sendMessage);
   const isStreaming = useSandboxStore((s) => s.isStreaming);
@@ -271,21 +59,8 @@ export function ChatPanel({
   const currentFile = useSandboxStore((s) => s.currentFile);
   const sdkMode = useSandboxStore((s) => s.sdkMode);
   const setMode = useSandboxStore((s) => s.setMode);
-  const selectedModel = useSandboxStore((s) => s.selectedModel);
-  const setModel = useSandboxStore((s) => s.setModel);
-  const autonomyMode = useSandboxStore((s) => s.autonomyMode);
-  const setAutonomy = useSandboxStore((s) => s.setAutonomy);
   const sessionId = useSandboxStore((s) => s.currentSession?.id);
   const messagesById = useSandboxStore((s) => s.messagesById);
-  const sessionSummary = useSandboxStore((s) => s.sessionSummary);
-
-  const estimatedTokens = useMemo(() => {
-    let chars = 0;
-    for (const msg of Object.values(messagesById)) {
-      chars += msg.content?.length ?? 0;
-    }
-    return Math.floor(chars / 4);
-  }, [messagesById]);
 
   const sessionCostUsd = useMemo(() => {
     let total = 0;
@@ -302,21 +77,25 @@ export function ChatPanel({
   const [input, setInput] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
-  const [agentOpen, setAgentOpen] = useState(false);
-  const agentRef = useRef<HTMLDivElement>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
   useKeyboard();
 
-  useEffect(() => {
-    if (!agentOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (agentRef.current && !agentRef.current.contains(e.target as Node)) {
-        setAgentOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [agentOpen]);
+  // ---------------------------------------------------------------------------
+  // Slash command / agent autocomplete
+  // ---------------------------------------------------------------------------
+
+  const {
+    menuOpen,
+    menuState,
+    filteredCommands,
+    menuIndex,
+    handleSlashSelect,
+    handleSlashKeyDown,
+  } = useSlashCommands(input, setInput, sendMessage);
+
+  // ---------------------------------------------------------------------------
+  // Image upload + submit handler
+  // ---------------------------------------------------------------------------
 
   const uploadImage = useCallback(
     async (img: ImageAttachment): Promise<ImageAttachment | null> => {
@@ -344,98 +123,6 @@ export function ChatPanel({
   );
 
   const isEmpty = messageCount === 0 && !isStreaming;
-
-  // ---------------------------------------------------------------------------
-  // Slash command / agent autocomplete (migrated from old PromptInput)
-  // ---------------------------------------------------------------------------
-
-  const { commands, refresh: refreshCommands } = useCommandRegistry();
-  const settingsOpenForCmd = useSettingsStore((s) => s.isOpen);
-  const prevSettingsOpenRef = useRef(settingsOpenForCmd);
-  const [menuIndex, setMenuIndex] = useState(0);
-
-  useEffect(() => {
-    if (prevSettingsOpenRef.current && !settingsOpenForCmd) {
-      refreshCommands();
-    }
-    prevSettingsOpenRef.current = settingsOpenForCmd;
-  }, [settingsOpenForCmd, refreshCommands]);
-
-  const menuState = useMemo(() => {
-    const slashMatch = input.match(/(?:^|\s)\/(\S*)$/);
-    if (slashMatch) return { kind: 'command' as const, query: slashMatch[1] };
-    const atMatch = input.match(/(?:^|\s)@(\S*)$/);
-    if (atMatch) return { kind: 'agent' as const, query: atMatch[1] };
-    return null;
-  }, [input]);
-
-  const filteredCommands = useMemo(() => {
-    if (!menuState) return [];
-    return commands.filter(
-      (cmd) =>
-        cmd.kind === menuState.kind &&
-        cmd.name.toLowerCase().startsWith(menuState.query.toLowerCase()),
-    );
-  }, [menuState, commands]);
-
-  const menuOpen = menuState !== null && filteredCommands.length > 0;
-
-  useEffect(() => {
-    setMenuIndex(0);
-  }, [menuState?.query, menuState?.kind]);
-
-  const handleSlashSelect = useCallback(
-    (cmd: CommandEntry) => {
-      const prefixChar = cmd.kind === 'agent' ? '@' : '/';
-      const pattern = new RegExp(`(?:^|\\s)[${prefixChar}]\\S*$`);
-      const textBefore = input.replace(pattern, '').trim();
-      const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
-      const fullMessage = textBefore
-        ? `${textBefore}\n\n[${prefix}:/${cmd.name}]\n${cmd.content}`
-        : `[${prefix}:/${cmd.name}]\n${cmd.content}`;
-      sendMessage(fullMessage);
-      setInput('');
-      setMenuIndex(0);
-      haptics.light();
-    },
-    [sendMessage, input],
-  );
-
-  const handleSlashKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (!menuOpen) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setMenuIndex((menuIndex + 1) % filteredCommands.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setMenuIndex((menuIndex - 1 + filteredCommands.length) % filteredCommands.length);
-      } else if (e.key === 'Tab') {
-        e.preventDefault();
-        const selected = filteredCommands[menuIndex];
-        if (selected) {
-          const pfx = menuState?.kind === 'agent' ? '@' : '/';
-          const replacement = `${pfx}${selected.name} `;
-          const pat = new RegExp(`(?:^|\\s)[${pfx}]\\S*$`);
-          setInput(input.replace(pat, (m) => (m.startsWith(pfx) ? replacement : m[0] + replacement)));
-          setMenuIndex(0);
-        }
-      } else if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        const selected = filteredCommands[menuIndex];
-        if (selected) handleSlashSelect(selected);
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        setInput('');
-      }
-    },
-    [menuOpen, menuIndex, filteredCommands, menuState, input, handleSlashSelect],
-  );
-
-  // ---------------------------------------------------------------------------
-  // ChatStatus + ai-elements submit handler
-  // ---------------------------------------------------------------------------
-
   const hasInput = input.trim().length > 0;
 
   const handlePromptSubmit = useCallback(
@@ -474,8 +161,14 @@ export function ChatPanel({
     [sendMessage, uploadImage, sessionId],
   );
 
+  // ---------------------------------------------------------------------------
   // Vapor glow palette
-  const VAPOR_GLOW = useMemo(() => ['#a855f7', '#d946ef', '#818cf8', '#7c3aed', '#c026d3'], []);
+  // ---------------------------------------------------------------------------
+
+  const VAPOR_GLOW = useMemo(
+    () => ['#a855f7', '#d946ef', '#818cf8', '#7c3aed', '#c026d3'],
+    [],
+  );
 
   // ---------------------------------------------------------------------------
   // Prompt input — ai-elements PromptInput with VF composition
@@ -668,7 +361,6 @@ export function ChatPanel({
   const sentinelDataReady = useSandboxStore((s) => s.sentinelDataReady);
   const toggleSentinel = useSandboxStore((s) => s.toggleSentinel);
 
-  // Warn if paused too long — API TCP connection times out at 60-120s
   useEffect(() => {
     if (!isPaused || !pausedAt) return;
     const remaining = Math.max(0, 45_000 - (Date.now() - pausedAt));
@@ -706,135 +398,8 @@ export function ChatPanel({
   );
 
   // ---------------------------------------------------------------------------
-  // Pills row — Reforge / mode / Session / Model / Autonomy / Context
+  // Render
   // ---------------------------------------------------------------------------
-
-  const pillsRow = (
-    <div className="flex w-full flex-wrap items-center justify-start gap-2">
-      <div className="hidden md:contents">
-        <button
-          type="button"
-          onClick={() => useReforge.getState().open()}
-          className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary hover:bg-primary/20 transition-colors"
-        >
-          <Flame className="h-3 w-3" />
-          Reforge
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode(sdkMode === 'plan' ? 'agent' : 'plan')}
-          className={cn(
-            'flex items-center gap-1 rounded-full px-3 py-1 text-[10px] font-medium transition-colors',
-            sdkMode === 'plan'
-              ? 'bg-primary/15 text-primary'
-              : 'bg-primary/10 text-primary hover:bg-primary/20',
-          )}
-        >
-          <Zap className="h-3 w-3" />
-          {sdkMode === 'plan' ? 'Plan mode' : 'Auto-pick'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setSessionOpen((v) => !v)}
-          className={cn(
-            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
-            sessionOpen
-              ? 'bg-purple-500/20 text-purple-400'
-              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
-          )}
-        >
-          <Bookmark className="h-3 w-3" />
-          <span>Session</span>
-        </button>
-      </div>
-
-      {/* Model dropdown */}
-      <div ref={agentRef} className="relative">
-        <button
-          type="button"
-          onClick={() => setAgentOpen((v) => !v)}
-          className={cn(
-            'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
-            agentOpen
-              ? 'bg-primary/15 text-primary'
-              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
-          )}
-        >
-          <Zap className="h-3 w-3" />
-          <span>{AGENT_OPTIONS.find((a) => a.id === selectedModel)?.label ?? 'Auto'}</span>
-          <ChevronDown className={cn('h-3 w-3 transition-transform duration-150', agentOpen && 'rotate-180')} />
-        </button>
-        <AnimatePresence>
-          {agentOpen && (
-            <motion.div
-              key="agent-dropdown"
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              transition={{ duration: 0.15 }}
-              className="absolute bottom-full mb-1.5 left-0 z-50 w-52 rounded-xl border border-primary/50 bg-background overflow-hidden"
-            >
-              <div className={cn('relative', GRID_BG)}>
-                <div className="p-1">
-                  {AGENT_OPTIONS.map((agent) => (
-                    <button
-                      key={agent.id}
-                      type="button"
-                      onClick={() => { setModel(agent.id); setAgentOpen(false); }}
-                      className={cn(
-                        'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
-                        selectedModel === agent.id
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
-                      )}
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[11px] font-medium">{agent.label}</span>
-                        <span className="text-[10px] text-muted-foreground">{agent.description}</span>
-                      </div>
-                      {selectedModel === agent.id && (
-                        <Check className="ml-auto h-3 w-3 shrink-0 mt-0.5 text-primary" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <AutonomySelectorPopup selected={autonomyMode} onSelect={setAutonomy} />
-
-      <div className="ml-auto">
-        <Context usedTokens={estimatedTokens} maxTokens={200000}>
-          <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground" />
-          <ContextContent
-            side="top"
-            align="start"
-            className={cn('relative border-primary/50 bg-background overflow-hidden', GRID_BG)}
-          >
-            <ContextContentHeader />
-            <ContextContentBody className="space-y-1.5">
-              <ContextInputUsage />
-              <ContextOutputUsage />
-            </ContextContentBody>
-            {sessionSummary && (
-              <ContextContentBody className="space-y-1.5">
-                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/50">
-                  Session summary
-                </p>
-                <p className="text-xs leading-relaxed text-muted-foreground/80 line-clamp-6">
-                  {sessionSummary}
-                </p>
-              </ContextContentBody>
-            )}
-            <ContextContentFooter />
-          </ContextContent>
-        </Context>
-      </div>
-    </div>
-  );
 
   return (
     <div className={`flex h-full flex-col bg-background ${compact || primary ? '' : 'border-l border-border/60'}`}>
@@ -890,7 +455,6 @@ export function ChatPanel({
       {isEmpty ? (
         /* Welcome state — SessionIsland + headline + input + pills */
         <div className="relative flex h-full flex-col items-center px-4 pb-4 md:justify-center">
-          {/* Grid background — matches PlaygroundPage */}
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
           <div className="flex flex-1 md:flex-none min-h-0 flex-col items-center justify-center w-full">
             <div className="w-full max-w-2xl space-y-5 flex flex-col items-center">
@@ -912,49 +476,15 @@ export function ChatPanel({
           </div>
           <div className="w-full max-w-2xl flex flex-col gap-2 md:mt-5">
             <div className="order-2 md:order-1">{promptInput}</div>
-            <div className="order-1 md:order-2">{pillsRow}</div>
+            <div className="order-1 md:order-2">
+              <PillsRow sessionOpen={sessionOpen} onSessionToggle={() => setSessionOpen((v) => !v)} />
+            </div>
           </div>
         </div>
       ) : (
         /* Chat state — messages + input + pills at bottom */
         <>
-          {compact ? (
-            /* Mobile: ChatContainer for smooth stick-to-bottom scrolling */
-            <div className="relative flex-1 flex flex-col min-h-0">
-              <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-            <ChatContainerRoot className="relative flex-1">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
-              <ChatContainerContent className="flex flex-col gap-4 px-4 py-3">
-                {messageIds.map((id) => (
-                  <MemoizedMessageItem key={id} id={id} compact />
-                ))}
-                <CompactionBanner />
-                <StreamingMessage compact />
-                <div className="flex w-full items-end justify-end px-2 pb-2">
-                  <ScrollButton />
-                </div>
-              </ChatContainerContent>
-            </ChatContainerRoot>
-            </div>
-          ) : (
-            /* Desktop: ChatContainer for smooth stick-to-bottom scrolling */
-            <div className="relative flex-1 flex flex-col min-h-0">
-              <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-            <ChatContainerRoot className="relative flex-1">
-              <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
-              <ChatContainerContent className="mx-auto max-w-3xl space-y-1 px-4 py-3">
-                {messageIds.map((id) => (
-                  <MemoizedMessageItem key={id} id={id} />
-                ))}
-                <CompactionBanner />
-                <StreamingMessage />
-                <div className="flex w-full items-end justify-end px-2 pb-2">
-                  <ScrollButton />
-                </div>
-              </ChatContainerContent>
-            </ChatContainerRoot>
-            </div>
-          )}
+          <MessageList compact={compact} />
 
           <div className="px-4 pb-4 flex flex-col gap-2 max-w-2xl mx-auto w-full">
             <div className="flex items-center justify-center">
@@ -966,7 +496,9 @@ export function ChatPanel({
               </motion.div>
             </div>
             <div className="order-2 md:order-1">{promptInput}</div>
-            <div className="order-1 md:order-2">{pillsRow}</div>
+            <div className="order-1 md:order-2">
+              <PillsRow sessionOpen={sessionOpen} onSessionToggle={() => setSessionOpen((v) => !v)} />
+            </div>
           </div>
         </>
       )}
