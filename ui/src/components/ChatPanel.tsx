@@ -19,7 +19,6 @@ import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
 
 import { AutonomySelectorPopup } from '@/components/prompt-input/AutonomySelectorPopup';
 import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
-import type { MobileTab } from '@/components/mobile/MobileTabBar';
 import type { SubView } from '@/hooks/useMobileNav';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
@@ -283,14 +282,12 @@ function MobileStreamingMessage() {
 interface ChatPanelProps {
   compact?: boolean;
   primary?: boolean;
-  onMobileTabChange?: (tab: MobileTab) => void;
   onMobileNavigate?: (view: SubView) => void;
 }
 
 export function ChatPanel({
   compact = false,
   primary = false,
-  onMobileTabChange,
   onMobileNavigate,
 }: ChatPanelProps) {
   const messageIds = useMessageIds();
@@ -793,11 +790,10 @@ export function ChatPanel({
         </>
       )}
 
-      {compact && onMobileTabChange && onMobileNavigate && (
+      {compact && onMobileNavigate && (
         <PromptMoreDrawer
           isOpen={moreDrawerOpen}
           onClose={() => setMoreDrawerOpen(false)}
-          onTabChange={onMobileTabChange}
           onNavigate={onMobileNavigate}
         />
       )}

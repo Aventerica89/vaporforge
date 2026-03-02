@@ -1,7 +1,4 @@
 import {
-  Home,
-  FolderTree,
-  Terminal,
   Settings,
   Plus,
   Bug,
@@ -10,13 +7,11 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { haptics } from '@/lib/haptics';
 import { MobileBottomSheet } from '@/components/MobileBottomSheet';
-import type { MobileTab } from '@/components/mobile/MobileTabBar';
 import type { SubView } from '@/hooks/useMobileNav';
 
 type PromptMoreDrawerProps = {
   isOpen: boolean;
   onClose: () => void;
-  onTabChange: (tab: MobileTab) => void;
   onNavigate: (view: SubView) => void;
 };
 
@@ -28,14 +23,8 @@ type GridItem = {
   onPress: () => void;
 };
 
-export function PromptMoreDrawer({ isOpen, onClose, onTabChange, onNavigate }: PromptMoreDrawerProps) {
+export function PromptMoreDrawer({ isOpen, onClose, onNavigate }: PromptMoreDrawerProps) {
   const createSession = useSandboxStore((s) => s.createSession);
-
-  const navigate = (tab: MobileTab) => {
-    haptics.light();
-    onClose();
-    onTabChange(tab);
-  };
 
   const navigateSubView = (view: SubView) => {
     haptics.light();
@@ -57,25 +46,11 @@ export function PromptMoreDrawer({ isOpen, onClose, onTabChange, onNavigate }: P
 
   const GRID_ITEMS: GridItem[] = [
     {
-      key: 'home',
-      icon: Home,
-      label: 'Home',
-      iconColor: 'text-muted-foreground',
-      onPress: () => navigate('home'),
-    },
-    {
-      key: 'files',
-      icon: FolderTree,
-      label: 'Files',
+      key: 'new-session',
+      icon: Plus,
+      label: 'New Session',
       iconColor: 'text-primary',
-      onPress: () => navigate('files'),
-    },
-    {
-      key: 'terminal',
-      icon: Terminal,
-      label: 'Terminal',
-      iconColor: 'text-green-400',
-      onPress: () => navigate('terminal'),
+      onPress: handleNewSession,
     },
     {
       key: 'settings',
@@ -83,13 +58,6 @@ export function PromptMoreDrawer({ isOpen, onClose, onTabChange, onNavigate }: P
       label: 'Settings',
       iconColor: 'text-muted-foreground',
       onPress: () => navigateSubView('settings'),
-    },
-    {
-      key: 'new-session',
-      icon: Plus,
-      label: 'New Session',
-      iconColor: 'text-primary',
-      onPress: handleNewSession,
     },
     {
       key: 'bugs',

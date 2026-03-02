@@ -26,10 +26,10 @@ export const MobileNavBar = memo(function MobileNavBar({
     <div
       className="shrink-0 safe-area-header"
       style={{
-        background: 'rgba(30, 30, 30, 0.94)',
+        background: 'hsl(var(--card) / 0.94)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        borderBottom: '0.5px solid hsl(var(--border))',
       }}
     >
       <div

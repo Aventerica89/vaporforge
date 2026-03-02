@@ -15,8 +15,6 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
 
-import { useIssueTracker } from '@/hooks/useIssueTracker';
-import { usePlayground } from '@/hooks/usePlayground';
 
 export function MobileLayout() {
   const { currentSession, isCreatingSession, selectSession, deselectSession } =
@@ -97,16 +95,6 @@ export function MobileLayout() {
       switch (subView) {
         case 'settings':
           return <SettingsPage inMobileSubView />;
-        case 'issues':
-          // Open floating overlay and return to More
-          useIssueTracker.getState().openTracker();
-          goBack();
-          return null;
-        case 'playground':
-          // Open floating overlay and return to More
-          usePlayground.getState().openPlayground();
-          goBack();
-          return null;
         default:
           return null;
       }
@@ -132,7 +120,7 @@ export function MobileLayout() {
         return (
           <ChatPanel
             compact
-            onMobileTabChange={handleTabChange}
+
             onMobileNavigate={setSubView}
           />
         );
@@ -156,7 +144,7 @@ export function MobileLayout() {
         return (
           <ChatPanel
             compact
-            onMobileTabChange={handleTabChange}
+
             onMobileNavigate={setSubView}
           />
         );

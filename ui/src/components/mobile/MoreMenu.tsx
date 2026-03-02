@@ -2,7 +2,6 @@ import {
   Plus,
   GitBranch,
   Settings,
-  Puzzle,
   Bug,
   Hammer,
   LogOut,
@@ -11,6 +10,8 @@ import {
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { useIssueTracker } from '@/hooks/useIssueTracker';
+import { usePlayground } from '@/hooks/usePlayground';
 import { haptics } from '@/lib/haptics';
 import type { SubView } from '@/hooks/useMobileNav';
 
@@ -154,17 +155,12 @@ export function MoreMenu({
         <MenuItem
           icon={<Bug className="h-4.5 w-4.5 text-orange-500" />}
           label="Bug Tracker"
-          onClick={() => onNavigate('issues')}
+          onClick={() => useIssueTracker.getState().openTracker()}
         />
         <MenuItem
           icon={<Hammer className="h-4.5 w-4.5 text-amber-500" />}
           label="Dev Playground"
-          onClick={() => onNavigate('playground')}
-        />
-        <MenuItem
-          icon={<Puzzle className="h-4.5 w-4.5 text-primary" />}
-          label="Integrations"
-          onClick={() => onNavigate('settings')}
+          onClick={() => usePlayground.getState().openPlayground()}
         />
         <MenuItem
           icon={<Settings className="h-4.5 w-4.5 text-muted-foreground" />}
