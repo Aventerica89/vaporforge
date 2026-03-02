@@ -1317,6 +1317,13 @@ if(fs.existsSync(p)){
           return { synced: false, claudeMdChanged: false };
         }
 
+        // Guard: never sync-back empty content — this would wipe the user's CLAUDE.md.
+        // Can happen if Claude rewrites the file keeping the separator but removing content.
+        if (!userPortion.trim()) {
+          console.log(`[syncConfig] ${sid}: empty userPortion after extraction, skipping`);
+          return { synced: false, claudeMdChanged: false };
+        }
+
         // Bug fix: only sync if the user portion was ACTUALLY edited in-container.
         // Compare against what we originally injected — if unchanged, the KV value
         // (which may have been updated via Settings UI) is authoritative.

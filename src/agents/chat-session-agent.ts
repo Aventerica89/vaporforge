@@ -710,6 +710,14 @@ export class ChatSessionAgent {
       if (config.claudeMd?.trim()) mdParts.push(config.claudeMd!.trim());
       if (mdParts.length) {
         await sandbox.writeFile('/root/.claude/CLAUDE.md', mdParts.join('\n\n---\n\n'));
+        // Record what was injected so syncConfigFromContainer can detect
+        // in-container edits vs unchanged injection. Without this sentinel,
+        // sync-back falls through to legacy compare and overwrites KV with
+        // stale container content when the user edits via Settings mid-session.
+        await sandbox.writeFile(
+          '/root/.claude/.vf-injected-claude-md',
+          config.claudeMd?.trim() || ''
+        );
       }
 
       // Plugin + user config files (agents, commands, rules)
