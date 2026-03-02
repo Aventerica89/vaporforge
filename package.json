@@ -13,7 +13,7 @@
     "build:ui": "cd ui && npm install && npm run build",
     "build:merge": "node scripts/merge-dist.mjs",
     "build": "npm run build:info && npm run build:landing && npm run build:ui && npm run build:merge",
-    "deploy": "npm run build && npx wrangler deploy",
+    "deploy": "npm run build && (npx wrangler deploy; bash scripts/deploy-log.sh $?)",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest",
