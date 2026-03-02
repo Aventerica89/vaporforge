@@ -46,11 +46,12 @@ import {
 } from '@/components/chat/message';
 import {
   PromptInput,
+  PromptInputBody,
   PromptInputTextarea,
-  PromptInputSubmit,
-  PromptInputSlashMenu,
-  PromptInputAttachments,
-} from '@/components/prompt-input';
+  PromptInputFooter,
+  PromptInputTools,
+  type PromptInputMessage,
+} from '@/components/ai-elements/prompt-input';
 import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
 import {
   ChatContainerRoot,
@@ -58,6 +59,12 @@ import {
 } from '@/components/prompt-kit/chat-container';
 import { ScrollButton } from '@/components/prompt-kit/scroll-button';
 import type { ImageAttachment } from '@/lib/types';
+import { useCommandRegistry, type CommandEntry } from '@/hooks/useCommandRegistry';
+import { useSettingsStore } from '@/hooks/useSettings';
+import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
+import { GlowEffect } from '@/components/motion-primitives/glow-effect';
+import { haptics } from '@/lib/haptics';
+import { ArrowUp, Square } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Agent options — model selector dropdown
@@ -334,7 +341,7 @@ export function ChatPanel({
   const [agentOpen, setAgentOpen] = useState(false);
   const agentRef = useRef<HTMLDivElement>(null);
   const [sessionOpen, setSessionOpen] = useState(false);
-  const { isVisible: keyboardOpen } = useKeyboard();
+  useKeyboard();
 
   useEffect(() => {
     if (!agentOpen) return;
@@ -375,108 +382,314 @@ export function ChatPanel({
   const isEmpty = messageCount === 0 && !isStreaming;
 
   // ---------------------------------------------------------------------------
-  // Prompt input — rounded-3xl with BorderTrail + mobile action bar
+  // Slash command / agent autocomplete (migrated from old PromptInput)
+  // ---------------------------------------------------------------------------
+
+  const { commands, refresh: refreshCommands } = useCommandRegistry();
+  const settingsOpenForCmd = useSettingsStore((s) => s.isOpen);
+  const prevSettingsOpenRef = useRef(settingsOpenForCmd);
+  const [menuIndex, setMenuIndex] = useState(0);
+
+  useEffect(() => {
+    if (prevSettingsOpenRef.current && !settingsOpenForCmd) {
+      refreshCommands();
+    }
+    prevSettingsOpenRef.current = settingsOpenForCmd;
+  }, [settingsOpenForCmd, refreshCommands]);
+
+  const menuState = useMemo(() => {
+    const slashMatch = input.match(/(?:^|\s)\/(\S*)$/);
+    if (slashMatch) return { kind: 'command' as const, query: slashMatch[1] };
+    const atMatch = input.match(/(?:^|\s)@(\S*)$/);
+    if (atMatch) return { kind: 'agent' as const, query: atMatch[1] };
+    return null;
+  }, [input]);
+
+  const filteredCommands = useMemo(() => {
+    if (!menuState) return [];
+    return commands.filter(
+      (cmd) =>
+        cmd.kind === menuState.kind &&
+        cmd.name.toLowerCase().startsWith(menuState.query.toLowerCase()),
+    );
+  }, [menuState, commands]);
+
+  const menuOpen = menuState !== null && filteredCommands.length > 0;
+
+  useEffect(() => {
+    setMenuIndex(0);
+  }, [menuState?.query, menuState?.kind]);
+
+  const handleSlashSelect = useCallback(
+    (cmd: CommandEntry) => {
+      const prefixChar = cmd.kind === 'agent' ? '@' : '/';
+      const pattern = new RegExp(`(?:^|\\s)[${prefixChar}]\\S*$`);
+      const textBefore = input.replace(pattern, '').trim();
+      const prefix = cmd.kind === 'agent' ? 'agent' : 'command';
+      const fullMessage = textBefore
+        ? `${textBefore}\n\n[${prefix}:/${cmd.name}]\n${cmd.content}`
+        : `[${prefix}:/${cmd.name}]\n${cmd.content}`;
+      sendMessage(fullMessage);
+      setInput('');
+      setMenuIndex(0);
+      haptics.light();
+    },
+    [sendMessage, input],
+  );
+
+  const handleSlashKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!menuOpen) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMenuIndex((menuIndex + 1) % filteredCommands.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMenuIndex((menuIndex - 1 + filteredCommands.length) % filteredCommands.length);
+      } else if (e.key === 'Tab') {
+        e.preventDefault();
+        const selected = filteredCommands[menuIndex];
+        if (selected) {
+          const pfx = menuState?.kind === 'agent' ? '@' : '/';
+          const replacement = `${pfx}${selected.name} `;
+          const pat = new RegExp(`(?:^|\\s)[${pfx}]\\S*$`);
+          setInput(input.replace(pat, (m) => (m.startsWith(pfx) ? replacement : m[0] + replacement)));
+          setMenuIndex(0);
+        }
+      } else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const selected = filteredCommands[menuIndex];
+        if (selected) handleSlashSelect(selected);
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setInput('');
+      }
+    },
+    [menuOpen, menuIndex, filteredCommands, menuState, input, handleSlashSelect],
+  );
+
+  // ---------------------------------------------------------------------------
+  // ChatStatus + ai-elements submit handler
+  // ---------------------------------------------------------------------------
+
+  const hasInput = input.trim().length > 0;
+
+  const handlePromptSubmit = useCallback(
+    async (message: PromptInputMessage) => {
+      if (!message.text && !message.files?.length) return;
+      haptics.light();
+      let text = message.text;
+      let submittedImages: ImageAttachment[] | undefined;
+
+      if (message.files?.length && sessionId) {
+        const uploaded: ImageAttachment[] = [];
+        for (const file of message.files) {
+          if (!file.mediaType?.startsWith('image/')) continue;
+          const img: ImageAttachment = {
+            id: crypto.randomUUID(),
+            filename: file.filename || `${crypto.randomUUID().slice(0, 8)}.png`,
+            mimeType: file.mediaType || 'image/png',
+            dataUrl: file.url || '',
+          };
+          const result = await uploadImage(img);
+          if (result) uploaded.push(result);
+        }
+        if (uploaded.length > 0) {
+          const refs = uploaded
+            .map((img) => `[Image attached: ${img.uploadedPath}]`)
+            .join('\n');
+          text = text ? `${refs}\n\n${text}` : refs;
+          submittedImages = uploaded;
+        }
+      }
+
+      if (!text) return;
+      sendMessage(text, submittedImages);
+      setInput('');
+    },
+    [sendMessage, uploadImage, sessionId],
+  );
+
+  // Vapor glow palette
+  const VAPOR_GLOW = useMemo(() => ['#a855f7', '#d946ef', '#818cf8', '#7c3aed', '#c026d3'], []);
+
+  // ---------------------------------------------------------------------------
+  // Prompt input — ai-elements PromptInput with VF composition
   // ---------------------------------------------------------------------------
 
   const promptInput = (
-    <PromptInput
-      input={input}
-      onInputChange={setInput}
-      onSubmit={sendMessage}
-      onStop={stopStreaming}
-      status={isStreaming ? 'streaming' : 'idle'}
-      uploadImage={uploadImage}
-      compact={compact}
-      keyboardOpen={keyboardOpen}
-      disabled={!sessionId}
-      className={cn(
-        'relative z-10 w-full rounded-3xl border bg-card/90 pt-1 backdrop-blur-md !px-0 !pb-0',
-        isStreaming || input.trim().length > 0
-          ? 'border-purple-500/60 shadow-[0_0_20px_-4px_rgba(168,85,247,0.35)]'
-          : 'border-primary/50 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.25)] hover:border-primary/70 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.35)]',
+    <div className="relative">
+      {menuOpen && (
+        <SlashCommandMenu
+          query={menuState?.query ?? ''}
+          commands={filteredCommands}
+          selectedIndex={menuIndex}
+          onSelect={handleSlashSelect}
+          onDismiss={() => setInput('')}
+        />
       )}
-    >
-      <AnimatePresence>
-        {isStreaming && (
-          <motion.div
-            key="border-trail"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-          >
+      <PromptInput
+        onSubmit={handlePromptSubmit}
+        accept="image/*"
+        multiple
+        maxFiles={5}
+        maxFileSize={10 * 1024 * 1024}
+        className={cn(
+          'relative z-10 w-full rounded-3xl bg-card/90 pt-1 backdrop-blur-md overflow-visible',
+          isStreaming || hasInput
+            ? 'border-purple-500/60 shadow-[0_0_20px_-4px_rgba(168,85,247,0.35)]'
+            : 'border-primary/50 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.25)] hover:border-primary/70 hover:shadow-[0_0_20px_-4px_hsl(var(--primary)/0.35)]',
+        )}
+      >
+        <AnimatePresence>
+          {isStreaming && (
             <BorderTrail
               size={120}
               radius={24}
               className="bg-gradient-to-l from-purple-400/0 via-purple-400 to-purple-400/0"
               transition={{ ease: 'linear', duration: 3, repeat: Infinity }}
             />
-          </motion.div>
-        )}
-      </AnimatePresence>
-      <PromptInputSlashMenu />
-      <PromptInputAttachments />
-      <PromptInputTextarea
-        placeholder="Ask anything..."
-        className="min-h-[44px] pl-4 pt-3 text-base leading-[1.3]"
-      />
-      {/* Mobile action bar (hidden on desktop) */}
-      <div className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
-        <div className="flex items-center">
-          <button
-            type="button"
-            onClick={() => useReforge.getState().open()}
-            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
-          >
-            <Flame className="size-5 text-primary/70" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode(sdkMode === 'plan' ? 'agent' : 'plan')}
-            className={cn(
-              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
-              sdkMode === 'plan'
-                ? 'text-primary bg-primary/10'
-                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+          )}
+        </AnimatePresence>
+
+        <PromptInputBody>
+          <PromptInputTextarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleSlashKeyDown}
+            placeholder="Ask anything..."
+            disabled={isStreaming || !sessionId}
+            className="min-h-[44px] max-h-48 pl-4 pt-3 text-base leading-[1.3] field-sizing-content"
+            style={{
+              fontSize: '16px',
+              color: menuOpen
+                ? menuState?.kind === 'agent'
+                  ? 'hsl(var(--secondary))'
+                  : 'hsl(var(--primary))'
+                : undefined,
+            }}
+          />
+        </PromptInputBody>
+
+        {/* Mobile action bar (hidden on desktop) */}
+        <PromptInputFooter className="flex md:hidden items-center justify-between px-1 pt-1 pb-2">
+          <PromptInputTools>
+            <button
+              type="button"
+              onClick={() => useReforge.getState().open()}
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+            >
+              <Flame className="size-5 text-primary/70" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode(sdkMode === 'plan' ? 'agent' : 'plan')}
+              className={cn(
+                'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+                sdkMode === 'plan'
+                  ? 'text-primary bg-primary/10'
+                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+              )}
+            >
+              {sdkMode === 'plan' ? <Eye className="size-5" /> : <Zap className="size-5" />}
+            </button>
+            <button
+              type="button"
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+            >
+              <Paperclip className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setSessionOpen((v) => !v)}
+              className={cn(
+                'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
+                sessionOpen
+                  ? 'text-purple-400 bg-purple-500/10'
+                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+              )}
+            >
+              <Bookmark className="size-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMoreDrawerOpen(true)}
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+            >
+              <MoreHorizontal className="size-5" />
+            </button>
+          </PromptInputTools>
+          <div className="pr-2">
+            {isStreaming ? (
+              <button
+                type="button"
+                onClick={stopStreaming}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
+                title="Stop generating"
+              >
+                <Square className="h-4 w-4" />
+              </button>
+            ) : (
+              <div className="relative">
+                <AnimatePresence>
+                  {hasInput && (
+                    <motion.div key="glow-m" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+                      <GlowEffect colors={VAPOR_GLOW} mode="pulse" blur="soft" duration={2.5} scale={1.3} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <button
+                  type="submit"
+                  disabled={!hasInput || !sessionId}
+                  className={cn(
+                    'relative flex h-9 w-9 items-center justify-center rounded-full transition-all',
+                    hasInput ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground/40',
+                  )}
+                  title="Send message"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </button>
+              </div>
             )}
-          >
-            {sdkMode === 'plan' ? <Eye className="size-5" /> : <Zap className="size-5" />}
-          </button>
-          <button
-            type="button"
-            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
-          >
-            <Paperclip className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSessionOpen((v) => !v)}
-            className={cn(
-              'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
-              sessionOpen
-                ? 'text-purple-400 bg-purple-500/10'
-                : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
-            )}
-          >
-            <Bookmark className="size-5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setMoreDrawerOpen(true)}
-            className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
-          >
-            <MoreHorizontal className="size-5" />
-          </button>
-        </div>
-        <div className="pr-2">
-          <PromptInputSubmit />
-        </div>
-      </div>
-      {/* Desktop submit row */}
-      <div className="hidden md:flex justify-end px-2 pb-2">
-        <PromptInputSubmit />
-      </div>
-    </PromptInput>
+          </div>
+        </PromptInputFooter>
+
+        {/* Desktop submit row */}
+        <PromptInputFooter className="hidden md:flex justify-end px-2 pb-2">
+          {isStreaming ? (
+            <button
+              type="button"
+              onClick={stopStreaming}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
+              title="Stop generating"
+            >
+              <Square className="h-4 w-4" />
+            </button>
+          ) : (
+            <div className="relative">
+              <AnimatePresence>
+                {hasInput && (
+                  <motion.div key="glow-d" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+                    <GlowEffect colors={VAPOR_GLOW} mode="pulse" blur="soft" duration={2.5} scale={1.3} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <button
+                type="submit"
+                disabled={!hasInput || !sessionId}
+                className={cn(
+                  'relative flex h-9 w-9 items-center justify-center rounded-full transition-all',
+                  hasInput ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground/40',
+                )}
+                title="Send message"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+        </PromptInputFooter>
+      </PromptInput>
+    </div>
   );
 
   // ---------------------------------------------------------------------------
