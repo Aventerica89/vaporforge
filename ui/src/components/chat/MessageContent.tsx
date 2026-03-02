@@ -9,7 +9,7 @@ import { PlanCard } from '@/components/ai-elements/PlanCard';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
 import { Confirmation } from '@/components/ai-elements/Confirmation';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
-import { useSmoothText } from '@/hooks/useSmoothText';
+import { MessageResponse } from '@/components/ai-elements/message';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
 import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
@@ -28,11 +28,6 @@ interface MessageContentProps {
 interface StreamingContentProps {
   parts: MessagePart[];
   fallbackContent: string;
-}
-
-function SmoothTextPart({ content, isStreaming }: { content: string; isStreaming: boolean }) {
-  const smoothed = useSmoothText(content, isStreaming);
-  return <ChatMarkdown content={smoothed} isStreaming={isStreaming} />;
 }
 
 /** Retry button for crash/warmup errors — re-sends the last user message */
@@ -243,7 +238,7 @@ function renderPart(
     case 'text':
       if (!part.content) return null;
       return isStreaming ? (
-        <SmoothTextPart key={index} content={part.content} isStreaming />
+        <MessageResponse key={index} mode="streaming">{part.content}</MessageResponse>
       ) : (
         <ChatMarkdown key={index} content={part.content} />
       );
@@ -491,12 +486,15 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
         {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
+          // Text parts always use SmoothTextPart during streaming to avoid
+          // a visual pop when a tool-start arrives after text (which would
+          // switch from SmoothTextPart to ChatMarkdown mid-animation).
           const isStreamingPart =
-            isLast &&
-            (part.type === 'text' ||
-              part.type === 'tool-start' ||
-              part.type === 'reasoning' ||
-              part.type === 'chain-of-thought');
+            part.type === 'text' ||
+            (isLast &&
+              (part.type === 'tool-start' ||
+                part.type === 'reasoning' ||
+                part.type === 'chain-of-thought'));
           return renderPart(part, i, isStreamingPart, parts);
         })}
       </>
@@ -504,7 +502,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   }
 
   if (fallbackContent) {
-    return <SmoothTextPart content={fallbackContent} isStreaming />;
+    return <MessageResponse mode="streaming">{fallbackContent}</MessageResponse>;
   }
 
   return null;

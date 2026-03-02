@@ -405,6 +405,7 @@ export class ChatSessionAgent {
     return new Response(readable, {
       headers: {
         'Content-Type': 'application/x-ndjson',
+        'Content-Encoding': 'none',
         'Cache-Control': 'no-cache',
       },
     });

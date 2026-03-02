@@ -148,6 +148,7 @@ transformRoutes.post('/stream', async (c) => {
   return new Response(readable, {
     headers: {
       'Content-Type': 'text/event-stream',
+      'Content-Encoding': 'none',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',

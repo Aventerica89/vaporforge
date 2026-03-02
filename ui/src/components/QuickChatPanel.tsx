@@ -27,6 +27,7 @@ import {
 import { cn } from '@/lib/cn';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { MessageResponse } from './ai-elements/message';
 import { ChatMarkdown } from './chat/ChatMarkdown';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './prompt-kit/reasoning';
 import { MessageActions } from './chat/MessageActions';
@@ -656,6 +657,7 @@ function QuickChatMessage({
   }
 
   const textContent = getMessageText(msg);
+  const activelyStreaming = isLastAssistant && isStreaming;
   const hasToolParts = msg.parts.some(
     (p) => p.type === 'dynamic-tool' || p.type === 'reasoning'
   );
@@ -671,7 +673,7 @@ function QuickChatMessage({
           <ProviderBadge provider={provider} />
         </div>
         <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-          <ChatMarkdown content={textContent} />
+          <MessageResponse mode={activelyStreaming ? 'streaming' : 'static'}>{textContent}</MessageResponse>
         </div>
         {!isStreaming && <MessageActions content={textContent} />}
       </div>
@@ -700,7 +702,7 @@ function QuickChatMessage({
           if (!text.trim()) return null;
           return (
             <div key={i} className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-              <ChatMarkdown content={text} />
+              <MessageResponse mode={activelyStreaming ? 'streaming' : 'static'}>{text}</MessageResponse>
             </div>
           );
         }

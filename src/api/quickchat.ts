@@ -439,7 +439,13 @@ quickchatRoutes.post('/stream', async (c) => {
     })()
   );
 
-  return result.toUIMessageStreamResponse();
+  // Disable CF/proxy compression — buffering kills streaming
+  // See: https://ai-sdk.dev/docs/troubleshooting/streaming-not-working-when-proxied
+  return result.toUIMessageStreamResponse({
+    headers: {
+      'Content-Encoding': 'none',
+    },
+  });
 });
 
 // GET /list — list quick chat conversations + available providers
