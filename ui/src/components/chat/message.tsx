@@ -79,15 +79,18 @@ export function Message({
 interface MessageBubbleProps {
   children: React.ReactNode;
   className?: string;
+  variant?: 'default' | 'sentinel';
 }
 
-export function MessageBubble({ children, className = '' }: MessageBubbleProps) {
+export function MessageBubble({ children, className = '', variant = 'default' }: MessageBubbleProps) {
   return (
     <div className="flex justify-end">
       <div
         className={[
-          'max-w-[85%] rounded-2xl rounded-br-md',
-          'bg-primary px-4 py-2.5 text-sm text-primary-foreground',
+          'max-w-[85%] rounded-2xl rounded-br-md px-4 py-2.5 text-sm',
+          variant === 'sentinel'
+            ? 'sentinel-bubble bg-amber-500/10 text-amber-100'
+            : 'bg-primary text-primary-foreground',
           className,
         ].join(' ')}
       >

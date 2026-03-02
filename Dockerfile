@@ -27,9 +27,18 @@ RUN curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
     apt-get update && apt-get install -y 1password-cli && \
     rm -rf /var/lib/apt/lists/*
 
+# Install GitHub CLI for repo operations (PRs, issues, releases)
+# Auth: set GITHUB_TOKEN env var via VF secrets, or run `gh auth login` in session
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+    dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > \
+    /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && apt-get install -y gh && \
+    rm -rf /var/lib/apt/lists/*
+
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260302a
+ENV VF_CONTAINER_BUILD=20260302c
 
 # Create workspace directory
 RUN mkdir -p /workspace
