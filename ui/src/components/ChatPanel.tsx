@@ -81,12 +81,31 @@ const GRID_BG = [
 ].join(' ');
 
 // ---------------------------------------------------------------------------
-// MemoizedMessageItem
+// MemoizedMessageItem — unified responsive (desktop: full footer, mobile: compact)
 // ---------------------------------------------------------------------------
 
-const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
+const MemoizedMessageItem = memo(function MessageItem({ id, compact }: { id: string; compact?: boolean }) {
   const message = useMessage(id);
   if (!message) return null;
+
+  if (compact) {
+    return (
+      <AIMessage from={message.role}>
+        {message.role === 'user' ? (
+          <AIMessageContent className="group-[.is-user]:bg-primary">
+            <MessageAttachments message={message} />
+          </AIMessageContent>
+        ) : (
+          <AIMessageContent>
+            <MessageContent message={message} />
+            <div className="mt-1 flex items-center">
+              <MessageActions content={message.content} messageId={message.id} />
+            </div>
+          </AIMessageContent>
+        )}
+      </AIMessage>
+    );
+  }
 
   return (
     <Message role={message.role}>
@@ -111,29 +130,6 @@ const MemoizedMessageItem = memo(function MessageItem({ id }: { id: string }) {
         </MessageBody>
       )}
     </Message>
-  );
-});
-
-// ---------------------------------------------------------------------------
-// MobileMemoizedMessageItem — ai-elements Message (no avatar, no footer)
-// ---------------------------------------------------------------------------
-
-const MobileMemoizedMessageItem = memo(function MobileMessageItem({ id }: { id: string }) {
-  const message = useMessage(id);
-  if (!message) return null;
-
-  return (
-    <AIMessage from={message.role}>
-      {message.role === 'user' ? (
-        <AIMessageContent className="group-[.is-user]:bg-primary">
-          <MessageAttachments message={message} />
-        </AIMessageContent>
-      ) : (
-        <AIMessageContent>
-          <MessageContent message={message} />
-        </AIMessageContent>
-      )}
-    </AIMessage>
   );
 });
 
@@ -211,7 +207,7 @@ function FeedbackPrompt() {
   );
 }
 
-function StreamingMessage() {
+function StreamingMessage({ compact }: { compact?: boolean }) {
   const isStreaming = useSandboxStore((s) => s.isStreaming);
   const streamingContent = useSandboxStore((s) => s.streamingContent);
   const streamingParts = useSandboxStore((s) => s.streamingParts);
@@ -219,10 +215,42 @@ function StreamingMessage() {
 
   if (!isStreaming) return null;
 
+  const hasContent = !!(streamingContent || streamingParts.length > 0);
+
+  if (compact) {
+    return (
+      <AIMessage from="assistant">
+        <AIMessageContent>
+          {hasContent ? (
+            <>
+              <StreamingContent
+                parts={streamingParts}
+                fallbackContent={streamingContent}
+              />
+              <div className="mt-2 flex items-center">
+                <MessageActions
+                  content={streamingContent}
+                  isStreaming
+                  onStop={stopStreaming}
+                />
+              </div>
+            </>
+          ) : (
+            <ThinkingBar
+              text="Claude is thinking..."
+              onStop={stopStreaming}
+              stopLabel="Stop"
+            />
+          )}
+        </AIMessageContent>
+      </AIMessage>
+    );
+  }
+
   return (
     <Message role="assistant" isStreaming>
       <MessageBody>
-        {streamingContent || streamingParts.length > 0 ? (
+        {hasContent ? (
           <>
             <StreamingContent
               parts={streamingParts}
@@ -245,38 +273,6 @@ function StreamingMessage() {
         </MessageFooter>
       </MessageBody>
     </Message>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// MobileStreamingMessage — ai-elements Message (no avatar, ThinkingBar when empty)
-// ---------------------------------------------------------------------------
-
-function MobileStreamingMessage() {
-  const isStreaming = useSandboxStore((s) => s.isStreaming);
-  const streamingContent = useSandboxStore((s) => s.streamingContent);
-  const streamingParts = useSandboxStore((s) => s.streamingParts);
-  const stopStreaming = useSandboxStore((s) => s.stopStreaming);
-
-  if (!isStreaming) return null;
-
-  return (
-    <AIMessage from="assistant">
-      <AIMessageContent>
-        {streamingContent || streamingParts.length > 0 ? (
-          <StreamingContent
-            parts={streamingParts}
-            fallbackContent={streamingContent}
-          />
-        ) : (
-          <ThinkingBar
-            text="Claude is thinking..."
-            onStop={stopStreaming}
-            stopLabel="Stop"
-          />
-        )}
-      </AIMessageContent>
-    </AIMessage>
   );
 }
 
@@ -750,10 +746,10 @@ export function ChatPanel({
             <ChatContainerRoot className="relative flex-1">
               <ChatContainerContent className="flex flex-col gap-4 px-4 py-3">
                 {messageIds.map((id) => (
-                  <MobileMemoizedMessageItem key={id} id={id} />
+                  <MemoizedMessageItem key={id} id={id} compact />
                 ))}
                 <CompactionBanner />
-                <MobileStreamingMessage />
+                <StreamingMessage compact />
                 <FeedbackPrompt />
                 <div className="flex w-full items-end justify-end px-2 pb-2">
                   <ScrollButton />
