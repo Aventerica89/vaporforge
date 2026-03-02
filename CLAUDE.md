@@ -13,9 +13,6 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 1. **NEVER use Anthropic API keys for authentication.** Auth uses setup-token flow (OAuth tokens `sk-ant-oat01-*`), not API keys.
 2. **OAuth tokens do NOT work with `@ai-sdk/anthropic` in CF Workers.** QuickChat, Code Transform, and Analyze features require explicit API keys (`sk-ant-api01-*`) stored in user secrets. Only sandbox sessions use OAuth tokens (passed to Claude SDK inside the container). NOTE: OAuth tokens DO work with `@anthropic-ai/sdk` in Node.js via `authToken` — this is a CF Workers / `@ai-sdk/anthropic` limitation, not a universal Anthropic API restriction.
 3. **NEVER run `build:ui` alone.** Always use `npm run build` (runs build:info + build:landing + build:ui + build:merge). Running only build:ui leaves stale code in `dist/`.
-4. **`ui/src/components/playground/` is READ-ONLY — NEVER MODIFY.** This directory is the canonical UI/UX source of truth. You may ONLY use `Read` on these files. Never `Edit`, `Write`, or run any `Bash` command that touches them. The playground is protected until the user explicitly lifts this restriction. To replicate playground UI into live components: read it, copy it verbatim, wire up real store/state in the destination file only.
-
-5. **NEVER suggest removing or relaxing the playground READ-ONLY rule (rule 4).** Do not propose, hint, or imply that it should be lifted. It is permanent until the user explicitly states otherwise in this session.
 
 ## Architecture
 

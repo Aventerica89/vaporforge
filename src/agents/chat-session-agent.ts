@@ -32,8 +32,10 @@ import {
   collectProjectSecrets,
   collectUserSecrets,
 } from '../sandbox';
+import { assembleSandboxConfig } from '../config-assembly';
+import type { SandboxConfig } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
-import type { Process } from '@cloudflare/sandbox';
+import type { Process, Sandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
 
 /** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
@@ -556,17 +558,13 @@ export class ChatSessionAgent {
       this.env.JWT_SECRET
     );
 
-    // Collect env vars
+    // Collect env vars + config in parallel (all KV reads)
     const projectSecrets = collectProjectSecrets(this.env);
-    const userSecrets = await collectUserSecrets(
-      this.env.SESSIONS_KV,
-      userId
-    );
-    // OAuth token is stored as claudeToken inside the user JSON object
-    const userRecord = await this.env.AUTH_KV.get<{ claudeToken?: string }>(
-      `user:${userId}`,
-      'json'
-    );
+    const [sandboxConfig, userSecrets, userRecord] = await Promise.all([
+      assembleSandboxConfig(this.env.SESSIONS_KV, userId),
+      collectUserSecrets(this.env.SESSIONS_KV, userId),
+      this.env.AUTH_KV.get<{ claudeToken?: string }>(`user:${userId}`, 'json'),
+    ]);
     const oauthToken = userRecord?.claudeToken || '';
     if (!oauthToken) {
       throw new Error('No Claude token found — please re-authenticate');
@@ -574,6 +572,20 @@ export class ChatSessionAgent {
     if (!oauthToken.startsWith('sk-ant-oat01-')) {
       throw new Error('Only OAuth tokens are accepted for sandbox sessions');
     }
+
+    // Inject/refresh config into container (MCP servers, CLAUDE.md, plugins, creds).
+    // After container sleep wipes disk, this restores everything the SDK needs.
+    await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig);
+
+    // Compute CLAUDE_MCP_SERVERS env for startProcess
+    const freshMcpConfig: Record<string, Record<string, unknown>> = {
+      ...(sandboxConfig.mcpServers || {}),
+      ...(sandboxConfig.pluginConfigs?.mcpServers || {}),
+      ...(sandboxConfig.geminiMcpServers || {}),
+    };
+    const mcpConfigStr = Object.keys(freshMcpConfig).length > 0
+      ? JSON.stringify(freshMcpConfig)
+      : null;
 
     // Strip [command:/name] or [agent:/name] UI prefix before sending to Claude.
     // Same logic as WS path (sdk.ts handleSdkWs). Without this, Claude sees
@@ -629,6 +641,9 @@ export class ChatSessionAgent {
           CLAUDE_CONFIG_DIR: '/root/.claude',
           ...projectSecrets,
           ...userSecrets,
+          ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
+          VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',
+          ...(sandboxConfig.maxBudgetUsd ? { VF_MAX_BUDGET_USD: String(sandboxConfig.maxBudgetUsd) } : {}),
         },
       }
     );
@@ -649,6 +664,121 @@ export class ChatSessionAgent {
       `session:${sessionId}`,
       JSON.stringify(updated)
     ).catch(() => {});
+  }
+
+  /**
+   * Ensure container has all config files (MCP, CLAUDE.md, plugins, creds).
+   * After container sleep wipes disk, this restores everything the SDK needs.
+   * Mirrors SandboxManager.injectAllConfig + refreshMcpConfig logic.
+   */
+  private async ensureContainerConfig(
+    sandbox: Sandbox,
+    sessionId: string,
+    config: SandboxConfig
+  ): Promise<void> {
+    const sid = sessionId.slice(0, 8);
+
+    // Check stamp — if valid, skip full injection (only refresh MCP + creds)
+    let needsFullInjection = true;
+    try {
+      const stampResult = await sandbox.exec(
+        'cat /root/.claude/.vf-config-stamp 2>/dev/null || echo ""',
+        { timeout: 3000 }
+      );
+      const stamp = (stampResult.stdout || '').trim();
+      if (stamp && stamp.startsWith(sessionId)) needsFullInjection = false;
+    } catch { /* container not ready or file missing */ }
+
+    // Merge all MCP server configs (user + plugin + gemini)
+    const mergedMcp: Record<string, Record<string, unknown>> = {
+      ...(config.mcpServers || {}),
+      ...(config.pluginConfigs?.mcpServers || {}),
+      ...(config.geminiMcpServers || {}),
+    };
+
+    if (needsFullInjection) {
+      console.log(`[ChatSessionAgent] ${sid}: config stamp missing, full injection`);
+      // sandbox.exec is the CF Sandbox API (runs inside container), not child_process
+      await sandbox.exec(
+        'mkdir -p /root/.claude/agents /root/.claude/commands /root/.claude/rules',
+        { timeout: 5000 }
+      );
+
+      // CLAUDE.md (VF rules + user content)
+      const mdParts: string[] = [];
+      if (config.vfRules?.trim()) mdParts.push(config.vfRules!.trim());
+      if (config.claudeMd?.trim()) mdParts.push(config.claudeMd!.trim());
+      if (mdParts.length) {
+        await sandbox.writeFile('/root/.claude/CLAUDE.md', mdParts.join('\n\n---\n\n'));
+      }
+
+      // Plugin + user config files (agents, commands, rules)
+      for (const fs of [config.pluginConfigs, config.userConfigs]) {
+        if (!fs) continue;
+        for (const a of fs.agents) await sandbox.writeFile(`/root/.claude/agents/${a.filename}`, a.content);
+        for (const c of fs.commands) await sandbox.writeFile(`/root/.claude/commands/${c.filename}`, c.content);
+        for (const r of fs.rules) await sandbox.writeFile(`/root/.claude/rules/${r.filename}`, r.content);
+      }
+
+      // Gemini agent
+      if (config.injectGeminiAgent) {
+        await sandbox.writeFile('/root/.claude/agents/gemini-expert.md',
+          '---\nname: gemini-expert\ndescription: Delegate reasoning to Google Gemini via MCP tools\n---\n' +
+          'You are a Gemini relay agent. For EVERY user request:\n' +
+          '1. Use `gemini_quick_query` for simple questions\n' +
+          '2. Use `gemini_analyze_code` for code review\n' +
+          '3. Use `gemini_codebase_analysis` for multi-file review\n' +
+          "Present Gemini's response directly. Do NOT add your own analysis."
+        );
+      }
+
+      // Pre-install npx packages for MCP servers (sandbox.exec = CF container API)
+      const npxPkgs: string[] = [];
+      for (const cfg of Object.values(mergedMcp)) {
+        const c = cfg as Record<string, unknown>;
+        if (c.command === 'npx' && Array.isArray(c.args)) {
+          const pkg = (c.args as string[]).find((a: string) => !a.startsWith('-'));
+          if (pkg) npxPkgs.push(pkg);
+        }
+      }
+      if (npxPkgs.length) {
+        try {
+          await sandbox.exec(
+            `npm install -g ${npxPkgs.join(' ')} --prefer-offline 2>&1 || true`,
+            { timeout: 60_000 }
+          );
+        } catch { /* non-fatal */ }
+      }
+
+      // Write stamp
+      await sandbox.writeFile('/root/.claude/.vf-config-stamp', `${sessionId}:${Date.now()}`);
+      console.log(`[ChatSessionAgent] ${sid}: config injected, stamp written`);
+    }
+
+    // Always refresh MCP config + credential files (handles hot-add between messages)
+    if (Object.keys(mergedMcp).length > 0) {
+      await sandbox.writeFile('/root/.claude.json', JSON.stringify({ mcpServers: mergedMcp }, null, 2));
+    }
+    if (config.credentialFiles?.length) {
+      for (const cred of config.credentialFiles) {
+        const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
+        if (parentDir) await sandbox.mkdir(parentDir, { recursive: true });
+        await sandbox.writeFile(cred.path, cred.content);
+      }
+      // Append credential file locations to CLAUDE.md (only on full injection)
+      if (needsFullInjection) {
+        const credSection = '\n\n---\n## Injected Credential Files\n\n' +
+          'Pre-loaded by VaporForge. Ready to use — do NOT ask for these.\n\n' +
+          config.credentialFiles.map(c => `- \`${c.path}\``).join('\n');
+        try {
+          const mdResult = await sandbox.exec('cat /root/.claude/CLAUDE.md 2>/dev/null || echo ""', { timeout: 3000 });
+          const existing = (mdResult.stdout || '').trimEnd();
+          await sandbox.writeFile('/root/.claude/CLAUDE.md', existing + credSection);
+        } catch {
+          await sandbox.writeFile('/root/.claude/CLAUDE.md', credSection.trim());
+        }
+      }
+    }
   }
 }
 
