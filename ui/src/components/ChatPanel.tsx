@@ -52,7 +52,6 @@ import {
   PromptInputTools,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
-import { FeedbackBar } from '@/components/prompt-kit/feedback-bar';
 import {
   ChatContainerRoot,
   ChatContainerContent,
@@ -180,46 +179,10 @@ function CompactionBanner() {
 // FeedbackPrompt
 // ---------------------------------------------------------------------------
 
-function FeedbackPrompt() {
-  const isStreaming = useSandboxStore((s) => s.isStreaming);
-  const messageCount = useSandboxStore((s) => s.messageIds.length);
-  const [visible, setVisible] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const prevStreamingRef = useRef(false);
-
-  useEffect(() => {
-    if (prevStreamingRef.current && !isStreaming && messageCount > 0) {
-      setVisible(true);
-      setSubmitted(false);
-    }
-    prevStreamingRef.current = isStreaming;
-  }, [isStreaming, messageCount]);
-
-  if (!visible || submitted) return null;
-
-  const handleFeedback = () => {
-    setSubmitted(true);
-    setTimeout(() => setVisible(false), 600);
-  };
-
-  return (
-    <div className="mt-3 px-1">
-      <FeedbackBar
-        title="Was this response helpful?"
-        onHelpful={handleFeedback}
-        onNotHelpful={handleFeedback}
-        onClose={() => setVisible(false)}
-      />
-    </div>
-  );
-}
-
 function StreamingMessage({ compact }: { compact?: boolean }) {
   const isStreaming = useSandboxStore((s) => s.isStreaming);
   const streamingContent = useSandboxStore((s) => s.streamingContent);
   const streamingParts = useSandboxStore((s) => s.streamingParts);
-  const stopStreaming = useSandboxStore((s) => s.stopStreaming);
-
   if (!isStreaming) return null;
 
   const hasContent = !!(streamingContent || streamingParts.length > 0);
@@ -238,16 +201,11 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
                 <MessageActions
                   content={streamingContent}
                   isStreaming
-                  onStop={stopStreaming}
                 />
               </div>
             </>
           ) : (
-            <ThinkingBar
-              text="Claude is thinking..."
-              onStop={stopStreaming}
-              stopLabel="Stop"
-            />
+            <ThinkingBar text="Claude is thinking..." />
           )}
         </AIMessageContent>
       </AIMessage>
@@ -275,7 +233,6 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
           <MessageActions
             content={streamingContent}
             isStreaming
-            onStop={stopStreaming}
           />
         </MessageFooter>
       </MessageBody>
@@ -956,6 +913,8 @@ export function ChatPanel({
         <>
           {compact ? (
             /* Mobile: ChatContainer for smooth stick-to-bottom scrolling */
+            <div className="relative flex-1 flex flex-col min-h-0">
+              <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
             <ChatContainerRoot className="relative flex-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
               <ChatContainerContent className="flex flex-col gap-4 px-4 py-3">
@@ -964,14 +923,16 @@ export function ChatPanel({
                 ))}
                 <CompactionBanner />
                 <StreamingMessage compact />
-                <FeedbackPrompt />
                 <div className="flex w-full items-end justify-end px-2 pb-2">
                   <ScrollButton />
                 </div>
               </ChatContainerContent>
             </ChatContainerRoot>
+            </div>
           ) : (
             /* Desktop: ChatContainer for smooth stick-to-bottom scrolling */
+            <div className="relative flex-1 flex flex-col min-h-0">
+              <div className="pointer-events-none absolute inset-0 z-0 bg-[linear-gradient(to_right,#4f4f4f2e_1px,transparent_1px),linear-gradient(to_bottom,#4f4f4f2e_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
             <ChatContainerRoot className="relative flex-1">
               <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
               <ChatContainerContent className="mx-auto max-w-3xl space-y-1 px-4 py-3">
@@ -980,12 +941,12 @@ export function ChatPanel({
                 ))}
                 <CompactionBanner />
                 <StreamingMessage />
-                <FeedbackPrompt />
                 <div className="flex w-full items-end justify-end px-2 pb-2">
                   <ScrollButton />
                 </div>
               </ChatContainerContent>
             </ChatContainerRoot>
+            </div>
           )}
 
           <div className="px-4 pb-4 flex flex-col gap-2 max-w-2xl mx-auto w-full">

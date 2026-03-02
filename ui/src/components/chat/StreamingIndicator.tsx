@@ -19,14 +19,5 @@ export function StreamingIndicator({ parts }: StreamingIndicatorProps) {
 
   const text = isReasoning ? 'Reasoning' : 'Thinking';
 
-  return (
-    <div className="flex flex-col gap-2">
-      <ThinkingBar text={text} />
-      <div className="flex flex-col gap-1.5 pl-1">
-        <div className="skeleton h-3 w-3/4" />
-        <div className="skeleton h-3 w-1/2" />
-        <div className="skeleton h-3 w-5/6" />
-      </div>
-    </div>
-  );
+  return <ThinkingBar text={text} />;
 }
