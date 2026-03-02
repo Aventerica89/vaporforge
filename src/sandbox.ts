@@ -10,6 +10,7 @@ const HEALTH_CHECK_TIMEOUT = 5000;
 const READY_POLL_DELAY = 2000;
 const READY_MAX_ATTEMPTS = 5;
 const CONFIG_STAMP_PATH = '/root/.claude/.vf-config-stamp';
+const INJECTED_CLAUDE_MD_PATH = '/root/.claude/.vf-injected-claude-md';
 
 function isSandboxNotReady(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
@@ -1131,6 +1132,11 @@ if(fs.existsSync(p)){
         '/root/.claude/CLAUDE.md',
         parts.join('\n\n---\n\n')
       );
+      // Record what was injected so sync-back can detect in-container edits
+      await sandbox.writeFile(
+        INJECTED_CLAUDE_MD_PATH,
+        config.claudeMd?.trim() || ''
+      );
     }
 
     // MCP servers + plugin MCP -> ~/.claude.json
@@ -1289,17 +1295,20 @@ if(fs.existsSync(p)){
         // Strip VF rules prefix — only persist the user portion
         const separator = '\n\n---\n\n';
         const sepIndex = containerClaudeMd.indexOf(separator);
-        let userPortion = sepIndex >= 0
-          ? containerClaudeMd.slice(sepIndex + separator.length)
-          : containerClaudeMd;
+
+        // Bug fix: if no separator, the file is VF-rules-only (no user content).
+        // Syncing this back would overwrite KV with VF rules as user content.
+        if (sepIndex < 0) {
+          console.log(`[syncConfig] ${sid}: no separator found, skipping (VF-rules-only)`);
+          return { synced: false, claudeMdChanged: false };
+        }
+
+        let userPortion = containerClaudeMd.slice(sepIndex + separator.length);
 
         // Strip injected credential files section — it's transient, not user content.
-        // The credential section uses the same separator format, so without this strip,
-        // the credential section body gets saved to KV as the user's CLAUDE.md.
         const credMarker = '## Injected Credential Files';
         const credIdx = userPortion.indexOf(credMarker);
         if (credIdx >= 0) {
-          // Walk back to trim the preceding separator line too
           userPortion = userPortion.slice(0, credIdx).replace(/\n*---\n*$/, '').trimEnd();
         }
 
@@ -1308,11 +1317,24 @@ if(fs.existsSync(p)){
           return { synced: false, claudeMdChanged: false };
         }
 
+        // Bug fix: only sync if the user portion was ACTUALLY edited in-container.
+        // Compare against what we originally injected — if unchanged, the KV value
+        // (which may have been updated via Settings UI) is authoritative.
+        try {
+          const injected = await this.readFile(sessionId, INJECTED_CLAUDE_MD_PATH);
+          if (injected !== null && userPortion.trim() === (injected || '').trim()) {
+            console.log(`[syncConfig] ${sid}: CLAUDE.md unchanged from injection, skipping`);
+            return { synced: false, claudeMdChanged: false };
+          }
+        } catch {
+          // Sentinel missing (old session) — fall through to legacy compare
+        }
+
         const kvClaudeMd = await kv.get(`user-config:${userId}:claude-md`);
         if (userPortion.trim() !== (kvClaudeMd || '').trim()) {
           await kv.put(`user-config:${userId}:claude-md`, userPortion);
           claudeMdChanged = true;
-          console.log(`[syncConfig] ${sid}: CLAUDE.md synced back to KV`);
+          console.log(`[syncConfig] ${sid}: CLAUDE.md synced back to KV (in-container edit detected)`);
         }
       }
     } catch (err) {
