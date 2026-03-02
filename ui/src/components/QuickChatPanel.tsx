@@ -20,7 +20,11 @@ import {
   Loader2,
   RefreshCw,
   Bot,
+  ArrowUp,
+  Square,
+  Mic,
 } from 'lucide-react';
+import { cn } from '@/lib/cn';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { ChatMarkdown } from './chat/ChatMarkdown';
@@ -36,11 +40,10 @@ import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-e
 import { embeddingsApi } from '@/lib/api';
 import {
   PromptInput,
+  PromptInputBody,
   PromptInputTextarea,
-  PromptInputSubmit,
-  PromptInputSpeech,
-  PromptInputHint,
-} from '@/components/prompt-input';
+  type PromptInputMessage,
+} from '@/components/ai-elements/prompt-input';
 import type { ProviderName } from '@/lib/quickchat-api';
 
 const SUGGESTIONS = [
@@ -232,9 +235,9 @@ export function QuickChatPanel() {
     [hasAnyProvider, isStreaming, sendMessage]
   );
 
-  // Send message — called by compound PromptInput with the message text
-  const handleSend = useCallback((message: string) => {
-    if (!message || isStreaming) return;
+  // Send message — called by ai-elements PromptInput onSubmit
+  const handleSend = useCallback((text: string) => {
+    if (!text || isStreaming) return;
 
     if (!hasAnyProvider) {
       setError(
@@ -243,8 +246,14 @@ export function QuickChatPanel() {
       return;
     }
     setError(null);
-    sendMessage({ text: message });
+    sendMessage({ text });
   }, [isStreaming, hasAnyProvider, selectedProvider, sendMessage, setError]);
+
+  const handlePromptSubmit = useCallback((message: PromptInputMessage) => {
+    if (!message.text) return;
+    handleSend(message.text);
+    setInput('');
+  }, [handleSend]);
 
   // Tool approval handlers
   const handleApprove = useCallback((approvalId: string) => {
@@ -503,29 +512,51 @@ export function QuickChatPanel() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input — compound PromptInput */}
+            {/* Input — ai-elements PromptInput */}
             <PromptInput
-              input={input}
-              onInputChange={setInput}
-              onSubmit={handleSend}
-              onStop={stop}
-              status={isStreaming ? 'streaming' : 'idle'}
-              disabled={!hasAnyProvider}
-              compact
+              onSubmit={handlePromptSubmit}
+              className="border-t border-border px-4 py-3"
             >
-              <div className="flex items-end gap-2">
-                <PromptInputTextarea
-                  placeholder={
-                    hasAnyProvider
-                      ? 'Ask anything...'
-                      : 'Configure a provider in Settings first'
-                  }
-                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm"
-                />
-                <PromptInputSpeech />
-                <PromptInputSubmit />
-              </div>
-              <PromptInputHint />
+              <PromptInputBody>
+                <div className="flex items-end gap-2">
+                  <PromptInputTextarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={
+                      hasAnyProvider
+                        ? 'Ask anything...'
+                        : 'Configure a provider in Settings first'
+                    }
+                    disabled={isStreaming || !hasAnyProvider}
+                    className="flex-1 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm"
+                  />
+                  <QCSpeechButton onTranscript={(t) => setInput((prev) => prev ? `${prev} ${t}` : t)} />
+                  {isStreaming ? (
+                    <button
+                      type="button"
+                      onClick={stop}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
+                      title="Stop generating"
+                    >
+                      <Square className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || !hasAnyProvider}
+                      className={cn(
+                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all',
+                        input.trim()
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/50 text-muted-foreground/40',
+                      )}
+                      title="Send message"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </PromptInputBody>
             </PromptInput>
           </>
         )}
@@ -890,6 +921,46 @@ function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
     >
       <RefreshCw className="h-2.5 w-2.5" />
       Index
+    </button>
+  );
+}
+
+// Standalone speech button — no context dependency
+const SpeechRecognitionApi: any =
+  typeof window !== 'undefined'
+    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    : null;
+
+function QCSpeechButton({ onTranscript }: { onTranscript: (text: string) => void }) {
+  const [listening, setListening] = useState(false);
+  const recRef = useRef<any>(null);
+
+  useEffect(() => () => { recRef.current?.abort(); }, []);
+
+  if (!SpeechRecognitionApi) return null;
+
+  const toggle = () => {
+    if (listening) { recRef.current?.stop(); setListening(false); return; }
+    const r = new SpeechRecognitionApi();
+    r.continuous = false; r.interimResults = false; r.lang = 'en-US';
+    r.onresult = (e: any) => { const t = e.results?.[0]?.[0]?.transcript; if (t) onTranscript(t); };
+    r.onend = () => { setListening(false); recRef.current = null; };
+    r.onerror = () => { setListening(false); recRef.current = null; };
+    recRef.current = r; r.start(); setListening(true);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={cn(
+        'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
+        listening ? 'text-red-400 bg-red-500/10' : 'text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+      )}
+      title={listening ? 'Stop listening' : 'Voice input'}
+    >
+      <Mic className="h-4 w-4" />
+      {listening && <span className="absolute inset-0 animate-ping rounded-lg border border-red-400/40" />}
     </button>
   );
 }

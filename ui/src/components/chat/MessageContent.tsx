@@ -504,7 +504,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   }
 
   if (fallbackContent) {
-    return <ChatMarkdown content={fallbackContent} isStreaming />;
+    return <SmoothTextPart content={fallbackContent} isStreaming />;
   }
 
   return null;

@@ -17,11 +17,14 @@ export function useSmoothText(
   isStreaming: boolean,
   opts?: UseSmoothTextOptions,
 ): string {
-  const charsPerFrame = opts?.charsPerFrame ?? 2;
+  const charsPerFrame = opts?.charsPerFrame ?? 4;
   const disabled = opts?.disabled ?? false;
 
-  const [displayed, setDisplayed] = useState(rawText);
-  const cursorRef = useRef(0);
+  // Start empty when streaming to prevent flash of full text on mount;
+  // show full text immediately when not streaming.
+  const streaming = isStreaming && !disabled;
+  const [displayed, setDisplayed] = useState(() => streaming ? '' : rawText);
+  const cursorRef = useRef(streaming ? 0 : rawText.length);
   const rafRef = useRef(0);
   const rawTextRef = useRef(rawText);
   rawTextRef.current = rawText;
@@ -43,9 +46,10 @@ export function useSmoothText(
       const target = rawTextRef.current.length;
       if (cursorRef.current < target) {
         const behind = target - cursorRef.current;
-        // Adaptive: catch up faster when far behind to avoid visible lag
-        const speed = behind > 200
-          ? Math.max(charsPerFrame, Math.ceil(behind * 0.1))
+        // Sqrt-based catch-up: gradual acceleration avoids jarring text dumps.
+        // At 100 behind → 15 chars/frame, 500 → 34, 1000 → 48.
+        const speed = behind > 100
+          ? Math.max(charsPerFrame, Math.ceil(Math.sqrt(behind) * 1.5))
           : charsPerFrame;
         cursorRef.current = Math.min(cursorRef.current + speed, target);
         setDisplayed(rawTextRef.current.slice(0, cursorRef.current));
