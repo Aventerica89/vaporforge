@@ -220,7 +220,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   selectSession: async (sessionId: string) => {
-    // Track whether sandbox woke successfully (used for file/git loading)
+    // Abort any in-flight stream before switching — prevents cross-session
+    // state bleed where Session A's streaming data appears in Session B's view.
+    if (get().isStreaming) {
+      get().stopStreaming();
+    }
 
     // Step 1: Try to resume sandbox (wake it up)
     try {
@@ -286,6 +290,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   },
 
   deselectSession: () => {
+    if (get().isStreaming) {
+      get().stopStreaming();
+    }
     localStorage.removeItem('vf_active_session');
     set({
       currentSession: null,
@@ -591,6 +598,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           );
 
       for await (const chunk of streamSource) {
+        // Guard: if user switched sessions mid-stream, stop processing.
+        // selectSession() aborts the controller, but this catches any race
+        // where chunks were already buffered before the abort propagated.
+        if (get().currentSession?.id !== session.id) break;
+
         // Reset timeout on every yielded event. Primary protection is the DO heartbeat padding
         // (>1KB forces Chrome to flush), but this guards against any other silent gap.
         resetTimeout();
@@ -1071,6 +1083,18 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         });
       }
 
+      // If user switched sessions during the stream, don't commit the
+      // assistant message into the wrong session's message list.
+      if (get().currentSession?.id !== session.id) {
+        set({
+          isStreaming: false,
+          isPaused: false,
+          pausedAt: null,
+          streamingContent: '',
+          streamingParts: [],
+          streamAbortController: null,
+        });
+      } else {
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         sessionId: session.id,
@@ -1095,6 +1119,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Refresh files in case Claude made changes
       get().loadFiles();
       get().loadGitStatus();
+      }
     } catch (error) {
       clearTimeout(timeoutId);
       useStreamDebug.getState().endStream();
