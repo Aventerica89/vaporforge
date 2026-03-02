@@ -391,6 +391,34 @@
   border-radius: 4px;
 }
 
+/* Sentinel message bubble — animated amber border sweep */
+@property --sentinel-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes sentinel-border-spin {
+  to { --sentinel-angle: 360deg; }
+}
+
+.sentinel-bubble {
+  position: relative;
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(hsl(var(--card)), hsl(var(--card))),
+    conic-gradient(
+      from var(--sentinel-angle),
+      transparent 50%,
+      rgb(245 158 11 / 0.2) 70%,
+      rgb(251 191 36 / 0.6) 90%,
+      rgb(245 158 11 / 0.8) 100%
+    );
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  animation: sentinel-border-spin 3s linear infinite;
+}
+
 /* Text shimmer — gradient sweep across text (AI Elements Shimmer) */
 @keyframes shimmer-text {
   0% { background-position: 100% 0; }

@@ -90,16 +90,23 @@ const GRID_BG = [
 // MemoizedMessageItem — unified responsive (desktop: full footer, mobile: compact)
 // ---------------------------------------------------------------------------
 
+const SENTINEL_RE = /^\[sentinel\]\s*/;
+
 const MemoizedMessageItem = memo(function MessageItem({ id, compact }: { id: string; compact?: boolean }) {
   const message = useMessage(id);
   if (!message) return null;
+
+  const isSentinel = message.role === 'user' && SENTINEL_RE.test(message.content);
+  const displayMessage = isSentinel
+    ? { ...message, content: message.content.replace(SENTINEL_RE, '') }
+    : message;
 
   if (compact) {
     return (
       <AIMessage from={message.role}>
         {message.role === 'user' ? (
-          <AIMessageContent className="group-[.is-user]:bg-primary">
-            <MessageAttachments message={message} />
+          <AIMessageContent className={isSentinel ? 'group-[.is-user]:bg-amber-500/15 group-[.is-user]:border group-[.is-user]:border-amber-500/30' : 'group-[.is-user]:bg-primary'}>
+            <MessageAttachments message={displayMessage} />
           </AIMessageContent>
         ) : (
           <AIMessageContent>
@@ -116,8 +123,8 @@ const MemoizedMessageItem = memo(function MessageItem({ id, compact }: { id: str
   return (
     <Message role={message.role}>
       {message.role === 'user' ? (
-        <MessageBubble>
-          <MessageAttachments message={message} />
+        <MessageBubble variant={isSentinel ? 'sentinel' : 'default'}>
+          <MessageAttachments message={displayMessage} />
         </MessageBubble>
       ) : (
         <MessageBody>
@@ -515,7 +522,7 @@ export function ChatPanel({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleSlashKeyDown}
             placeholder="Ask anything..."
-            disabled={isStreaming || !sessionId}
+            disabled={!sessionId}
             className="min-h-[44px] max-h-48 pl-4 pt-3 text-base leading-[1.3] field-sizing-content"
             style={{
               fontSize: '16px',
@@ -675,7 +682,7 @@ export function ChatPanel({
     if (sentinelDataReady) {
       useSandboxStore.setState({ sentinelDataReady: false, sentinelDataSizeBytes: 0 });
       const sendMessage = useSandboxStore.getState().sendMessage;
-      void sendMessage('Sentinel has a background scan ready. Read /workspace/.vf-sentinel-report.md, summarize what was found, then ask me if I want to address anything.');
+      void sendMessage('[sentinel] Read /workspace/.vf-sentinel-report.md, summarize what was found, then ask me if I want to address anything.');
       return;
     }
     if (!sentinelActive) {
