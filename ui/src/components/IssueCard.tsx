@@ -149,7 +149,7 @@ export function IssueCard({
         )}
 
         {/* Drag handle — hidden on mobile (drag-and-drop unsupported on touch) */}
-        <button className="hidden sm:flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing">
+        <button aria-label="Drag to reorder" title="Drag to reorder" className="hidden sm:flex items-center justify-center cursor-grab text-muted-foreground/40 hover:text-muted-foreground active:cursor-grabbing">
           <GripVertical className="h-3.5 w-3.5" />
         </button>
 

@@ -246,7 +246,7 @@ export function VaporFilesTab() {
                   <p className="max-w-full truncate px-2 text-[10px] font-medium text-white">
                     {file.name}
                   </p>
-                  <p className="text-[9px] text-white/60">{formatBytes(file.size)}</p>
+                  <p className="text-[10px] text-white/60">{formatBytes(file.size)}</p>
                   <div className="mt-1 flex gap-1">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleCopyUrl(file); }}

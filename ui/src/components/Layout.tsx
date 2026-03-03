@@ -502,7 +502,7 @@ function PanelHeader({
         title={`Toggle ${title}${shortcut ? ` (Cmd+${shortcut})` : ''}`}
       >
         {shortcut && (
-          <span className="text-[9px] font-mono opacity-50">
+          <span className="text-[10px] font-mono opacity-50">
             {'\u2318'}{shortcut}
           </span>
         )}

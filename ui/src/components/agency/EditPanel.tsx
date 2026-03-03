@@ -110,7 +110,7 @@ export function EditPanel({
               <span className="block h-2 w-2 animate-spin rounded-full border border-cyan-500 border-t-transparent" />
             )}
             {!isStreaming && <Terminal className="h-3 w-3 text-zinc-500" />}
-            <span className={`text-[9px] font-semibold uppercase tracking-wider ${isStreaming ? 'text-cyan-600' : 'text-zinc-500'}`}>
+            <span className={`text-[10px] font-semibold uppercase tracking-wider ${isStreaming ? 'text-cyan-600' : 'text-zinc-500'}`}>
               {isStreaming ? 'Agent working...' : 'Last run output'}
             </span>
           </div>
@@ -150,7 +150,7 @@ export function EditPanel({
                     <Undo2 className="h-3 w-3" />
                   </button>
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-[9px] text-zinc-500">
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-zinc-500">
                   <span>{entry.component ?? 'Site-wide'}</span>
                   <span>
                     {new Date(entry.timestamp).toLocaleTimeString([], {

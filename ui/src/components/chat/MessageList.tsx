@@ -87,7 +87,7 @@ export const MemoizedMessageItem = memo(function MessageItem({
             <MessageActions content={message.content} messageId={message.id} />
             {message.usage && (
               <span
-                className="ml-auto text-[9px] tabular-nums text-muted-foreground/50"
+                className="ml-auto text-[10px] tabular-nums text-muted-foreground/50"
                 title="Token usage: input / output"
               >
                 {message.usage.inputTokens.toLocaleString()}↑{' '}

@@ -72,7 +72,7 @@ export function McpAddModal() {
         <div className="flex flex-col gap-3.5 p-4.5">
           {/* Name */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
               Name
             </label>
             <input
@@ -87,7 +87,7 @@ export function McpAddModal() {
 
           {/* Transport */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
               Transport
             </label>
             <div className="flex gap-3.5">
@@ -112,7 +112,7 @@ export function McpAddModal() {
           {/* Command (stdio) or URL (http) */}
           {transport === 'stdio' ? (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                 Command
               </label>
               <input
@@ -125,7 +125,7 @@ export function McpAddModal() {
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                 URL
               </label>
               <input
@@ -140,7 +140,7 @@ export function McpAddModal() {
 
           {/* Mode */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
               Mode
             </label>
             <div className="flex gap-3.5">

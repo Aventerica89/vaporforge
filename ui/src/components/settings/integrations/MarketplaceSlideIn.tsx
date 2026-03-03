@@ -136,7 +136,7 @@ export function MarketplaceSlideIn() {
                   )}
                 </div>
                 <button
-                  className={`shrink-0 self-start rounded-sm border px-2.5 py-0.5 font-mono text-[9px] transition-all ${
+                  className={`shrink-0 self-start rounded-sm border px-2.5 py-0.5 font-mono text-[10px] transition-all ${
                     isInstalled
                       ? 'cursor-default border-border text-muted-foreground/40'
                       : isInstalling

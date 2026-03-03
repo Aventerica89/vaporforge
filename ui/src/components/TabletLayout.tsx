@@ -54,8 +54,6 @@ const TOOLS_NAV: readonly NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-const SIDEBAR_WIDTH = 280;
-
 export function TabletLayout() {
   const {
     sessions,
@@ -174,7 +172,7 @@ export function TabletLayout() {
       <nav
         className="flex shrink-0 flex-col safe-area-header overflow-y-auto"
         style={{
-          width: `${SIDEBAR_WIDTH}px`,
+          width: 'var(--sidebar-width)',
           background: 'hsl(var(--card) / 0.95)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',

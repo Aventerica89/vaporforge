@@ -58,42 +58,42 @@ const TAB_GROUPS: TabGroup[] = [
   {
     label: 'General',
     tabs: [
-      { id: 'appearance', label: 'Appearance', icon: <Palette className="h-[18px] w-[18px]" /> },
-      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="h-[18px] w-[18px]" /> },
+      { id: 'appearance', label: 'Appearance', icon: <Palette className="h-4.5 w-4.5" /> },
+      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="h-4.5 w-4.5" /> },
     ],
   },
   {
     label: 'Workspace',
     tabs: [
-      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-[18px] w-[18px]" /> },
-      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-[18px] w-[18px]" /> },
-      { id: 'commands', label: 'Commands', icon: <Terminal className="h-[18px] w-[18px]" /> },
-      { id: 'agents', label: 'Agents', icon: <Bot className="h-[18px] w-[18px]" /> },
-      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="h-[18px] w-[18px]" /> },
-      { id: 'secrets', label: 'Secrets', icon: <Key className="h-[18px] w-[18px]" /> },
-      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-[18px] w-[18px]" /> },
-      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-[18px] w-[18px]" /> },
-      { id: 'files', label: 'Files', icon: <HardDrive className="h-[18px] w-[18px]" /> },
+      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4.5 w-4.5" /> },
+      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-4.5 w-4.5" /> },
+      { id: 'commands', label: 'Commands', icon: <Terminal className="h-4.5 w-4.5" /> },
+      { id: 'agents', label: 'Agents', icon: <Bot className="h-4.5 w-4.5" /> },
+      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="h-4.5 w-4.5" /> },
+      { id: 'secrets', label: 'Secrets', icon: <Key className="h-4.5 w-4.5" /> },
+      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-4.5 w-4.5" /> },
+      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-4.5 w-4.5" /> },
+      { id: 'files', label: 'Files', icon: <HardDrive className="h-4.5 w-4.5" /> },
     ],
   },
   {
     label: 'Account',
     tabs: [
-      { id: 'account', label: 'Account', icon: <User className="h-[18px] w-[18px]" /> },
-      { id: 'billing', label: 'Billing', icon: <CreditCard className="h-[18px] w-[18px]" /> },
+      { id: 'account', label: 'Account', icon: <User className="h-4.5 w-4.5" /> },
+      { id: 'billing', label: 'Billing', icon: <CreditCard className="h-4.5 w-4.5" /> },
     ],
   },
   {
     label: 'Developer',
     tabs: [
-      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-[18px] w-[18px]" /> },
+      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-4.5 w-4.5" /> },
     ],
   },
   {
     label: 'Help',
     tabs: [
-      { id: 'guide', label: 'Guide', icon: <BookOpen className="h-[18px] w-[18px]" /> },
-      { id: 'about', label: 'About', icon: <Info className="h-[18px] w-[18px]" /> },
+      { id: 'guide', label: 'Guide', icon: <BookOpen className="h-4.5 w-4.5" /> },
+      { id: 'about', label: 'About', icon: <Info className="h-4.5 w-4.5" /> },
     ],
   },
 ];
@@ -137,7 +137,7 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
     >
       {/* ─── Top bar (hidden on phone or when inside mobile subview) ─── */}
       {!isMobile && !inMobileSubView && (
-        <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3 safe-area-header">
+        <div className="flex shrink-0 items-center justify-between border-b border-border/60 bg-card px-4 py-3">
           <div className="flex items-center gap-3">
             <h1
               className="font-display text-base font-bold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary"

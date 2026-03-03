@@ -295,7 +295,7 @@ function ProviderToggle({
     >
       {icon}
       {label}
-      {!available && <span className="text-[9px] opacity-60">n/a</span>}
+      {!available && <span className="text-[10px] opacity-60">n/a</span>}
     </button>
   );
 }

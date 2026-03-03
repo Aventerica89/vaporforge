@@ -105,7 +105,7 @@ export function AutonomySelectorPopup({ selected, onSelect }: AutonomySelectorPo
                         {label}
                       </span>
                       {isActive && (
-                        <span className="text-[9px] uppercase tracking-wider text-muted-foreground">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           active
                         </span>
                       )}

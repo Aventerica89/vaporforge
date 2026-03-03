@@ -52,7 +52,7 @@ export function PluginFilePreview({ plugin }: PluginFilePreviewProps) {
         </span>
         <div className="flex shrink-0 gap-1">
           <button
-            className={`rounded-sm border px-2 py-0.5 font-mono text-[9px] transition-all ${
+            className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] transition-all ${
               fileViewMode === 'rendered'
                 ? 'border-primary/30 bg-primary/10 text-primary'
                 : 'border-border text-muted-foreground hover:text-foreground'
@@ -62,7 +62,7 @@ export function PluginFilePreview({ plugin }: PluginFilePreviewProps) {
             view
           </button>
           <button
-            className={`rounded-sm border px-2 py-0.5 font-mono text-[9px] transition-all ${
+            className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] transition-all ${
               fileViewMode === 'raw'
                 ? 'border-primary/30 bg-primary/10 text-primary'
                 : 'border-border text-muted-foreground hover:text-foreground'
@@ -72,7 +72,7 @@ export function PluginFilePreview({ plugin }: PluginFilePreviewProps) {
             code
           </button>
           <button
-            className="rounded-sm border border-border px-2 py-0.5 font-mono text-[9px] text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
             onClick={() => {
               navigator.clipboard?.writeText(content).catch(() => {});
             }}
@@ -80,7 +80,7 @@ export function PluginFilePreview({ plugin }: PluginFilePreviewProps) {
             copy
           </button>
           <button
-            className="rounded-sm border border-border px-2 py-0.5 font-mono text-[9px] text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded-sm border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
             onClick={clearFile}
           >
             close

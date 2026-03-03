@@ -95,7 +95,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
               <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
                 {!plugin.builtIn && (
                   <button
-                    className={`rounded-sm px-1.5 py-0.5 font-mono text-[9px] text-red-500 transition-all ${
+                    className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-red-500 transition-all ${
                       isRemoving
                         ? 'border border-red-500 bg-red-500/15'
                         : 'border border-transparent hover:border-red-500 hover:bg-red-500/10'
@@ -128,7 +128,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
 
             {/* Scope pills */}
             <div className="mb-3.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-[9px] tracking-wide text-muted-foreground/60">
+              <span className="text-[10px] tracking-wide text-muted-foreground/60">
                 SCOPE
               </span>
               {(['global', 'project'] as const).map((s) => (
@@ -205,16 +205,16 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
           {(tree.root.length > 0 || Object.keys(tree.folders).length > 0) && (
             <details className="mt-5" open>
               <summary className="flex cursor-pointer select-none items-center justify-between border-t border-border/40 pb-2 pt-3">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                   Files
                 </span>
-                <span className="text-[9px] text-muted-foreground">&#9658;</span>
+                <span className="text-[10px] text-muted-foreground">&#9658;</span>
               </summary>
 
               {tree.root.map((file) => (
                 <button
                   key={file.path}
-                  className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[9px] before:content-['[f]'] ${
+                  className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[10px] before:content-['[f]'] ${
                     selectedFile?.path === file.path && selectedFile?.pluginId === plugin.id
                       ? 'bg-card/80 text-primary before:text-muted-foreground/60'
                       : `text-muted-foreground hover:bg-card/80 hover:text-foreground ${
@@ -232,14 +232,14 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
               {Object.entries(tree.folders).map(([folder, files]) => (
                 <details key={folder} open>
                   <summary className="flex cursor-pointer select-none items-center gap-1.5 rounded-sm px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-card/80">
-                    <span className="text-[9px]">&#9658;</span>
+                    <span className="text-[10px]">&#9658;</span>
                     <span className="font-bold">{folder}/</span>
                   </summary>
                   <div className="pl-3.5">
                     {files.map((file) => (
                       <button
                         key={file.path}
-                        className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[9px] before:content-['[f]'] ${
+                        className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[10px] before:content-['[f]'] ${
                           selectedFile?.path === file.path && selectedFile?.pluginId === plugin.id
                             ? 'bg-card/80 text-primary before:text-muted-foreground/60'
                             : `text-muted-foreground hover:bg-card/80 hover:text-foreground ${

@@ -298,7 +298,7 @@ export function QuickChatPanel() {
             </h2>
             {!showHistory && activeSessionId && (
               <>
-                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-medium text-primary">
+                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
                   <Wrench className="h-2.5 w-2.5" />
                   Agent
                 </span>
@@ -598,7 +598,7 @@ function ProviderToggle({
       {icon}
       {label}
       {!available && (
-        <span className="text-[9px] opacity-60">n/a</span>
+        <span className="text-[10px] opacity-60">n/a</span>
       )}
     </button>
   );
@@ -852,7 +852,7 @@ function ProviderBadge({ provider }: { provider: ProviderName }) {
     );
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-medium ${style}`}
+      className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[10px] font-medium ${style}`}
     >
       {icon}
       {provider}
@@ -899,7 +899,7 @@ function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
 
   if (status.indexing || reindexing) {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[9px] font-medium text-blue-400">
+      <span className="flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400">
         <Loader2 className="h-2.5 w-2.5 animate-spin" />
         Indexing...
       </span>
@@ -912,7 +912,7 @@ function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
         type="button"
         onClick={handleReindex}
         title="Re-index workspace"
-        className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[9px] font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+        className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors"
       >
         <Database className="h-2.5 w-2.5" />
         {status.fileCount} files
@@ -925,7 +925,7 @@ function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
       type="button"
       onClick={handleReindex}
       title="Index workspace for semantic search"
-      className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[9px] font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+      className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
     >
       <RefreshCw className="h-2.5 w-2.5" />
       Index

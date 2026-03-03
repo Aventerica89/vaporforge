@@ -355,7 +355,7 @@ export function DevChangelog() {
 
                             {/* Type badge */}
                             <span
-                              className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase border ${
+                              className={`mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase border ${
                                 TYPE_COLORS[commit.type] || TYPE_COLORS.other
                               }`}
                             >
@@ -364,7 +364,7 @@ export function DevChangelog() {
 
                             {/* Scope badge */}
                             {scope && (
-                              <span className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+                              <span className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
                                 {scope}
                               </span>
                             )}
@@ -416,7 +416,7 @@ export function DevChangelog() {
                                 </span>
                                 <span>
                                   <span
-                                    className={`rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase border ${
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase border ${
                                       TYPE_COLORS[commit.type] ||
                                       TYPE_COLORS.other
                                     }`}

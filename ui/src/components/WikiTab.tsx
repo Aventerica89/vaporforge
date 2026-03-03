@@ -144,7 +144,7 @@ function CollapsibleSection({ section }: { section: WikiSection }) {
               {section.title}
             </span>
             {section.shortcuts && (
-              <kbd className="inline-flex h-5 items-center rounded border border-border bg-muted px-1.5 font-mono text-[9px] text-muted-foreground">
+              <kbd className="inline-flex h-5 items-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] text-muted-foreground">
                 {section.shortcuts}
               </kbd>
             )}

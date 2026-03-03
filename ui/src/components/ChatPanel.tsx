@@ -252,6 +252,8 @@ export function ChatPanel({
             </button>
             <button
               type="button"
+              aria-label="Attach file"
+              title="Attach file"
               className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
             >
               <Paperclip className="size-5" />

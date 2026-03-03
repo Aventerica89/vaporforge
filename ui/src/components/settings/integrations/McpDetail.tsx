@@ -31,7 +31,7 @@ export function McpDetail({ server }: McpDetailProps) {
         </span>
         <div className="flex items-center gap-2">
           <button
-            className={`rounded-sm px-1.5 py-0.5 font-mono text-[9px] text-red-500 transition-all ${
+            className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-red-500 transition-all ${
               isRemoving
                 ? 'border border-red-500 bg-red-500/15'
                 : 'border border-transparent hover:border-red-500 hover:bg-red-500/10'
@@ -65,7 +65,7 @@ export function McpDetail({ server }: McpDetailProps) {
       <div className="mb-2.5 flex items-center gap-2.5 text-[10px] text-muted-foreground">
         <span className="w-[72px] shrink-0">Status</span>
         <span
-          className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[9px] ${
+          className={`inline-flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[10px] ${
             status === 'connected'
               ? 'border-green-500/35 bg-green-500/10 text-green-500'
               : status === 'error'
@@ -82,7 +82,7 @@ export function McpDetail({ server }: McpDetailProps) {
       <div className="mb-2.5 flex items-center gap-2.5 text-[10px] text-muted-foreground">
         <span className="w-[72px] shrink-0">Transport</span>
         <span
-          className={`inline-block rounded-sm border px-2 py-0.5 text-[9px] ${transportClass}`}
+          className={`inline-block rounded-sm border px-2 py-0.5 text-[10px] ${transportClass}`}
         >
           {server.transport}
         </span>
@@ -109,7 +109,7 @@ export function McpDetail({ server }: McpDetailProps) {
       <hr className="my-4 border-border/40" />
 
       {/* Tools */}
-      <div className="mb-2 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+      <div className="mb-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
         Available Tools ({server.tools?.length || server.toolCount || 0})
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -117,7 +117,7 @@ export function McpDetail({ server }: McpDetailProps) {
           server.tools.map((tool) => (
             <span
               key={tool}
-              className="inline-block rounded-sm border border-border bg-card px-2 py-0.5 text-[9px] text-muted-foreground"
+              className="inline-block rounded-sm border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground"
             >
               {tool}
             </span>
@@ -133,7 +133,7 @@ export function McpDetail({ server }: McpDetailProps) {
 
       {/* Added date */}
       {server.addedAt && (
-        <div className="mt-6 text-[9px] text-muted-foreground/40">
+        <div className="mt-6 text-[10px] text-muted-foreground/40">
           Added {new Date(server.addedAt).toLocaleDateString()}
         </div>
       )}

@@ -70,14 +70,14 @@ export function PluginSidebarList() {
                 className="flex w-full items-center justify-between px-3.5 pb-1 pt-2 transition-colors hover:bg-card/40"
                 onClick={() => toggleTier(tier)}
               >
-                <span className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                   {cfg.label}
-                  <span className="rounded-full bg-card px-1.5 py-px text-[9px] font-normal text-muted-foreground">
+                  <span className="rounded-full bg-card px-1.5 py-px text-[10px] font-normal text-muted-foreground">
                     {items.length}
                   </span>
                 </span>
                 <span
-                  className={`text-[9px] text-muted-foreground transition-transform ${
+                  className={`text-[10px] text-muted-foreground transition-transform ${
                     collapsed ? '' : 'rotate-90'
                   }`}
                 >

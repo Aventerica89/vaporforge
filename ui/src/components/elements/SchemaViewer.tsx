@@ -139,7 +139,7 @@ export function SchemaNode({
         {/* Type badge */}
         <span
           className={cn(
-            'rounded border px-1 py-0 text-[9px] uppercase tracking-wide',
+            'rounded border px-1 py-0 text-[10px] uppercase tracking-wide',
             typeBadge,
           )}
         >

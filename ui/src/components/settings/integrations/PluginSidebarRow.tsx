@@ -53,7 +53,7 @@ export function PluginSidebarRow({
         >
           {plugin.name}
         </span>
-        <div className="mt-0.5 flex items-center gap-1.5 text-[9px] text-muted-foreground">
+        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
           <span
             className={`inline-block rounded-sm border px-1 py-px text-[8px] font-bold tracking-wide ${tierCfg.badgeClass}`}
           >

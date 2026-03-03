@@ -39,9 +39,9 @@ export function McpSidebarRow({
         <span className="block truncate text-xs text-foreground">
           {server.name}
         </span>
-        <div className="mt-0.5 flex items-center gap-1 text-[9px]">
+        <div className="mt-0.5 flex items-center gap-1 text-[10px]">
           <span
-            className={`inline-block rounded-sm border px-1.5 py-px text-[9px] ${transportClass}`}
+            className={`inline-block rounded-sm border px-1.5 py-px text-[10px] ${transportClass}`}
           >
             {server.transport}
           </span>

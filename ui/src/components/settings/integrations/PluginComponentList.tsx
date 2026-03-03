@@ -23,7 +23,7 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
 
   return (
     <div>
-      <div className="mb-2.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+      <div className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
         Components
       </div>
 
@@ -33,7 +33,7 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
 
         return (
           <div key={section.key} className="mb-3.5">
-            <div className="flex items-center gap-1.5 pb-1.5 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <div className="flex items-center gap-1.5 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
               {section.label}
               <span className="font-normal text-muted-foreground">
                 ({items.length})
@@ -59,13 +59,13 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
                     onClick={() => toggleExpanded(expandKey)}
                   >
                     <span
-                      className={`text-[9px] text-muted-foreground transition-transform ${
+                      className={`text-[10px] text-muted-foreground transition-transform ${
                         isExpanded ? 'rotate-90' : ''
                       }`}
                     >
                       &#9658;
                     </span>
-                    <span className="w-3 text-center text-[9px] text-muted-foreground/60">
+                    <span className="w-3 text-center text-[10px] text-muted-foreground/60">
                       {section.icon}
                     </span>
                     <span className="max-w-[120px] shrink-0 truncate text-[11px] text-foreground">
@@ -102,7 +102,7 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
                         {item.content?.split('\n').slice(0, 3).join(' ').replace(/^#\s*\S+\s*/, '').trim() || 'No description available'}
                       </p>
                       <button
-                        className="font-mono text-[10px] text-primary transition-opacity before:mr-1 before:text-[9px] before:text-muted-foreground before:content-['file:'] hover:opacity-70"
+                        className="font-mono text-[10px] text-primary transition-opacity before:mr-1 before:text-[10px] before:text-muted-foreground before:content-['file:'] hover:opacity-70"
                         onClick={() =>
                           selectFile(plugin.id, `${section.key}/${item.filename}`)
                         }

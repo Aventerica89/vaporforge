@@ -151,6 +151,8 @@ export function Header() {
               />
               <button
                 type="submit"
+                aria-label="Confirm rename"
+                title="Confirm rename"
                 className="rounded p-1 text-success hover:bg-success/10"
               >
                 <Check className="h-3.5 w-3.5" />
