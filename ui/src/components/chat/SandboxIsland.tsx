@@ -1,7 +1,7 @@
 import { Activity, HelpCircle, Pause, Play, Square, Zap } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
-import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { Shimmer } from '@/components/ai-elements/Shimmer';
 import { PulseLoader } from '@/components/prompt-kit/loader';
 import { cn } from '@/lib/cn';
 
@@ -39,15 +39,9 @@ function StreamingContent() {
         size="sm"
         className="[&>div]:border-purple-500"
       />
-      <TextShimmer
-        className="text-xs"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, #7c3aed 0%, #d946ef 50%, #7c3aed 100%)',
-        }}
-      >
+      <Shimmer className="text-xs [--color-muted-foreground:#7c3aed] [--color-background:#d946ef]">
         Claude is working...
-      </TextShimmer>
+      </Shimmer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { TextShimmer } from './text-shimmer';
+import { Shimmer } from '@/components/ai-elements/Shimmer';
 import { cn } from '@/lib/cn';
 import { ChevronRight } from 'lucide-react';
 
@@ -25,11 +25,11 @@ export function ThinkingBar({
           onClick={onClick}
           className="flex items-center gap-1 text-sm transition-opacity hover:opacity-80"
         >
-          <TextShimmer className="font-medium">{text}</TextShimmer>
+          <Shimmer className="font-medium">{text}</Shimmer>
           <ChevronRight className="text-muted-foreground size-4" />
         </button>
       ) : (
-        <TextShimmer className="cursor-default font-medium">{text}</TextShimmer>
+        <Shimmer className="cursor-default font-medium">{text}</Shimmer>
       )}
       {onStop ? (
         <button

@@ -18,10 +18,10 @@ import {
   MessageAttachments,
 } from '@/components/chat/message';
 import {
-  ChatContainerRoot,
-  ChatContainerContent,
-} from '@/components/prompt-kit/chat-container';
-import { ScrollButton } from '@/components/prompt-kit/scroll-button';
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
 
 // ---------------------------------------------------------------------------
 // Sentinel detection
@@ -222,9 +222,10 @@ export function MessageList({ compact }: MessageListProps) {
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       <div className={GRID_OVERLAY} />
-      <ChatContainerRoot className="relative flex-1">
+      <Conversation className="relative">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
-        <ChatContainerContent
+        <ConversationContent
+          scrollClassName="scrollbar-none"
           className={
             compact
               ? 'flex flex-col gap-4 px-4 py-3'
@@ -236,11 +237,9 @@ export function MessageList({ compact }: MessageListProps) {
           ))}
           <CompactionBanner />
           <StreamingMessage compact={compact} />
-          <div className="flex w-full items-end justify-end px-2 pb-2">
-            <ScrollButton />
-          </div>
-        </ChatContainerContent>
-      </ChatContainerRoot>
+        </ConversationContent>
+        <ConversationScrollButton />
+      </Conversation>
     </div>
   );
 }

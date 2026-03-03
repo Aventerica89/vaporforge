@@ -15,7 +15,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-e
 import { CodeBlock, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename, CodeBlockActions, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
 import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
-import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
+import { Shimmer } from '@/components/ai-elements/Shimmer';
 import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/prompt-kit/commit';
 import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
 import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
@@ -309,15 +309,11 @@ function renderPart(
         <Steps key={index} defaultOpen={isActive}>
           <StepsTrigger>
             {isActive ? (
-              <TextShimmer
-                className="text-sm"
-                style={{
-                  backgroundImage:
-                    'linear-gradient(to right, #a1a1aa 0%, #71717a 40%, #a1a1aa 100%)',
-                }}
+              <Shimmer
+                className="text-sm [--color-muted-foreground:#a1a1aa] [--color-background:#71717a]"
               >
                 {triggerLabel}
-              </TextShimmer>
+              </Shimmer>
             ) : (
               triggerLabel
             )}
