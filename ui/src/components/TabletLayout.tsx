@@ -367,7 +367,7 @@ export function TabletLayout() {
               onClick={() => setOverlayView(null)}
               className="flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent/50 transition-colors"
               style={{ minWidth: '44px', minHeight: '44px' }}
-              aria-label="Close"
+              aria-label="Close" title="Close"
             >
               <X className="h-5 w-5" />
             </button>

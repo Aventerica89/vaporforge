@@ -51,7 +51,7 @@ export const MobileNavBar = memo(function MobileNavBar({
                 minWidth: '44px',
                 WebkitTapHighlightColor: 'transparent',
               }}
-              aria-label="Go back"
+              aria-label="Go back" title="Go back"
             >
               <ChevronLeft size={22} strokeWidth={2.5} />
               <span className="text-sm font-medium">Back</span>

@@ -76,7 +76,7 @@ export function DebugPanel() {
           width: 'var(--touch-target)',
           height: 'var(--touch-target)',
         }}
-        aria-label="Toggle debug panel"
+        aria-label="Toggle debug panel" title="Toggle debug panel"
       >
         <Bug className="h-5 w-5 text-muted-foreground" />
         {unreadErrors > 0 && (
@@ -98,7 +98,7 @@ export function DebugPanel() {
             maxHeight: 'calc(100vh - 7rem)',
           }}
           role="dialog"
-          aria-label="Debug panel"
+          aria-label="Debug panel" title="Debug panel"
         >
           {/* Header with tabs */}
           <div className="flex items-center justify-between border-b border-border px-2 py-1.5">
@@ -131,7 +131,7 @@ export function DebugPanel() {
                     minWidth: 'var(--touch-target)',
                     minHeight: 'var(--touch-target)',
                   }}
-                  aria-label="Copy all log entries"
+                  aria-label="Copy all log entries" title="Copy all log entries"
                   title="Copy all log entries"
                 >
                   {copied ? (
@@ -148,7 +148,7 @@ export function DebugPanel() {
                   minWidth: 'var(--touch-target)',
                   minHeight: 'var(--touch-target)',
                 }}
-                aria-label="Close debug panel"
+                aria-label="Close debug panel" title="Close debug panel"
               >
                 <X className="h-5 w-5" />
               </button>

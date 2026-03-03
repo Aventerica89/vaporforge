@@ -144,6 +144,7 @@ export function InvoiceHistory({
                         : onDownload?.(inv.id)
                     }
                     aria-label={`Download invoice ${inv.id}`}
+                    title={`Download invoice ${inv.id}`}
                   >
                     <Download className="h-3.5 w-3.5" />
                     Download

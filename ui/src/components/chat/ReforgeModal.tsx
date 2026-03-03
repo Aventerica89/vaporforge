@@ -92,7 +92,7 @@ export function ReforgeModal({ onInsert }: ReforgeModalProps) {
           <button
             onClick={close}
             className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-accent hover:text-foreground transition-colors text-muted-foreground"
-            aria-label="Close"
+            aria-label="Close" title="Close"
           >
             <X className="h-5 w-5" />
           </button>

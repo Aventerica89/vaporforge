@@ -165,6 +165,7 @@ export function CommitCopyButton({ hash: hashProp, className, ...props }: Commit
       type="button"
       onClick={handleCopy}
       aria-label={copied ? 'Copied' : 'Copy commit hash'}
+      title={copied ? 'Copied' : 'Copy commit hash'}
       className={cn(
         'inline-flex size-6 items-center justify-center rounded transition-opacity',
         'text-muted-foreground hover:text-foreground',

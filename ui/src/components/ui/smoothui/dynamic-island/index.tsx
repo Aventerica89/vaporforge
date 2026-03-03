@@ -292,6 +292,7 @@ export default function DynamicIsland({
           ].map(({ key, icon }) => (
             <button
               aria-label={key}
+              title={key}
               className="flex size-8 cursor-pointer items-center justify-center rounded-full border bg-primary px-2"
               key={key}
               onClick={() => {

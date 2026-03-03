@@ -289,7 +289,7 @@ export const StackTraceCopyButton = memo(
           className,
         )}
         onClick={handleCopy}
-        aria-label="Copy stack trace"
+        aria-label="Copy stack trace" title="Copy stack trace"
         {...props}
       >
         {copied ? (

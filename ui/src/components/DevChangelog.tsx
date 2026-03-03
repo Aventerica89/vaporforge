@@ -235,7 +235,7 @@ export function DevChangelog() {
             <button
               onClick={closeChangelog}
               className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:h-8 sm:w-8"
-              aria-label="Close"
+              aria-label="Close" title="Close"
             >
               <X className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>

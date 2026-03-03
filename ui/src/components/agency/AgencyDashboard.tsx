@@ -65,7 +65,7 @@ export function AgencyDashboard() {
           <button
             onClick={closeDashboard}
             className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-            aria-label="Close dashboard"
+            aria-label="Close dashboard" title="Close dashboard"
           >
             <X className="h-5 w-5" />
           </button>

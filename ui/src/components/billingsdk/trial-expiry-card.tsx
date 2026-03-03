@@ -143,6 +143,7 @@ export function TrialExpiryCard({
             aria-live="polite"
             aria-atomic="true"
             aria-label={`Trial time remaining: ${timeRemaining.days} days, ${timeRemaining.hours} hours, ${timeRemaining.minutes} minutes, ${timeRemaining.seconds} seconds`}
+            title={`Trial time remaining: ${timeRemaining.days} days, ${timeRemaining.hours} hours, ${timeRemaining.minutes} minutes, ${timeRemaining.seconds} seconds`}
           >
             <div className="flex items-center justify-center gap-2 sm:gap-4">
               <TimeUnit value={timeRemaining.days} label="Days" />

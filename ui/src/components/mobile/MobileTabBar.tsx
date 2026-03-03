@@ -86,6 +86,7 @@ export const MobileTabBar = memo(function MobileTabBar({
               role="tab"
               aria-selected={isActive}
               aria-label={tab.label}
+              title={tab.label}
               className="flex flex-1 flex-col items-center justify-center gap-0.5"
               style={{
                 minHeight: '44px',
