@@ -56,7 +56,7 @@ const SUGGESTIONS = [
 
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
   claude: ['sonnet', 'haiku', 'opus'],
-  gemini: ['flash', 'pro'],
+  gemini: ['flash', 'pro', '3.1-pro'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini'],
 };
 

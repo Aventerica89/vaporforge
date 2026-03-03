@@ -418,7 +418,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
   if (message.parts && message.parts.length > 0) {
     const grouped = groupPartsForRender(message.parts);
     return (
-      <>
+      <div className="flex flex-col gap-3">
         {taskPlan && <TaskPlanBlock plan={taskPlan} />}
         <HandoffChain parts={message.parts} />
         {grouped.map((item, gi) =>
@@ -428,7 +428,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
             renderPart(item.part, item.index, false, message.parts)
           ),
         )}
-      </>
+      </div>
     );
   }
 
@@ -458,7 +458,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
 
   if (parts.length > 0) {
     return (
-      <>
+      <div className="flex flex-col gap-3">
         {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
@@ -473,7 +473,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
                 part.type === 'chain-of-thought'));
           return renderPart(part, i, isStreamingPart, parts);
         })}
-      </>
+      </div>
     );
   }
 

@@ -154,12 +154,59 @@ function loadAgentsFromDisk() {
 // Build the system prompt append string, optionally including auto-context.
 // Auto-context is gathered by gather-context.sh at container startup and
 // cached to /tmp/vf-auto-context.md. Disabled when VF_AUTO_CONTEXT === '0'.
-const BASE_SYSTEM_APPEND = 'You are working in a cloud sandbox (VaporForge). Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked. After completing any task that involves tool use (writing files, running commands, making edits, etc.), always follow up with a brief text summary of what was done — the user cannot see individual tool calls and has no way to know if the work is complete or if you need more input without a response from you.';
+const BASE_SYSTEM_APPEND = 'You are working in a REMOTE cloud sandbox (VaporForge), NOT a local machine. Important implications:\n- Files in /workspace are EPHEMERAL — the container can sleep after inactivity and all disk state is lost. Nothing is "saved locally" — there is no persistent local storage.\n- To preserve work, you MUST push to a remote git repository (GitHub). Always `git push` after commits.\n- If GITHUB_TOKEN is available in your environment, git push is pre-configured and will work automatically.\n- The user is accessing this sandbox from a web browser on a different device. They cannot see your filesystem directly.\n- Always create, edit, and manage files in /workspace (your cwd). Never use /tmp unless explicitly asked.\n- After completing any task that involves tool use (writing files, running commands, making edits, etc.), always follow up with a brief text summary of what was done — the user cannot see individual tool calls.';
 const AUTO_CONTEXT_PATH = '/tmp/vf-auto-context.md';
 
+// Detect injected secrets/tokens and build a hint section so Claude knows
+// what env vars are available. Without this, Claude cannot introspect
+// process.env and will fail on git push, API calls, etc.
+function buildSecretsHint() {
+  const known = [
+    ['GITHUB_TOKEN', 'GitHub authentication — use for git push/pull/clone. Already configured as git credential helper.'],
+    ['OP_SERVICE_ACCOUNT_TOKEN', '1Password CLI — use `op read op://vault/item/field` to retrieve secrets.'],
+  ];
+  // Also detect arbitrary user secrets (anything that looks like a token/key)
+  const userVars = [];
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!val || known.some(([k]) => k === key)) continue;
+    if (/^(API_KEY|SECRET|TOKEN|PASSWORD|CREDENTIALS?|AUTH)/i.test(key) ||
+        /(API_KEY|_SECRET|_TOKEN|_PASSWORD|_CREDENTIALS?)$/i.test(key)) {
+      userVars.push(key);
+    }
+  }
+
+  const lines = [];
+  for (const [key, desc] of known) {
+    if (process.env[key]) lines.push(`- ${key}: ${desc}`);
+  }
+  for (const key of userVars) {
+    lines.push(`- ${key}: Available as environment variable.`);
+  }
+
+  if (lines.length === 0) return '';
+
+  // If GITHUB_TOKEN is set, configure git credential helper so git push works
+  if (process.env.GITHUB_TOKEN) {
+    try {
+      const { execFileSync } = require('child_process');
+      execFileSync('git', [
+        'config', '--global', 'credential.helper',
+        '!f() { echo "username=x-access-token"; echo "password=$GITHUB_TOKEN"; }; f'
+      ], { stdio: 'ignore' });
+      console.error('[claude-agent] Git credential helper configured for GITHUB_TOKEN');
+    } catch (e) {
+      console.error(`[claude-agent] Failed to configure git credential helper: ${e.message}`);
+    }
+  }
+
+  return '\n\n## Available Secrets & Tokens\nThe following are set in your environment and ready to use:\n' + lines.join('\n');
+}
+
 function buildSystemPromptAppend() {
+  const secretsHint = buildSecretsHint();
+
   if (process.env.VF_AUTO_CONTEXT === '0') {
-    return BASE_SYSTEM_APPEND;
+    return BASE_SYSTEM_APPEND + secretsHint;
   }
 
   try {
@@ -167,14 +214,14 @@ function buildSystemPromptAppend() {
       const ctx = fs.readFileSync(AUTO_CONTEXT_PATH, 'utf8').trim();
       if (ctx) {
         console.error(`[claude-agent] Auto-context loaded (${ctx.length} chars)`);
-        return BASE_SYSTEM_APPEND + '\n\n' + ctx;
+        return BASE_SYSTEM_APPEND + secretsHint + '\n\n' + ctx;
       }
     }
   } catch (err) {
     console.error(`[claude-agent] Failed to read auto-context: ${err.message}`);
   }
 
-  return BASE_SYSTEM_APPEND;
+  return BASE_SYSTEM_APPEND + secretsHint;
 }
 
 // Model fallback chain: when a model hits its usage limit, try the next one.
