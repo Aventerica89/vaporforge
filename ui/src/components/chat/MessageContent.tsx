@@ -12,14 +12,15 @@ import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { MessageResponse } from '@/components/ai-elements/message';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
-import { CodeBlock, CodeBlockCode, CodeBlockGroup } from '@/components/prompt-kit/code-block';
+import { CodeBlock, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename, CodeBlockActions, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
+import type { BundledLanguage } from 'shiki';
 import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
 import { TextShimmer } from '@/components/prompt-kit/text-shimmer';
 import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/prompt-kit/commit';
 import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
 import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
 import { Persona } from '@/components/prompt-kit/persona';
-import { AlertCircle, Check, ChevronRight, Copy, RotateCw } from 'lucide-react';
+import { AlertCircle, ChevronRight, RotateCw } from 'lucide-react';
 
 interface MessageContentProps {
   message: Message;
@@ -120,32 +121,17 @@ interface CodeBlockWithCopyProps {
 }
 
 function CodeBlockWithCopy({ code, language, filename }: CodeBlockWithCopyProps) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
-    <CodeBlock>
-      <CodeBlockGroup className="border-b border-zinc-700/60 py-2 pl-4 pr-2">
-        <div className="flex items-center gap-2">
-          <div className="rounded bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-300">
-            {language}
-          </div>
+    <CodeBlock code={code} language={(language || 'text') as BundledLanguage}>
+      <CodeBlockHeader>
+        <CodeBlockTitle>
+          <CodeBlockFilename>{language}</CodeBlockFilename>
           {filename && <span className="text-xs text-zinc-400">{filename}</span>}
-        </div>
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="flex size-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-700/60 hover:text-zinc-200"
-        >
-          {copied ? <Check className="size-3.5 text-green-400" /> : <Copy className="size-3.5" />}
-        </button>
-      </CodeBlockGroup>
-      <CodeBlockCode code={code} language={language} />
+        </CodeBlockTitle>
+        <CodeBlockActions>
+          <CodeBlockCopyButton />
+        </CodeBlockActions>
+      </CodeBlockHeader>
     </CodeBlock>
   );
 }
