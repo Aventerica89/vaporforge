@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { AlertTriangle, Check, Globe, Pencil, ShieldAlert, Terminal, X } from 'lucide-react';
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 // ---------------------------------------------------------------------------
 // Helpers (preserved from original)
@@ -97,20 +97,21 @@ export function Confirmation({
     onDeny(approvalId);
   }, [approvalId, onDeny]);
 
+  const contextValue = useMemo(
+    () => ({ toolName, input, isDestructive, summary, onApprove: handleApprove, onDeny: handleDeny }),
+    [toolName, input, isDestructive, summary, handleApprove, handleDeny]
+  );
+
   if (responded) {
     return (
-      <ConfirmationContext.Provider
-        value={{ toolName, input, isDestructive, summary, onApprove: handleApprove, onDeny: handleDeny }}
-      >
+      <ConfirmationContext.Provider value={contextValue}>
         <ConfirmationResult responded={responded} className={className} {...props} />
       </ConfirmationContext.Provider>
     );
   }
 
   return (
-    <ConfirmationContext.Provider
-      value={{ toolName, input, isDestructive, summary, onApprove: handleApprove, onDeny: handleDeny }}
-    >
+    <ConfirmationContext.Provider value={contextValue}>
       <div
         className={cn(
           'my-1.5 rounded-lg border px-3 py-2.5',

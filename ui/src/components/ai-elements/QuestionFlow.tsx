@@ -131,13 +131,14 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
       <div className="space-y-3">
         {questions.map((q) => (
           <div key={q.id} className="space-y-1.5">
-            <label className="block text-xs font-medium text-foreground/90">
+            <label htmlFor={q.type === 'text' ? `qf-${q.id}` : undefined} className="block text-xs font-medium text-foreground/90">
               {q.question}
               {q.required !== false && <span className="ml-0.5 text-primary">*</span>}
             </label>
 
             {q.type === 'text' && (
               <input
+                id={`qf-${q.id}`}
                 type="text"
                 value={(answers[q.id] as string) || ''}
                 placeholder={q.placeholder || ''}

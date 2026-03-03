@@ -15,7 +15,7 @@ export type SourceFile = {
   snippet?: string;
 };
 
-export type SourcesProps = ComponentProps<'div'>;
+export type SourcesProps = ComponentProps<typeof Collapsible>;
 
 export const Sources = ({ className, ...props }: SourcesProps) => (
   <Collapsible

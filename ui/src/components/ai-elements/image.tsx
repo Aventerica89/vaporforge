@@ -21,8 +21,12 @@ export const Image = ({
   if (base64) {
     src = `data:${mediaType};base64,${base64}`;
   } else if (uint8Array && uint8Array.length > 0) {
-    const binary = uint8Array.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
-    src = `data:${mediaType};base64,${btoa(binary)}`;
+    const CHUNK = 0x8000;
+    const chunks: string[] = [];
+    for (let i = 0; i < uint8Array.length; i += CHUNK) {
+      chunks.push(String.fromCharCode(...uint8Array.subarray(i, i + CHUNK)));
+    }
+    src = `data:${mediaType};base64,${btoa(chunks.join(''))}`;
   }
 
   if (!src) return null;
