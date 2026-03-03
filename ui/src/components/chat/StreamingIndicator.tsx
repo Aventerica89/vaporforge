@@ -1,5 +1,5 @@
 import type { MessagePart } from '@/lib/types';
-import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
+import { ThinkingBar } from '@/components/chat/thinking-bar';
 import { AgentStatusBadge } from '@/components/elements/AgentStatusBadge';
 
 interface StreamingIndicatorProps {

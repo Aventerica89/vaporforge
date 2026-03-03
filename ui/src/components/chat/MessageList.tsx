@@ -6,7 +6,7 @@ import {
   Message as AIMessage,
   MessageContent as AIMessageContent,
 } from '@/components/ai-elements/message';
-import { ThinkingBar } from '@/components/prompt-kit/thinking-bar';
+import { ThinkingBar } from '@/components/chat/thinking-bar';
 import { MessageActions } from '@/components/chat/MessageActions';
 import { StreamingIndicator } from '@/components/chat/StreamingIndicator';
 import { TypingCursor } from '@/components/chat/TypingCursor';

@@ -2,7 +2,7 @@ import { Activity, HelpCircle, Pause, Play, Square, Zap } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 import { Shimmer } from '@/components/ai-elements/Shimmer';
-import { PulseLoader } from '@/components/prompt-kit/loader';
+import { PulseLoader } from '@/components/chat/loader';
 import { cn } from '@/lib/cn';
 
 export type SessionStatus = 'idle' | 'streaming' | 'paused';

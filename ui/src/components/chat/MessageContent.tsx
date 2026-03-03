@@ -14,12 +14,12 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
 import { CodeBlock, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename, CodeBlockActions, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
-import { Steps, StepsContent, StepsItem, StepsTrigger } from '@/components/prompt-kit/steps';
+import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from '@/components/ai-elements/chain-of-thought';
 import { Shimmer } from '@/components/ai-elements/Shimmer';
-import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/prompt-kit/commit';
-import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/prompt-kit/test-results';
-import { Checkpoint, CheckpointList } from '@/components/prompt-kit/checkpoint';
-import { Persona } from '@/components/prompt-kit/persona';
+import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/chat/commit';
+import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/chat/test-results';
+import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
+import { Persona } from '@/components/chat/persona';
 import { AlertCircle, ChevronRight, RotateCw } from 'lucide-react';
 
 interface MessageContentProps {
@@ -306,8 +306,8 @@ function renderPart(
         ? (activeStep?.title ?? 'Working...')
         : `Completed ${part.steps.length} step${part.steps.length === 1 ? '' : 's'}`;
       return (
-        <Steps key={index} defaultOpen={isActive}>
-          <StepsTrigger>
+        <ChainOfThought key={index} defaultOpen={isActive}>
+          <ChainOfThoughtHeader>
             {isActive ? (
               <Shimmer
                 className="text-sm [--color-muted-foreground:#a1a1aa] [--color-background:#71717a]"
@@ -317,13 +317,13 @@ function renderPart(
             ) : (
               triggerLabel
             )}
-          </StepsTrigger>
-          <StepsContent>
+          </ChainOfThoughtHeader>
+          <ChainOfThoughtContent>
             {part.steps.map((step) => (
-              <StepsItem key={step.title}>{step.title}</StepsItem>
+              <ChainOfThoughtStep key={step.title} label={step.title} />
             ))}
-          </StepsContent>
-        </Steps>
+          </ChainOfThoughtContent>
+        </ChainOfThought>
       );
     }
 
