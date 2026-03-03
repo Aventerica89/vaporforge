@@ -33,7 +33,7 @@ export function GeminiIcon({ className }: GeminiIconProps) {
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       className={className}
-      aria-label="Gemini" title="Gemini"
+      aria-label="Gemini"
     >
       <mask id={m} width="296" height="298" x="0" y="0" maskUnits="userSpaceOnUse" style={{ maskType: 'alpha' }}>
         <path fill="#3186FF" d={GEMINI_STAR} />

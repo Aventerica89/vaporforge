@@ -783,7 +783,7 @@ export const PromptInput = ({
     <>
       <input
         accept={accept}
-        aria-label="Upload files" title="Upload files"
+        aria-label="Upload files"
         className="hidden"
         multiple={multiple}
         onChange={handleChange}

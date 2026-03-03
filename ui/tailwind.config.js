@@ -52,7 +52,11 @@ export default {
         '2xl': 'var(--space-2xl)',
       },
       borderRadius: {
-        DEFAULT: '8px',
+        DEFAULT: 'var(--radius)',
+        sm: 'var(--radius-sm)',
+        md: 'var(--radius-md)',
+        lg: 'var(--radius-lg)',
+        xl: 'var(--radius-xl)',
       },
       transitionDuration: {
         fast: 'var(--duration-fast)',

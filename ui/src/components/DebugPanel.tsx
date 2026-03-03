@@ -131,7 +131,7 @@ export function DebugPanel() {
                     minWidth: 'var(--touch-target)',
                     minHeight: 'var(--touch-target)',
                   }}
-                  aria-label="Copy all log entries" title="Copy all log entries"
+                  aria-label="Copy all log entries"
                   title="Copy all log entries"
                 >
                   {copied ? (

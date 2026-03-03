@@ -35,7 +35,7 @@ export function ClaudeIcon({ className }: ClaudeIconProps) {
       viewBox="0 0 256 257"
       fill="none"
       className={className}
-      aria-label="Claude" title="Claude"
+      aria-label="Claude"
     >
       <path fill="#D97757" d={CLAUDE_PATH} />
     </svg>
