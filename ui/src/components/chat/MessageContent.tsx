@@ -2,7 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ChatMarkdown } from './ChatMarkdown';
-import { UnifiedToolBlock } from './UnifiedToolBlock';
+import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { PlanCard } from '@/components/ai-elements/PlanCard';
@@ -254,14 +254,9 @@ function renderPart(
       // Hide tool-start in completed messages — tool-result renders the full state
       if (!isStreaming) return null;
       return (
-        <UnifiedToolBlock
-          key={index}
-          name={part.name || 'Tool'}
-          state="input-streaming"
-          input={part.input}
-          toolId={part.toolId}
-          startedAt={part.startedAt}
-        />
+        <Tool key={index} name={part.name || 'Tool'} state="input-streaming" input={part.input} startedAt={part.startedAt}>
+          <ToolHeader />
+        </Tool>
       );
     }
 
@@ -276,15 +271,14 @@ function renderPart(
           (part.toolId ? p.toolId === part.toolId : p.name === part.name),
       );
       return (
-        <UnifiedToolBlock
-          key={index}
-          name={part.name || 'Tool'}
-          state="output-available"
-          input={matchingStart?.input ?? part.input}
-          output={part.output}
-          toolId={part.toolId}
-          duration={part.duration}
-        />
+        <Tool key={index} name={part.name || 'Tool'} state="output-available" input={matchingStart?.input ?? part.input}>
+          <ToolHeader duration={part.duration} />
+          <ToolCitation output={part.output} />
+          <ToolContent>
+            <ToolSchemaInput />
+            <ToolOutput output={part.output} />
+          </ToolContent>
+        </Tool>
       );
     }
 
@@ -444,14 +438,14 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
-            <UnifiedToolBlock
-              key={tool.id}
-              name={tool.name}
-              state="output-available"
-              input={tool.input}
-              output={tool.output}
-              toolId={tool.id}
-            />
+            <Tool key={tool.id} name={tool.name} state="output-available" input={tool.input}>
+              <ToolHeader />
+              <ToolCitation output={tool.output} />
+              <ToolContent>
+                <ToolSchemaInput />
+                <ToolOutput output={tool.output} />
+              </ToolContent>
+            </Tool>
           ))}
         </div>
       )}
