@@ -130,11 +130,16 @@ const tokensCache = new Map<string, TokenizedCode>();
 // Subscribers for async token updates
 const subscribers = new Map<string, Set<(result: TokenizedCode) => void>>();
 
-const getTokensCacheKey = (code: string, language: BundledLanguage) => {
-  const start = code.slice(0, 100);
-  const end = code.length > 100 ? code.slice(-100) : "";
-  return `${language}:${code.length}:${start}:${end}`;
+const hashString = (str: string): number => {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+  }
+  return hash >>> 0;
 };
+
+const getTokensCacheKey = (code: string, language: BundledLanguage) =>
+  `${language}:${code.length}:${hashString(code)}`;
 
 const getHighlighter = (
   language: BundledLanguage
@@ -398,14 +403,17 @@ export const CodeBlockContent = ({
     setTokenized(highlightCode(code, language) ?? rawTokens);
 
     // Subscribe to async highlighting result
-    highlightCode(code, language, (result) => {
+    const callback = (result: TokenizedCode) => {
       if (!cancelled) {
         setTokenized(result);
       }
-    });
+    };
+    highlightCode(code, language, callback);
 
+    const cacheKey = getTokensCacheKey(code, language);
     return () => {
       cancelled = true;
+      subscribers.get(cacheKey)?.delete(callback);
     };
   }, [code, language, rawTokens]);
 

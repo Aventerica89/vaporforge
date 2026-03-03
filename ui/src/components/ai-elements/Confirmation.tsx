@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { AlertTriangle, Check, Globe, Pencil, ShieldAlert, Terminal, X } from 'lucide-react';
 import React, { createContext, useCallback, useContext, useState } from 'react';
 

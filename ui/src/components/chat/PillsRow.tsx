@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import {
   Flame,
   Zap,

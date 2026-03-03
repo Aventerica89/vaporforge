@@ -24,7 +24,7 @@ import {
   Square,
   Mic,
 } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { MessageResponse } from './ai-elements/message';

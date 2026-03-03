@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { HelpCircle, Check, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 type Question = {
   id: string;

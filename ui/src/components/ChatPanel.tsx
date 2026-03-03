@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import {
   Trash2, Paperclip, X,
   Flame, Eye, Zap, Bookmark, MoreHorizontal,

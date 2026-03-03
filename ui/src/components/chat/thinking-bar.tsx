@@ -1,5 +1,5 @@
 import { Shimmer } from '@/components/ai-elements/Shimmer';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { ChevronRight } from 'lucide-react';
 
 type ThinkingBarProps = {

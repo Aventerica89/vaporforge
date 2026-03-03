@@ -1,7 +1,7 @@
 import { ArrowRight } from 'lucide-react';
 import { ClaudeIcon } from '@/components/icons/ClaudeIcon';
 import { GeminiIcon } from '@/components/icons/GeminiIcon';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import type { MessagePart } from '@/lib/types';
 
 export type HandoffChainProps = {

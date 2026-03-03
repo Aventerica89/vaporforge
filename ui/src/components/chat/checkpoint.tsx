@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { CheckCircle2, Clock, Loader2, XCircle } from 'lucide-react';
 import React, { createContext, useContext } from 'react';
 

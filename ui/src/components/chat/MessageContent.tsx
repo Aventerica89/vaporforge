@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { ChatMarkdown } from './ChatMarkdown';
 import { UnifiedToolBlock } from './UnifiedToolBlock';
 import { TaskPlanBlock } from './TaskPlanBlock';

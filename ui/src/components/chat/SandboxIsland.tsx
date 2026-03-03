@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 import { Shimmer } from '@/components/ai-elements/Shimmer';
 import { PulseLoader } from '@/components/chat/loader';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 export type SessionStatus = 'idle' | 'streaming' | 'paused';
 

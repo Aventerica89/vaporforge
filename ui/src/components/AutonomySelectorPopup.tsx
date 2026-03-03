@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Shield, Gauge, Zap, X } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 
 export type AutonomyMode = 'conservative' | 'standard' | 'autonomous';
 

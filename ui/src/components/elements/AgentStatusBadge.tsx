@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn';
+import { cn } from '@/lib/utils';
 import { ClaudeIcon } from '@/components/icons/ClaudeIcon';
 import { ArrowRight, Check, Clock, Zap } from 'lucide-react';
 import React, { createContext, useContext } from 'react';
