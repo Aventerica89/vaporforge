@@ -19,6 +19,14 @@ import {
 import { GeminiIcon } from '@/components/icons/GeminiIcon';
 import { SchemaViewer } from '@/components/elements/SchemaViewer';
 import { CitationCard } from '@/components/ai-elements/CitationCard';
+import {
+  isStackTrace,
+  StackTrace,
+  StackTraceHeader,
+  StackTraceContent,
+  StackTraceFrames,
+  StackTraceCopyButton,
+} from '@/components/ai-elements/stack-trace';
 
 // ---------------------------------------------------------------------------
 // Context
@@ -276,37 +284,70 @@ export const ToolOutput = memo(
     const isDenied = state === 'output-denied';
     const isRunning = state === 'input-streaming';
 
+    const outputIsTrace = output ? isStackTrace(output) : false;
+    const errorIsTrace = errorText ? isStackTrace(errorText) : false;
+
     return (
       <div className={className} {...props}>
         {output && (
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
-              Output
-            </span>
-            <pre className="mt-1 max-h-48 overflow-y-auto overflow-x-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
-              {output.length > 2000
-                ? `${output.slice(0, 2000)}...(truncated)`
-                : output}
-            </pre>
-          </div>
+          outputIsTrace ? (
+            <StackTrace trace={output} defaultOpen>
+              <StackTraceHeader />
+              <StackTraceContent>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                    Stack Trace
+                  </span>
+                  <StackTraceCopyButton />
+                </div>
+                <StackTraceFrames />
+              </StackTraceContent>
+            </StackTrace>
+          ) : (
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                Output
+              </span>
+              <pre className="mt-1 max-h-48 overflow-y-auto overflow-x-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
+                {output.length > 2000
+                  ? `${output.slice(0, 2000)}...(truncated)`
+                  : output}
+              </pre>
+            </div>
+          )
         )}
 
         {(isError || isDenied) && errorText && (
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
-              {isDenied ? 'Denied' : 'Error'}
-            </span>
-            <pre
-              className={cn(
-                'mt-1 rounded-md border p-2 font-mono text-[11px] leading-relaxed',
-                isDenied
-                  ? 'border-orange-500/20 bg-orange-500/5 text-orange-400'
-                  : 'border-red-500/20 bg-red-500/5 text-red-400',
-              )}
-            >
-              {errorText}
-            </pre>
-          </div>
+          errorIsTrace ? (
+            <StackTrace trace={errorText} defaultOpen>
+              <StackTraceHeader />
+              <StackTraceContent>
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                    {isDenied ? 'Denied' : 'Error'}
+                  </span>
+                  <StackTraceCopyButton />
+                </div>
+                <StackTraceFrames />
+              </StackTraceContent>
+            </StackTrace>
+          ) : (
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">
+                {isDenied ? 'Denied' : 'Error'}
+              </span>
+              <pre
+                className={cn(
+                  'mt-1 rounded-md border p-2 font-mono text-[11px] leading-relaxed',
+                  isDenied
+                    ? 'border-orange-500/20 bg-orange-500/5 text-orange-400'
+                    : 'border-red-500/20 bg-red-500/5 text-red-400',
+                )}
+              >
+                {errorText}
+              </pre>
+            </div>
+          )
         )}
 
         {isRunning && (
