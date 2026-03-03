@@ -101,7 +101,7 @@ export const MobileTabBar = memo(function MobileTabBar({
               />
               <span
                 className="font-medium"
-                style={{ fontSize: '10px' }}
+                style={{ fontSize: '11px' }}
               >
                 {tab.label}
               </span>

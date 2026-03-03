@@ -64,7 +64,7 @@ export function StreamDebugger() {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="Filter by type..."
-          className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/40 outline-none"
+          className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         <span className="text-[10px] tabular-nums text-muted-foreground/40">
           {filtered.length}/{events.length}

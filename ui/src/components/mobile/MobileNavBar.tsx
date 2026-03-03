@@ -46,7 +46,7 @@ export const MobileNavBar = memo(function MobileNavBar({
               }}
               className="flex items-center gap-0.5 -ml-2 px-2 py-1"
               style={{
-                color: '#1dd3e6',
+                color: 'hsl(var(--primary))',
                 minHeight: '44px',
                 minWidth: '44px',
                 WebkitTapHighlightColor: 'transparent',

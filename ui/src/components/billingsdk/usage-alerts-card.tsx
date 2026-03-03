@@ -79,7 +79,7 @@ function CreateForm({ budgetUsd, onSave, onCancel, saving }: CreateFormProps) {
             placeholder="e.g. 65"
             value={custom}
             onChange={(e) => setCustom(e.target.value)}
-            className="w-24 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-24 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           />
           <span className="text-xs text-muted-foreground">%</span>
         </div>

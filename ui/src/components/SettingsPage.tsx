@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import {
   X,
   Palette,
@@ -125,21 +125,14 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
   const { activeTab, setActiveTab, closeSettings } = useSettingsStore();
   const { layoutTier } = useDeviceInfo();
   const isMobile = layoutTier === 'phone';
-
-  // Close on Escape
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeSettings();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [closeSettings]);
+  const focusTrapRef = useFocusTrap(true, closeSettings);
 
   const TabContent = TAB_CONTENT[activeTab];
   const activeLabel = ALL_TABS.find((t) => t.id === activeTab)?.label || 'Settings';
 
   return (
     <div
+      ref={focusTrapRef as React.RefObject<HTMLDivElement>}
       className="flex flex-col bg-background overflow-hidden h-full"
     >
       {/* ─── Top bar (hidden on phone or when inside mobile subview) ─── */}

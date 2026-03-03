@@ -166,7 +166,7 @@ export function CommitMessageCard() {
                   editField('scope', e.target.value || undefined)
                 }
                 placeholder="e.g. auth, ui, api"
-                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
 
@@ -178,7 +178,7 @@ export function CommitMessageCard() {
               <input
                 value={commitMessage.subject}
                 onChange={(e) => editField('subject', e.target.value)}
-                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
 
@@ -194,7 +194,7 @@ export function CommitMessageCard() {
                 }
                 rows={3}
                 placeholder="Longer explanation if needed..."
-                className="w-full resize-none rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full resize-none rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
 

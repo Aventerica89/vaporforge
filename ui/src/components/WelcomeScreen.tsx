@@ -365,7 +365,7 @@ export function WelcomeScreen() {
                     if (e.key === 'Enter') handleSetGhUsername();
                   }}
                   placeholder="GitHub username"
-                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
                 />
                 <button
                   onClick={handleSetGhUsername}
@@ -488,7 +488,7 @@ export function WelcomeScreen() {
                             if (e.key === 'Escape') cancelRename();
                           }}
                           onBlur={confirmRename}
-                          className="flex-1 rounded border border-primary/50 bg-background px-2 py-1 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                          className="flex-1 rounded border border-primary/50 bg-background px-2 py-1 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                           placeholder="Session name..."
                           maxLength={60}
                         />

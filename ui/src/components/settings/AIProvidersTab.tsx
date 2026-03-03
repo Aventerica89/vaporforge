@@ -767,7 +767,7 @@ function ToggleSwitch({
     <button
       onClick={onToggle}
       disabled={saving}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none ${
         enabled ? 'bg-primary' : 'bg-muted-foreground/30'
       }`}
     >
@@ -845,7 +845,7 @@ function KeySection({
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder={placeholder}
-              className="w-full rounded border border-border bg-muted px-3 py-2 pr-9 text-sm font-mono focus:border-primary focus:outline-none"
+              className="w-full rounded border border-border bg-muted px-3 py-2 pr-9 text-sm font-mono focus-visible:border-primary focus-visible:outline-none"
             />
             <button
               type="button"

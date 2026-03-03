@@ -226,7 +226,7 @@ export function CommandCenterTab() {
             setIsDirty(true);
             setSaveResult(null);
           }}
-          className="h-80 w-full resize-y rounded-lg border border-border bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground focus:border-primary focus:outline-none"
+          className="h-80 w-full resize-y rounded-lg border border-border bg-muted px-4 py-3 font-mono text-xs leading-relaxed text-foreground focus-visible:border-primary focus-visible:outline-none"
           spellCheck={false}
         />
 
@@ -344,7 +344,7 @@ export function CommandCenterTab() {
               value={maxBudget}
               onChange={(e) => setMaxBudget(e.target.value)}
               placeholder="No limit"
-              className="w-32 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm text-foreground focus:border-primary focus:outline-none"
+              className="w-32 rounded-lg border border-border bg-muted px-3 py-1.5 text-sm text-foreground focus-visible:border-primary focus-visible:outline-none"
             />
           )}
           <span className="text-xs text-muted-foreground">USD per session</span>

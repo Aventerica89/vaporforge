@@ -410,7 +410,7 @@ export function QuickChatPanel() {
                   value={selectedModel || MODEL_OPTIONS[selectedProvider][0]}
                   onChange={(e) => setProvider(selectedProvider, e.target.value)}
                   disabled={!hasAnyProvider}
-                  className="rounded-md border border-border/50 bg-muted px-2 py-0.5 text-[11px] text-muted-foreground focus:border-primary focus:outline-none disabled:opacity-40 cursor-pointer"
+                  className="rounded-md border border-border/50 bg-muted px-2 py-0.5 text-[11px] text-muted-foreground focus-visible:border-primary focus-visible:outline-none disabled:opacity-40 cursor-pointer"
                 >
                   {MODEL_OPTIONS[selectedProvider].map((m) => (
                     <option key={m} value={m}>

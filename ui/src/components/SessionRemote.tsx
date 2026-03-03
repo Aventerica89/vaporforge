@@ -234,14 +234,14 @@ export function SessionRemote({ sessionId, onSetPrompt, iconOnly = false }: Sess
                 onChange={(e) => setCheckpointName(e.target.value)}
                 placeholder="What are you working on?"
                 maxLength={80}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50"
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-purple-500/50"
               />
               <textarea
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
                 placeholder="Optional notes..."
                 rows={2}
-                className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-purple-500/50"
+                className="w-full resize-none rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-purple-500/50"
               />
               <div className="flex gap-2">
                 <button

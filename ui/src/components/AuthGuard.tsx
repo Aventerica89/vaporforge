@@ -64,7 +64,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
                 clearError();
               }}
               placeholder="Paste your token here"
-              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               style={{ fontSize: '16px' }}
               autoComplete="off"
             />

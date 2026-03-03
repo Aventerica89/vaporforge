@@ -77,7 +77,7 @@ export function MarketplaceSlideIn() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search plugins..."
-            className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary"
+            className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
           />
         </div>
 

@@ -245,7 +245,7 @@ export function AgencyDebugPanel({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Paste HTML, CSS, error messages, or describe the issue..."
-              className="h-20 w-full resize-none rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 focus:border-zinc-500 focus:outline-none"
+              className="h-20 w-full resize-none rounded-md border border-zinc-700 bg-zinc-800 px-2 py-1.5 font-mono text-[11px] text-zinc-200 placeholder-zinc-600 focus-visible:border-zinc-500 focus-visible:outline-none"
             />
 
             <button

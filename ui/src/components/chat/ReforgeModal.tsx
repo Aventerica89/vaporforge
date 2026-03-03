@@ -106,7 +106,7 @@ export function ReforgeModal({ onInsert }: ReforgeModalProps) {
           <select
             value={selectedSessionId || ''}
             onChange={handleSessionChange}
-            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+            className="mt-1 w-full rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
           >
             <option value="" disabled>
               Select a session...

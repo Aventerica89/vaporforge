@@ -411,7 +411,7 @@ function NewSiteModal({
                   onChange={(e) => setGithubUsername(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') loadRepos(githubUsername); }}
                   placeholder="GitHub username"
-                  className="w-full rounded-md border border-border bg-background py-2 pl-8 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-border bg-background py-2 pl-8 pr-3 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 />
               </div>
               <button
@@ -433,7 +433,7 @@ function NewSiteModal({
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Filter repos..."
-                    className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-md border border-border bg-background py-1.5 pl-8 pr-3 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                   />
                 </div>
                 <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground">
@@ -519,7 +519,7 @@ function NewSiteModal({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Client Site"
-                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 required
                 maxLength={100}
                 autoFocus
@@ -533,7 +533,7 @@ function NewSiteModal({
                 value={repoUrl}
                 onChange={(e) => setRepoUrl(e.target.value)}
                 placeholder="https://github.com/org/repo"
-                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 required
               />
             </label>
@@ -547,7 +547,7 @@ function NewSiteModal({
                 value={pagesUrl}
                 onChange={(e) => setPagesUrl(e.target.value)}
                 placeholder="https://client-site.pages.dev"
-                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </label>
 
@@ -560,7 +560,7 @@ function NewSiteModal({
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 placeholder="client-site.com"
-                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                 maxLength={253}
               />
             </label>

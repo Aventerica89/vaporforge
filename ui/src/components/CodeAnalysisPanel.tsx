@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import {
   X,
   Loader2,
@@ -55,6 +56,8 @@ export function CodeAnalysisPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closeAnalysis]);
 
+  const focusTrapRef = useFocusTrap(isOpen, closeAnalysis);
+
   const handleRerun = useCallback(() => {
     if (!isStreaming) executeAnalysis();
   }, [isStreaming, executeAnalysis]);
@@ -66,6 +69,7 @@ export function CodeAnalysisPanel() {
 
   return (
     <div
+      ref={focusTrapRef as React.RefObject<HTMLDivElement>}
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4"
       onClick={closeAnalysis}
     >

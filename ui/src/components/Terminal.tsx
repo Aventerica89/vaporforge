@@ -143,7 +143,7 @@ export function Terminal() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter command..."
-              className="flex-1 bg-transparent text-gray-300 placeholder:text-gray-600 focus:outline-none"
+              className="flex-1 bg-transparent text-gray-300 placeholder:text-gray-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               autoComplete="off"
               spellCheck={false}
             />

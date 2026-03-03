@@ -143,7 +143,7 @@ export function QuestionFlow({ title, questions, onSubmit, onSkip }: QuestionFlo
                 value={(answers[q.id] as string) || ''}
                 placeholder={q.placeholder || ''}
                 onChange={(e) => setAnswer(q.id, e.target.value)}
-                className="w-full rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-0 transition-colors"
+                className="w-full rounded-md border border-border/50 bg-background/50 px-2.5 py-1.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:ring-0 transition-colors"
               />
             )}
 

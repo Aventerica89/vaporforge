@@ -175,10 +175,10 @@ export function TabletLayout() {
         className="flex shrink-0 flex-col safe-area-header overflow-y-auto"
         style={{
           width: `${SIDEBAR_WIDTH}px`,
-          background: 'rgba(20, 20, 25, 0.95)',
+          background: 'hsl(var(--card) / 0.95)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          borderRight: '0.5px solid rgba(255, 255, 255, 0.1)',
+          borderRight: '0.5px solid hsl(var(--foreground) / 0.1)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
@@ -355,7 +355,7 @@ export function TabletLayout() {
       {overlayView === 'settings' && (
         <div
           className="fixed inset-0 z-50 flex flex-col"
-          style={{ background: 'rgba(10, 10, 15, 0.98)' }}
+          style={{ background: 'hsl(var(--background) / 0.98)' }}
         >
           {/* Sheet header */}
           <div
@@ -375,7 +375,7 @@ export function TabletLayout() {
             </button>
           </div>
           {/* Sheet content */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-hidden">
             <SettingsPage />
           </div>
         </div>

@@ -306,7 +306,7 @@ export function FileTree() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search files..."
-            className="w-full rounded-md border border-border/60 bg-background py-1 pl-8 pr-2 text-sm placeholder:text-muted-foreground/50 focus:border-primary/50 focus:outline-none focus:shadow-[0_0_8px_-2px_hsl(var(--primary)/0.15)] transition-all"
+            className="w-full rounded-md border border-border/60 bg-background py-1 pl-8 pr-2 text-sm placeholder:text-muted-foreground/50 focus-visible:border-primary/50 focus-visible:outline-none focus-visible:shadow-[0_0_8px_-2px_hsl(var(--primary)/0.15)] transition-all"
           />
         </div>
       </div>

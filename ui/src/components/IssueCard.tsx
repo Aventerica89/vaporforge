@@ -306,7 +306,7 @@ export function IssueCard({
             }
             placeholder="Describe the issue..."
             rows={6}
-            className="w-full resize-y rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-sm"
+            className="w-full resize-y rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:py-2 sm:text-sm"
           />
 
           {/* Screenshot drop zone */}
@@ -450,7 +450,7 @@ export function IssueCard({
               onChange={(e) => setClaudeNote(issue.id, e.target.value)}
               placeholder="AI-suggested fix or context..."
               rows={2}
-              className="w-full resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-xs"
+              className="w-full resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:py-2 sm:text-xs"
             />
           </div>
 

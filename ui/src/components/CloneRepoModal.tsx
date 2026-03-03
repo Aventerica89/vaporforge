@@ -304,7 +304,7 @@ function UrlTab({
             setError('');
           }}
           placeholder="https://github.com/user/repo or user/repo"
-          className="w-full rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          className="w-full rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
           autoFocus
           disabled={isCloning}
         />
@@ -322,7 +322,7 @@ function UrlTab({
           value={branch}
           onChange={(e) => setBranch(e.target.value)}
           placeholder="main"
-          className="w-full rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          className="w-full rounded-lg border border-border bg-muted px-4 py-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
           disabled={isCloning}
         />
       </div>
@@ -483,7 +483,7 @@ function GitHubTab({
             if (e.key === 'Enter') onSearch();
           }}
           placeholder="GitHub username or org"
-          className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+          className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
           disabled={isSearching}
         />
         <button

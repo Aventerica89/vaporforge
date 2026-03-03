@@ -148,7 +148,7 @@ export function SecretsTab() {
             value={newName}
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder="SECRET_NAME"
-            className="w-full rounded border border-border bg-muted px-3 py-2 text-sm font-mono uppercase focus:border-primary focus:outline-none"
+            className="w-full rounded border border-border bg-muted px-3 py-2 text-sm font-mono uppercase focus-visible:border-primary focus-visible:outline-none"
           />
           <div className="relative">
             <input
@@ -156,7 +156,7 @@ export function SecretsTab() {
               value={newValue}
               onChange={(e) => { setNewValue(e.target.value); setError(''); }}
               placeholder="Secret value"
-              className="w-full rounded border border-border bg-muted px-3 py-2 pr-9 text-sm font-mono focus:border-primary focus:outline-none"
+              className="w-full rounded border border-border bg-muted px-3 py-2 pr-9 text-sm font-mono focus-visible:border-primary focus-visible:outline-none"
             />
             <button
               type="button"

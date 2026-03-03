@@ -179,7 +179,7 @@ export function EditPanel({
                 : 'Describe a site-wide edit...'
             }
             rows={2}
-            className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-500 focus:border-purple-500/50 focus:outline-none focus:ring-1 focus:ring-purple-500/30"
+            className="flex-1 resize-none rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-[12px] text-zinc-200 placeholder:text-zinc-500 focus-visible:border-purple-500/50 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-purple-500/30"
           />
           <button
             type="submit"

@@ -1,4 +1,5 @@
 import { useRef, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useFocusTrap } from '@/hooks/useFocusTrap';
 import {
   X,
   Loader2,
@@ -83,6 +84,8 @@ export function CodeTransformPanel() {
     acceptTransform();
   }, [acceptTransform]);
 
+  const focusTrapRef = useFocusTrap(isOpen, rejectTransform);
+
   if (!isOpen) return null;
 
   const fileName = filePath?.split('/').pop() || 'untitled';
@@ -90,6 +93,7 @@ export function CodeTransformPanel() {
 
   return (
     <div
+      ref={focusTrapRef as React.RefObject<HTMLDivElement>}
       className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4"
       onClick={rejectTransform}
     >
@@ -157,7 +161,7 @@ export function CodeTransformPanel() {
               onKeyDown={handleKeyDown}
               placeholder="Describe the transformation (e.g. 'Convert to async/await', 'Add error handling')"
               rows={2}
-              className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
+              className="flex-1 resize-none rounded-lg border border-border bg-muted px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
             />
             {isStreaming ? (
               <button

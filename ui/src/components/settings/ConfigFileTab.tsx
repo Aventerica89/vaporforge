@@ -188,14 +188,14 @@ export function ConfigFileTab({
             value={editing.filename}
             onChange={(e) => setEditing({ ...editing, filename: e.target.value })}
             placeholder="filename.md"
-            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-mono focus:border-primary focus:outline-none"
+            className="rounded-lg border border-border bg-muted px-3 py-2 text-sm font-mono focus-visible:border-primary focus-visible:outline-none"
           />
         )}
 
         <textarea
           value={editing.content}
           onChange={(e) => setEditing({ ...editing, content: e.target.value })}
-          className="min-h-[200px] w-full resize-none rounded-lg border border-border bg-muted p-3 font-mono text-xs focus:border-primary focus:outline-none"
+          className="min-h-[200px] w-full resize-none rounded-lg border border-border bg-muted p-3 font-mono text-xs focus-visible:border-primary focus-visible:outline-none"
           spellCheck={false}
         />
 
@@ -277,7 +277,7 @@ export function ConfigFileTab({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={`Search ${title.toLowerCase()}...`}
-            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full rounded-lg border border-border bg-muted pl-9 pr-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
           />
         </div>
       )}

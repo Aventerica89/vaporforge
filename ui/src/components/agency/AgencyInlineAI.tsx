@@ -179,7 +179,7 @@ export function AgencyInlineAI({
                 : 'Add a new section, button...'
             }
             rows={2}
-            className="flex-1 resize-none bg-transparent text-[12px] text-zinc-200 placeholder-zinc-600 outline-none"
+            className="flex-1 resize-none bg-transparent text-[12px] text-zinc-200 placeholder-zinc-600 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <button
             onClick={handleGenerate}

@@ -348,7 +348,7 @@ export function IssueTracker() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search..."
-                className="w-36 rounded border border-border bg-muted pl-7 pr-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-36 rounded border border-border bg-muted pl-7 pr-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
           </div>
@@ -361,7 +361,7 @@ export function IssueTracker() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search issues..."
-                className="min-h-[44px] w-full rounded border border-border bg-muted pl-9 pr-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                className="min-h-[44px] w-full rounded border border-border bg-muted pl-9 pr-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
             </div>
           </div>
@@ -438,7 +438,7 @@ export function IssueTracker() {
                 if (e.key === 'Escape') setShowForm(false);
               }}
               placeholder="Issue title..."
-              className="w-full min-h-[44px] rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-sm"
+              className="w-full min-h-[44px] rounded-lg border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:py-2 sm:text-sm"
             />
             <div className="flex items-center gap-3">
               {/* Type selector */}
@@ -446,7 +446,7 @@ export function IssueTracker() {
                 <select
                   value={type}
                   onChange={(e) => setType(e.target.value as Issue['type'])}
-                  className="appearance-none min-h-[44px] rounded border border-border bg-background pl-3 pr-8 py-2.5 text-base text-foreground focus:border-primary focus:outline-none sm:min-h-0 sm:pl-2 sm:pr-6 sm:py-1 sm:text-xs"
+                  className="appearance-none min-h-[44px] rounded border border-border bg-background pl-3 pr-8 py-2.5 text-base text-foreground focus-visible:border-primary focus-visible:outline-none sm:min-h-0 sm:pl-2 sm:pr-6 sm:py-1 sm:text-xs"
                 >
                   {ISSUE_TYPES.map((t) => (
                     <option key={t} value={t}>
@@ -528,7 +528,7 @@ export function IssueTracker() {
             onChange={(e) => setSuggestions(e.target.value)}
             placeholder="Paste Claude recommendations here..."
             rows={2}
-            className="w-full min-h-[44px] resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary sm:py-2 sm:text-xs"
+            className="w-full min-h-[44px] resize-none rounded border border-border bg-muted px-3 py-2.5 text-base text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary sm:py-2 sm:text-xs"
           />
         </div>
       </div>

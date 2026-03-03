@@ -131,10 +131,11 @@ export function SessionTabBar() {
         {/* Home button — H1: 44×44 touch target */}
         <button
           onClick={() => deselectSession()}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center transition-colors hover:bg-accent hover:text-foreground ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
             !currentSession ? 'text-foreground bg-background' : 'text-muted-foreground'
           }`}
           title="Home"
+          aria-label="Home"
         >
           <Home className="h-3.5 w-3.5" />
         </button>
@@ -142,8 +143,9 @@ export function SessionTabBar() {
         {/* New session button — H1: 44×44 touch target */}
         <button
           onClick={() => createSession()}
-          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="New session"
+          aria-label="New session"
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
@@ -192,7 +194,7 @@ export function SessionTabBar() {
                       if (e.key === 'Escape') setEditingId(null);
                     }}
                     onBlur={confirmRename}
-                    className="w-[120px] rounded border border-primary/50 bg-background px-1.5 py-0.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-[120px] rounded border border-primary/50 bg-background px-1.5 py-0.5 text-xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                     maxLength={60}
                   />
                 </form>
@@ -200,7 +202,7 @@ export function SessionTabBar() {
                 <button
                   onClick={() => selectSession(session.id)}
                   onDoubleClick={() => startRename(session.id)}
-                  className="max-w-[140px] truncate text-xs"
+                  className="max-w-[140px] truncate text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
                   title={`${getSessionName(session)} — double-click to rename`}
                 >
                   {getSessionName(session)}
@@ -212,8 +214,9 @@ export function SessionTabBar() {
                 <button
                   onClick={(e) => handleDelete(e, session.id)}
                   disabled={deletingId === session.id}
-                  className="flex min-h-[44px] min-w-[32px] shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100"
+                  className="flex min-h-[44px] min-w-[32px] shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-red-500/10 hover:text-red-500 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   title="Close session"
+                  aria-label="Close session"
                 >
                   {deletingId === session.id ? (
                     <span className="block h-3 w-3 animate-spin rounded-full border border-red-500 border-t-transparent" />
@@ -230,11 +233,11 @@ export function SessionTabBar() {
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-0.5 px-1">
         {/* Deploy badge — updates every build */}
-        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[9px] font-mono text-cyan-400/90">
+        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-mono text-cyan-400/90">
           v{APP_VERSION} · {deployedAgo(BUILD_TIMESTAMP)}
         </span>
         {/* Dev version badge */}
-        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[9px] font-mono text-amber-400/80">
+        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-400/80">
           #{BUILD_HASH}
         </span>
         {/* Git branch + AI commit button */}
@@ -243,7 +246,7 @@ export function SessionTabBar() {
             <GitBranch className="h-3 w-3" />
             <span>{gitStatus.branch}</span>
             {(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
-              <span className="text-[9px]">
+              <span className="text-[10px]">
                 {gitStatus.ahead > 0 && `+${gitStatus.ahead}`}
                 {gitStatus.ahead > 0 && gitStatus.behind > 0 && '/'}
                 {gitStatus.behind > 0 && `-${gitStatus.behind}`}
@@ -283,8 +286,9 @@ export function SessionTabBar() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title={isDark ? 'Light mode' : 'Dark mode'}
+          aria-label="Toggle theme"
         >
           {isDark ? (
             <Sun className="h-3.5 w-3.5" />
@@ -296,8 +300,9 @@ export function SessionTabBar() {
         {/* Agency */}
         <button
           onClick={() => useAgencyStore.getState().openDashboard()}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Agency Sites"
+          aria-label="Agency Sites"
         >
           <Globe className="h-3.5 w-3.5" />
         </button>
@@ -305,8 +310,9 @@ export function SessionTabBar() {
         {/* Quick Chat */}
         <button
           onClick={() => useQuickChat.getState().toggleQuickChat()}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Quick Chat (Cmd+Shift+Q)"
+          aria-label="Quick Chat"
         >
           <MessageSquare className="h-3.5 w-3.5" />
         </button>
@@ -321,8 +327,9 @@ export function SessionTabBar() {
               dc.openChangelog();
             }
           }}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Dev Changelog (Cmd+Shift+L)"
+          aria-label="Dev Changelog"
         >
           <GitCommitHorizontal className="h-3.5 w-3.5" />
         </button>
@@ -330,8 +337,9 @@ export function SessionTabBar() {
         {/* Issue Tracker */}
         <button
           onClick={() => useIssueTracker.getState().openTracker()}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Issue Tracker"
+          aria-label="Issue Tracker"
         >
           <Bug className="h-3.5 w-3.5" />
         </button>
@@ -339,8 +347,9 @@ export function SessionTabBar() {
         {/* Settings */}
         <button
           onClick={() => openSettings()}
-          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent"
+          className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Settings"
+          aria-label="Settings"
         >
           <Settings className="h-3.5 w-3.5" />
         </button>
@@ -349,7 +358,8 @@ export function SessionTabBar() {
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            aria-label="User menu"
           >
             U
           </button>
