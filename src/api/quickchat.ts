@@ -258,6 +258,41 @@ function createSandboxTools(
         };
       },
     }),
+    create_github_issue: tool({
+      description: 'Create a GitHub issue on a repository. Use to report bugs, log debug findings, or track tasks for the main session to act on.',
+      inputSchema: z.object({
+        owner: z.string().describe('GitHub repo owner (username or org)'),
+        repo: z.string().describe('GitHub repository name'),
+        title: z.string().max(256).describe('Issue title'),
+        body: z.string().max(65536).describe('Issue body in markdown'),
+        labels: z.array(z.string()).max(10).optional().describe('Labels to apply'),
+      }),
+      execute: async ({ owner, repo, title, body, labels }) => {
+        if (!env?.GITHUB_TOKEN) {
+          return 'No GITHUB_TOKEN configured — cannot create GitHub issue.';
+        }
+        const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues`;
+        const payload: Record<string, unknown> = { title, body };
+        if (labels && labels.length > 0) payload.labels = labels;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/vnd.github+json',
+            'User-Agent': 'VaporForge/1.0',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          return `GitHub API error ${res.status}: ${err.slice(0, 200)}`;
+        }
+        const issue = await res.json() as { number: number; html_url: string };
+        return `Issue #${issue.number} created: ${issue.html_url}`;
+      },
+    }),
   };
 
   // Add semanticSearch if Gemini credentials are available
@@ -346,6 +381,9 @@ quickchatRoutes.post('/stream', async (c) => {
   const hasSemanticSearch = tools && 'semanticSearch' in tools;
   const systemParts: string[] = [
     'You are a helpful coding assistant with access to a cloud development sandbox.',
+    'You have a create_github_issue tool — use it to file bug reports, debug findings,',
+    'or tasks that the main Claude session should act on.',
+    'When creating issues, detect the repo owner/name from .git/config or package.json in the workspace.',
   ];
   if (hasSemanticSearch) {
     systemParts.push(
