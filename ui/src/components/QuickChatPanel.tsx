@@ -36,7 +36,7 @@ import { Shimmer } from './ai-elements/Shimmer';
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from './ai-elements/tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
-import { PlanCard } from './ai-elements/PlanCard';
+import { PlanCard } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
 import {

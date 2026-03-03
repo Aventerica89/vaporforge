@@ -5,7 +5,7 @@ import { ChatMarkdown } from './ChatMarkdown';
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
-import { PlanCard } from '@/components/ai-elements/PlanCard';
+import { PlanCard } from '@/components/ai-elements/plan';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
 import { Confirmation } from '@/components/ai-elements/Confirmation';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
