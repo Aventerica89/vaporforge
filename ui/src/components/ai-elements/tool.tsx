@@ -1,6 +1,5 @@
 import type { ComponentProps } from 'react';
 
-import { useControllableState } from '@radix-ui/react-use-controllable-state';
 import {
   Collapsible,
   CollapsibleContent,
@@ -66,18 +65,9 @@ export const Tool = memo(
     input,
     startedAt,
     compact = false,
-    open,
-    defaultOpen = false,
-    onOpenChange,
     children,
     ...props
   }: ToolProps) => {
-    const [isOpen, setIsOpen] = useControllableState({
-      defaultProp: defaultOpen,
-      onChange: onOpenChange,
-      prop: open,
-    });
-
     const { isGemini, isCitation } = getToolMeta(name);
     const isRunning = state === 'input-streaming';
     const isError = state === 'output-error';
@@ -103,8 +93,6 @@ export const Tool = memo(
     return (
       <ToolContext.Provider value={contextValue}>
         <Collapsible
-          open={isOpen}
-          onOpenChange={setIsOpen}
           className={cn(
             'my-1.5 overflow-hidden rounded-lg border transition-all duration-200',
             borderClass,

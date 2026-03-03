@@ -575,7 +575,18 @@ export class ChatSessionAgent {
 
     // Inject/refresh config into container (MCP servers, CLAUDE.md, plugins, creds).
     // After container sleep wipes disk, this restores everything the SDK needs.
-    await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig);
+    // Returns true if full injection was needed (container slept / fresh disk).
+    const didFullInject = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig);
+
+    // If the container slept (stamp missing → full injection), the SDK session
+    // files on disk are gone. Resuming a dead session hangs for 4+ minutes
+    // until the inactivity timeout fires. Clear sdkSessionId to force a fresh start.
+    let effectiveSessionId = sdkSessionId;
+    if (didFullInject && sdkSessionId) {
+      console.log(`[ChatSessionAgent] container slept — clearing stale sdkSessionId=${sdkSessionId.slice(0, 8)}`);
+      effectiveSessionId = '';
+      this.state.storage.put('sdkSessionId', '').catch(() => {});
+    }
 
     // Compute CLAUDE_MCP_SERVERS env for startProcess
     const freshMcpConfig: Record<string, Record<string, unknown>> = {
@@ -632,7 +643,7 @@ export class ChatSessionAgent {
           CLAUDE_CODE_OAUTH_TOKEN: oauthToken,
           VF_CALLBACK_URL: `${this.env.WORKER_BASE_URL}/internal/stream`,
           VF_STREAM_JWT: token,
-          VF_SDK_SESSION_ID: sdkSessionId,
+          VF_SDK_SESSION_ID: effectiveSessionId,
           VF_STORED_BUILD: storedBuild,
           VF_SESSION_MODE: mode || 'agent',
           ...(model ? { VF_MODEL: MODEL_ALIASES[model] || model } : {}),
@@ -675,7 +686,7 @@ export class ChatSessionAgent {
     sandbox: Sandbox,
     sessionId: string,
     config: SandboxConfig
-  ): Promise<void> {
+  ): Promise<boolean> {
     const sid = sessionId.slice(0, 8);
 
     // Check stamp — if valid, skip full injection (only refresh MCP + creds)
@@ -787,6 +798,8 @@ export class ChatSessionAgent {
         }
       }
     }
+
+    return needsFullInjection;
   }
 }
 
