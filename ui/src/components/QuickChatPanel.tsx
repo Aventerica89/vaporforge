@@ -29,7 +29,7 @@ import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { MessageResponse } from './ai-elements/message';
 import { ChatMarkdown } from './chat/ChatMarkdown';
-import { Reasoning, ReasoningTrigger, ReasoningContent } from './prompt-kit/reasoning';
+import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/Shimmer';
@@ -713,7 +713,7 @@ function QuickChatMessage({
               <ReasoningTrigger className="text-xs text-muted-foreground">
                 Thinking...
               </ReasoningTrigger>
-              <ReasoningContent markdown contentClassName="mt-2 text-xs">
+              <ReasoningContent className="mt-2 text-xs">
                 {(part as { type: 'reasoning'; text: string }).text}
               </ReasoningContent>
             </Reasoning>
