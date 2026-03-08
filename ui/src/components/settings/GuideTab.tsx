@@ -3,7 +3,6 @@ import {
   Terminal, FileCode, ScrollText, Bot, Server,
   Puzzle, Key, Settings, Zap, Sparkles,
   MessageSquare, Wrench, Bug, Keyboard, Square,
-  BookOpen, Github, FileText, TestTube2,
 } from 'lucide-react';
 
 function Section({
