@@ -35,6 +35,7 @@ import { MessageList } from '@/components/chat/MessageList';
 import { PillsRow } from '@/components/chat/PillsRow';
 import { useSlashCommands } from '@/hooks/useSlashCommands';
 import { useEffect } from 'react';
+import { useQuickChat } from '@/hooks/useQuickChat';
 
 // ---------------------------------------------------------------------------
 // ChatPanel
@@ -375,8 +376,7 @@ export function ChatPanel({
   const handleToggleSentinel = useCallback(() => {
     if (sentinelDataReady) {
       useSandboxStore.setState({ sentinelDataReady: false, sentinelDataSizeBytes: 0 });
-      const sendMessage = useSandboxStore.getState().sendMessage;
-      void sendMessage('[sentinel] Read /workspace/.vf-sentinel-report.md, summarize what was found, then ask me if I want to address anything.');
+      useQuickChat.getState().openWithSentinel('A background code scan just completed. Read /workspace/.vf-sentinel-report.md and give me a summary of what was found, then ask if I want to address anything.');
       return;
     }
     if (!sentinelActive) {

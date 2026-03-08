@@ -268,8 +268,9 @@ function createSandboxTools(
         labels: z.array(z.string()).max(10).optional().describe('Labels to apply'),
       }),
       execute: async ({ owner, repo, title, body, labels }) => {
-        if (!env?.GITHUB_TOKEN) {
-          return 'No GITHUB_TOKEN configured — cannot create GitHub issue.';
+        const githubToken = env?.GITHUB_TOKEN;
+        if (!githubToken) {
+          return 'No GITHUB_TOKEN configured on this server.';
         }
         const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/issues`;
         const payload: Record<string, unknown> = { title, body };
@@ -277,7 +278,7 @@ function createSandboxTools(
         const res = await fetch(url, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+            Authorization: `Bearer ${githubToken}`,
             'Content-Type': 'application/json',
             Accept: 'application/vnd.github+json',
             'User-Agent': 'VaporForge/1.0',
@@ -286,8 +287,27 @@ function createSandboxTools(
           body: JSON.stringify(payload),
         });
         if (!res.ok) {
-          const err = await res.text();
-          return `GitHub API error ${res.status}: ${err.slice(0, 200)}`;
+          const errText = await res.text();
+          // 422 often means labels don't exist — retry without labels
+          if (res.status === 422 && labels && labels.length > 0) {
+            delete payload.labels;
+            const retry = await fetch(url, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${githubToken}`,
+                'Content-Type': 'application/json',
+                Accept: 'application/vnd.github+json',
+                'User-Agent': 'VaporForge/1.0',
+                'X-GitHub-Api-Version': '2022-11-28',
+              },
+              body: JSON.stringify(payload),
+            });
+            if (retry.ok) {
+              const issue = await retry.json() as { number: number; html_url: string };
+              return `Issue #${issue.number} created (labels skipped — not found on repo): ${issue.html_url}`;
+            }
+          }
+          return `GitHub API error ${res.status}: ${errText.slice(0, 200)}`;
         }
         const issue = await res.json() as { number: number; html_url: string };
         return `Issue #${issue.number} created: ${issue.html_url}`;
@@ -479,11 +499,16 @@ quickchatRoutes.post('/stream', async (c) => {
 
   // Disable CF/proxy compression — buffering kills streaming
   // See: https://ai-sdk.dev/docs/troubleshooting/streaming-not-working-when-proxied
-  return result.toUIMessageStreamResponse({
-    headers: {
-      'Content-Encoding': 'none',
-    },
-  });
+  try {
+    return result.toUIMessageStreamResponse({
+      headers: {
+        'Content-Encoding': 'none',
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return c.json<ApiResponse<never>>({ success: false, error: msg }, 500);
+  }
 });
 
 // GET /list — list quick chat conversations + available providers

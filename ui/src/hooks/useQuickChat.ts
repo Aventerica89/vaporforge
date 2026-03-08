@@ -18,13 +18,18 @@ interface QuickChatState {
   activeChatId: string | null;
   error: string | null;
 
-  // Provider selection
+  // Provider selection — each provider remembers its last selected model
   selectedProvider: ProviderName;
   selectedModel: string | undefined;
+  modelPerProvider: Partial<Record<ProviderName, string>>;
   availableProviders: ProviderName[];
+
+  // Sentinel preload — set before opening so QuickChat auto-sends the prompt
+  pendingSentinelPrompt: string | null;
 
   // Actions
   openQuickChat: () => void;
+  openWithSentinel: (prompt: string) => void;
   closeQuickChat: () => void;
   toggleQuickChat: () => void;
   setProvider: (provider: ProviderName, model?: string) => void;
@@ -42,10 +47,17 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
   error: null,
   selectedProvider: 'claude',
   selectedModel: undefined,
+  modelPerProvider: {},
   availableProviders: [],
+  pendingSentinelPrompt: null,
 
   openQuickChat: () => {
     set({ isOpen: true });
+    get().loadChats();
+  },
+
+  openWithSentinel: (prompt: string) => {
+    set({ isOpen: true, pendingSentinelPrompt: prompt });
     get().loadChats();
   },
 
@@ -61,8 +73,21 @@ export const useQuickChat = create<QuickChatState>((set, get) => ({
     }
   },
 
-  setProvider: (provider, model) =>
-    set({ selectedProvider: provider, selectedModel: model }),
+  /**
+   * Switch provider and/or model. Switching provider tabs (no model arg)
+   * restores the last model used for that provider — no more reset to default.
+   */
+  setProvider: (provider, model) => {
+    const { modelPerProvider } = get();
+    const updatedPerProvider = model !== undefined
+      ? { ...modelPerProvider, [provider]: model }
+      : modelPerProvider;
+    set({
+      selectedProvider: provider,
+      selectedModel: updatedPerProvider[provider],
+      modelPerProvider: updatedPerProvider,
+    });
+  },
 
   loadChats: async () => {
     try {

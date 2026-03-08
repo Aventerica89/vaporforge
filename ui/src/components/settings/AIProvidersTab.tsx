@@ -32,6 +32,10 @@ export function AIProvidersTab() {
     hint: '',
     status: 'none',
   });
+  const [geminiProKey, setGeminiProKey] = useState<ProviderKeyState>({
+    hint: '',
+    status: 'none',
+  });
   const [claudeKey, setClaudeKey] = useState<ProviderKeyState>({
     hint: '',
     status: 'none',
@@ -77,6 +81,12 @@ export function AIProvidersTab() {
         );
         if (gKey) {
           setGeminiKey({ hint: gKey.hint, status: 'set' });
+        }
+        const gProKey = secretsResult.data.find(
+          (s) => s.name === 'GEMINI_PRO_API_KEY'
+        );
+        if (gProKey) {
+          setGeminiProKey({ hint: gProKey.hint, status: 'set' });
         }
         const cKey = secretsResult.data.find(
           (s) => s.name === 'ANTHROPIC_API_KEY'
@@ -141,6 +151,8 @@ export function AIProvidersTab() {
         setConfig={setConfig}
         keyState={geminiKey}
         setKeyState={setGeminiKey}
+        proKeyState={geminiProKey}
+        setProKeyState={setGeminiProKey}
         model={geminiModel}
         setModel={setGeminiModel}
         error={error}
@@ -367,6 +379,8 @@ function GeminiProviderCard({
   setConfig,
   keyState,
   setKeyState,
+  proKeyState,
+  setProKeyState,
   model,
   setModel,
   error,
@@ -376,6 +390,8 @@ function GeminiProviderCard({
   setConfig: (c: AIProviderConfig) => void;
   keyState: ProviderKeyState;
   setKeyState: (s: ProviderKeyState) => void;
+  proKeyState: ProviderKeyState;
+  setProKeyState: (s: ProviderKeyState) => void;
   model: 'flash' | 'pro' | '3.1-pro';
   setModel: (m: 'flash' | 'pro' | '3.1-pro') => void;
   error: string;
@@ -384,6 +400,9 @@ function GeminiProviderCard({
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [isSavingKey, setSavingKey] = useState(false);
+  const [proApiKeyInput, setProApiKeyInput] = useState('');
+  const [showProKey, setShowProKey] = useState(false);
+  const [isSavingProKey, setSavingProKey] = useState(false);
   const [isSaving, setSaving] = useState(false);
 
   const isEnabled = !!config.gemini?.enabled;
@@ -424,6 +443,33 @@ function GeminiProviderCard({
     }
   };
 
+  const handleSaveProKey = async () => {
+    if (!proApiKeyInput.trim()) return;
+    setSavingProKey(true);
+    setError('');
+    try {
+      const result = await secretsApi.add('GEMINI_PRO_API_KEY', proApiKeyInput.trim());
+      if (result.success && result.data) {
+        setProKeyState({ hint: result.data.hint, status: 'set' });
+        setProApiKeyInput('');
+        setShowProKey(false);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save API key');
+    } finally {
+      setSavingProKey(false);
+    }
+  };
+
+  const handleRemoveProKey = async () => {
+    try {
+      await secretsApi.remove('GEMINI_PRO_API_KEY');
+      setProKeyState({ hint: '', status: 'none' });
+    } catch {
+      // Remove failed
+    }
+  };
+
   const handleToggle = async () => {
     setSaving(true);
     setError('');
@@ -432,8 +478,8 @@ function GeminiProviderCard({
         const result = await aiProvidersApi.disableGemini();
         if (result.success && result.data) setConfig(result.data);
       } else {
-        if (keyState.status !== 'set') {
-          setError('Add your Gemini API key first');
+        if (keyState.status !== 'set' && proKeyState.status !== 'set') {
+          setError('Add a Gemini API key first');
           setSaving(false);
           return;
         }
@@ -506,6 +552,25 @@ function GeminiProviderCard({
           placeholder="AIza..."
           getKeyLabel="Get free API key"
           getKeyUrl="https://aistudio.google.com/apikey"
+          label="Free tier key (Gmail account)"
+        />
+
+        <KeySection
+          keyState={proKeyState}
+          apiKeyInput={proApiKeyInput}
+          setApiKeyInput={(v) => {
+            setProApiKeyInput(v);
+            setError('');
+          }}
+          showKey={showProKey}
+          setShowKey={setShowProKey}
+          isSavingKey={isSavingProKey}
+          onSave={handleSaveProKey}
+          onRemove={handleRemoveProKey}
+          placeholder="AIza..."
+          getKeyLabel="Get paid API key"
+          getKeyUrl="https://aistudio.google.com/apikey"
+          label="Paid / PAYG key (Workspace account)"
         />
 
         <div className="space-y-2">
@@ -796,6 +861,7 @@ function KeySection({
   placeholder,
   getKeyLabel,
   getKeyUrl,
+  label = 'API Key',
 }: {
   keyState: ProviderKeyState;
   apiKeyInput: string;
@@ -808,13 +874,14 @@ function KeySection({
   placeholder: string;
   getKeyLabel: string;
   getKeyUrl: string;
+  label?: string;
 }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Key className="h-3.5 w-3.5" />
-          API Key
+          {label}
         </label>
         {keyState.status === 'set' ? (
           <div className="flex items-center gap-2">

@@ -36,6 +36,7 @@ const DEFAULT_MODEL: Record<ProviderName, string> = {
 export interface ProviderCredentials {
   claude?: { apiKey: string };
   gemini?: { apiKey: string };
+  geminiPro?: { apiKey: string };
   openai?: { apiKey: string };
 }
 
@@ -79,7 +80,11 @@ export function createModel(
   }
 
   if (provider === 'gemini') {
-    const key = credentials.gemini?.apiKey;
+    const alias = modelAlias || DEFAULT_MODEL.gemini;
+    const isPaidModel = alias === 'pro' || alias === '3.1-pro';
+    const key = isPaidModel
+      ? (credentials.geminiPro?.apiKey ?? credentials.gemini?.apiKey)
+      : credentials.gemini?.apiKey;
     if (!key) throw new Error('Gemini API key not configured');
     const google = createGoogleGenerativeAI({ apiKey: key });
     return google(modelId);
@@ -141,6 +146,9 @@ export async function getProviderCredentials(
     gemini: secrets.GEMINI_API_KEY
       ? { apiKey: secrets.GEMINI_API_KEY }
       : undefined,
+    geminiPro: secrets.GEMINI_PRO_API_KEY
+      ? { apiKey: secrets.GEMINI_PRO_API_KEY }
+      : undefined,
     openai: secrets.OPENAI_API_KEY
       ? { apiKey: secrets.OPENAI_API_KEY }
       : undefined,
@@ -169,7 +177,7 @@ export async function getAvailableProviders(
   const creds = await getProviderCredentials(kv, userId, claudeToken);
   const available: ProviderName[] = [];
   if (creds.claude) available.push('claude');
-  if (creds.gemini) available.push('gemini');
+  if (creds.gemini || creds.geminiPro) available.push('gemini');
   if (creds.openai) available.push('openai');
   return available;
 }
