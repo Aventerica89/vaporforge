@@ -850,6 +850,9 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           continue;
         } else if (chunk.type === 'sentinel-data-ready') {
           set({ sentinelDataReady: true, sentinelDataSizeBytes: (chunk as Record<string, unknown>).sizeBytes as number || 0 });
+          // Auto-open Quick Chat preloaded with the sentinel report
+          const { openWithSentinel } = (await import('./useQuickChat')).useQuickChat.getState();
+          openWithSentinel('A background code scan just completed. Read /workspace/.vf-sentinel-report.md and give me a summary of what was found, then ask if I want to address anything.');
           continue;
         } else if (chunk.type === 'done') {
           doneReceived = true;

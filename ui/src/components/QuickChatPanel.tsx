@@ -23,6 +23,9 @@ import {
   ArrowUp,
   Square,
   Mic,
+  Github,
+  FileText,
+  GitBranch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
@@ -39,6 +42,7 @@ import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { PlanCard } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
+import { extractRepoName } from '@/lib/session-names';
 import {
   PromptInput,
   PromptInputBody,
@@ -52,6 +56,15 @@ const SUGGESTIONS = [
   { label: 'Find potential bugs', icon: Bug },
   { label: 'Write unit tests', icon: TestTube2 },
   { label: 'Optimize performance', icon: Zap },
+] as const;
+
+const QC_COMMANDS = [
+  { cmd: '/explain',  icon: BookOpen,  prompt: 'Explain how this codebase works — architecture, key files, and main patterns.' },
+  { cmd: '/bugs',     icon: Bug,       prompt: 'Find potential bugs and security issues in this codebase.' },
+  { cmd: '/tests',    icon: TestTube2, prompt: 'Write unit tests for the most critical functions in this project.' },
+  { cmd: '/optimize', icon: Zap,       prompt: 'Identify performance bottlenecks and suggest optimizations.' },
+  { cmd: '/issue',    icon: Github,    prompt: 'Create a GitHub issue for: ' },
+  { cmd: '/docs',     icon: FileText,  prompt: 'Generate documentation for the main modules in this project.' },
 ] as const;
 
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
@@ -84,6 +97,7 @@ export function QuickChatPanel() {
     selectedProvider,
     selectedModel,
     availableProviders,
+    pendingSentinelPrompt,
     setProvider,
     selectChat,
     newChat,
@@ -97,32 +111,30 @@ export function QuickChatPanel() {
   // Active sandbox session — enables tool-calling agent mode
   const currentSession = useSandboxStore((s) => s.currentSession);
   const activeSessionId = currentSession?.id;
+  const gitStatus = useSandboxStore((s) => s.gitStatus);
 
-  // Generate stable chatId for new conversations
-  const chatId = useMemo(
-    () => activeChatId || `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    [activeChatId]
+  // Stable ID for new chats — refreshed on every handleNewChat to prevent
+  // AI SDK from sharing message state across conversations
+  const [localChatId, setLocalChatId] = useState(
+    () => `qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   );
+  const chatId = activeChatId || localChatId;
 
-  // Ref holds latest body values — avoids stale closure when useChat
-  // keeps its internal transport reference after prop changes
-  const bodyRef = useRef({ chatId, selectedProvider, selectedModel, sessionId: activeSessionId });
-  bodyRef.current = { chatId, selectedProvider, selectedModel, sessionId: activeSessionId };
+  // Track which provider generated each assistant message.
+  // Populated in onFinish (once per completed message) — reliable and
+  // avoids the stale-closure problems of the bodyRef/useEffect pattern.
+  const [messageProviders, setMessageProviders] = useState<Record<string, ProviderName>>({});
+  const lastSentProviderRef = useRef<ProviderName>(selectedProvider);
 
-  // AI SDK v6 transport — handles HTTP + UIMessageStream protocol
+  // Transport handles auth only. Dynamic values (provider, model, chatId)
+  // are passed per-request via sendMessage's body arg — the AI SDK docs
+  // recommend this pattern to avoid stale closure bugs in concurrent mode.
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/quickchat/stream',
         headers: () => getAuthHeaders(),
-        body: () => ({
-          chatId: bodyRef.current.chatId,
-          provider: bodyRef.current.selectedProvider,
-          model: bodyRef.current.selectedModel,
-          sessionId: bodyRef.current.sessionId,
-        }),
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
@@ -138,7 +150,12 @@ export function QuickChatPanel() {
   } = useChat({
     id: chatId,
     transport,
-    onFinish: () => {
+    onFinish: ({ message }) => {
+      // Record which provider generated this assistant message
+      setMessageProviders((prev) => ({
+        ...prev,
+        [message.id]: lastSentProviderRef.current,
+      }));
       loadChats();
     },
     onError: (err) => {
@@ -149,13 +166,18 @@ export function QuickChatPanel() {
   const isStreaming = status === 'streaming' || status === 'submitted';
 
   // Extract clean error message — DefaultChatTransport may wrap
-  // the full JSON response body as the error message
+  // the full JSON response body as the error message.
+  // Google/OpenAI APIs return {"error": {"type","code","message","param"}} —
+  // we must extract the string, not return the nested object (React error #31).
   const rawError = panelError || (chatError ? chatError.message : null);
   const error = (() => {
     if (!rawError) return null;
     try {
       const parsed = JSON.parse(rawError);
-      return parsed.error || rawError;
+      const e = parsed.error;
+      if (typeof e === 'string') return e;
+      if (typeof e === 'object' && e !== null) return (e as Record<string, unknown>).message as string || JSON.stringify(e);
+      return rawError;
     } catch {
       return rawError;
     }
@@ -165,6 +187,10 @@ export function QuickChatPanel() {
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [thinkingSeconds, setThinkingSeconds] = useState(0);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showCommandMenu, setShowCommandMenu] = useState(false);
+  const [commandMenuIndex, setCommandMenuIndex] = useState(0);
+  const helpRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // H7 HIG fix: Focus trap keeps keyboard navigation inside the panel.
   const panelRef = useFocusTrap(isOpen, closeQuickChat) as React.RefObject<HTMLDivElement>;
@@ -205,10 +231,44 @@ export function QuickChatPanel() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Close help popover on click outside
+  useEffect(() => {
+    if (!showHelp) return;
+    const handleClick = (e: MouseEvent) => {
+      if (helpRef.current && !helpRef.current.contains(e.target as Node)) {
+        setShowHelp(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showHelp]);
+
+  // Load git status when panel opens with an active session
+  useEffect(() => {
+    if (isOpen && activeSessionId) {
+      useSandboxStore.getState().loadGitStatus();
+    }
+  }, [isOpen, activeSessionId]);
+
   // Handle chat selection — load history from KV into useChat
   const handleSelectChat = useCallback(
     async (id: string) => {
       const history = await selectChat(id);
+
+      // Restore provider/model from chat metadata so the provider bar matches
+      const chatMeta = chats.find((c) => c.id === id);
+      if (chatMeta) {
+        setProvider(chatMeta.provider, chatMeta.model);
+        lastSentProviderRef.current = chatMeta.provider;
+      }
+
+      // Populate provider map from persisted message records
+      const providers: Record<string, ProviderName> = {};
+      for (const m of history) {
+        providers[m.id] = m.provider;
+      }
+      setMessageProviders(providers);
+
       const aiMessages: UIMessage[] = history.map((m) => ({
         id: m.id,
         role: m.role as 'user' | 'assistant',
@@ -217,44 +277,102 @@ export function QuickChatPanel() {
       setMessages(aiMessages);
       setShowHistory(false);
     },
-    [selectChat, setMessages]
+    [selectChat, setMessages, chats, setProvider]
   );
 
-  // Handle new chat — clear useChat messages
+  // Handle new chat — clear messages and assign a fresh chatId so the new
+  // conversation does not share AI SDK state with the previous one
   const handleNewChat = useCallback(() => {
     newChat();
     setMessages([]);
     setInput('');
+    setLocalChatId(`qc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    setMessageProviders({});
   }, [newChat, setMessages]);
 
-  // Handle suggestion click
-  const handleSuggestionClick = useCallback(
-    (text: string) => {
-      if (!hasAnyProvider || isStreaming) return;
-      sendMessage({ text });
-    },
-    [hasAnyProvider, isStreaming, sendMessage]
-  );
-
-  // Send message — called by ai-elements PromptInput onSubmit
-  const handleSend = useCallback((text: string) => {
-    if (!text || isStreaming) return;
-
+  /**
+   * Unified send — ALL message sends go through here.
+   * Passes provider/model/chatId/sessionId per-request (AI SDK best practice)
+   * so values are always current at send time, never stale from a prior render.
+   */
+  const doSend = useCallback((text: string) => {
+    if (!text.trim() || isStreaming) return;
     if (!hasAnyProvider) {
-      setError(
-        `No API key configured for ${selectedProvider === 'claude' ? 'Claude' : selectedProvider === 'openai' ? 'OpenAI' : 'Gemini'}. Add one in Settings > AI Providers.`
-      );
+      const name = selectedProvider === 'claude' ? 'Claude' : selectedProvider === 'openai' ? 'OpenAI' : 'Gemini';
+      setError(`No API key configured for ${name}. Add one in Settings > AI Providers.`);
       return;
     }
     setError(null);
-    sendMessage({ text });
-  }, [isStreaming, hasAnyProvider, selectedProvider, sendMessage, setError]);
+    lastSentProviderRef.current = selectedProvider;
+    sendMessage(
+      { text },
+      {
+        body: {
+          chatId,
+          provider: selectedProvider,
+          model: selectedModel,
+          sessionId: activeSessionId,
+        },
+      }
+    );
+  }, [isStreaming, hasAnyProvider, selectedProvider, selectedModel, chatId, activeSessionId, sendMessage, setError]);
+
+  // Thin wrappers kept for naming clarity at call sites
+  const handleSend = doSend;
+  const handleSuggestionClick = useCallback(
+    (text: string) => doSend(text),
+    [doSend]
+  );
 
   const handlePromptSubmit = useCallback((message: PromptInputMessage) => {
     if (!message.text) return;
     handleSend(message.text);
     setInput('');
+    setShowCommandMenu(false);
   }, [handleSend]);
+
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setInput(val);
+    if (val.startsWith('/')) {
+      setShowCommandMenu(true);
+      setCommandMenuIndex(0);
+    } else {
+      setShowCommandMenu(false);
+    }
+  }, []);
+
+  const selectCommand = useCallback((cmd: typeof QC_COMMANDS[number]) => {
+    setInput(cmd.prompt);
+    setShowCommandMenu(false);
+    setCommandMenuIndex(0);
+  }, []);
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showCommandMenu) return;
+    const filtered = QC_COMMANDS.filter((c) => c.cmd.startsWith(input.split(' ')[0]));
+    if (filtered.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setCommandMenuIndex((i) => (i + 1) % filtered.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCommandMenuIndex((i) => (i - 1 + filtered.length) % filtered.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      selectCommand(filtered[commandMenuIndex] ?? filtered[0]);
+    } else if (e.key === 'Escape') {
+      setShowCommandMenu(false);
+    }
+  }, [showCommandMenu, input, commandMenuIndex, selectCommand]);
+
+  // Auto-send sentinel report prompt when QuickChat opens with one preloaded
+  useEffect(() => {
+    if (!isOpen || !pendingSentinelPrompt || !hasAnyProvider || isStreaming) return;
+    const prompt = pendingSentinelPrompt;
+    useQuickChat.setState({ pendingSentinelPrompt: null });
+    doSend(prompt);
+  }, [isOpen, pendingSentinelPrompt, hasAnyProvider, isStreaming, doSend]);
 
   // Tool approval handlers
   const handleApprove = useCallback((approvalId: string) => {
@@ -269,6 +387,16 @@ export function QuickChatPanel() {
   const lastAssistantIdx = messages.length - 1 -
     [...messages].reverse().findIndex((m) => m.role === 'assistant');
 
+  // Context bar — show repo/branch when a session with git info is active
+  const repoName = currentSession?.gitRepo ? extractRepoName(currentSession.gitRepo) : null;
+  const branch = gitStatus?.branch;
+  const showContextBar = !!activeSessionId && !!(repoName || branch);
+
+  // Slash command menu — filtered by current input prefix
+  const filteredCommands = showCommandMenu && input.startsWith('/')
+    ? QC_COMMANDS.filter((c) => c.cmd.startsWith(input.split(' ')[0]))
+    : [];
+
   if (!isOpen) return null;
 
   return (
@@ -281,57 +409,108 @@ export function QuickChatPanel() {
 
       {/* Panel */}
       <div ref={panelRef} className="relative flex h-full w-full max-w-lg flex-col bg-background border-l border-border shadow-2xl animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4 py-3 safe-area-header">
-          <div className="flex items-center gap-3">
-            {showHistory && (
+        {/* Header + help popover wrapper */}
+        <div className="relative">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3 safe-area-header">
+            <div className="flex items-center gap-3">
+              {showHistory && (
+                <button
+                  onClick={() => setShowHistory(false)}
+                  className="rounded p-1 hover:bg-accent"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+              )}
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <h2 className="font-display text-sm font-bold uppercase tracking-wider">
+                {showHistory ? 'Chat History' : 'Quick Chat'}
+              </h2>
+              {!showHistory && activeSessionId && (
+                <>
+                  <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    <Wrench className="h-2.5 w-2.5" />
+                    Agent
+                  </span>
+                  <EmbeddingStatusBadge sessionId={activeSessionId} />
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!showHistory && (
+                <>
+                  <button
+                    onClick={() => setShowHelp((v) => !v)}
+                    className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
+                      showHelp
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                    }`}
+                    title="What is Quick Chat?"
+                  >
+                    ?
+                  </button>
+                  <button
+                    onClick={() => setShowHistory(true)}
+                    className="rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    title="Chat history"
+                  >
+                    History
+                  </button>
+                  <button
+                    onClick={handleNewChat}
+                    className="rounded p-1 hover:bg-accent"
+                    title="New chat"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => setShowHistory(false)}
+                onClick={closeQuickChat}
                 className="rounded p-1 hover:bg-accent"
               >
-                <ChevronLeft className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
-            )}
-            <MessageSquare className="h-4 w-4 text-primary" />
-            <h2 className="font-display text-sm font-bold uppercase tracking-wider">
-              {showHistory ? 'Chat History' : 'Quick Chat'}
-            </h2>
-            {!showHistory && activeSessionId && (
-              <>
-                <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                  <Wrench className="h-2.5 w-2.5" />
-                  Agent
-                </span>
-                <EmbeddingStatusBadge sessionId={activeSessionId} />
-              </>
-            )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {!showHistory && (
-              <>
-                <button
-                  onClick={() => setShowHistory(true)}
-                  className="rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                  title="Chat history"
-                >
-                  History
-                </button>
-                <button
-                  onClick={handleNewChat}
-                  className="rounded p-1 hover:bg-accent"
-                  title="New chat"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </>
-            )}
-            <button
-              onClick={closeQuickChat}
-              className="rounded p-1 hover:bg-accent"
+
+          {/* Help popover */}
+          {showHelp && (
+            <div
+              ref={helpRef}
+              className="absolute top-full left-0 right-0 z-50 border-b border-border bg-background shadow-xl p-4"
             >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+              <p className="text-xs font-semibold text-foreground mb-2">Quick Chat — Instant AI without a full session</p>
+              <ul className="space-y-1.5 text-xs text-muted-foreground">
+                <li className="flex gap-2">
+                  <span className="text-primary shrink-0">-</span>
+                  <span><strong className="text-foreground">No session needed</strong> — Claude, Gemini, or OpenAI respond immediately</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary shrink-0">-</span>
+                  <span><strong className="text-foreground">Agent mode</strong> — Active when a sandbox session is open. Can read files, search code, run commands, and create GitHub issues.</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary shrink-0">-</span>
+                  <span><kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono text-[10px]">Cmd+Shift+Q</kbd> — Open/close from anywhere</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="text-primary shrink-0">-</span>
+                  <span>Type <code className="text-primary">/</code> for quick prompt templates</span>
+                </li>
+              </ul>
+              <button
+                onClick={() => {
+                  window.location.hash = 'settings/guide';
+                  setShowHelp(false);
+                  closeQuickChat();
+                }}
+                className="mt-3 text-[11px] text-primary hover:underline"
+              >
+                Full Guide →
+              </button>
+            </div>
+          )}
         </div>
 
         {showHistory ? (
@@ -379,6 +558,18 @@ export function QuickChatPanel() {
           </div>
         ) : (
           <>
+            {/* Context bar — repo + branch when session has git info */}
+            {showContextBar && (
+              <div className="flex items-center gap-2 px-4 py-1 border-b border-border/30 bg-muted/20 text-[10px] text-muted-foreground">
+                <GitBranch className="h-3 w-3 shrink-0" />
+                {repoName && <span className="font-medium text-foreground/70">{repoName}</span>}
+                {branch && <span className="opacity-60">{branch}</span>}
+                {currentSession?.projectPath && currentSession.projectPath !== '/workspace' && (
+                  <span className="opacity-40 truncate">{currentSession.projectPath}</span>
+                )}
+              </div>
+            )}
+
             {/* Provider toggle + model selector */}
             <div className="flex items-center gap-2 border-b border-border/50 px-4 py-2">
               <ProviderToggle
@@ -470,7 +661,7 @@ export function QuickChatPanel() {
                   msg={msg}
                   isLastAssistant={idx === lastAssistantIdx}
                   isStreaming={isStreaming}
-                  provider={selectedProvider}
+                  provider={messageProviders[msg.id] || selectedProvider}
                   onApprove={handleApprove}
                   onDeny={handleDeny}
                   onSendMessage={handleSend}
@@ -514,6 +705,31 @@ export function QuickChatPanel() {
             </div>
 
             {/* Input — ai-elements PromptInput */}
+            <div className="relative">
+              {/* Slash command menu */}
+              {filteredCommands.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 z-50 overflow-hidden rounded-t-lg border border-border bg-background shadow-xl">
+                  {filteredCommands.map((cmd, i) => {
+                    const Icon = cmd.icon;
+                    return (
+                      <button
+                        key={cmd.cmd}
+                        type="button"
+                        onClick={() => selectCommand(cmd)}
+                        className={`flex w-full items-center gap-3 px-4 py-2 text-left text-xs transition-colors ${
+                          i === commandMenuIndex
+                            ? 'bg-accent text-foreground'
+                            : 'text-muted-foreground hover:bg-accent/50'
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="font-medium text-foreground">{cmd.cmd}</span>
+                        <span className="truncate opacity-60">— {cmd.prompt.slice(0, 50)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             <PromptInput
               onSubmit={handlePromptSubmit}
               className="border-t border-border px-4 py-3"
@@ -522,7 +738,8 @@ export function QuickChatPanel() {
                 <div className="flex items-end gap-2">
                   <PromptInputTextarea
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={handleInputChange}
+                    onKeyDown={handleInputKeyDown}
                     placeholder={
                       hasAnyProvider
                         ? 'Ask anything...'
@@ -559,6 +776,7 @@ export function QuickChatPanel() {
                 </div>
               </PromptInputBody>
             </PromptInput>
+            </div>
           </>
         )}
       </div>
