@@ -8,8 +8,6 @@ import { MarketplaceSlideIn } from './MarketplaceSlideIn';
 
 export function IntegrationsTab() {
   const {
-    plugins,
-    mcpServers,
     isLoadingPlugins,
     isLoadingMcps,
     loadPlugins,
@@ -25,28 +23,14 @@ export function IntegrationsTab() {
     useMarketplace.getState().loadCustomSources();
   }, [loadPlugins, loadMcpServers, pingAllMcps]);
 
-  const pluginCount = plugins.length;
-  const mcpCount = mcpServers.length;
-  const enabledPlugins = plugins.filter((p) => p.enabled).length;
-  const enabledMcps = mcpServers.filter((s) => s.enabled).length;
-
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-      {/* Header stats — counts only, no redundant title */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3 text-[10px] text-muted-foreground">
-        <span>
-          <span className="font-bold text-foreground">{enabledPlugins}</span>
-          /{pluginCount} plugins
-        </span>
-        <span className="text-border">|</span>
-        <span>
-          <span className="font-bold text-foreground">{enabledMcps}</span>
-          /{mcpCount} servers
-        </span>
-        {(isLoadingPlugins || isLoadingMcps) && (
-          <span className="animate-pulse text-primary/60">loading...</span>
-        )}
-      </div>
+      {/* Loading indicator — counts live in the sidebar tab buttons */}
+      {(isLoadingPlugins || isLoadingMcps) && (
+        <div className="shrink-0 px-5 py-1.5 text-[10px] text-primary/60 animate-pulse border-b border-border/40">
+          loading...
+        </div>
+      )}
 
       {/* Master / Detail */}
       <div className="flex flex-1 min-h-0 overflow-hidden">

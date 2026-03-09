@@ -95,7 +95,7 @@ export function McpAddModal() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. my-database"
-              className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+              className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
               autoFocus
             />
           </div>
@@ -155,7 +155,7 @@ export function McpAddModal() {
                     value={command}
                     onChange={(e) => setCommand(e.target.value)}
                     placeholder="e.g. npx @modelcontextprotocol/server-filesystem /path"
-                    className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
                   />
                 </div>
               ) : (
@@ -168,7 +168,7 @@ export function McpAddModal() {
                     value={scriptPath}
                     onChange={(e) => setScriptPath(e.target.value)}
                     placeholder="e.g. /path/to/server.js"
-                    className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                    className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
                   />
                   <p className="text-[10px] text-muted-foreground/60">
                     Saved as <span className="font-mono">node /path/to/server.js</span>
@@ -186,7 +186,7 @@ export function McpAddModal() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="e.g. https://my-mcp.example.com/sse"
-                className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
               />
             </div>
           ) : (
@@ -199,7 +199,7 @@ export function McpAddModal() {
                 value={localUrl}
                 onChange={(e) => setLocalUrl(e.target.value)}
                 placeholder="e.g. http://localhost:9222"
-                className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
               />
               <p className="text-[10px] text-muted-foreground/60">
                 Relay tunnels your local MCP server through VaporForge — no ports exposed

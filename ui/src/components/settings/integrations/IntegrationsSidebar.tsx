@@ -4,8 +4,11 @@ import { PluginSidebarList } from './PluginSidebarList';
 import { McpSidebarList } from './McpSidebarList';
 
 export function IntegrationsSidebar() {
-  const { activeTab, setActiveTab, sidebarWidth, setSidebarWidth } =
+  const { activeTab, setActiveTab, sidebarWidth, setSidebarWidth, plugins, mcpServers } =
     useIntegrationsStore();
+
+  const enabledPlugins = plugins.filter((p) => p.enabled).length;
+  const enabledMcps = mcpServers.filter((s) => s.enabled).length;
 
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -52,6 +55,9 @@ export function IntegrationsSidebar() {
           onClick={() => setActiveTab('plugins')}
         >
           Plugins
+          <span className="ml-1 opacity-60">
+            {enabledPlugins}/{plugins.length}
+          </span>
         </button>
         <button
           className={`flex-1 rounded-full border px-2 py-1 text-center font-mono text-[11px] transition-all ${
@@ -62,6 +68,9 @@ export function IntegrationsSidebar() {
           onClick={() => setActiveTab('mcps')}
         >
           MCPs
+          <span className="ml-1 opacity-60">
+            {enabledMcps}/{mcpServers.length}
+          </span>
         </button>
       </div>
 
