@@ -300,10 +300,15 @@ function cleanErrorMessage(err) {
 // programmatic mode, it causes Claude to dump the agent's raw prompt. Rewriting
 // to "Use the X agent to:" ensures proper subagent delegation via the Task tool.
 function rewriteAtMentions(prompt, agents) {
-  return prompt.replace(/(?:^|(?<=\s))@([\w-]+)/g, (match, name) => {
-    if (!agents[name]) return match;
-    const hasLeadingSpace = match.length > name.length + 1;
-    return `${hasLeadingSpace ? ' ' : ''}Use the ${name} agent to:`;
+  // Always rewrite @agentname patterns — even when not found in loaded agents dict.
+  // settingSources finds agent files on disk and the CLI subprocess dumps their
+  // definitions when it sees @mention syntax. Rewriting prevents this regardless
+  // of whether loadAgentsFromDisk() found the agent (timing, injection lag, etc.).
+  // The pattern won't match email addresses (which contain dots).
+  return prompt.replace(/(?:^|\s)@([\w-]+)/g, (match, name) => {
+    const space = match.startsWith('@') ? '' : match[0];
+    console.error(`[claude-agent] @mention rewrite: @${name} (known=${!!agents[name]})`);
+    return `${space}Use the ${name} agent to:`;
   });
 }
 
