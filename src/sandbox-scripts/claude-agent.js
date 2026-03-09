@@ -435,12 +435,12 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
         console.error(`[claude-cli-stderr] ${line}`);
       }
     },
-    // settingSources scans ~/.claude and cwd/.claude for commands, agents,
-    // skills, and rules using graceful filesystem traversal.  Unlike the
-    // `plugins` array (which requires a .claude-plugin/plugin.json manifest
-    // and crashes on AJV validation failure), settingSources degrades
-    // gracefully when files are missing or malformed.
-    settingSources: ['user', 'project'],
+    // Agents are loaded programmatically via options.agents (loadAgentsFromDisk).
+    // settingSources: ['user'] previously caused the CLI subprocess to find agent
+    // files at /root/.claude/agents/ and process @mentions interactively — dumping
+    // raw agent definitions instead of invoking them. Omitting settingSources stops
+    // this. CLAUDE.md is already injected via systemPrompt.append; rules/commands
+    // are not present in the container and not needed in programmatic SDK mode.
     agents,
     tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
