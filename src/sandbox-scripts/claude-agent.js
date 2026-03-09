@@ -295,7 +295,19 @@ function cleanErrorMessage(err) {
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
 }
 
-function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
+// Rewrite @agentname mentions in the prompt to natural language invocations.
+// The @agentname syntax is a Claude Code CLI interactive feature only — in SDK
+// programmatic mode, it causes Claude to dump the agent's raw prompt. Rewriting
+// to "Use the X agent to:" ensures proper subagent delegation via the Task tool.
+function rewriteAtMentions(prompt, agents) {
+  return prompt.replace(/(?:^|(?<=\s))@([\w-]+)/g, (match, name) => {
+    if (!agents[name]) return match;
+    const hasLeadingSpace = match.length > name.length + 1;
+    return `${hasLeadingSpace ? ' ' : ''}Use the ${name} agent to:`;
+  });
+}
+
+function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) {
   const oauthToken = process.env.CLAUDE_CODE_OAUTH_TOKEN || '';
   const mode = process.env.VF_SESSION_MODE || 'agent';
   const isPlan = mode === 'plan';
@@ -311,7 +323,6 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
   const allowDangerouslySkipPermissions = !isPlan && autonomy === 'autonomous';
   if (!isPlan) console.error(`[claude-agent] Autonomy: ${autonomy} -> permissionMode: ${permissionMode}`);
 
-  const agents = loadAgentsFromDisk();
   const pluginDir = process.env.CLAUDE_CONFIG_DIR || '/root/.claude';
   console.error(`[claude-agent] Plugin dir: ${pluginDir} (exists: ${fs.existsSync(pluginDir)})`);
 
@@ -409,6 +420,9 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride) {
     model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
     ...(betas ? { betas } : {}),
     cwd: cwd || '/workspace',
+    // Task tool required for subagent invocation in SDK programmatic mode.
+    // Without it, Claude cannot delegate to agents even when agents are loaded.
+    allowedTools: ['Task'],
     // Capture raw CLI stderr — surfaces OAuth/auth errors that cause exit code 1
     stderr: (data) => {
       const line = data.trim();
@@ -461,7 +475,20 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
   console.error(`[claude-agent] runStream: promptLen=${prompt.length} sessionId=${sessionId?.slice(0, 8) || 'none'} resume=${!!useResume} model=${modelOverride || process.env.VF_MODEL || 'default'}`);
   console.error(`[claude-agent] prompt preview: ${prompt.slice(0, 200).replace(/\n/g, '\\n')}`);
 
-  const options = buildOptions(prompt, sessionId, cwd, useResume, modelOverride);
+  // Load agents once — used for both @mention rewriting and options.agents
+  const agents = loadAgentsFromDisk();
+
+  // Rewrite @agentname mentions to natural language before passing to SDK.
+  // In interactive CLI mode, @agentname invokes an agent. In SDK mode it
+  // causes Claude to echo the agent's raw prompt. Rewrite to "Use the X agent to:"
+  // which is the SDK-documented invocation pattern for guaranteed delegation.
+  const rewrittenPrompt = rewriteAtMentions(prompt, agents);
+  if (rewrittenPrompt !== prompt) {
+    console.error(`[claude-agent] Rewrote @mentions to natural language agent invocations`);
+    console.error(`[claude-agent] rewritten prompt preview: ${rewrittenPrompt.slice(0, 200).replace(/\n/g, '\\n')}`);
+  }
+
+  const options = buildOptions(rewrittenPrompt, sessionId, cwd, useResume, modelOverride, agents);
 
   // Pre-flight: test CLI binary + real query to capture any startup errors
   const { execFileSync } = require('child_process');
@@ -489,7 +516,7 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
   }
 
   console.error(`[claude-agent] calling query() at ${Date.now() - t0}ms...`);
-  const stream = query({ prompt, options });
+  const stream = query({ prompt: rewrittenPrompt, options });
   console.error(`[claude-agent] query() returned stream at ${Date.now() - t0}ms`);
 
   let newSessionId = sessionId || '';
