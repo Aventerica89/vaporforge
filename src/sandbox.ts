@@ -1374,9 +1374,12 @@ if(fs.existsSync(p)){
     const sandbox = this.getSandboxInstance(sessionId);
 
     // Clear old plugin files so uninstalled plugin files are removed.
-    // Safe: hardcoded path, no user input.
+    // Commands and rules go to /workspace/.claude/ — that's the project dir
+    // scanned by settingSources: ['project'] in the Claude CLI subprocess.
+    // Agents stay in /root/.claude/agents/ for loadAgentsFromDisk().
+    // Safe: hardcoded paths, no user input in these rm commands.
     await sandbox.exec(
-      'rm -rf /root/.claude/agents /root/.claude/commands /root/.claude/rules',
+      'rm -rf /root/.claude/agents /workspace/.claude/commands /workspace/.claude/rules',
       { timeout: 5000 }
     );
 
@@ -1391,20 +1394,20 @@ if(fs.existsSync(p)){
     }
 
     if (pluginConfigs.commands.length) {
-      await sandbox.mkdir('/root/.claude/commands', { recursive: true });
+      await sandbox.mkdir('/workspace/.claude/commands', { recursive: true });
       for (const cmd of pluginConfigs.commands) {
         await sandbox.writeFile(
-          `/root/.claude/commands/${cmd.filename}`,
+          `/workspace/.claude/commands/${cmd.filename}`,
           cmd.content
         );
       }
     }
 
     if (pluginConfigs.rules.length) {
-      await sandbox.mkdir('/root/.claude/rules', { recursive: true });
+      await sandbox.mkdir('/workspace/.claude/rules', { recursive: true });
       for (const rule of pluginConfigs.rules) {
         await sandbox.writeFile(
-          `/root/.claude/rules/${rule.filename}`,
+          `/workspace/.claude/rules/${rule.filename}`,
           rule.content
         );
       }

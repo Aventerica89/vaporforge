@@ -4,6 +4,7 @@ import type { McpServerConfig } from '@/lib/types';
 
 type Transport = 'stdio' | 'http' | 'relay';
 type Mode = 'always' | 'on-demand' | 'auto';
+type StdioMode = 'command' | 'script';
 
 export function McpAddModal() {
   const { showMcpAddModal, setShowMcpAddModal, addMcpServer } =
@@ -12,6 +13,8 @@ export function McpAddModal() {
   const [name, setName] = useState('');
   const [transport, setTransport] = useState<Transport>('stdio');
   const [command, setCommand] = useState('');
+  const [stdioMode, setStdioMode] = useState<StdioMode>('command');
+  const [scriptPath, setScriptPath] = useState('');
   const [url, setUrl] = useState('');
   const [localUrl, setLocalUrl] = useState('');
   const [mode, setMode] = useState<Mode>('always');
@@ -23,6 +26,8 @@ export function McpAddModal() {
     setName('');
     setTransport('stdio');
     setCommand('');
+    setStdioMode('command');
+    setScriptPath('');
     setUrl('');
     setLocalUrl('');
     setMode('always');
@@ -39,11 +44,17 @@ export function McpAddModal() {
     if (!trimmed) return;
 
     setSaving(true);
+    const resolvedCommand =
+      transport === 'stdio' && stdioMode === 'script'
+        ? `node ${scriptPath.trim()}`
+        : command.trim();
+
     const server: Omit<McpServerConfig, 'addedAt' | 'enabled'> = {
       name: trimmed,
       transport,
+      mode,
       ...(transport === 'http' ? { url: url.trim() } : {}),
-      ...(transport === 'stdio' ? { command: command.trim() } : {}),
+      ...(transport === 'stdio' ? { command: resolvedCommand } : {}),
       ...(transport === 'relay' ? { localUrl: localUrl.trim() } : {}),
     };
 
@@ -115,17 +126,55 @@ export function McpAddModal() {
 
           {/* Command (stdio), URL (http), or Local URL (relay) */}
           {transport === 'stdio' ? (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                Command
-              </label>
-              <input
-                type="text"
-                value={command}
-                onChange={(e) => setCommand(e.target.value)}
-                placeholder="e.g. npx @modelcontextprotocol/server-filesystem /path"
-                className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
-              />
+            <div className="flex flex-col gap-2">
+              {/* Stdio sub-mode toggle */}
+              <div className="flex gap-3.5">
+                {(['command', 'script'] as const).map((m) => (
+                  <label
+                    key={m}
+                    className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground"
+                  >
+                    <input
+                      type="radio"
+                      name="stdioMode"
+                      checked={stdioMode === m}
+                      onChange={() => setStdioMode(m)}
+                      className="accent-primary"
+                    />
+                    {m === 'command' ? 'Command' : 'Node.js Script'}
+                  </label>
+                ))}
+              </div>
+              {stdioMode === 'command' ? (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Command
+                  </label>
+                  <input
+                    type="text"
+                    value={command}
+                    onChange={(e) => setCommand(e.target.value)}
+                    placeholder="e.g. npx @modelcontextprotocol/server-filesystem /path"
+                    className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                    Script Path
+                  </label>
+                  <input
+                    type="text"
+                    value={scriptPath}
+                    onChange={(e) => setScriptPath(e.target.value)}
+                    placeholder="e.g. /path/to/server.js"
+                    className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                  />
+                  <p className="text-[10px] text-muted-foreground/60">
+                    Saved as <span className="font-mono">node /path/to/server.js</span>
+                  </p>
+                </div>
+              )}
             </div>
           ) : transport === 'http' ? (
             <div className="flex flex-col gap-1.5">
@@ -194,7 +243,11 @@ export function McpAddModal() {
           <button
             className="rounded-sm border border-primary/30 bg-primary/10 px-3.5 py-1 font-mono text-[10px] font-bold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
             onClick={handleSave}
-            disabled={!name.trim() || saving}
+            disabled={
+              !name.trim() ||
+              saving ||
+              (transport === 'stdio' && stdioMode === 'script' && !scriptPath.trim())
+            }
           >
             {saving ? 'Adding...' : 'Add Server'}
           </button>

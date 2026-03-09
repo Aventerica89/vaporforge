@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { deriveTier, TIER_CONFIG } from './types';
 import { PluginComponentList } from './PluginComponentList';
@@ -75,6 +75,21 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
   const scope = pluginScopes[plugin.id] || 'global';
   const tree = useMemo(() => buildFileTree(plugin), [plugin]);
   const isRemoving = confirmRemove === plugin.id;
+
+  // Auto-select the first file when the plugin changes and nothing is selected
+  useEffect(() => {
+    const alreadySelected =
+      selectedFile?.pluginId === plugin.id && selectedFile?.path;
+    if (alreadySelected) return;
+
+    const firstFolder = Object.keys(tree.folders)[0];
+    const firstFile =
+      tree.root[0] ??
+      (firstFolder ? tree.folders[firstFolder][0] : undefined);
+    if (firstFile) {
+      selectFile(plugin.id, firstFile.path);
+    }
+  }, [plugin.id]);
 
   const scopeText =
     scope === 'global'

@@ -203,6 +203,8 @@ export interface McpServerConfig {
   tools?: string[];
   /** Total tool count from last ping */
   toolCount?: number;
+  /** When the MCP server tools are available to the agent */
+  mode?: 'always' | 'on-demand' | 'auto';
   enabled: boolean;
   addedAt: string;
 }

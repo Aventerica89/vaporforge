@@ -14,7 +14,7 @@ type Variables = {
 export const pluginsRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 /** Max custom plugins per user */
-const MAX_PLUGINS = 50;
+const MAX_PLUGINS = 500;
 
 /** Max items per category per plugin */
 const MAX_ITEMS_PER_CATEGORY = 10;

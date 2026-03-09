@@ -88,6 +88,16 @@ export function McpDetail({ server }: McpDetailProps) {
         </span>
       </div>
 
+      {/* Mode */}
+      {server.mode && (
+        <div className="mb-2.5 flex items-center gap-2.5 text-[10px] text-muted-foreground">
+          <span className="w-[72px] shrink-0">Mode</span>
+          <span className="inline-block rounded-sm border border-border bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+            {server.mode}
+          </span>
+        </div>
+      )}
+
       {/* URL / Command */}
       {server.url && (
         <div className="mb-2.5 flex items-center gap-2.5 text-[10px] text-muted-foreground">

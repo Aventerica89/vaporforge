@@ -103,7 +103,7 @@ export function MarketplaceSlideIn() {
       />
 
       {/* Panel */}
-      <div className="absolute right-0 top-0 bottom-0 flex w-[480px] flex-col border-l border-border bg-card/95 backdrop-blur-sm animate-in slide-in-from-right duration-250">
+      <div className="absolute right-0 top-0 bottom-0 flex w-[480px] max-w-[90vw] flex-col border-l border-border bg-card/95 backdrop-blur-sm animate-in slide-in-from-right duration-250">
         {/* Header */}
         <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4.5">
           <span className="text-xs font-bold tracking-widest text-foreground">
@@ -214,7 +214,7 @@ export function MarketplaceSlideIn() {
                 key={c.id}
                 className="flex gap-2.5 rounded-md border border-border/40 bg-card/80 p-3 transition-colors hover:border-border"
               >
-                <span className="mt-0.5 w-6 shrink-0 text-center font-mono text-[11px] font-bold text-muted-foreground">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border border-border/60 font-mono text-[10px] font-bold text-muted-foreground">
                   {c.name.charAt(0).toUpperCase()}
                 </span>
                 <div className="min-w-0 flex-1">

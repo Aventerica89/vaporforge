@@ -227,6 +227,8 @@ export const McpServerConfigSchema = z.object({
   tools: z.array(z.string()).optional(),
   /** Total tool count from last ping */
   toolCount: z.number().optional(),
+  /** When the MCP server tools are available to the agent */
+  mode: z.enum(['always', 'on-demand', 'auto']).optional(),
   enabled: z.boolean().default(true),
   addedAt: z.string(),
 });

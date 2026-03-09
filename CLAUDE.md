@@ -174,7 +174,8 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 - **`IS_SANDBOX: '1'` env var REQUIRED** in container or CLI exits code 1
 - **`options.env` REPLACES, not merges** — always spread `...process.env` first
-- **NO `options.plugins`** — `plugins: [{ type: 'local', path }]` requires `.claude-plugin/plugin.json` manifest and crashes on AJV validation without it (Gemini 1code research). Use `settingSources: ['user', 'project']` for filesystem discovery. Commands/agents are passed programmatically via embedded prompt content (1code pattern).
+- **NO `options.plugins`** — `plugins: [{ type: 'local', path }]` requires `.claude-plugin/plugin.json` manifest and crashes on AJV validation without it. Use `settingSources: ['project']` for filesystem discovery.
+- **Plugin file path split (CRITICAL)** — `injectPluginFiles()` writes to two locations intentionally: commands+rules → `/workspace/.claude/commands|rules/` (scanned by `settingSources: ['project']`); agents → `/root/.claude/agents/` (loaded by `loadAgentsFromDisk()`). Never consolidate these — the CLI subprocess only finds slash commands in `/workspace/.claude/`, not `/root/.claude/`.
 - **Dockerfile uses `COPY` for scripts** — `COPY src/sandbox-scripts/file.js /opt/claude-agent/file.js`. Do NOT use heredocs (`RUN cat > file << 'EOF'`) — they require BuildKit which GH Actions / CF builders may lack.
 - **Docker cache trap** — deploy workflow runs `docker builder prune --all -f` automatically. If deploying manually, prune first.
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: `docker image prune -a -f && docker builder prune -a -f` then redeploy.
@@ -209,6 +210,11 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Credential files**: Stored per-server, injected to container filesystem at configured paths. Paths auto-appended to CLAUDE.md so the agent knows they exist.
 - **PUT /api/mcp/:name** for editing servers. **PUT /api/mcp/:name/toggle** for enable/disable.
 - **Tool discovery**: `POST /api/mcp/:name/ping` sends JSON-RPC `tools/list` and caches results in KV.
+- **MCP schema fields must appear in both** `McpServerConfigSchema` (src/types.ts Zod) AND `McpServerConfig` interface (ui/src/lib/types.ts). Missing from either = silently dropped on save.
+
+### Testing
+
+- Tests live in `src/**/__tests__/` (backend, Vitest) and `ui/src/**/__tests__/` (frontend, Vitest + jsdom). Run with `npm run test`.
 
 ### Build
 
@@ -247,6 +253,11 @@ Tools added to the main chat session use a two-layer pattern:
 3. **Hook access in `renderPart`**: `renderPart` is a free function — it cannot call hooks. If the tool's UI component needs store access (e.g., `sendMessage`), create a wrapper React component that calls the hook internally, then render the wrapper from `renderPart`. Example: `AskQuestionsBlock` wraps `QuestionFlow` and reads `sendMessage` from `useSandboxStore`.
 
 QuickChat tools (AI SDK `tool()` in `src/api/quickchat.ts`) follow the same naming convention but are rendered in `QuickChatPanel.tsx` instead.
+
+### Settings / Integrations
+
+- **`useIntegrationsStore`** (Zustand) is the single source of truth for plugins + MCP servers. Component tree: `IntegrationsTab` → `IntegrationsSidebar` → `PluginDetail` / `McpDetail`. Marketplace is a slide-in overlay (`MarketplaceSlideIn`), MCP add is a modal (`McpAddModal`).
+- **Plugin injection order**: `injectPluginFiles()` runs first, then `injectUserConfigs()`. User configs (Command Center) take priority and can override plugin rules/commands.
 
 ### UX
 

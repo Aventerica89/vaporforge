@@ -32,24 +32,19 @@ export function IntegrationsTab() {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-      {/* Header stats */}
-      <div className="flex shrink-0 items-center gap-5 border-b border-border/40 px-5 py-3">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-          Integrations
+      {/* Header stats — counts only, no redundant title */}
+      <div className="flex shrink-0 items-center gap-3 border-b border-border/40 px-5 py-3 text-[10px] text-muted-foreground">
+        <span>
+          <span className="font-bold text-foreground">{enabledPlugins}</span>
+          /{pluginCount} plugins
         </span>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span>
-            <span className="font-bold text-foreground">{enabledPlugins}</span>
-            /{pluginCount} plugins
-          </span>
-          <span className="text-border">|</span>
-          <span>
-            <span className="font-bold text-foreground">{enabledMcps}</span>
-            /{mcpCount} servers
-          </span>
-        </div>
+        <span className="text-border">|</span>
+        <span>
+          <span className="font-bold text-foreground">{enabledMcps}</span>
+          /{mcpCount} servers
+        </span>
         {(isLoadingPlugins || isLoadingMcps) && (
-          <span className="animate-pulse text-[10px] text-primary/60">loading...</span>
+          <span className="animate-pulse text-primary/60">loading...</span>
         )}
       </div>
 
