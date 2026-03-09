@@ -425,9 +425,11 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
     model: modelOverride || process.env.VF_MODEL || 'claude-sonnet-4-6',
     ...(betas ? { betas } : {}),
     cwd: cwd || '/workspace',
-    // Task tool required for subagent invocation in SDK programmatic mode.
-    // Without it, Claude cannot delegate to agents even when agents are loaded.
-    allowedTools: ['Task'],
+    // Agent tool required for subagent invocation in SDK programmatic mode.
+    // The Agent SDK docs confirm subagents are invoked via the "Agent" tool
+    // (not "Task"). Without it, Claude cannot delegate to subagents in
+    // conservative/standard permission modes even when agents are loaded.
+    allowedTools: ['Agent'],
     // Capture raw CLI stderr — surfaces OAuth/auth errors that cause exit code 1
     stderr: (data) => {
       const line = data.trim();
@@ -435,12 +437,12 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
         console.error(`[claude-cli-stderr] ${line}`);
       }
     },
-    // Agents are loaded programmatically via options.agents (loadAgentsFromDisk).
-    // settingSources: ['user'] previously caused the CLI subprocess to find agent
-    // files at /root/.claude/agents/ and process @mentions interactively — dumping
-    // raw agent definitions instead of invoking them. Omitting settingSources stops
-    // this. CLAUDE.md is already injected via systemPrompt.append; rules/commands
-    // are not present in the container and not needed in programmatic SDK mode.
+    // settingSources: 'project' scans /workspace/.claude/ for slash commands,
+    // skills, and project CLAUDE.md. 'user' is intentionally excluded — it scans
+    // /root/.claude/agents/ and causes the CLI subprocess to handle @agentname
+    // mentions interactively (dumping raw agent definitions instead of invoking
+    // them via the Agent tool). Agents are loaded programmatically via options.agents.
+    settingSources: ['project'],
     agents,
     tools: vfTools,
     ...(mcpServers ? { mcpServers } : {}),
