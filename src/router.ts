@@ -54,8 +54,8 @@ export function createRouter(env: Env) {
     '*',
     cors({
       origin: (origin) => {
-        // Allow requests with no origin (same-origin, mobile apps)
-        if (!origin) return '*';
+        // No Origin header — non-browser client, return no CORS header
+        if (!origin) return null;
 
         const allowedOrigins = [
           'https://vaporforge.dev',
@@ -86,6 +86,11 @@ export function createRouter(env: Env) {
     await next();
     c.header('X-VF-Version', VF_VERSION);
     c.header('X-VF-Dev-Build', String(DEV_BUILD));
+    // Security headers
+    c.header('X-Content-Type-Options', 'nosniff');
+    c.header('X-Frame-Options', 'SAMEORIGIN');
+    c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+    c.header('Content-Security-Policy', "default-src 'none'; frame-src *.vaporforge.dev https://vaporforge.dev");
   });
 
   // Initialize services

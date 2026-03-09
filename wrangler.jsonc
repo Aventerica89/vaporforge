@@ -82,9 +82,9 @@
   // Environment variables (set via wrangler secret)
   // Stripe secrets: wrangler secret put STRIPE_SECRET_KEY
   //                 wrangler secret put STRIPE_WEBHOOK_SECRET
+  //                 wrangler secret put STRIPE_PRO_PRICE_ID
   "vars": {
     "ENVIRONMENT": "production",
-    "STRIPE_PRO_PRICE_ID": "price_1T3Dr7H6aZ92e8Tx0GsEMHP0",
     "WORKER_BASE_URL": "https://vaporforge.dev"
   },
 

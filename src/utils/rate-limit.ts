@@ -12,11 +12,15 @@ interface RateLimitConfig {
 }
 
 /**
- * KV-based sliding window rate limiter for Cloudflare Workers.
+ * KV-based rate limiter for Cloudflare Workers.
  *
- * Uses KV TTL for automatic expiry. Each key stores a counter that
- * resets when the TTL expires. Not perfectly atomic (KV is eventually
- * consistent), but sufficient for abuse prevention.
+ * IMPORTANT: KV is eventually consistent — concurrent requests from the same
+ * IP can bypass this limiter via race conditions. This is a best-effort abuse
+ * prevention layer only. For hard enforcement, configure a Cloudflare rate
+ * limit rule at the edge (Security > WAF > Rate limiting rules in the dashboard).
+ *
+ * Uses KV TTL for automatic expiry. Each key stores a counter that resets
+ * when the TTL expires.
  */
 export function rateLimit(config: RateLimitConfig) {
   return async (c: Context<{ Bindings: Env }>, next: Next) => {

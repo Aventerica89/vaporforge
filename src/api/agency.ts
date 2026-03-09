@@ -347,7 +347,7 @@ agencyRoutes.get('/sites/:id/source', async (c) => {
 
 // Auto-commit changes in the agency container
 const CommitSchema = z.object({
-  componentName: z.string().min(1).max(200),
+  componentName: z.string().min(1).max(200).regex(/^[a-zA-Z0-9 _\-\.]+$/, 'componentName contains invalid characters'),
   instruction: z.string().min(1).max(2000),
 });
 

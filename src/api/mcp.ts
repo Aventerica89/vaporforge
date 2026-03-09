@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { McpServerConfigSchema } from '../types';
 import type { User, ApiResponse, McpServerConfig } from '../types';
+import { validateExternalUrl } from '../utils/validate-url';
 
 type Variables = {
   user: User;
@@ -80,6 +81,13 @@ mcpRoutes.post('/', async (c) => {
       success: false,
       error: 'URL is required for HTTP transport',
     }, 400);
+  }
+
+  if (transport === 'http' && url) {
+    const urlError = validateExternalUrl(url);
+    if (urlError) {
+      return c.json<ApiResponse<never>>({ success: false, error: urlError }, 400);
+    }
   }
 
   if (transport === 'stdio' && !command) {
@@ -197,6 +205,12 @@ mcpRoutes.put('/:name', async (c) => {
 
   if (transport === 'http' && !url) {
     return c.json<ApiResponse<never>>({ success: false, error: 'URL is required for HTTP transport' }, 400);
+  }
+  if (transport === 'http' && url) {
+    const urlError = validateExternalUrl(url);
+    if (urlError) {
+      return c.json<ApiResponse<never>>({ success: false, error: urlError }, 400);
+    }
   }
   if (transport === 'stdio' && !command) {
     return c.json<ApiResponse<never>>({ success: false, error: 'Command is required for stdio transport' }, 400);
