@@ -22,13 +22,13 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.43",
-    "@ai-sdk/google": "^3.0.29",
-    "@ai-sdk/openai": "^3.0.37",
+    "@ai-sdk/anthropic": "^3.0.58",
+    "@ai-sdk/google": "^3.0.43",
+    "@ai-sdk/openai": "^3.0.41",
     "@anthropic-ai/sdk": "^0.32.0",
     "@cloudflare/agents": "^0.0.16",
     "@cloudflare/sandbox": "^0.7.8",
-    "ai": "^6.0.101",
+    "ai": "^6.0.116",
     "hono": "^4.12.5",
     "react-resizable-panels": "^4.6.4",
     "stripe": "^20.3.1",
