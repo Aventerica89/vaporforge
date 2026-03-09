@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import type { McpServerConfig } from '@/lib/types';
 
-type Transport = 'stdio' | 'http';
+type Transport = 'stdio' | 'http' | 'relay';
 type Mode = 'always' | 'on-demand' | 'auto';
 
 export function McpAddModal() {
@@ -13,6 +13,7 @@ export function McpAddModal() {
   const [transport, setTransport] = useState<Transport>('stdio');
   const [command, setCommand] = useState('');
   const [url, setUrl] = useState('');
+  const [localUrl, setLocalUrl] = useState('');
   const [mode, setMode] = useState<Mode>('always');
   const [saving, setSaving] = useState(false);
 
@@ -23,6 +24,7 @@ export function McpAddModal() {
     setTransport('stdio');
     setCommand('');
     setUrl('');
+    setLocalUrl('');
     setMode('always');
     setSaving(false);
   };
@@ -40,7 +42,9 @@ export function McpAddModal() {
     const server: Omit<McpServerConfig, 'addedAt' | 'enabled'> = {
       name: trimmed,
       transport,
-      ...(transport === 'http' ? { url: url.trim() } : { command: command.trim() }),
+      ...(transport === 'http' ? { url: url.trim() } : {}),
+      ...(transport === 'stdio' ? { command: command.trim() } : {}),
+      ...(transport === 'relay' ? { localUrl: localUrl.trim() } : {}),
     };
 
     await addMcpServer(server);
@@ -91,7 +95,7 @@ export function McpAddModal() {
               Transport
             </label>
             <div className="flex gap-3.5">
-              {(['stdio', 'http'] as const).map((t) => (
+              {(['stdio', 'http', 'relay'] as const).map((t) => (
                 <label
                   key={t}
                   className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground"
@@ -109,7 +113,7 @@ export function McpAddModal() {
             </div>
           </div>
 
-          {/* Command (stdio) or URL (http) */}
+          {/* Command (stdio), URL (http), or Local URL (relay) */}
           {transport === 'stdio' ? (
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
@@ -123,7 +127,7 @@ export function McpAddModal() {
                 className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
               />
             </div>
-          ) : (
+          ) : transport === 'http' ? (
             <div className="flex flex-col gap-1.5">
               <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
                 URL
@@ -135,6 +139,22 @@ export function McpAddModal() {
                 placeholder="e.g. https://my-mcp.example.com/sse"
                 className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
               />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                Local URL
+              </label>
+              <input
+                type="text"
+                value={localUrl}
+                onChange={(e) => setLocalUrl(e.target.value)}
+                placeholder="e.g. http://localhost:9222"
+                className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+              />
+              <p className="text-[10px] text-muted-foreground/60">
+                Relay tunnels your local MCP server through VaporForge — no ports exposed
+              </p>
             </div>
           )}
 

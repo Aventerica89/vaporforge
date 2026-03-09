@@ -1,21 +1,30 @@
 import { useState, useMemo } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { useMarketplace } from '@/hooks/useMarketplace';
+import { useSandboxStore } from '@/hooks/useSandbox';
+import { pluginsApi } from '@/lib/api';
 import { TIER_CONFIG } from './types';
 import type { PluginTier } from './types';
 
 import { catalog as BUILTIN_CATALOG } from '@/lib/generated/plugin-catalog';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
+import type { Plugin } from '@/lib/types';
 
 type MktTab = 'all' | 'official' | 'community';
 
 export function MarketplaceSlideIn() {
-  const { showMarketplace, setShowMarketplace, plugins } =
+  const { showMarketplace, setShowMarketplace, plugins, loadPlugins } =
     useIntegrationsStore();
   const { installPlugin, installing, customCatalog } = useMarketplace();
 
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<MktTab>('all');
+
+  const [urlExpanded, setUrlExpanded] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
+  const [urlInstalling, setUrlInstalling] = useState(false);
+  const [urlError, setUrlError] = useState<string | null>(null);
+  const [urlSuccess, setUrlSuccess] = useState(false);
 
   const catalog = useMemo(() => {
     const builtIn = BUILTIN_CATALOG.map((c) => ({
@@ -42,6 +51,44 @@ export function MarketplaceSlideIn() {
     () => new Set(plugins.filter((p) => p.repoUrl).map((p) => p.repoUrl!)),
     [plugins]
   );
+
+  async function handleUrlInstall() {
+    const url = urlInput.trim();
+    if (!url) return;
+    setUrlInstalling(true);
+    setUrlError(null);
+    setUrlSuccess(false);
+    try {
+      const discoverResult = await pluginsApi.discover(url);
+      if (!discoverResult.success || !discoverResult.data) {
+        throw new Error('Discovery failed — check the URL and try again');
+      }
+      const discovered = discoverResult.data as unknown as Plugin;
+      await pluginsApi.add({
+        name: discovered.name || url.split('/').pop() || url,
+        description: discovered.description ?? undefined,
+        repoUrl: url,
+        scope: 'git',
+        enabled: true,
+        builtIn: false,
+        agents: discovered.agents ?? [],
+        commands: discovered.commands ?? [],
+        rules: discovered.rules ?? [],
+        mcpServers: discovered.mcpServers ?? [],
+      });
+      const session = useSandboxStore.getState().currentSession;
+      if (session?.id) {
+        pluginsApi.sync(session.id).catch(console.error);
+      }
+      await loadPlugins();
+      setUrlSuccess(true);
+      setUrlInput('');
+    } catch (err) {
+      setUrlError(err instanceof Error ? err.message : 'Install failed');
+    } finally {
+      setUrlInstalling(false);
+    }
+  }
 
   if (!showMarketplace) return null;
 
@@ -79,6 +126,58 @@ export function MarketplaceSlideIn() {
             placeholder="Search plugins..."
             className="w-full rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
           />
+        </div>
+
+        {/* URL Install */}
+        <div className="shrink-0 border-b border-border/40 px-3.5 py-2">
+          <button
+            className="flex w-full items-center justify-between font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            onClick={() => {
+              setUrlExpanded((v) => !v);
+              setUrlError(null);
+              setUrlSuccess(false);
+            }}
+          >
+            <span>+ Install from URL</span>
+            <span className="text-[9px]">{urlExpanded ? '▲' : '▼'}</span>
+          </button>
+          {urlExpanded && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <div className="flex gap-1.5">
+                <input
+                  type="text"
+                  value={urlInput}
+                  onChange={(e) => {
+                    setUrlInput(e.target.value);
+                    setUrlError(null);
+                    setUrlSuccess(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !urlInstalling) handleUrlInstall();
+                  }}
+                  placeholder="https://github.com/owner/repo"
+                  className="min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[10px] text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                />
+                <button
+                  className={`shrink-0 rounded-sm border px-2.5 py-1 font-mono text-[10px] transition-all ${
+                    urlInstalling
+                      ? 'animate-pulse border-primary/30 bg-primary/10 text-primary/60'
+                      : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}
+                  disabled={urlInstalling || !urlInput.trim()}
+                  onClick={handleUrlInstall}
+                >
+                  {urlInstalling ? '...' : 'install'}
+                </button>
+              </div>
+              {urlError && (
+                <p className="font-mono text-[10px] text-red-400">{urlError}</p>
+              )}
+              {urlSuccess && (
+                <p className="font-mono text-[10px] text-green-400">Installed successfully</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tab row */}

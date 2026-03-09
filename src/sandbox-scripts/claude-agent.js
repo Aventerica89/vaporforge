@@ -295,21 +295,47 @@ function cleanErrorMessage(err) {
   return firstLine.length > 200 ? firstLine.slice(0, 200) + '...' : firstLine;
 }
 
-// Rewrite @agentname mentions in the prompt to natural language invocations.
+// Rewrite @agentname mentions in the prompt by embedding full agent content.
 // The @agentname syntax is a Claude Code CLI interactive feature only — in SDK
-// programmatic mode, it causes Claude to dump the agent's raw prompt. Rewriting
-// to "Use the X agent to:" ensures proper subagent delegation via the Task tool.
+// programmatic mode, it causes Claude to dump the agent's raw prompt definition.
+// Fix: look up the agent in the loaded agents dict, embed its full content in a
+// structured [AGENT: name]...[/AGENT] block prepended to the prompt, and strip
+// the @mention from the user prompt text entirely.
+// Unknown @mentions (not in agents dict) are stripped with a warning.
 function rewriteAtMentions(prompt, agents) {
-  // Always rewrite @agentname patterns — even when not found in loaded agents dict.
-  // settingSources finds agent files on disk and the CLI subprocess dumps their
-  // definitions when it sees @mention syntax. Rewriting prevents this regardless
-  // of whether loadAgentsFromDisk() found the agent (timing, injection lag, etc.).
-  // The pattern won't match email addresses (which contain dots).
-  return prompt.replace(/(?:^|\s)@([\w-]+)/g, (match, name) => {
-    const space = match.startsWith('@') ? '' : match[0];
-    console.error(`[claude-agent] @mention rewrite: @${name} (known=${!!agents[name]})`);
-    return `${space}Use the ${name} agent to:`;
-  });
+  const mentionPattern = /(?:^|\s)@([\w-]+)/g;
+  const embeds = [];
+  const strippedNames = new Set();
+
+  // Collect all unique @mention names in order of first appearance
+  let m;
+  while ((m = mentionPattern.exec(prompt)) !== null) {
+    const name = m[1];
+    if (!strippedNames.has(name)) {
+      strippedNames.add(name);
+      const agent = agents[name];
+      if (agent) {
+        console.error(`[claude-agent] @mention embed: @${name} (found, length=${agent.prompt?.length || 0})`);
+        const description = agent.description || '';
+        const agentPrompt = agent.prompt || '';
+        const block = `[AGENT: ${name}]\n${description ? `Description: ${description}\n\n` : ''}${agentPrompt}\n[/AGENT]`;
+        embeds.push(block);
+      } else {
+        console.error(`[claude-agent] @mention unknown: @${name} — stripping (not in agents dict)`);
+      }
+    }
+  }
+
+  // Strip all @mention tokens from the user prompt text
+  const userText = prompt.replace(/(?:^|\s)@([\w-]+)/g, (match, name) => {
+    return match.startsWith('@') ? '' : match[0];
+  }).trim();
+
+  if (embeds.length === 0) {
+    return userText;
+  }
+
+  return `${embeds.join('\n\n')}\n\nUser request: ${userText}`;
 }
 
 function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) {
@@ -485,13 +511,14 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
   // Load agents once — used for both @mention rewriting and options.agents
   const agents = loadAgentsFromDisk();
 
-  // Rewrite @agentname mentions to natural language before passing to SDK.
-  // In interactive CLI mode, @agentname invokes an agent. In SDK mode it
-  // causes Claude to echo the agent's raw prompt. Rewrite to "Use the X agent to:"
-  // which is the SDK-documented invocation pattern for guaranteed delegation.
+  // Embed @agentname mentions before passing to SDK.
+  // In interactive CLI mode, @agentname invokes an agent. In SDK mode it causes
+  // Claude to dump the agent's raw prompt definition. Fix: embed the full agent
+  // content in [AGENT: name]...[/AGENT] blocks prepended to the user prompt,
+  // and strip the @mention tokens from the user text entirely.
   const rewrittenPrompt = rewriteAtMentions(prompt, agents);
   if (rewrittenPrompt !== prompt) {
-    console.error(`[claude-agent] Rewrote @mentions to natural language agent invocations`);
+    console.error(`[claude-agent] Embedded @mention agent content into prompt`);
     console.error(`[claude-agent] rewritten prompt preview: ${rewrittenPrompt.slice(0, 200).replace(/\n/g, '\\n')}`);
   }
 

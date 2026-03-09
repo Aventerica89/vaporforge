@@ -16,12 +16,12 @@ export const TIER_CONFIG: Record<PluginTier, {
   color: string;
 }> = {
   official: {
-    label: 'Official Plugins',
+    label: 'Included Plugins',
     badgeClass: 'bg-primary/10 text-primary border-primary/30',
     color: 'primary',
   },
   community: {
-    label: 'Community Plugins',
+    label: 'Awesome Claude Code Plugins',
     badgeClass: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
     color: 'violet',
   },

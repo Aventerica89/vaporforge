@@ -234,6 +234,11 @@ export class SandboxManager {
         const proxyCmd = 'nohup node /opt/claude-agent/mcp-relay-proxy.js > /tmp/mcp-relay.log 2>&1 &';
         console.log(`[createSandbox] ${sessionId.slice(0, 8)}: starting MCP relay proxy`);
         await sandbox.exec(proxyCmd, { timeout: 5000 });
+        // Give the relay proxy time to bind to port 9788 before dispatching any
+        // tool calls. Without this, the first MCP call arriving during container
+        // startup may fail because the proxy is not yet listening.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        console.log(`[createSandbox] ${sessionId.slice(0, 8)}: relay proxy startup delay complete`);
       }
 
       // Update session status

@@ -4,6 +4,7 @@ import type { PluginSource } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
+import { toast } from '@/hooks/useToast';
 
 const MAX_ITEMS_PER_CATEGORY = 10;
 
@@ -37,10 +38,14 @@ function buildFallbackContent(
 }
 
 /** Best-effort sync plugins into the active sandbox (non-blocking). */
-function syncToActiveSession(): void {
+async function syncToActiveSession(): Promise<void> {
   const session = useSandboxStore.getState().currentSession;
-  if (session?.id) {
-    pluginsApi.sync(session.id).catch(console.error);
+  if (!session?.id) return;
+  try {
+    await pluginsApi.sync(session.id);
+    toast.success('Synced to active session');
+  } catch {
+    toast.info('Plugin installed — restart session to activate');
   }
 }
 
@@ -127,12 +132,20 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       await pluginsApi.add(plugin);
       set((state) => ({
         installedRepoUrls: new Set([...state.installedRepoUrls, repoUrl]),
+        installing: (() => {
+          const next = new Set(state.installing);
+          next.delete(catalogPlugin.id);
+          return next;
+        })(),
       }));
+      toast.success(`${catalogPlugin.name} installed`);
       syncToActiveSession();
+      return;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Install failed';
       set({ installError: `Failed to install ${catalogPlugin.name}: ${msg}` });
     } finally {
+      // Clear installing state (only reached on error path now — success returns early)
       set((state) => {
         const next = new Set(state.installing);
         next.delete(catalogPlugin.id);
