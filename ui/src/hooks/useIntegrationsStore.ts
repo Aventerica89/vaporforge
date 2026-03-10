@@ -183,7 +183,7 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
       if (result.success && result.data) {
         const statuses: Record<string, McpStatus> = {};
         for (const [name, info] of Object.entries(result.data)) {
-          statuses[name] = info.status === 'ok' ? 'connected' : 'error';
+          statuses[name] = info.status === 'online' ? 'connected' : 'error';
         }
         // Mark disabled servers
         const { mcpServers } = get();
@@ -203,7 +203,7 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
     try {
       const result = await mcpApi.pingOne(name);
       if (result.success && result.data) {
-        const newStatus: McpStatus = result.data.status === 'ok' ? 'connected' : 'error';
+        const newStatus: McpStatus = result.data.status === 'online' ? 'connected' : 'error';
         set((state) => ({
           mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
         }));
