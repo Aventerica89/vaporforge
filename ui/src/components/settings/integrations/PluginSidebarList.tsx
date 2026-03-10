@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { deriveTier, TIER_CONFIG } from './types';
 import type { PluginTier } from './types';
@@ -80,6 +80,20 @@ export function PluginSidebarList() {
     toggleTier,
     setShowMarketplace,
   } = useIntegrationsStore();
+
+  const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set());
+
+  const toggleExpand = useCallback((key: string) => {
+    setExpandedPackages((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
 
   const grouped = useMemo(() => {
     const search = pluginSearch.toLowerCase().trim();
@@ -192,8 +206,13 @@ export function PluginSidebarList() {
                     key={pkg.key}
                     pkg={pkg}
                     isActive={isPackageActive(pkg)}
+                    isExpanded={expandedPackages.has(pkg.key)}
+                    selectedPluginId={selectedPluginId}
                     onSelect={() => handleSelectPackage(pkg)}
+                    onToggleExpand={() => toggleExpand(pkg.key)}
                     onToggleAll={() => handleToggleAll(pkg)}
+                    onSelectPlugin={selectPlugin}
+                    onTogglePlugin={togglePlugin}
                   />
                 ))}
             </div>
