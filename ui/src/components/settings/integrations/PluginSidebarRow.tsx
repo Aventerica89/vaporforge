@@ -1,5 +1,6 @@
 import type { Plugin } from '@/lib/types';
 import type { PluginTier } from './types';
+import { Toggle, Chevron } from './shared';
 
 /** A "package" is a group of plugins from the same source */
 export interface PluginPackage {
@@ -46,42 +47,6 @@ function pluginMeta(p: Plugin): string {
   return parts.join(' \u00b7 ') || 'No components';
 }
 
-/** Chevron icon — points right (collapsed) or down (expanded) */
-function Chevron({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={expanded ? '#768390' : '#4b535d'}
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={`shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  );
-}
-
-/** Toggle switch (matches VF Toggle/On and Toggle/Off from design) */
-function Toggle({ enabled, onClick }: { enabled: boolean; onClick: (e: React.MouseEvent) => void }) {
-  return (
-    <button
-      className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-        enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
-      }`}
-      onClick={onClick}
-    >
-      <span
-        className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
-          enabled ? 'left-[15px]' : 'left-[3px]'
-        }`}
-      />
-    </button>
-  );
-}
 
 export function PluginSidebarRow({
   pkg,

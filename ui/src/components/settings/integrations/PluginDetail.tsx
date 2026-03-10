@@ -3,6 +3,7 @@ import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { deriveTier } from './types';
 import { PluginComponentList } from './PluginComponentList';
 import { PluginFilePreview } from './PluginFilePreview';
+import { Toggle, RemoveButton } from './shared';
 import type { Plugin } from '@/lib/types';
 
 interface PluginDetailProps {
@@ -83,35 +84,16 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
             </div>
             <div className="flex items-center gap-3">
               {!plugin.builtIn && (
-                <button
-                  className={`rounded px-[7px] py-[2px] font-['Space_Mono'] text-xs font-medium transition-all ${
-                    isRemoving
-                      ? 'border border-[#f8514959] bg-[#f851491a] text-[#f85149]'
-                      : 'border border-[#f8514959] bg-[#f851491a] text-[#f85149] hover:bg-[#f8514933]'
-                  }`}
-                  onClick={() => {
-                    if (isRemoving) {
-                      removePlugin(plugin.id);
-                    } else {
-                      setConfirmRemove(plugin.id);
-                    }
-                  }}
-                >
-                  {isRemoving ? 'Confirm?' : 'Remove'}
-                </button>
-              )}
-              <button
-                className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-                  plugin.enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
-                }`}
-                onClick={() => togglePlugin(plugin.id)}
-              >
-                <span
-                  className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
-                    plugin.enabled ? 'left-[15px]' : 'left-[3px]'
-                  }`}
+                <RemoveButton
+                  isConfirming={isRemoving}
+                  onRemove={() => setConfirmRemove(plugin.id)}
+                  onConfirm={() => removePlugin(plugin.id)}
                 />
-              </button>
+              )}
+              <Toggle
+                enabled={plugin.enabled}
+                onClick={(e) => { e.stopPropagation(); togglePlugin(plugin.id); }}
+              />
             </div>
           </div>
 

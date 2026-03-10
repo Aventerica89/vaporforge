@@ -1,9 +1,38 @@
+import { useState } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { STATUS_CONFIG } from './types';
+import { Toggle, RemoveButton, SectionHeader, PillGroup, Chevron } from './shared';
 import type { McpServerConfig } from '@/lib/types';
 
 interface McpDetailProps {
   server: McpServerConfig;
+}
+
+const MODE_OPTIONS = [
+  { value: 'always', label: 'Always' },
+  { value: 'on-demand', label: 'On-demand' },
+  { value: 'auto', label: 'Auto' },
+];
+
+const SCOPE_OPTIONS = [
+  { value: 'global', label: 'Global' },
+  { value: 'project', label: 'This Repo' },
+];
+
+/** Extract credential env var names from server config */
+function getCredentials(server: McpServerConfig): Array<{ key: string; masked: boolean }> {
+  const creds: Array<{ key: string; masked: boolean }> = [];
+  if (server.env) {
+    for (const key of Object.keys(server.env)) {
+      creds.push({ key, masked: true });
+    }
+  }
+  if (server.headers) {
+    for (const key of Object.keys(server.headers)) {
+      creds.push({ key, masked: true });
+    }
+  }
+  return creds;
 }
 
 export function McpDetail({ server }: McpDetailProps) {
@@ -15,59 +44,52 @@ export function McpDetail({ server }: McpDetailProps) {
     removeMcp,
   } = useIntegrationsStore();
 
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
+
   const status = !server.enabled
     ? 'disabled'
     : mcpStatuses[server.name] || 'disabled';
   const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG.disabled;
   const isRemoving = confirmRemove === server.name;
-  const toolCount = server.toolSchemas?.length || server.tools?.length || server.toolCount || 0;
-  const allToolNames = server.toolSchemas?.map((t) => t.name) || server.tools || [];
+  const toolSchemas = server.toolSchemas || [];
+  const toolNames = toolSchemas.map((t) => t.name) || server.tools || [];
+  const toolCount = toolSchemas.length || server.tools?.length || server.toolCount || 0;
+  const credentials = getCredentials(server);
+  const hasAuth = credentials.length > 0 || (server.credentialFiles && server.credentialFiles.length > 0);
 
   return (
     <div className="flex flex-1 flex-col gap-[20px] min-h-0 overflow-y-auto px-[40px] py-[32px]">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="font-['Space_Mono'] text-[18px] font-semibold text-[#cdd9e5]">
+        <span className="font-['Space_Mono'] text-[18px] font-semibold text-white">
           {server.name}
         </span>
-        <div className="flex items-center gap-3">
-          <button
-            className={`rounded-[4px] px-[7px] py-[2px] font-['Space_Mono'] text-[12px] font-medium transition-all ${
-              isRemoving
-                ? 'border border-[#f8514933] bg-[#f851490a] text-[#ef4444]'
-                : 'border border-[#f8514933] bg-[#f851490a] text-[#ef4444] hover:bg-[#f8514933]'
-            }`}
-            onClick={() => {
-              if (isRemoving) {
-                removeMcp(server.name);
-              } else {
-                setConfirmRemove(server.name);
-              }
-            }}
-          >
-            {isRemoving ? 'Confirm?' : 'Remove'}
-          </button>
-          <button
-            className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-              server.enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
-            }`}
-            onClick={() => toggleMcp(server.name)}
-          >
-            <span
-              className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
-                server.enabled ? 'left-[15px]' : 'left-[3px]'
-              }`}
-            />
-          </button>
+        <div className="flex items-center gap-[12px]">
+          <RemoveButton
+            isConfirming={isRemoving}
+            onRemove={() => setConfirmRemove(server.name)}
+            onConfirm={() => removeMcp(server.name)}
+          />
+          <Toggle
+            enabled={server.enabled}
+            onClick={(e) => { e.stopPropagation(); toggleMcp(server.name); }}
+          />
         </div>
       </div>
 
       {/* Status Row */}
       <div className="flex items-center gap-[12px]">
         <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">Status</span>
-        <span className={`h-[7px] w-[7px] rounded-full ${statusCfg.dot} ${
-          status === 'connected' ? 'shadow-[0_0_4px_#3fb950]' : status === 'error' ? 'shadow-[0_0_4px_#f85149]' : ''
-        }`} />
+        <span
+          className={`h-[7px] w-[7px] rounded-full ${statusCfg.dot}`}
+          style={
+            status === 'connected'
+              ? { boxShadow: '0 0 4px #3fb950' }
+              : status === 'error'
+                ? { boxShadow: '0 0 4px #f85149' }
+                : undefined
+          }
+        />
         <span className={`font-['Space_Mono'] text-[11px] font-semibold ${
           status === 'connected' ? 'text-[#3fb950]' : status === 'error' ? 'text-[#f85149]' : 'text-[#768390]'
         }`}>
@@ -83,7 +105,7 @@ export function McpDetail({ server }: McpDetailProps) {
       {/* Transport Row */}
       <div className="flex items-center gap-[10px]">
         <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">Transport</span>
-        <span className="rounded-[3px] border border-[#a371f733] bg-[#a371f70a] px-[10px] py-[4px] font-['Space_Mono'] text-[9px] font-bold text-[#a371f7]">
+        <span className="rounded-[3px] border border-[#a371f733] bg-[#a371f70a] px-[10px] py-[4px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7]">
           {server.transport}
         </span>
       </div>
@@ -106,65 +128,163 @@ export function McpDetail({ server }: McpDetailProps) {
         </div>
       )}
 
+      {/* Authentication Section */}
+      {hasAuth && (
+        <div className="flex flex-col gap-[6px]">
+          <SectionHeader color="#a371f7">Authentication</SectionHeader>
+
+          <div className="flex flex-col gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[10px]">
+            {server.credentialFiles && server.credentialFiles.length > 0 && (
+              <div className="flex items-center gap-[10px]">
+                <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">Type</span>
+                <span className="rounded-[3px] border border-[#a371f733] bg-[#a371f70a] px-[10px] py-[4px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7]">
+                  Environment Variable
+                </span>
+              </div>
+            )}
+            {credentials.map((cred) => (
+              <div key={cred.key} className="flex items-center gap-[10px]">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4" />
+                </svg>
+                <span className="font-['Space_Mono'] text-[12px] font-semibold text-[#cdd9e5]">
+                  {cred.key}
+                </span>
+                <span className="font-['Space_Mono'] text-[12px] text-[#8b949e]">
+                  {'•'.repeat(16)}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <button className="flex items-center justify-center rounded-[6px] border border-[#a371f747] bg-[#a371f71a] px-[16px] py-[10px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7] transition-colors hover:bg-[#a371f733]">
+            Update Credentials
+          </button>
+        </div>
+      )}
+
       {/* Mode Section */}
-      <div>
-        <div className="mb-[6px] font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#4b535d]">
-          Mode
-        </div>
-        <div className="flex flex-wrap gap-[8px]">
-          {(['always', 'on-demand', 'auto'] as const).map((m) => {
-            const activeMode = server.mode || 'always';
-            return (
-              <span
-                key={m}
-                className={`rounded-full border px-2.5 py-[3px] font-['Space_Mono'] text-[10px] ${
-                  activeMode === m
-                    ? 'border-[#a371f747] bg-[#a371f71a] text-[#a371f7]'
-                    : 'border-[#30363d] text-[#768390]'
-                }`}
-              >
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </span>
-            );
-          })}
-        </div>
+      <div className="flex flex-col gap-[6px]">
+        <SectionHeader>Mode</SectionHeader>
+        <PillGroup
+          options={MODE_OPTIONS}
+          value={server.mode || 'always'}
+        />
       </div>
 
       {/* Scope Section */}
-      <div>
-        <div className="mb-[6px] font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#4b535d]">
-          Scope
-        </div>
-        <div className="mb-[6px] flex flex-wrap gap-[8px]">
-          <span className="rounded-full border border-[#a371f747] bg-[#a371f71a] px-2.5 py-[3px] font-['Space_Mono'] text-[10px] text-[#a371f7]">
-            Global
-          </span>
-          <span className="rounded-full border border-[#30363d] px-2.5 py-[3px] font-['Space_Mono'] text-[10px] text-[#768390]">
-            This Repo
-          </span>
-        </div>
-        <p className="font-['Space_Mono'] text-[9px] text-[#8b949e]">
+      <div className="flex flex-col gap-[6px]">
+        <SectionHeader>Scope</SectionHeader>
+        <PillGroup
+          options={SCOPE_OPTIONS}
+          value="global"
+        />
+        <span className="font-['Space_Mono'] text-[9px] text-[#8b949e]">
           MCP will only activate when working in this scope
-        </p>
+        </span>
       </div>
 
       {/* Divider */}
       <div className="h-px bg-[#21262d]" />
 
       {/* Tools Section */}
-      <div>
-        <div className="mb-[16px] font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#cdd9e5]">
+      <div className="flex flex-col gap-[16px]">
+        <SectionHeader color="#cdd9e5">
           Available Tools ({toolCount})
-        </div>
+        </SectionHeader>
 
-        {allToolNames.length > 0 ? (
-          <div className="flex flex-wrap gap-[5px]">
-            {allToolNames.map((toolName) => (
+        {toolSchemas.length > 0 ? (
+          <>
+            {/* Expanded tool card (first one or user-selected) */}
+            {toolSchemas.map((tool) => {
+              const isExpanded = expandedTool === tool.name;
+              if (!isExpanded && expandedTool !== null) return null;
+              if (!isExpanded && expandedTool === null && tool !== toolSchemas[0]) return null;
+
+              const schema = tool.inputSchema as Record<string, unknown> | undefined;
+              const properties = (schema?.properties || {}) as Record<string, { type?: string; description?: string }>;
+              const required = (schema?.required || []) as string[];
+
+              return (
+                <div
+                  key={tool.name}
+                  className="rounded-[6px] border border-[#30363d] bg-[#161b22] overflow-hidden"
+                >
+                  {/* Tool header */}
+                  <button
+                    className="flex w-full items-center justify-between px-[12px] py-[8px] transition-colors hover:bg-[#1c2128]"
+                    onClick={() => setExpandedTool(isExpanded ? null : tool.name)}
+                  >
+                    <div className="flex items-center gap-[8px]">
+                      <Chevron expanded={true} />
+                      <span className="font-['Space_Mono'] text-[11px] font-semibold text-[#cdd9e5]">
+                        {tool.name}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Tool body */}
+                  <div className="flex flex-col gap-[6px] px-[12px] pb-[10px]">
+                    {tool.description && (
+                      <p className="font-['Space_Mono'] text-[9px] leading-[1.5] text-[#768390]">
+                        {tool.description}
+                      </p>
+                    )}
+                    {Object.keys(properties).length > 0 && (
+                      <>
+                        <span className="font-['Space_Mono'] text-[8px] font-bold uppercase tracking-[1px] text-[#4b535d]">
+                          Parameters
+                        </span>
+                        {Object.entries(properties).map(([name, prop]) => (
+                          <div key={name} className="flex items-center gap-[8px]">
+                            <span className="font-['Space_Mono'] text-[10px] font-semibold text-[#cdd9e5]">
+                              {name}
+                            </span>
+                            {prop.type && (
+                              <span className="rounded-[2px] border border-[#30363d] bg-[#0d1117] px-[4px] py-[1px] font-['Space_Mono'] text-[8px] text-[#768390]">
+                                {prop.type}
+                              </span>
+                            )}
+                            {required.includes(name) && (
+                              <span className="font-['Space_Mono'] text-[8px] text-[#f85149]">required</span>
+                            )}
+                          </div>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Collapsed tool chips */}
+            <div className="flex flex-wrap gap-[8px]">
+              {toolSchemas.map((tool) => {
+                const isShownExpanded =
+                  expandedTool === tool.name ||
+                  (expandedTool === null && tool === toolSchemas[0]);
+                if (isShownExpanded) return null;
+
+                return (
+                  <button
+                    key={tool.name}
+                    className="rounded-[3px] border border-[#30363d] bg-[#161b22] px-[8px] py-[4px] font-['Space_Mono'] text-[9px] text-[#768390] transition-colors hover:border-[#a371f733] hover:text-[#cdd9e5]"
+                    onClick={() => setExpandedTool(tool.name)}
+                  >
+                    {tool.name}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        ) : toolNames.length > 0 ? (
+          <div className="flex flex-wrap gap-[8px]">
+            {toolNames.map((name) => (
               <span
-                key={toolName}
-                className="rounded-[3px] border border-[#30363d] bg-[#1c2128] px-2 py-[2px] font-['Space_Mono'] text-[9px] text-[#768390]"
+                key={name}
+                className="rounded-[3px] border border-[#30363d] bg-[#161b22] px-[8px] py-[4px] font-['Space_Mono'] text-[9px] text-[#768390]"
               >
-                {toolName}
+                {name}
               </span>
             ))}
           </div>
