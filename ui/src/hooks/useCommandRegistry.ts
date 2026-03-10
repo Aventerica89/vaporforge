@@ -33,6 +33,7 @@ function stripExtension(filename: string): string {
 export function useCommandRegistry() {
   const [commands, setCommands] = useState<CommandEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fetchedRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -82,8 +83,10 @@ export function useCommandRegistry() {
           if (!plugin.enabled) continue;
           for (const cmd of plugin.commands) {
             if (!cmd.enabled) continue;
+            // Always prefer filename-derived name (matches SDK slash command name)
+            const derivedName = stripExtension(cmd.filename);
             entries.push({
-              name: cmd.name || stripExtension(cmd.filename),
+              name: derivedName,
               filename: cmd.filename,
               description: extractDescription(cmd.content),
               source: plugin.name,
@@ -93,8 +96,9 @@ export function useCommandRegistry() {
           }
           for (const agent of plugin.agents) {
             if (!agent.enabled) continue;
+            const derivedName = stripExtension(agent.filename);
             entries.push({
-              name: agent.name || stripExtension(agent.filename),
+              name: derivedName,
               filename: agent.filename,
               description: extractDescription(agent.content),
               source: plugin.name,
@@ -107,8 +111,10 @@ export function useCommandRegistry() {
 
       entries.sort((a, b) => a.name.localeCompare(b.name));
       setCommands(entries);
-    } catch {
-      // Silently fail — commands are optional UX enhancement
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('[useCommandRegistry] Failed to load commands:', msg);
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -125,5 +131,5 @@ export function useCommandRegistry() {
     load();
   }, [load]);
 
-  return { commands, isLoading, refresh };
+  return { commands, isLoading, error, refresh };
 }

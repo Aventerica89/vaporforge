@@ -279,7 +279,8 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         useMarketplace.setState({ installedRepoUrls: next });
       }
       toast.success('Plugin removed');
-    } catch {
+    } catch (err) {
+      console.error('[removePlugin]', err);
       toast.error('Failed to remove plugin');
     }
   },

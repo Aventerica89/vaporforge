@@ -179,7 +179,6 @@ export function ChatPanel({
     <div className="relative">
       {menuOpen && (
         <SlashCommandMenu
-          query={menuState?.query ?? ''}
           commands={filteredCommands}
           selectedIndex={menuIndex}
           onSelect={handleSlashSelect}
