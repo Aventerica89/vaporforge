@@ -83,7 +83,6 @@ export function useCommandRegistry() {
           if (!plugin.enabled) continue;
           for (const cmd of plugin.commands) {
             if (!cmd.enabled) continue;
-            // Always prefer filename-derived name (matches SDK slash command name)
             const derivedName = stripExtension(cmd.filename);
             entries.push({
               name: derivedName,

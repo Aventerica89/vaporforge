@@ -49,8 +49,8 @@ export function useSlashCommands(
       .filter((cmd) => cmd.kind === menuState.kind)
       .filter((cmd) => {
         const name = cmd.name.toLowerCase();
-        // Prefix match first, then substring match as fallback
-        return name.startsWith(q) || name.includes(q);
+        const source = cmd.source.toLowerCase();
+        return name.startsWith(q) || name.includes(q) || source.includes(q);
       })
       .sort((a, b) => {
         // Prioritize prefix matches over substring matches
