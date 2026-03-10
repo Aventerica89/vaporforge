@@ -38,13 +38,19 @@ function getCredentials(server: McpServerConfig): Array<{ key: string; masked: b
 export function McpDetail({ server }: McpDetailProps) {
   const {
     mcpStatuses,
+    mcpModes,
+    mcpScopes,
     toggleMcp,
+    setMcpMode,
+    setMcpScope,
+    pingSingleMcp,
     confirmRemove,
     setConfirmRemove,
     removeMcp,
   } = useIntegrationsStore();
 
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
+  const [isPinging, setIsPinging] = useState(false);
 
   const status = !server.enabled
     ? 'disabled'
@@ -100,6 +106,17 @@ export function McpDetail({ server }: McpDetailProps) {
             ping: {server.lastPingMs}ms
           </span>
         )}
+        <button
+          className="ml-auto rounded-[4px] border border-[#30363d] bg-[#161b22] px-[10px] py-[3px] font-['Space_Mono'] text-[10px] text-[#8b949e] transition-colors hover:border-[#00e5ff33] hover:text-[#00e5ff] disabled:opacity-40"
+          disabled={isPinging || !server.enabled}
+          onClick={async () => {
+            setIsPinging(true);
+            await pingSingleMcp(server.name);
+            setIsPinging(false);
+          }}
+        >
+          {isPinging ? 'Pinging...' : 'Test Connection'}
+        </button>
       </div>
 
       {/* Transport Row */}
@@ -125,6 +142,34 @@ export function McpDetail({ server }: McpDetailProps) {
           <span className="min-w-0 truncate font-['Space_Mono'] text-[11px] text-[#cdd9e5]">
             {server.command} {server.args?.join(' ')}
           </span>
+        </div>
+      )}
+
+      {/* Rate Limit Section (only renders when data exists) */}
+      {server.rateLimit && (
+        <div className="flex flex-col gap-[6px]">
+          <SectionHeader color="#e3b341">Rate Limit</SectionHeader>
+          <div className="flex flex-col gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[10px]">
+            <div className="flex items-center justify-between">
+              <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">
+                {server.rateLimit.currentUsage ?? 0} / {server.rateLimit.maxPerMinute} req/min
+              </span>
+            </div>
+            <div className="h-[4px] w-full overflow-hidden rounded-full bg-[#21262d]">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${Math.min(100, ((server.rateLimit.currentUsage ?? 0) / server.rateLimit.maxPerMinute) * 100)}%`,
+                  backgroundColor:
+                    (server.rateLimit.currentUsage ?? 0) / server.rateLimit.maxPerMinute > 0.9
+                      ? '#f85149'
+                      : (server.rateLimit.currentUsage ?? 0) / server.rateLimit.maxPerMinute > 0.7
+                        ? '#e3b341'
+                        : '#3fb950',
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -168,7 +213,8 @@ export function McpDetail({ server }: McpDetailProps) {
         <SectionHeader>Mode</SectionHeader>
         <PillGroup
           options={MODE_OPTIONS}
-          value={server.mode || 'always'}
+          value={mcpModes[server.name] ?? server.mode ?? 'always'}
+          onChange={(v) => setMcpMode(server.name, v)}
         />
       </div>
 
@@ -177,7 +223,8 @@ export function McpDetail({ server }: McpDetailProps) {
         <SectionHeader>Scope</SectionHeader>
         <PillGroup
           options={SCOPE_OPTIONS}
-          value="global"
+          value={mcpScopes[server.name] ?? 'global'}
+          onChange={(v) => setMcpScope(server.name, v as 'global' | 'project')}
         />
         <span className="font-['Space_Mono'] text-[9px] text-[#8b949e]">
           MCP will only activate when working in this scope

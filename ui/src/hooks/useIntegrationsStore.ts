@@ -41,6 +41,10 @@ interface IntegrationsState {
   // Scope (visual-only for now)
   pluginScopes: Record<string, 'global' | 'project'>;
 
+  // MCP mode/scope (visual-only for now)
+  mcpModes: Record<string, string>;
+  mcpScopes: Record<string, 'global' | 'project'>;
+
   // Tier collapse state
   tierCollapsed: Record<string, boolean>;
 
@@ -61,6 +65,8 @@ interface IntegrationsState {
   clearFile: () => void;
   setFileViewMode: (mode: 'rendered' | 'raw') => void;
   setPluginScope: (pluginId: string, scope: 'global' | 'project') => void;
+  setMcpMode: (name: string, mode: string) => void;
+  setMcpScope: (name: string, scope: 'global' | 'project') => void;
   toggleTier: (tier: string) => void;
   setConfirmRemove: (id: string | null) => void;
 
@@ -68,6 +74,7 @@ interface IntegrationsState {
   loadPlugins: () => Promise<void>;
   loadMcpServers: () => Promise<void>;
   pingAllMcps: () => Promise<void>;
+  pingSingleMcp: (name: string) => Promise<void>;
   togglePlugin: (id: string) => Promise<void>;
   toggleMcp: (name: string) => Promise<void>;
   togglePluginItem: (pluginId: string, itemType: string, itemName: string) => Promise<void>;
@@ -97,6 +104,8 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   selectedFile: null,
   fileViewMode: 'rendered',
   pluginScopes: {},
+  mcpModes: {},
+  mcpScopes: {},
   tierCollapsed: {},
   confirmRemove: null,
 
@@ -128,6 +137,12 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   setFileViewMode: (mode) => set({ fileViewMode: mode }),
   setPluginScope: (pluginId, scope) => set((state) => ({
     pluginScopes: { ...state.pluginScopes, [pluginId]: scope },
+  })),
+  setMcpMode: (name, mode) => set((state) => ({
+    mcpModes: { ...state.mcpModes, [name]: mode },
+  })),
+  setMcpScope: (name, scope) => set((state) => ({
+    mcpScopes: { ...state.mcpScopes, [name]: scope },
   })),
   toggleTier: (tier) => set((state) => ({
     tierCollapsed: { ...state.tierCollapsed, [tier]: !state.tierCollapsed[tier] },
@@ -181,6 +196,22 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
       }
     } catch {
       // Non-blocking
+    }
+  },
+
+  pingSingleMcp: async (name) => {
+    try {
+      const result = await mcpApi.pingOne(name);
+      if (result.success && result.data) {
+        const newStatus: McpStatus = result.data.status === 'ok' ? 'connected' : 'error';
+        set((state) => ({
+          mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
+        }));
+      }
+    } catch {
+      set((state) => ({
+        mcpStatuses: { ...state.mcpStatuses, [name]: 'error' },
+      }));
     }
   },
 

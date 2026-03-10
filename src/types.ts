@@ -235,6 +235,11 @@ export const McpServerConfigSchema = z.object({
   })).optional(),
   /** When the MCP server tools are available to the agent */
   mode: z.enum(['always', 'on-demand', 'auto']).optional(),
+  /** Rate limit configuration (optional, forward-compatible) */
+  rateLimit: z.object({
+    maxPerMinute: z.number(),
+    currentUsage: z.number().optional(),
+  }).optional(),
   /** Last ping timestamp (ISO) */
   lastPingAt: z.string().optional(),
   /** Last ping round-trip latency in ms */
