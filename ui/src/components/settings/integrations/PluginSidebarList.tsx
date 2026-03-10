@@ -3,9 +3,56 @@ import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { deriveTier, TIER_CONFIG } from './types';
 import type { PluginTier } from './types';
 import { PluginSidebarRow } from './PluginSidebarRow';
+import type { PluginPackage } from './PluginSidebarRow';
 import type { Plugin } from '@/lib/types';
 
 const TIER_ORDER: PluginTier[] = ['official', 'community', 'custom'];
+
+/** Group plugins into packages by source */
+function buildPackages(plugins: Plugin[], tier: PluginTier): PluginPackage[] {
+  if (plugins.length === 0) return [];
+
+  if (tier === 'official') {
+    // All builtIn plugins → one "Anthropic Official" package
+    return [
+      {
+        key: 'builtin',
+        name: 'Anthropic Official',
+        tier: 'official',
+        plugins,
+      },
+    ];
+  }
+
+  if (tier === 'custom') {
+    // Each custom plugin is its own package
+    return plugins.map((p) => ({
+      key: `custom:${p.id}`,
+      name: p.name,
+      tier: 'custom',
+      plugins: [p],
+    }));
+  }
+
+  // Community: group by sourceId (each source repo is its own package)
+  const bySource = new Map<string, Plugin[]>();
+  for (const p of plugins) {
+    const key = p.sourceId ?? 'unknown';
+    const group = bySource.get(key);
+    if (group) {
+      group.push(p);
+    } else {
+      bySource.set(key, [p]);
+    }
+  }
+
+  return Array.from(bySource.entries()).map(([sourceId, group]) => ({
+    key: `community:${sourceId}`,
+    name: group[0].sourceName ?? 'Community Plugins',
+    tier: 'community' as PluginTier,
+    plugins: group,
+  }));
+}
 
 export function PluginSidebarList() {
   const {
@@ -31,16 +78,46 @@ export function PluginSidebarList() {
         )
       : plugins;
 
-    const groups: Record<PluginTier, Plugin[]> = {
+    const byTier: Record<PluginTier, Plugin[]> = {
       official: [],
       community: [],
       custom: [],
     };
     for (const plugin of filtered) {
-      groups[deriveTier(plugin)].push(plugin);
+      byTier[deriveTier(plugin)].push(plugin);
     }
-    return groups;
+
+    // Build packages within each tier
+    const packages: Record<PluginTier, PluginPackage[]> = {
+      official: buildPackages(byTier.official, 'official'),
+      community: buildPackages(byTier.community, 'community'),
+      custom: buildPackages(byTier.custom, 'custom'),
+    };
+
+    return packages;
   }, [plugins, pluginSearch]);
+
+  /** Check if any plugin in a package is currently selected */
+  const isPackageActive = (pkg: PluginPackage) =>
+    pkg.plugins.some((p) => p.id === selectedPluginId);
+
+  /** Select the first plugin in a package (or the already-selected one) */
+  const handleSelectPackage = (pkg: PluginPackage) => {
+    const alreadySelected = pkg.plugins.find((p) => p.id === selectedPluginId);
+    if (alreadySelected) return; // already viewing a plugin in this package
+    selectPlugin(pkg.plugins[0].id);
+  };
+
+  /** Toggle all plugins in a package */
+  const handleToggleAll = (pkg: PluginPackage) => {
+    const allEnabled = pkg.plugins.every((p) => p.enabled);
+    // Toggle each plugin that doesn't match the target state
+    for (const p of pkg.plugins) {
+      if (p.enabled === allEnabled) {
+        togglePlugin(p.id);
+      }
+    }
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -64,7 +141,7 @@ export function PluginSidebarList() {
       {/* Tier groups */}
       <div className="flex-1 overflow-y-auto pt-[16px]">
         {TIER_ORDER.map((tier) => {
-          const items = grouped[tier];
+          const packages = grouped[tier];
           const cfg = TIER_CONFIG[tier];
           const collapsed = tierCollapsed[tier] ?? false;
 
@@ -77,7 +154,7 @@ export function PluginSidebarList() {
               >
                 <span className="font-['Space_Mono'] text-[9px] font-bold uppercase tracking-[1.2px] text-[#4b535d]">
                   {cfg.label}{' '}
-                  <span className="font-bold text-[#4b535d]">{items.length}</span>
+                  <span className="font-bold text-[#4b535d]">{packages.length}</span>
                 </span>
                 <svg
                   width="12"
@@ -94,15 +171,15 @@ export function PluginSidebarList() {
                 </svg>
               </button>
 
-              {/* Items */}
+              {/* Package rows */}
               {!collapsed &&
-                items.map((plugin) => (
+                packages.map((pkg) => (
                   <PluginSidebarRow
-                    key={plugin.id}
-                    plugin={plugin}
-                    isActive={selectedPluginId === plugin.id}
-                    onSelect={() => selectPlugin(plugin.id)}
-                    onToggle={() => togglePlugin(plugin.id)}
+                    key={pkg.key}
+                    pkg={pkg}
+                    isActive={isPackageActive(pkg)}
+                    onSelect={() => handleSelectPackage(pkg)}
+                    onToggleAll={() => handleToggleAll(pkg)}
                   />
                 ))}
             </div>
@@ -113,7 +190,7 @@ export function PluginSidebarList() {
       {/* Add Plugins button */}
       <div className="shrink-0 px-3 pb-3">
         <button
-          className="flex w-full items-center justify-center gap-2 rounded-md border border-[#30363d] bg-[#161b22] px-4 py-3 font-['Space_Mono'] text-[11px] font-bold text-[#768390] transition-colors hover:border-[#00e5ff33] hover:text-[#00e5ff]"
+          className="flex w-full items-center justify-center gap-2 rounded-[6px] border border-[#30363d] bg-[#161b22] px-[16px] py-[12px] font-['Space_Mono'] text-[11px] font-bold text-[#768390] transition-colors hover:border-[#00e5ff33] hover:text-[#00e5ff]"
           onClick={() => setShowMarketplace(true)}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

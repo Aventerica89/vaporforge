@@ -268,6 +268,8 @@ export const PluginSchema = z.object({
   commands: z.array(PluginItemSchema).default([]),
   rules: z.array(PluginItemSchema).default([]),
   mcpServers: z.array(McpServerConfigSchema).default([]),
+  sourceId: z.string().optional(),
+  sourceName: z.string().optional(),
   addedAt: z.string(),
   updatedAt: z.string(),
 });

@@ -240,6 +240,8 @@ export interface Plugin {
   commands: PluginItem[];
   rules: PluginItem[];
   mcpServers: McpServerConfig[];
+  sourceId?: string;
+  sourceName?: string;
   addedAt: string;
   updatedAt: string;
 }

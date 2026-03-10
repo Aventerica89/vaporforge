@@ -8,6 +8,17 @@ import { toast } from '@/hooks/useToast';
 
 const MAX_ITEMS_PER_CATEGORY = 10;
 
+/** Map catalog source_id to a human-readable package name */
+function deriveSourceName(sourceId: string): string {
+  const KNOWN_SOURCES: Record<string, string> = {
+    'anthropic-official': 'Anthropic Official',
+    'awesome-community': 'Awesome CC Plugins',
+  };
+  if (KNOWN_SOURCES[sourceId]) return KNOWN_SOURCES[sourceId];
+  if (sourceId.startsWith('custom:')) return 'Custom Source';
+  return sourceId;
+}
+
 /**
  * Build rich fallback content when GitHub discovery returns empty.
  * Gives the SDK actionable context instead of a useless stub.
@@ -121,6 +132,8 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
         scope: 'git',
         enabled: true,
         builtIn: false,
+        sourceId: catalogPlugin.source_id,
+        sourceName: deriveSourceName(catalogPlugin.source_id),
         agents: discovered?.agents || [],
         commands: hasDiscoveredContent
           ? (discovered?.commands || [])
