@@ -203,8 +203,18 @@ export interface McpServerConfig {
   tools?: string[];
   /** Total tool count from last ping */
   toolCount?: number;
+  /** Full tool schemas from last ping (name + description + inputSchema) */
+  toolSchemas?: Array<{
+    name: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
   /** When the MCP server tools are available to the agent */
   mode?: 'always' | 'on-demand' | 'auto';
+  /** Last ping timestamp (ISO) */
+  lastPingAt?: string;
+  /** Last ping round-trip latency in ms */
+  lastPingMs?: number;
   enabled: boolean;
   addedAt: string;
 }

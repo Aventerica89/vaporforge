@@ -1,12 +1,11 @@
 import type { Plugin } from '@/lib/types';
-import { deriveTier, TIER_CONFIG } from './types';
+import { deriveTier } from './types';
 
 interface PluginSidebarRowProps {
   plugin: Plugin;
   isActive: boolean;
   onSelect: () => void;
   onToggle: () => void;
-  scopeIndicator?: boolean;
 }
 
 export function PluginSidebarRow({
@@ -14,64 +13,55 @@ export function PluginSidebarRow({
   isActive,
   onSelect,
   onToggle,
-  scopeIndicator,
 }: PluginSidebarRowProps) {
   const tier = deriveTier(plugin);
-  const tierCfg = TIER_CONFIG[tier];
 
-  const agentCount = plugin.agents.length;
-  const cmdCount = plugin.commands.length;
-  const ruleCount = plugin.rules.length;
+  const tierLabel = tier === 'official' ? 'included' : tier === 'community' ? 'community' : 'custom';
+  const tierBadgeClass = tier === 'official'
+    ? 'border-[#00e5ff47] bg-[#00e5ff1a] text-[#00e5ff]'
+    : tier === 'community'
+      ? 'border-[#a371f747] bg-[#a371f71a] text-[#a371f7]'
+      : 'border-[#f8514947] bg-[#f851491a] text-[#f85149]';
+
   const parts: string[] = [];
-  if (agentCount) parts.push(`${agentCount} agent${agentCount === 1 ? '' : 's'}`);
-  if (cmdCount) parts.push(`${cmdCount} cmd${cmdCount === 1 ? '' : 's'}`);
-  if (ruleCount) parts.push(`${ruleCount} rule${ruleCount === 1 ? '' : 's'}`);
+  if (plugin.agents.length) parts.push(`${plugin.agents.length} agent${plugin.agents.length === 1 ? '' : 's'}`);
+  if (plugin.commands.length) parts.push(`${plugin.commands.length} cmd${plugin.commands.length === 1 ? '' : 's'}`);
+  if (plugin.rules.length) parts.push(`${plugin.rules.length} rule${plugin.rules.length === 1 ? '' : 's'}`);
+  const enabledCount = [...plugin.agents, ...plugin.commands, ...plugin.rules].filter((i) => i.enabled).length;
+  const totalCount = plugin.agents.length + plugin.commands.length + plugin.rules.length;
 
   return (
     <div
-      className={`group relative flex cursor-pointer items-center gap-2 px-3.5 py-1.5 pl-5 transition-colors ${
+      className={`group relative flex h-[52px] cursor-pointer items-center justify-between transition-colors ${
         isActive
-          ? 'bg-card/80'
-          : 'hover:bg-card/40'
+          ? 'bg-[#1c2128] py-[6px] px-[14px]'
+          : 'py-[6px] pr-[14px] pl-[22px] hover:bg-[#1c2128]/50'
       }`}
-      style={{ minHeight: 38 }}
       onClick={onSelect}
     >
       {isActive && (
-        <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary" />
+        <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#00e5ff]" />
       )}
 
-      <span className="w-6 shrink-0 text-center font-mono text-[11px] font-bold text-muted-foreground">
-        {plugin.name.charAt(0).toUpperCase()}
-      </span>
-
       <div className="min-w-0 flex-1">
-        <span
-          className={`block truncate text-xs leading-snug ${
-            plugin.enabled ? 'text-foreground' : 'text-muted-foreground'
-          }`}
-        >
-          {plugin.name}
-        </span>
-        <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <span
-            className={`inline-block rounded-sm border px-1 py-px text-[8px] font-bold tracking-wide ${tierCfg.badgeClass}`}
-          >
-            {tier}
+        <div className="flex items-center gap-2">
+          <span className={`font-['Space_Mono'] text-[11px] text-[#cdd9e5] ${isActive ? 'font-bold' : 'font-normal'}`}>
+            {plugin.name}
           </span>
-          {parts.length > 0 && <span>{parts.join(' \u00b7 ')}</span>}
+          <span className={`shrink-0 rounded-[3px] border px-1.5 py-px font-['Space_Mono'] text-[8px] font-bold ${tierBadgeClass}`}>
+            {tierLabel}
+          </span>
+        </div>
+        <div className="mt-0.5 font-['Space_Mono'] text-[9px] text-[#768390]">
+          {totalCount > 0
+            ? `${totalCount} plugin${totalCount === 1 ? '' : 's'} \u00b7 ${enabledCount} active`
+            : parts.join(' \u00b7 ') || 'No components'}
         </div>
       </div>
 
-      {scopeIndicator && (
-        <span className="shrink-0 rounded-sm border border-primary/30 px-1 text-[8px] text-primary">
-          ~
-        </span>
-      )}
-
       <button
         className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-          plugin.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+          plugin.enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
         }`}
         onClick={(e) => {
           e.stopPropagation();

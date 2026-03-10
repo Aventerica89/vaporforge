@@ -1,5 +1,4 @@
 import type { McpServerConfig } from '@/lib/types';
-import { TRANSPORT_BADGE, STATUS_CONFIG } from './types';
 import type { McpStatus } from './types';
 
 interface McpSidebarRowProps {
@@ -10,6 +9,12 @@ interface McpSidebarRowProps {
   onToggle: () => void;
 }
 
+const DOT_STYLES: Record<McpStatus, string> = {
+  connected: 'bg-[#3fb950] shadow-[0_0_4px_#3fb950]',
+  error: 'bg-[#f85149] shadow-[0_0_4px_#f85149]',
+  disabled: 'bg-[#768390]',
+};
+
 export function McpSidebarRow({
   server,
   status,
@@ -17,40 +22,32 @@ export function McpSidebarRow({
   onSelect,
   onToggle,
 }: McpSidebarRowProps) {
-  const statusCfg = STATUS_CONFIG[status] || STATUS_CONFIG.disabled;
-  const transportClass = TRANSPORT_BADGE[server.transport] || TRANSPORT_BADGE.http;
-
   return (
     <div
-      className={`group relative flex cursor-pointer items-center gap-2 px-3.5 py-1.5 transition-colors ${
-        isActive ? 'bg-card/80' : 'hover:bg-card/40'
+      className={`group relative flex h-[38px] cursor-pointer items-center gap-2 px-[14px] py-[7px] transition-colors ${
+        isActive ? 'bg-[#ffffff08]' : 'hover:bg-[#ffffff08]'
       }`}
       onClick={onSelect}
     >
       {isActive && (
-        <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-violet-500" />
+        <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-[#a371f7]" />
       )}
 
       <span
-        className={`h-[7px] w-[7px] shrink-0 rounded-full ${statusCfg.dot}`}
+        className={`h-[7px] w-[7px] shrink-0 rounded-full ${DOT_STYLES[status] || DOT_STYLES.disabled}`}
       />
 
-      <div className="min-w-0 flex-1">
-        <span className="block truncate text-xs text-foreground">
-          {server.name}
-        </span>
-        <div className="mt-0.5 flex items-center gap-1 text-[10px]">
-          <span
-            className={`inline-block rounded-sm border px-1.5 py-px text-[10px] ${transportClass}`}
-          >
-            {server.transport}
-          </span>
-        </div>
-      </div>
+      <span
+        className={`flex-1 truncate font-['Space_Mono'] text-[12px] ${
+          server.enabled ? 'text-[#cdd9e5]' : 'text-[#768390]'
+        }`}
+      >
+        {server.name}
+      </span>
 
       <button
         className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-          server.enabled ? 'bg-violet-500' : 'bg-muted-foreground/30'
+          server.enabled ? 'bg-[#a371f7]' : 'bg-[#768390]/30'
         }`}
         onClick={(e) => {
           e.stopPropagation();

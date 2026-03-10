@@ -4,17 +4,14 @@ import type { McpServerConfig } from '@/lib/types';
 
 type Transport = 'stdio' | 'http' | 'relay';
 type Mode = 'always' | 'on-demand' | 'auto';
-type StdioMode = 'command' | 'script';
 
 export function McpAddModal() {
   const { showMcpAddModal, setShowMcpAddModal, addMcpServer } =
     useIntegrationsStore();
 
   const [name, setName] = useState('');
-  const [transport, setTransport] = useState<Transport>('stdio');
+  const [transport, setTransport] = useState<Transport>('http');
   const [command, setCommand] = useState('');
-  const [stdioMode, setStdioMode] = useState<StdioMode>('command');
-  const [scriptPath, setScriptPath] = useState('');
   const [url, setUrl] = useState('');
   const [localUrl, setLocalUrl] = useState('');
   const [mode, setMode] = useState<Mode>('always');
@@ -24,10 +21,8 @@ export function McpAddModal() {
 
   const reset = () => {
     setName('');
-    setTransport('stdio');
+    setTransport('http');
     setCommand('');
-    setStdioMode('command');
-    setScriptPath('');
     setUrl('');
     setLocalUrl('');
     setMode('always');
@@ -44,23 +39,26 @@ export function McpAddModal() {
     if (!trimmed) return;
 
     setSaving(true);
-    const resolvedCommand =
-      transport === 'stdio' && stdioMode === 'script'
-        ? `node ${scriptPath.trim()}`
-        : command.trim();
 
     const server: Omit<McpServerConfig, 'addedAt' | 'enabled'> = {
       name: trimmed,
       transport,
       mode,
       ...(transport === 'http' ? { url: url.trim() } : {}),
-      ...(transport === 'stdio' ? { command: resolvedCommand } : {}),
+      ...(transport === 'stdio' ? { command: command.trim() } : {}),
       ...(transport === 'relay' ? { localUrl: localUrl.trim() } : {}),
     };
 
     await addMcpServer(server);
     reset();
   };
+
+  const canSave =
+    name.trim() &&
+    !saving &&
+    (transport === 'http' ? url.trim() : true) &&
+    (transport === 'stdio' ? command.trim() : true) &&
+    (transport === 'relay' ? localUrl.trim() : true);
 
   return (
     <div
@@ -69,186 +67,162 @@ export function McpAddModal() {
         if (e.target === e.currentTarget) close();
       }}
     >
-      <div className="w-[400px] max-h-[80vh] overflow-y-auto rounded-md border border-border bg-card/95 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-150">
+      <div className="flex w-[400px] max-h-[80vh] flex-col overflow-hidden rounded-md border border-border bg-[#0d1117] shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-4.5 py-3.5">
-          <span className="text-xs font-bold text-foreground">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <span className="font-['Space_Mono'] text-sm font-semibold text-foreground">
             Add MCP Server
           </span>
           <button
-            className="rounded-sm border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="text-muted-foreground transition-colors hover:text-foreground"
             onClick={close}
           >
-            [x]
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex flex-col gap-3.5 p-4.5">
-          {/* Name */}
+        {/* Description */}
+        <p className="px-6 pt-4 font-['Space_Mono'] text-[11px] leading-relaxed text-muted-foreground">
+          Connect an MCP server to extend your workspace with additional tools and capabilities.
+        </p>
+
+        {/* Form */}
+        <div className="flex flex-col gap-3.5 px-6 py-5">
+          {/* Server Name */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-              Name
+            <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
+              Server Name
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. my-database"
-              className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+              placeholder="my-mcp-server"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 font-['Space_Mono'] text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               autoFocus
             />
           </div>
 
           {/* Transport */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
               Transport
             </label>
-            <div className="flex gap-3.5">
-              {(['stdio', 'http', 'relay'] as const).map((t) => (
-                <label
+            <div className="flex gap-3">
+              {(['http', 'stdio', 'relay'] as const).map((t) => (
+                <button
                   key={t}
-                  className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground"
+                  className={`rounded-full border px-3 py-1 font-['Space_Mono'] text-[11px] transition-all ${
+                    transport === t
+                      ? 'border-primary/30 bg-primary/5 text-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setTransport(t)}
                 >
-                  <input
-                    type="radio"
-                    name="transport"
-                    checked={transport === t}
-                    onChange={() => setTransport(t)}
-                    className="accent-primary"
-                  />
-                  {t}
-                </label>
+                  {t === 'http' ? 'HTTP' : t === 'stdio' ? 'Stdio' : 'Relay'}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Command (stdio), URL (http), or Local URL (relay) */}
-          {transport === 'stdio' ? (
-            <div className="flex flex-col gap-2">
-              {/* Stdio sub-mode toggle */}
-              <div className="flex gap-3.5">
-                {(['command', 'script'] as const).map((m) => (
-                  <label
-                    key={m}
-                    className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground"
-                  >
-                    <input
-                      type="radio"
-                      name="stdioMode"
-                      checked={stdioMode === m}
-                      onChange={() => setStdioMode(m)}
-                      className="accent-primary"
-                    />
-                    {m === 'command' ? 'Command' : 'Node.js Script'}
-                  </label>
-                ))}
-              </div>
-              {stdioMode === 'command' ? (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                    Command
-                  </label>
-                  <input
-                    type="text"
-                    value={command}
-                    onChange={(e) => setCommand(e.target.value)}
-                    placeholder="e.g. npx @modelcontextprotocol/server-filesystem /path"
-                    className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
-                  />
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                    Script Path
-                  </label>
-                  <input
-                    type="text"
-                    value={scriptPath}
-                    onChange={(e) => setScriptPath(e.target.value)}
-                    placeholder="e.g. /path/to/server.js"
-                    className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
-                  />
-                  <p className="text-[10px] text-muted-foreground/60">
-                    Saved as <span className="font-mono">node /path/to/server.js</span>
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : transport === 'http' ? (
+          {/* Transport-specific field */}
+          {transport === 'http' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                URL
+              <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
+                Server URL
               </label>
               <input
                 type="text"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
-                placeholder="e.g. https://my-mcp.example.com/sse"
-                className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                placeholder="https://mcp.example.com"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 font-['Space_Mono'] text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
+              <p className="font-['Space_Mono'] text-[10px] text-muted-foreground">
+                The HTTP endpoint for the MCP server
+              </p>
             </div>
-          ) : (
+          )}
+
+          {transport === 'stdio' && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+              <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
+                Command
+              </label>
+              <input
+                type="text"
+                value={command}
+                onChange={(e) => setCommand(e.target.value)}
+                placeholder="npx @modelcontextprotocol/server-filesystem /path"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 font-['Space_Mono'] text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+              />
+              <p className="font-['Space_Mono'] text-[10px] text-muted-foreground">
+                The command to start the MCP server process
+              </p>
+            </div>
+          )}
+
+          {transport === 'relay' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
                 Local URL
               </label>
               <input
                 type="text"
                 value={localUrl}
                 onChange={(e) => setLocalUrl(e.target.value)}
-                placeholder="e.g. http://localhost:9222"
-                className="w-full rounded-md border border-border bg-background px-2.5 py-[7px] font-mono text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors placeholder:text-muted-foreground focus-visible:border-primary"
+                placeholder="http://localhost:9222"
+                className="w-full rounded-md border border-border bg-background px-3 py-2 font-['Space_Mono'] text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
               />
-              <p className="text-[10px] text-muted-foreground/60">
-                Relay tunnels your local MCP server through VaporForge — no ports exposed
+              <p className="font-['Space_Mono'] text-[10px] text-muted-foreground">
+                Relay tunnels your local MCP server through VaporForge
               </p>
             </div>
           )}
 
           {/* Mode */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+            <label className="font-['Space_Mono'] text-[11px] font-semibold text-foreground">
               Mode
             </label>
-            <div className="flex gap-3.5">
+            <div className="flex gap-3">
               {(['always', 'on-demand', 'auto'] as const).map((m) => (
-                <label
+                <button
                   key={m}
-                  className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground"
+                  className={`rounded-full border px-3 py-1 font-['Space_Mono'] text-[11px] transition-all ${
+                    mode === m
+                      ? 'border-violet-500/30 bg-violet-500/10 text-violet-400'
+                      : 'border-border bg-card text-muted-foreground hover:text-foreground'
+                  }`}
+                  onClick={() => setMode(m)}
                 >
-                  <input
-                    type="radio"
-                    name="mode"
-                    checked={mode === m}
-                    onChange={() => setMode(m)}
-                    className="accent-primary"
-                  />
-                  {m}
-                </label>
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
               ))}
             </div>
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 border-t border-border px-4.5 py-3.5">
+        <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
           <button
-            className="rounded-sm border border-border px-3.5 py-1 font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+            className="rounded border border-border bg-background px-4 py-1.5 font-['Space_Mono'] text-[11px] font-medium text-foreground transition-colors hover:bg-card"
             onClick={close}
           >
             Cancel
           </button>
           <button
-            className="rounded-sm border border-primary/30 bg-primary/10 px-3.5 py-1 font-mono text-[10px] font-bold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded border border-primary/30 bg-primary/10 px-4 py-1.5 font-['Space_Mono'] text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
             onClick={handleSave}
-            disabled={
-              !name.trim() ||
-              saving ||
-              (transport === 'stdio' && stdioMode === 'script' && !scriptPath.trim())
-            }
+            disabled={!canSave}
           >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             {saving ? 'Adding...' : 'Add Server'}
           </button>
         </div>

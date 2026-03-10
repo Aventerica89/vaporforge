@@ -1,61 +1,20 @@
-import { useMemo, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
-import { deriveTier, TIER_CONFIG } from './types';
+import { deriveTier } from './types';
 import { PluginComponentList } from './PluginComponentList';
 import { PluginFilePreview } from './PluginFilePreview';
-import type { Plugin, PluginItem } from '@/lib/types';
+import type { Plugin } from '@/lib/types';
 
 interface PluginDetailProps {
   plugin: Plugin;
 }
 
-/** Build a file tree from all plugin items */
-function buildFileTree(plugin: Plugin): {
-  root: Array<{ path: string; filename: string; isCustom: boolean }>;
-  folders: Record<string, Array<{ path: string; filename: string; isCustom: boolean }>>;
-} {
-  const isCustom = deriveTier(plugin) === 'custom';
-  const entries: Array<{ path: string; filename: string; isCustom: boolean }> = [];
-
-  const sections: Array<{ key: string; items: PluginItem[] }> = [
-    { key: 'agents', items: plugin.agents },
-    { key: 'commands', items: plugin.commands },
-    { key: 'rules', items: plugin.rules },
-  ];
-
-  for (const section of sections) {
-    for (const item of section.items) {
-      entries.push({
-        path: `${section.key}/${item.filename}`,
-        filename: item.filename,
-        isCustom,
-      });
-    }
-  }
-
-  const root: typeof entries = [];
-  const folders: Record<string, typeof entries> = {};
-
-  for (const entry of entries) {
-    const parts = entry.path.split('/');
-    if (parts.length === 1) {
-      root.push(entry);
-    } else {
-      const folder = parts[0];
-      if (!folders[folder]) folders[folder] = [];
-      folders[folder].push(entry);
-    }
-  }
-
-  return { root, folders };
-}
-
 function componentSummary(plugin: Plugin): string {
   const parts: string[] = [];
-  if (plugin.agents.length) parts.push(`${plugin.agents.length} agent${plugin.agents.length === 1 ? '' : 's'}`);
-  if (plugin.commands.length) parts.push(`${plugin.commands.length} command${plugin.commands.length === 1 ? '' : 's'}`);
-  if (plugin.rules.length) parts.push(`${plugin.rules.length} rule${plugin.rules.length === 1 ? '' : 's'}`);
-  return parts.length > 0 ? parts.join(' \u00b7 ') : 'No components';
+  if (plugin.agents.length) parts.push(`${plugin.agents.length} SKILL${plugin.agents.length === 1 ? '' : 'S'}`);
+  if (plugin.commands.length) parts.push(`${plugin.commands.length} COMMAND${plugin.commands.length === 1 ? '' : 'S'}`);
+  if (plugin.rules.length) parts.push(`${plugin.rules.length} RULE${plugin.rules.length === 1 ? '' : 'S'}`);
+  return parts.length > 0 ? parts.join('  \u00b7  ') : 'No components';
 }
 
 export function PluginDetail({ plugin }: PluginDetailProps) {
@@ -68,91 +27,107 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
     removePlugin,
     selectedFile,
     selectFile,
+    mcpStatuses,
+    selectMcp,
   } = useIntegrationsStore();
 
   const tier = deriveTier(plugin);
-  const tierCfg = TIER_CONFIG[tier];
   const scope = pluginScopes[plugin.id] || 'global';
-  const tree = useMemo(() => buildFileTree(plugin), [plugin]);
   const isRemoving = confirmRemove === plugin.id;
 
-  // Auto-select the first file when the plugin changes and nothing is selected
+  // Auto-select the first file when the plugin changes
   useEffect(() => {
     const alreadySelected =
       selectedFile?.pluginId === plugin.id && selectedFile?.path;
     if (alreadySelected) return;
 
-    const firstFolder = Object.keys(tree.folders)[0];
-    const firstFile =
-      tree.root[0] ??
-      (firstFolder ? tree.folders[firstFolder][0] : undefined);
-    if (firstFile) {
-      selectFile(plugin.id, firstFile.path);
+    const sections = [
+      { key: 'agents', items: plugin.agents },
+      { key: 'commands', items: plugin.commands },
+      { key: 'rules', items: plugin.rules },
+    ];
+    for (const section of sections) {
+      if (section.items.length > 0) {
+        selectFile(plugin.id, `${section.key}/${section.items[0].filename}`);
+        return;
+      }
     }
   }, [plugin.id]);
+
+  const tierLabel = tier === 'official' ? 'included' : tier === 'community' ? 'community' : 'custom';
+  const tierBadgeClass = tier === 'official'
+    ? 'border-[#00e5ff47] bg-[#00e5ff1a] text-[#00e5ff]'
+    : tier === 'community'
+      ? 'border-[#a371f747] bg-[#a371f71a] text-[#a371f7]'
+      : 'border-[#f8514947] bg-[#f851491a] text-[#f85149]';
 
   const scopeText =
     scope === 'global'
       ? 'Active in all sessions and repositories. Changes apply everywhere.'
-      : 'Active only in the selected repository. Overrides global settings for this project.';
+      : 'Plugin will only activate when working in this repo';
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
-      {/* Left column — info + components + file tree */}
-      <div className="flex min-w-[280px] w-[42%] flex-col min-h-0 overflow-hidden border-r border-border">
-        <div className="h-0 flex-1 overflow-y-auto p-5">
-          {/* Header */}
-          <div className="mb-3.5">
-            <div className="mb-2.5 flex items-start gap-2">
-              <span className="min-w-0 flex-1 text-[15px] font-bold leading-snug text-foreground">
+      {/* Left column — info + components */}
+      <div className="flex min-w-[280px] w-[42%] flex-col min-h-0 overflow-hidden border-r border-[#30363d]">
+        <div className="flex h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[40px] py-[32px]">
+          {/* Detail Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="font-['Space_Mono'] text-[18px] font-semibold text-white">
                 {plugin.name}
               </span>
-              <div className="flex shrink-0 items-center gap-1.5 pt-0.5">
-                {!plugin.builtIn && (
-                  <button
-                    className={`rounded-sm px-1.5 py-0.5 font-mono text-[10px] text-red-500 transition-all ${
-                      isRemoving
-                        ? 'border border-red-500 bg-red-500/15'
-                        : 'border border-transparent hover:border-red-500 hover:bg-red-500/10'
-                    }`}
-                    onClick={() => {
-                      if (isRemoving) {
-                        removePlugin(plugin.id);
-                      } else {
-                        setConfirmRemove(plugin.id);
-                      }
-                    }}
-                  >
-                    {isRemoving ? 'confirm?' : 'remove'}
-                  </button>
-                )}
-                <button
-                  className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-                    plugin.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                  }`}
-                  onClick={() => togglePlugin(plugin.id)}
-                >
-                  <span
-                    className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
-                      plugin.enabled ? 'left-[15px]' : 'left-[3px]'
-                    }`}
-                  />
-                </button>
-              </div>
-            </div>
-
-            {/* Scope pills */}
-            <div className="mb-3.5 flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] tracking-wide text-muted-foreground/60">
-                SCOPE
+              <span className={`rounded-[3px] border px-[5px] py-[1px] font-['Space_Mono'] text-[8px] font-bold tracking-[0.8px] ${tierBadgeClass}`}>
+                {tierLabel}
               </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {!plugin.builtIn && (
+                <button
+                  className={`rounded px-[7px] py-[2px] font-['Space_Mono'] text-xs font-medium transition-all ${
+                    isRemoving
+                      ? 'border border-[#f8514959] bg-[#f851491a] text-[#f85149]'
+                      : 'border border-[#f8514959] bg-[#f851491a] text-[#f85149] hover:bg-[#f8514933]'
+                  }`}
+                  onClick={() => {
+                    if (isRemoving) {
+                      removePlugin(plugin.id);
+                    } else {
+                      setConfirmRemove(plugin.id);
+                    }
+                  }}
+                >
+                  {isRemoving ? 'Confirm?' : 'Remove'}
+                </button>
+              )}
+              <button
+                className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+                  plugin.enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
+                }`}
+                onClick={() => togglePlugin(plugin.id)}
+              >
+                <span
+                  className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
+                    plugin.enabled ? 'left-[15px]' : 'left-[3px]'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Scope Section */}
+          <div>
+            <div className="mb-1.5 font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#8b949e]">
+              Scope
+            </div>
+            <div className="mb-2 flex flex-wrap gap-2">
               {(['global', 'project'] as const).map((s) => (
                 <button
                   key={s}
-                  className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] transition-all ${
+                  className={`rounded-full border px-3 py-1 font-['Space_Mono'] text-[10px] transition-all ${
                     scope === s
-                      ? 'border-primary/30 bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:text-foreground'
+                      ? 'border-[#00e5ff47] bg-[#00e5ff1a] text-[#00e5ff]'
+                      : 'border-[#30363d] text-[#768390] hover:text-foreground'
                   }`}
                   onClick={() => setPluginScope(plugin.id, s)}
                 >
@@ -162,122 +137,109 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
             </div>
           </div>
 
-          {/* Summary callout */}
-          <div className="mb-3.5 rounded-md border border-amber-500/30 bg-amber-500/10 p-2.5">
-            <div className="mb-1 text-[8px] font-bold uppercase tracking-widest text-amber-400">
+          {/* Summary Callout */}
+          <div className="rounded-[6px] border border-[#f8514947] bg-[#f851491a] px-[12px] py-[10px]">
+            <div className="mb-[2px] font-['Space_Mono'] text-[8px] font-bold uppercase tracking-[1px] text-[#f85149]">
+              AI Summary
+            </div>
+            <div className="mb-1 font-['Space_Mono'] text-[11px] leading-[1.6] text-[#768390]">
               {componentSummary(plugin)}
             </div>
             {plugin.description && (
-              <p className="text-[10px] leading-relaxed text-muted-foreground">
-                {plugin.description.split('.')[0]}
+              <p className="font-['Space_Mono'] text-[11px] leading-[1.6] text-[#768390]">
+                {plugin.description.split('.')[0]}.
               </p>
             )}
           </div>
 
-          {/* Meta */}
-          <div className="mb-2.5 flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
-            {plugin.repoUrl ? (
-              <a
-                href={plugin.repoUrl.startsWith('http') ? plugin.repoUrl : `https://${plugin.repoUrl}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary no-underline hover:underline"
-              >
-                {plugin.repoUrl.replace(/^https?:\/\//, '')}
-              </a>
-            ) : (
-              <span className="text-muted-foreground/40">local</span>
-            )}
-            <span
-              className={`inline-block rounded-sm border px-1 py-px text-[8px] font-bold tracking-wide ${tierCfg.badgeClass}`}
-            >
-              {tier === 'official' ? 'Added by VaporForge' : tier === 'community' ? 'Community' : 'Added by You'}
-            </span>
-          </div>
-
+          {/* Full description */}
           {plugin.description && (
-            <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground">
+            <p className="font-['Space_Mono'] text-[13px] leading-[1.6] text-[#8b949e]">
               {plugin.description}
             </p>
           )}
 
-          {/* Scope callout */}
-          <div className="mb-4 rounded-md border border-border/40 bg-card p-2.5">
-            <div className="mb-0.5 text-[8px] font-bold uppercase tracking-widest text-primary">
+          {/* Meta Row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {plugin.repoUrl && (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                <a
+                  href={plugin.repoUrl.startsWith('http') ? plugin.repoUrl : `https://${plugin.repoUrl}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-['Space_Mono'] text-[10px] text-[#00e5ff] no-underline hover:underline"
+                >
+                  {plugin.repoUrl.replace(/^https?:\/\//, '')}
+                </a>
+              </>
+            )}
+            <span className={`rounded-[3px] border px-2 py-[2px] font-['Space_Mono'] text-[8px] font-bold tracking-[0.4px] ${tierBadgeClass}`}>
+              {tier === 'official' ? 'Added by VaporForge' : tier === 'community' ? 'Community' : 'Added by You'}
+            </span>
+          </div>
+
+          {/* Scope Callout */}
+          <div className="rounded-[6px] border border-[#00e5ff33] bg-[#00e5ff0a] px-[14px] py-[10px]">
+            <div className="mb-1 font-['Space_Mono'] text-[9px] font-bold uppercase tracking-[1.2px] text-[#00e5ff]">
               {scope.toUpperCase()}
             </div>
-            <p className="text-[10px] leading-relaxed text-muted-foreground">
+            <p className="font-['Space_Mono'] text-[10px] leading-[1.5] text-[#768390]">
               {scopeText}
             </p>
           </div>
 
-          <hr className="mb-3 border-border/40" />
+          {/* Divider */}
+          <div className="h-px bg-[#21262d]" />
 
           {/* Components */}
           <PluginComponentList plugin={plugin} />
 
-          {/* File tree */}
-          {(tree.root.length > 0 || Object.keys(tree.folders).length > 0) && (
-            <details className="mt-5" open>
-              <summary className="flex cursor-pointer select-none items-center justify-between border-t border-border/40 pb-2 pt-3">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-                  Files
-                </span>
-                <span className="text-[10px] text-muted-foreground">&#9658;</span>
-              </summary>
+          {/* Required Integrations (MCP dependencies) */}
+          {plugin.mcpServers.length > 0 && (
+            <div className="mt-4">
+              <div className="mb-2 font-['Space_Mono'] text-[10px] font-bold uppercase tracking-widest text-[#8b949e]/60">
+                Required Integrations
+              </div>
+              <div className="space-y-1.5">
+                {plugin.mcpServers.map((mcp) => {
+                  const mcpStatus = mcpStatuses[mcp.name];
+                  const isConnected = mcpStatus === 'connected';
 
-              {tree.root.map((file) => (
-                <button
-                  key={file.path}
-                  className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[10px] before:content-['[f]'] ${
-                    selectedFile?.path === file.path && selectedFile?.pluginId === plugin.id
-                      ? 'bg-card/80 text-primary before:text-muted-foreground/60'
-                      : `text-muted-foreground hover:bg-card/80 hover:text-foreground ${
-                          file.isCustom
-                            ? 'before:text-amber-500 before:content-["[e]"]'
-                            : 'before:text-muted-foreground/60'
-                        }`
-                  }`}
-                  onClick={() => selectFile(plugin.id, file.path)}
-                >
-                  {file.filename}
-                </button>
-              ))}
-
-              {Object.entries(tree.folders).map(([folder, files]) => (
-                <details key={folder} open>
-                  <summary className="flex cursor-pointer select-none items-center gap-1.5 rounded-sm px-1.5 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-card/80">
-                    <span className="text-[10px]">&#9658;</span>
-                    <span className="font-bold">{folder}/</span>
-                  </summary>
-                  <div className="pl-3.5">
-                    {files.map((file) => (
-                      <button
-                        key={file.path}
-                        className={`flex w-full items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-[10px] transition-all before:shrink-0 before:text-[10px] before:content-['[f]'] ${
-                          selectedFile?.path === file.path && selectedFile?.pluginId === plugin.id
-                            ? 'bg-card/80 text-primary before:text-muted-foreground/60'
-                            : `text-muted-foreground hover:bg-card/80 hover:text-foreground ${
-                                file.isCustom
-                                  ? 'before:text-amber-500 before:content-["[e]"]'
-                                  : 'before:text-muted-foreground/60'
-                              }`
-                        }`}
-                        onClick={() => selectFile(plugin.id, file.path)}
-                      >
-                        {file.filename}
-                      </button>
-                    ))}
-                  </div>
-                </details>
-              ))}
-            </details>
+                  return (
+                    <button
+                      key={mcp.name}
+                      className="flex w-full items-center gap-2 rounded-md border border-[#30363d] bg-[#1c2128] px-2.5 py-1.5 text-left transition-colors hover:bg-[#1c2128]/80"
+                      onClick={() => selectMcp(mcp.name)}
+                    >
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                        isConnected
+                          ? 'bg-[#3fb950] shadow-[0_0_4px_#3fb950]'
+                          : 'bg-[#768390]'
+                      }`} />
+                      <span className="flex-1 font-['Space_Mono'] text-[10px] text-[#cdd9e5]">
+                        {mcp.name}
+                      </span>
+                      {isConnected ? (
+                        <span className="font-['Space_Mono'] text-[9px] text-[#3fb950]">connected</span>
+                      ) : (
+                        <span className="font-['Space_Mono'] text-[9px] text-[#768390]">
+                          Configure &rarr;
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
       {/* Right column — file preview */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-background">
+      <div className="flex flex-1 flex-col overflow-hidden bg-[#0d1117]">
         <PluginFilePreview plugin={plugin} />
       </div>
     </div>

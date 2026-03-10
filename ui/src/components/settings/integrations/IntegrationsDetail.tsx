@@ -21,8 +21,8 @@ export function IntegrationsDetail() {
   // Empty state
   return (
     <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2.5">
-      <span className="text-2xl text-muted-foreground/30">[_]</span>
-      <span className="text-[11px] text-muted-foreground">
+      <span className="font-['Space_Mono'] text-2xl text-[#768390]/30">[_]</span>
+      <span className="font-['Space_Mono'] text-[11px] text-[#768390]">
         Select a plugin or integration
       </span>
     </div>

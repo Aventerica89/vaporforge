@@ -7,14 +7,14 @@ interface PluginComponentListProps {
 
 interface ComponentSection {
   key: 'agents' | 'commands' | 'rules';
-  icon: string;
   label: string;
+  typeIcon: string;
 }
 
 const SECTIONS: ComponentSection[] = [
-  { key: 'agents', icon: 'A', label: 'AGENTS' },
-  { key: 'commands', icon: '$', label: 'COMMANDS' },
-  { key: 'rules', icon: 'R', label: 'RULES' },
+  { key: 'agents', label: 'SKILLS', typeIcon: 'A' },
+  { key: 'commands', label: 'COMMANDS', typeIcon: '\u00bb' },
+  { key: 'rules', label: 'RULES', typeIcon: 'R' },
 ];
 
 export function PluginComponentList({ plugin }: PluginComponentListProps) {
@@ -23,7 +23,7 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
 
   return (
     <div>
-      <div className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+      <div className="mb-3 font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#8b949e]">
         Components
       </div>
 
@@ -32,88 +32,95 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
         if (!items || items.length === 0) return null;
 
         return (
-          <div key={section.key} className="mb-3.5">
-            <div className="flex items-center gap-1.5 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
-              {section.label}
-              <span className="font-normal text-muted-foreground">
-                ({items.length})
-              </span>
+          <div key={section.key} className="mb-3">
+            <div className="mb-1.5 font-['Space_Mono'] text-[10px] font-semibold uppercase tracking-[1.2px] text-[#8b949e]">
+              {section.label} ({items.length})
             </div>
 
-            {items.map((item, idx) => {
-              const expandKey = `${plugin.id}:${section.key}:${idx}`;
-              const isExpanded = expandedItems.has(expandKey);
+            <div className="flex flex-col gap-1.5">
+              {items.map((item, idx) => {
+                const expandKey = `${plugin.id}:${section.key}:${idx}`;
+                const isExpanded = expandedItems.has(expandKey);
+                const desc = item.content?.split('\n')[0]?.replace(/^#\s*/, '') || '';
 
-              return (
-                <div
-                  key={item.name}
-                  className={`mb-1 overflow-hidden rounded-md border transition-colors ${
-                    isExpanded ? 'border-border' : 'border-border/40 hover:border-border'
-                  }`}
-                >
-                  {/* Row header */}
+                return (
                   <div
-                    className={`flex cursor-pointer select-none items-center gap-1.5 px-2.5 py-1.5 transition-colors ${
-                      isExpanded ? 'bg-card/80' : 'bg-card/50 hover:bg-card/80'
-                    }`}
-                    onClick={() => toggleExpanded(expandKey)}
+                    key={item.name}
+                    className="overflow-hidden rounded-[6px] border border-[#30363d] bg-[#0d1117]"
                   >
-                    <span
-                      className={`text-[10px] text-muted-foreground transition-transform ${
-                        isExpanded ? 'rotate-90' : ''
-                      }`}
-                    >
-                      &#9658;
-                    </span>
-                    <span className="w-3 text-center text-[10px] text-muted-foreground/60">
-                      {section.icon}
-                    </span>
-                    <span className="max-w-[120px] shrink-0 truncate text-[11px] text-foreground">
-                      {item.name}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
-                      {item.content?.split('\n')[0]?.replace(/^#\s*/, '') || ''}
-                    </span>
+                    {/* Row header — single line */}
                     <button
-                      className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
-                        item.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePluginItem(plugin.id, section.key, item.name);
-                      }}
+                      className="flex w-full items-center gap-2 px-[12px] py-[8px] text-left"
+                      onClick={() => toggleExpanded(expandKey)}
                     >
-                      <span
-                        className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
-                          item.enabled ? 'left-[15px]' : 'left-[3px]'
-                        }`}
-                      />
-                    </button>
-                  </div>
-
-                  {/* Expanded content */}
-                  <div
-                    className={`overflow-hidden transition-all ${
-                      isExpanded ? 'max-h-[200px]' : 'max-h-0'
-                    }`}
-                  >
-                    <div className="px-2.5 py-2 pl-7">
-                      <p className="mb-1.5 text-[10px] leading-relaxed text-muted-foreground">
-                        {item.content?.split('\n').slice(0, 3).join(' ').replace(/^#\s*\S+\s*/, '').trim() || 'No description available'}
-                      </p>
-                      <button
-                        className="font-mono text-[10px] text-primary transition-opacity before:mr-1 before:text-[10px] before:text-muted-foreground before:content-['file:'] hover:opacity-70"
-                        onClick={() =>
-                          selectFile(plugin.id, `${section.key}/${item.filename}`)
-                        }
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#cdd9e5"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
                       >
-                        {item.filename}
-                      </button>
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
+                      <span className="shrink-0 font-['Space_Mono'] text-[10px] font-bold text-[#8b949e]">
+                        {section.typeIcon}
+                      </span>
+                      <span className="shrink-0 font-['Space_Mono'] text-xs font-bold text-[#cdd9e5]">
+                        {item.name}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-['Space_Mono'] text-[10px] text-[#768390]">
+                        {desc}
+                      </span>
+                      <div
+                        className={`relative h-4 w-7 shrink-0 rounded-full transition-colors ${
+                          item.enabled ? 'bg-[#1DD3E6]' : 'bg-[#768390]/30'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePluginItem(plugin.id, section.key, item.name);
+                        }}
+                        role="switch"
+                        aria-checked={item.enabled}
+                      >
+                        <span
+                          className={`absolute top-[3px] h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-[left] ${
+                            item.enabled ? 'left-[15px]' : 'left-[3px]'
+                          }`}
+                        />
+                      </div>
+                    </button>
+
+                    {/* Expanded content */}
+                    <div
+                      className={`overflow-hidden transition-all ${
+                        isExpanded ? 'max-h-[200px]' : 'max-h-0'
+                      }`}
+                    >
+                      <div className="px-3 pb-2.5 pl-[34px]">
+                        <p className="mb-1.5 font-['Space_Mono'] text-[10px] leading-[1.5] text-[#768390]">
+                          {item.content?.split('\n').slice(0, 3).join(' ').replace(/^#\s*\S+\s*/, '').trim() || 'No description available'}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-['Space_Mono'] text-[10px] text-[#768390]">file:</span>
+                          <button
+                            className="font-['Space_Mono'] text-[10px] font-bold text-[#00e5ff] transition-opacity hover:opacity-70"
+                            onClick={() =>
+                              selectFile(plugin.id, `${section.key}/${item.filename}`)
+                            }
+                          >
+                            {item.filename}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         );
       })}
@@ -121,7 +128,7 @@ export function PluginComponentList({ plugin }: PluginComponentListProps) {
       {plugin.agents.length === 0 &&
         plugin.commands.length === 0 &&
         plugin.rules.length === 0 && (
-          <p className="text-[10px] text-muted-foreground/60">No components</p>
+          <p className="font-['Space_Mono'] text-[10px] text-[#768390]/60">No components</p>
         )}
     </div>
   );
