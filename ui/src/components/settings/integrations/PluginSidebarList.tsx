@@ -8,12 +8,27 @@ import type { Plugin } from '@/lib/types';
 
 const TIER_ORDER: PluginTier[] = ['official', 'community', 'custom'];
 
+/** Known repo URL patterns → sourceId + sourceName */
+const KNOWN_SOURCES: Array<{ pattern: string; id: string; name: string }> = [
+  { pattern: 'anthropics/claude-plugins-official', id: 'anthropic-official', name: 'Anthropic Official' },
+  { pattern: 'ccplugins/awesome-claude-code-plugins', id: 'awesome-community', name: 'Awesome CC Plugins' },
+];
+
+/** Derive sourceId from repoUrl for plugins that predate the sourceId field */
+function inferSourceId(plugin: Plugin): { id: string; name: string } {
+  if (plugin.sourceId) return { id: plugin.sourceId, name: plugin.sourceName ?? plugin.sourceId };
+  const url = plugin.repoUrl ?? '';
+  for (const src of KNOWN_SOURCES) {
+    if (url.includes(src.pattern)) return { id: src.id, name: src.name };
+  }
+  return { id: url || 'unknown', name: url ? url.split('/').slice(-2).join('/') : 'Community Plugins' };
+}
+
 /** Group plugins into packages by source */
 function buildPackages(plugins: Plugin[], tier: PluginTier): PluginPackage[] {
   if (plugins.length === 0) return [];
 
   if (tier === 'official') {
-    // All builtIn plugins → one "Anthropic Official" package
     return [
       {
         key: 'builtin',
@@ -25,7 +40,6 @@ function buildPackages(plugins: Plugin[], tier: PluginTier): PluginPackage[] {
   }
 
   if (tier === 'custom') {
-    // Each custom plugin is its own package
     return plugins.map((p) => ({
       key: `custom:${p.id}`,
       name: p.name,
@@ -34,23 +48,23 @@ function buildPackages(plugins: Plugin[], tier: PluginTier): PluginPackage[] {
     }));
   }
 
-  // Community: group by sourceId (each source repo is its own package)
-  const bySource = new Map<string, Plugin[]>();
+  // Community: group by sourceId (inferred from repoUrl if missing)
+  const bySource = new Map<string, { name: string; plugins: Plugin[] }>();
   for (const p of plugins) {
-    const key = p.sourceId ?? 'unknown';
-    const group = bySource.get(key);
-    if (group) {
-      group.push(p);
+    const src = inferSourceId(p);
+    const existing = bySource.get(src.id);
+    if (existing) {
+      existing.plugins.push(p);
     } else {
-      bySource.set(key, [p]);
+      bySource.set(src.id, { name: src.name, plugins: [p] });
     }
   }
 
   return Array.from(bySource.entries()).map(([sourceId, group]) => ({
     key: `community:${sourceId}`,
-    name: group[0].sourceName ?? 'Community Plugins',
+    name: group.name,
     tier: 'community' as PluginTier,
-    plugins: group,
+    plugins: group.plugins,
   }));
 }
 
