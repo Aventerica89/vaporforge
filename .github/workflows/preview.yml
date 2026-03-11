@@ -36,12 +36,22 @@ jobs:
       - name: Merge dist
         run: npm run build:merge
 
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: op://App Dev/slerdrzowff2gqupj7jgqhi4di/CLOUDFLARE_API_TOKEN
+          CLOUDFLARE_ACCOUNT_ID: op://App Dev/slerdrzowff2gqupj7jgqhi4di/CLOUDFLARE_ACCOUNT_ID
+          CF_WORKERS_SUBDOMAIN: op://App Dev/vaporforge/CF_WORKERS_SUBDOMAIN
+
       - name: Deploy preview to Cloudflare Workers
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ env.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy --env preview
 
       - name: Find existing comment
@@ -61,7 +71,7 @@ jobs:
           body: |
             **Preview deployment** for commit `${{ github.sha }}`
 
-            🔗 **https://vaporforge-preview.${{ secrets.CF_WORKERS_SUBDOMAIN || 'workers.dev' }}**
+            🔗 **https://vaporforge-preview.${{ env.CF_WORKERS_SUBDOMAIN || 'workers.dev' }}**
 
             ```
             ${{ steps.deploy.outputs.command-output }}

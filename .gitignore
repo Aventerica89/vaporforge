@@ -16,9 +16,16 @@ landing/node_modules/
 .env.*.local
 .dev.vars
 
-# IDE
+# IDE / AI tool configs (local only)
 .idea/
 .vscode/
+.cursor/
+.cline/
+.kiro/
+.agent/
+.agents/
+.llms/
+.claude/skills/
 *.swp
 *.swo
 

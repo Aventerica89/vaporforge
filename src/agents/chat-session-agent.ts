@@ -60,6 +60,14 @@ interface HttpBridge {
 /** Interval between sentinel keepalive pings (8 min — under the 10-min idle limit). */
 const SENTINEL_INTERVAL_MS = 8 * 60 * 1000;
 
+/**
+ * Maximum NDJSON lines retained in the replay buffer.
+ * CF DO storage.list() silently truncates results at ~128KB — capping at 2000 lines
+ * keeps us safely under that limit even for large events (~50 bytes × 2000 = 100KB).
+ * Oldest lines are pruned as new ones arrive (rolling window).
+ */
+const MAX_BUFFER_LINES = 2000;
+
 export class ChatSessionAgent {
   private state: DurableObjectState;
   private env: Env;
@@ -125,6 +133,12 @@ export class ChatSessionAgent {
   private storeLine(line: string): void {
     const key = 'buf:' + String(this.bufferSeq++).padStart(10, '0');
     this.state.storage.put(key, line);
+    // Prune the oldest line once the buffer exceeds the cap (rolling window).
+    // Prevents storage.list() from hitting CF's ~128KB result size limit on long sessions.
+    if (this.bufferSeq > MAX_BUFFER_LINES) {
+      const oldest = 'buf:' + String(this.bufferSeq - MAX_BUFFER_LINES - 1).padStart(10, '0');
+      this.state.storage.delete(oldest).catch(() => {});
+    }
   }
 
   /**
@@ -134,8 +148,20 @@ export class ChatSessionAgent {
    */
   private async clearBuffer(): Promise<void> {
     this.bufferSeq = 0;
-    const entries = await this.state.storage.list({ prefix: 'buf:' });
-    if (entries.size > 0) {
+    // Retry up to 3 times — if the DO was just woken from eviction, the first
+    // storage.list() may fail transiently. Without retries this throws and returns
+    // a 500 to the browser with no recovery path.
+    let entries: Map<string, unknown> | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        entries = await this.state.storage.list({ prefix: 'buf:' });
+        break;
+      } catch (err) {
+        if (attempt === 2) throw err;
+        await new Promise<void>((r) => setTimeout(r, 100 * (attempt + 1)));
+      }
+    }
+    if (entries && entries.size > 0) {
       await this.state.storage.delete([...entries.keys()]);
     }
   }
@@ -223,6 +249,14 @@ export class ChatSessionAgent {
 
     const bridge = this.httpBridges.get(payload.executionId);
     if (!bridge) {
+      // httpBridges is in-memory — if the DO was force-evicted while a bridge was
+      // active, the Map is empty on wake. Check SQLite: if we know this executionId,
+      // buffer the remaining output for resume rather than returning 404 (which
+      // causes the container to terminate with no output stored).
+      const knownSession = await this.state.storage.get<string>(`exec:${payload.executionId}`);
+      if (knownSession) {
+        return this.handleOrphanedStream(request, payload.executionId);
+      }
       return new Response('No active stream for this execution', {
         status: 404,
       });
@@ -236,6 +270,7 @@ export class ChatSessionAgent {
     if (!request.body) {
       bridge.resolve();
       this.httpBridges.delete(payload.executionId);
+      this.state.storage.delete(`exec:${payload.executionId}`).catch(() => {});
       return new Response('OK', { status: 200 });
     }
 
@@ -279,8 +314,50 @@ export class ChatSessionAgent {
       );
     } finally {
       this.httpBridges.delete(payload.executionId);
+      this.state.storage.delete(`exec:${payload.executionId}`).catch(() => {});
     }
 
+    return new Response('OK', { status: 200 });
+  }
+
+  /**
+   * The DO was force-evicted while a bridge was active — httpBridges is empty but
+   * the executionId is known (persisted in SQLite). Buffer the container's remaining
+   * output to the replay buffer so the browser can recover it via /chat/resume.
+   * The browser connection is already dropped, so we buffer only (no pipe).
+   */
+  private async handleOrphanedStream(
+    request: Request,
+    executionId: string
+  ): Promise<Response> {
+    if (!request.body) {
+      await this.state.storage.delete(`exec:${executionId}`);
+      return new Response('OK', { status: 200 });
+    }
+
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          this.storeLine(line);
+          this.extractMetadata(line);
+        }
+      }
+      if (buf.trim()) {
+        this.storeLine(buf);
+        this.extractMetadata(buf);
+      }
+    } finally {
+      await this.state.storage.delete(`exec:${executionId}`);
+    }
     return new Response('OK', { status: 200 });
   }
 
@@ -347,6 +424,16 @@ export class ChatSessionAgent {
       reject,
       cancelBridgeTimeout,
     });
+
+    // Persist executionId → sessionId so /internal/stream can buffer output even
+    // if this DO instance is force-evicted before the container calls back.
+    // Cleaned up in handleContainerStream's finally block.
+    await this.state.storage.put(`exec:${executionId}`, sessionId);
+
+    // Extend DO lifetime for the full duration of the stream.
+    // Without this, CF may evict the DO instance after handleChatHttp returns
+    // the Response (which it does immediately, handing off the ReadableStream).
+    this.state.waitUntil(promise);
 
     // Emit connected immediately so the browser knows the request was received.
     // This resets the frontend's 5-min AbortController timeout, which is critical
@@ -420,10 +507,25 @@ export class ChatSessionAgent {
    */
   private async handleResume(url: URL): Promise<Response> {
     const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
-    const entries = await this.state.storage.list<string>({ prefix: 'buf:' });
-    const allLines = [...entries.values()];
-    const fromOffset = allLines.slice(offset);
 
+    // Paginate to avoid CF's ~128KB storage.list() result size cap.
+    // Each page fetches 200 entries; we loop until a page returns fewer than 200.
+    const allLines: string[] = [];
+    let lastKey: string | undefined;
+    while (true) {
+      const page = await this.state.storage.list<string>({
+        prefix: 'buf:',
+        limit: 200,
+        ...(lastKey ? { startAfter: lastKey } : {}),
+      });
+      for (const [k, v] of page) {
+        allLines.push(v);
+        lastKey = k;
+      }
+      if (page.size < 200) break;
+    }
+
+    const fromOffset = allLines.slice(offset);
     if (fromOffset.length === 0) {
       return new Response('', {
         headers: { 'Content-Type': 'application/x-ndjson' },
