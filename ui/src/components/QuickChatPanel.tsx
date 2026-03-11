@@ -896,7 +896,10 @@ function QuickChatMessage({
   const textContent = getMessageText(msg);
   const activelyStreaming = isLastAssistant && isStreaming;
   const hasToolParts = msg.parts.some(
-    (p) => p.type === 'dynamic-tool' || p.type === 'reasoning'
+    (p) =>
+      p.type === 'dynamic-tool' ||
+      p.type === 'reasoning' ||
+      (typeof p.type === 'string' && p.type.startsWith('tool-'))
   );
 
   // Simple path: no tool/reasoning parts — render as before
@@ -1039,6 +1042,49 @@ function QuickChatMessage({
               </Tool>
             );
           }
+        }
+
+        // Static tool parts (e.g. needsApproval tools): type is 'tool-{name}'
+        if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
+          const toolName = part.type.slice(5); // 'tool-runCommand' → 'runCommand'
+          const sp = part as {
+            type: string;
+            toolCallId: string;
+            state: string;
+            input?: unknown;
+            approval?: { id: string };
+            output?: unknown;
+            errorText?: string;
+          };
+          if (sp.state === 'approval-requested' && sp.approval) {
+            return (
+              <Confirmation
+                key={sp.toolCallId}
+                toolName={toolName}
+                input={sp.input as Record<string, unknown>}
+                approvalId={sp.approval.id}
+                onApprove={onApprove}
+                onDeny={onDeny}
+              />
+            );
+          }
+          const spOutput = typeof sp.output === 'string' ? sp.output : undefined;
+          const spError = typeof sp.errorText === 'string' ? sp.errorText : undefined;
+          return (
+            <Tool
+              key={sp.toolCallId}
+              name={toolName}
+              state={sp.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
+              input={sp.input as Record<string, unknown>}
+              compact
+            >
+              <ToolHeader />
+              <ToolContent>
+                <ToolSchemaInput />
+                <ToolOutput output={spOutput} errorText={spError} />
+              </ToolContent>
+            </Tool>
+          );
         }
 
         return null;
