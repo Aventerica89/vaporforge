@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · 4438d19 · v0.29.0
+FIX     quickchat — Tool part type is "tool-{name}" (e.g. "tool-runCommand"), not "tool"; Fix 3 approval-requested auto-deny was never matching static tools
+
 ### 2026-03-11 · 397388f · v0.29.0
 FIX     quickchat — Auto-deny tools still in approval-requested state (user sent new message without responding); prevents tool-result-missing error on next streamText call
 

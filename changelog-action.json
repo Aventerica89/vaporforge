@@ -17,3 +17,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T05:00:00Z", "msg": "fix: add runCommand tool hint to QuickChat system prompt for non-Claude models", "hash": "1861970" }
 { "v": "0.29.0", "ts": "2026-03-11T06:00:00Z", "msg": "fix: execute approved QuickChat tool calls server-side (Gemini tool result missing)", "hash": "237b37d" }
 { "v": "0.29.0", "ts": "2026-03-11T01:44:51Z", "msg": "fix: auto-deny unanswered approval-requested tools to prevent tool-result-missing error", "hash": "397388f" }
+{ "v": "0.29.0", "ts": "2026-03-11T02:17:05Z", "msg": "fix: correct type check in approval-requested auto-deny (was 'tool', must be 'tool-*')", "hash": "4438d19" }
