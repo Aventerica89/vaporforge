@@ -26,6 +26,7 @@ import {
   Github,
   FileText,
   GitBranch,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
@@ -64,7 +65,10 @@ const QC_COMMANDS = [
   { cmd: '/tests',    icon: TestTube2, prompt: 'Write unit tests for the most critical functions in this project.' },
   { cmd: '/optimize', icon: Zap,       prompt: 'Identify performance bottlenecks and suggest optimizations.' },
   { cmd: '/issue',    icon: Github,    prompt: 'Create a GitHub issue for: ' },
-  { cmd: '/docs',     icon: FileText,  prompt: 'Generate documentation for the main modules in this project.' },
+  { cmd: '/docs',     icon: FileText,        prompt: 'Generate documentation for the main modules in this project.' },
+  { cmd: '/t-file',   icon: FlaskConical,    prompt: 'Use runCommand to create a file at /tmp/test.txt containing a short poem, then read it back.' },
+  { cmd: '/t-approve',icon: FlaskConical,    prompt: 'Use runCommand to run: echo "approval works" && ls /tmp' },
+  { cmd: '/t-deny',   icon: FlaskConical,    prompt: 'Use runCommand to run: echo "this should prompt approval". Wait for my response before continuing.' },
 ] as const;
 
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
