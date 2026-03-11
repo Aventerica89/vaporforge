@@ -119,6 +119,9 @@ const STRIP_FROM_SDK_ENV = new Set([
   'VF_MAX_BUDGET_USD',         // VF internal (read in buildOptions to set maxBudgetUsd)
 ]);
 
+// VF display-only tools — always auto-allowed (no side effects, no approval needed).
+const VF_AUTO_ALLOW_TOOLS = new Set(['create_plan', 'ask_user_questions']);
+
 // Tools blocked in plan mode (read-only research mode).
 // Plan mode allows reading, searching, and web browsing but blocks mutations.
 const PLAN_MODE_BLOCKED_TOOLS = new Set([
@@ -524,6 +527,10 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
             console.error(`[claude-agent] Plan mode: blocked ${toolName}`);
             return { behavior: 'deny', message: 'This tool is not available in plan mode.' };
           }
+          return { behavior: 'allow', updatedInput: input };
+        }
+        // VF display tools are always auto-allowed (no side effects)
+        if (VF_AUTO_ALLOW_TOOLS.has(toolName)) {
           return { behavior: 'allow', updatedInput: input };
         }
         // Standard/conservative: pause and wait for user approval
