@@ -1,3 +1,6 @@
+### 2026-03-11 · 38cd944 · v0.29.0
+FEAT    feat: persist MCP mode/scope via PATCH endpoint and seed from server on load
+
 ### 2026-03-11 · 26e5f9e · v0.29.0
 FIX     fix: show approval card for needsApproval static tool parts (runCommand) in QuickChat
 
