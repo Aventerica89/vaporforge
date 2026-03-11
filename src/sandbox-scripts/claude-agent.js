@@ -63,6 +63,40 @@ if (IS_CALLBACK_MODE) {
   console.error('[claude-agent] V1.5 callback mode — streaming to DO');
 }
 
+// Derive base URL for non-streaming DO requests (approval polling).
+// CALLBACK_URL is like https://host/internal/stream — base is https://host
+const CALLBACK_BASE_URL = IS_CALLBACK_MODE
+  ? (() => { const u = new URL(CALLBACK_URL); return `${u.protocol}//${u.host}`; })()
+  : '';
+
+/**
+ * Poll the DO for tool approval result (Standard/conservative mode).
+ * Returns true if approved, false if denied or timed out.
+ */
+async function waitForApproval(approvalId) {
+  const pollUrl = `${CALLBACK_BASE_URL}/internal/approval/${approvalId}`;
+  const deadline = Date.now() + 5 * 60 * 1000; // 5 min timeout
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 600));
+    try {
+      const res = await fetch(pollUrl, {
+        headers: { Authorization: `Bearer ${CALLBACK_JWT}` },
+      });
+      if (res.status === 202) continue; // still pending
+      if (res.status === 200) {
+        const data = await res.json();
+        return data.approved !== false;
+      }
+      // unexpected status — deny
+      return false;
+    } catch (err) {
+      console.error(`[claude-agent] approval poll error: ${err.message}`);
+    }
+  }
+  console.error(`[claude-agent] approval timeout for ${approvalId}`);
+  return false;
+}
+
 // Emit an event object as NDJSON.
 // V1.0: synchronous write to stdout (fd 1), bypasses Node's stream buffering.
 // V1.5: write to open chunked HTTP POST request to DO callback.
@@ -477,13 +511,26 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
     includePartialMessages: true,
     permissionMode,
     allowDangerouslySkipPermissions,
-    ...(isPlan ? {
-      canUseTool: async (toolName) => {
-        if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
-          console.error(`[claude-agent] Plan mode: blocked ${toolName}`);
-          return false;
+    ...((isPlan || (IS_CALLBACK_MODE && (autonomy === 'standard' || autonomy === 'conservative'))) ? {
+      canUseTool: async (toolName, input) => {
+        // Plan mode: block destructive tools
+        if (isPlan) {
+          if (PLAN_MODE_BLOCKED_TOOLS.has(toolName)) {
+            console.error(`[claude-agent] Plan mode: blocked ${toolName}`);
+            return { behavior: 'deny', message: 'This tool is not available in plan mode.' };
+          }
+          return { behavior: 'allow', updatedInput: input };
         }
-        return true;
+        // Standard/conservative: pause and wait for user approval
+        const approvalId = `ap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        emit({ type: 'confirmation', toolName, input, approvalId });
+        console.error(`[claude-agent] Awaiting approval for ${toolName} (${approvalId})`);
+        const approved = await waitForApproval(approvalId);
+        console.error(`[claude-agent] Approval ${approved ? 'granted' : 'denied'} for ${toolName}`);
+        if (!approved) {
+          return { behavior: 'deny', message: 'User denied this action.' };
+        }
+        return { behavior: 'allow', updatedInput: input };
       },
     } : {}),
     continue: true,

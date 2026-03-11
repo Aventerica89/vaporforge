@@ -68,11 +68,15 @@ const SENTINEL_INTERVAL_MS = 8 * 60 * 1000;
  */
 const MAX_BUFFER_LINES = 2000;
 
+/** Max time to wait for a tool approval before auto-denying (5 min). */
+const APPROVAL_TIMEOUT_MS = 5 * 60 * 1000;
+
 export class ChatSessionAgent {
   private state: DurableObjectState;
   private env: Env;
   private httpBridges = new Map<string, HttpBridge>();
   private bufferSeq = 0;
+  private pendingApprovals = new Map<string, (approved: boolean) => void>();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -202,6 +206,38 @@ export class ChatSessionAgent {
       return this.handleResume(url);
     }
 
+    // Container polls this to learn if user approved/denied a tool (Standard mode)
+    if (request.method === 'GET' && url.pathname.startsWith('/internal/approval/')) {
+      const approvalId = url.pathname.replace('/internal/approval/', '');
+      const resolver = this.pendingApprovals.get(approvalId);
+      if (resolver === undefined) {
+        // Not found — either already resolved or invalid
+        return new Response(JSON.stringify({ status: 'resolved', approved: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      // Still pending
+      return new Response(JSON.stringify({ status: 'pending' }), {
+        status: 202,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Browser submits approve/deny for a pending tool permission request
+    if (request.method === 'POST' && url.pathname === '/approve') {
+      const body = (await request.json()) as { approvalId: string; approved: boolean };
+      const resolver = this.pendingApprovals.get(body.approvalId);
+      if (resolver) {
+        this.pendingApprovals.delete(body.approvalId);
+        resolver(body.approved);
+      }
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
     if (request.method === 'POST' && url.pathname === '/chat') {
       try {
@@ -299,6 +335,7 @@ export class ChatSessionAgent {
           );
           this.storeLine(line);
           this.extractMetadata(line);
+          this.maybeRegisterApproval(line);
         }
       }
 
@@ -309,6 +346,7 @@ export class ChatSessionAgent {
         );
         this.storeLine(buffer);
         this.extractMetadata(buffer);
+        this.maybeRegisterApproval(buffer);
       }
 
       bridge.resolve();
@@ -561,6 +599,29 @@ export class ChatSessionAgent {
       }
       if (event.type === 'session-reset') {
         this.state.storage.put('sdkSessionId', '').catch(() => {});
+      }
+    } catch {
+      // Skip parse errors
+    }
+  }
+
+  /** Registers a pending approval promise when a confirmation chunk flows through the stream. */
+  private maybeRegisterApproval(line: string): void {
+    try {
+      const event = JSON.parse(line) as Record<string, unknown>;
+      if (event.type === 'confirmation' && typeof event.approvalId === 'string') {
+        const approvalId = event.approvalId;
+        if (!this.pendingApprovals.has(approvalId)) {
+          new Promise<boolean>((resolve) => {
+            this.pendingApprovals.set(approvalId, resolve);
+            setTimeout(() => {
+              if (this.pendingApprovals.has(approvalId)) {
+                this.pendingApprovals.delete(approvalId);
+                resolve(false);
+              }
+            }, APPROVAL_TIMEOUT_MS);
+          });
+        }
       }
     } catch {
       // Skip parse errors

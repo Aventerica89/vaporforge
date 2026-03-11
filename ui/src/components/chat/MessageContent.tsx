@@ -1,4 +1,5 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, useCallback } from 'react';
+import { approveToolUse } from '@/lib/api';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ChatMarkdown } from './ChatMarkdown';
@@ -97,10 +98,19 @@ function AskQuestionsBlock({ part }: { part: MessagePart }) {
   );
 }
 
-/** Wrapper for Confirmation that needs hook access (sendMessage for approval) */
+/** Wrapper for Confirmation that calls the V1.5 approval API */
 function ConfirmationBlock({ part }: { part: MessagePart }) {
-  const sendMessage = useSandboxStore((s) => s.sendMessage);
+  const sessionId = useSandboxStore((s) => s.currentSession?.id ?? '');
   const conf = part.confirmation;
+
+  const handleApprove = useCallback((approvalId: string) => {
+    void approveToolUse(sessionId, approvalId, true).catch(console.error);
+  }, [sessionId]);
+
+  const handleDeny = useCallback((approvalId: string) => {
+    void approveToolUse(sessionId, approvalId, false).catch(console.error);
+  }, [sessionId]);
+
   if (!conf) return null;
 
   return (
@@ -108,8 +118,8 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
       toolName={conf.toolName}
       input={conf.input}
       approvalId={conf.approvalId}
-      onApprove={() => void sendMessage(`Approved: ${conf.toolName}`)}
-      onDeny={() => void sendMessage(`Denied: ${conf.toolName}`)}
+      onApprove={handleApprove}
+      onDeny={handleDeny}
     />
   );
 }

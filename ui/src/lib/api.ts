@@ -1562,3 +1562,26 @@ export interface AlertConfig {
   triggeredCount: number;
   createdAt: string;
 }
+
+/** Submit a tool approval/denial for a pending Standard-mode permission request. */
+export async function approveToolUse(
+  sessionId: string,
+  approvalId: string,
+  approved: boolean
+): Promise<void> {
+  const token = localStorage.getItem('session_token');
+  if (!token) throw new Error('Not authenticated');
+
+  const response = await fetch(`${API_BASE}/v15/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ sessionId, approvalId, approved }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`approveToolUse failed: ${response.status}`);
+  }
+}

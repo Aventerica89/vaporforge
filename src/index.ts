@@ -84,6 +84,31 @@ export default {
       }
     }
 
+    // V1.5: Tool approval — browser submits approve/deny for Standard-mode permission requests
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v15/approve'
+    ) {
+      const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
+      const user = await extractAuth(request, authService);
+      if (!user) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const body = (await request.json()) as { sessionId?: string; approvalId?: string; approved?: boolean };
+      if (!body.sessionId || !body.approvalId || typeof body.approved !== 'boolean') {
+        return new Response('Missing sessionId, approvalId, or approved', { status: 400 });
+      }
+      const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
+      const stub = env.CHAT_SESSIONS.get(doId);
+      return stub.fetch(
+        new Request('https://do/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approvalId: body.approvalId, approved: body.approved }),
+        })
+      );
+    }
+
     // V1.5: Resume endpoint — serves buffered NDJSON from a given offset after disconnect
     if (
       request.method === 'GET' &&

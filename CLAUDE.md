@@ -19,6 +19,8 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 
 Load these instead of re-reading source files for orientation.
 
+**For technology docs**, use the `/cli` skill to access local llms.txt files (Cloudflare, Vercel AI SDK, Docker, Anthropic Agent SDK). These are faster and don't require network fetches. Claude.com does not publish llms.txt — use `docs.claude.com` or `platform.claude.com` via Context7 for Anthropic-specific docs.
+
 ## MANDATORY RULES
 
 1. **NEVER use Anthropic API keys for authentication.** Auth uses setup-token flow (OAuth tokens `sk-ant-oat01-*`), not API keys.
@@ -213,6 +215,9 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Bridge timeout**: 5 minutes. If container never calls back to `/internal/stream`, the DO closes the browser's HTTP response with an error event.
 - **Mode/model/autonomy threading**: Frontend sends `mode`, `model`, `autonomy` in POST body. Worker passes through to DO. DO must forward them as `VF_SESSION_MODE`, `VF_MODEL`, `VF_AUTONOMY_MODE` env vars in `startProcess`.
 - **`/init` endpoint**: Called from session creation to persist `userId` in DO storage. Unauthenticated (internal-only). The `/chat` path also passes `userId` in the body as a more reliable source.
+- **Chrome Fetch ReadableStream buffering**: Chrome buffers HTTP chunks smaller than ~1KB before delivering to `reader.read()`. Each `bridge.writer.write()` call in `handleContainerStream` pads writes with `' '.repeat(1024) + '\n'` to force immediate delivery. The padding line is whitespace-only; `streamV15`'s `if (!line.trim()) continue` skips it.
+- **`useSmoothText` is the streaming animation layer**: `hooks/useSmoothText.ts` runs a `requestAnimationFrame` loop that advances a cursor through accumulated text at 4–15 chars/frame. It MUST be used for streaming text — without it, React 18's automatic batching causes all tokens to pop in at once. Wire it in `MessageContent.tsx` for the streaming `case 'text'` path.
+- **Debugging streaming pop-in**: Check Network tab → Response first. If individual `text-delta` events are visible, the transport is fine and the bug is in the React rendering layer (likely `useSmoothText` not applied, or React batching).
 
 ### MCP Servers
 
