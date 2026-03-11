@@ -1,3 +1,6 @@
+### 2026-03-11 · 487e9e5 · v0.29.0
+CHORE   deploy — marketplace-first plugin UX; rename Add Plugins to Marketplaces
+
 ### 2026-03-11 · a85237d · v0.29.0
 FIX     fix: per-package remove button + sequential deletes to prevent KV race condition
 
