@@ -50,6 +50,13 @@ if (IS_CALLBACK_MODE) {
       'Transfer-Encoding': 'chunked',
     },
   });
+  // Disable Nagle's algorithm so each callbackReq.write() is sent as its own
+  // TCP packet. Without this, text-delta events (~30 bytes each, generated
+  // every 5-20ms) are coalesced by Nagle into one large TCP segment, causing
+  // all text to arrive at the DO simultaneously and appear as pop-in.
+  callbackReq.on('socket', (socket) => {
+    socket.setNoDelay(true);
+  });
   callbackReq.on('error', (err) => {
     console.error(`[claude-agent] callback POST error: ${err.message}`);
   });

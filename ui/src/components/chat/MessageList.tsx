@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { BrainCircuit } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds } from '@/hooks/useSandbox';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
@@ -157,9 +157,34 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
   const isStreaming = useSandboxStore((s) => s.isStreaming);
   const streamingContent = useSandboxStore((s) => s.streamingContent);
   const streamingParts = useSandboxStore((s) => s.streamingParts);
-  if (!isStreaming) return null;
 
-  const hasContent = !!(streamingContent || streamingParts.length > 0);
+  // Keep last-seen content so we can show it during the linger period.
+  const lastPartsRef = useRef(streamingParts);
+  const lastContentRef = useRef(streamingContent);
+  if (isStreaming) {
+    lastPartsRef.current = streamingParts;
+    lastContentRef.current = streamingContent;
+  }
+
+  // Linger briefly after streaming ends so useSmoothText can animate the final
+  // content batch. Without this, StreamingMessage unmounts immediately when
+  // isStreaming→false (e.g. due to TCP Nagle delivering all events at once),
+  // and the completed message pops in with no animation.
+  const [linger, setLinger] = useState(false);
+  useEffect(() => {
+    if (!isStreaming && (lastPartsRef.current.length > 0 || lastContentRef.current)) {
+      setLinger(true);
+      // 700ms: enough for useSmoothText to animate ~2000 chars at 3x catch-up speed.
+      const timer = setTimeout(() => setLinger(false), 700);
+      return () => clearTimeout(timer);
+    }
+  }, [isStreaming]);
+
+  if (!isStreaming && !linger) return null;
+
+  const parts = isStreaming ? streamingParts : lastPartsRef.current;
+  const content = isStreaming ? streamingContent : lastContentRef.current;
+  const hasContent = !!(content || parts.length > 0);
 
   if (compact) {
     return (
@@ -168,11 +193,11 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
           {hasContent ? (
             <>
               <StreamingContent
-                parts={streamingParts}
-                fallbackContent={streamingContent}
+                parts={parts}
+                fallbackContent={content}
               />
               <div className="mt-2 flex items-center">
-                <MessageActions content={streamingContent} isStreaming />
+                <MessageActions content={content} isStreaming={isStreaming} />
               </div>
             </>
           ) : (
@@ -184,21 +209,21 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
   }
 
   return (
-    <Message role="assistant" isStreaming>
+    <Message role="assistant" isStreaming={isStreaming}>
       <MessageBody>
         {hasContent ? (
           <>
             <StreamingContent
-              parts={streamingParts}
-              fallbackContent={streamingContent}
+              parts={parts}
+              fallbackContent={content}
             />
-            <TypingCursor />
+            {isStreaming && <TypingCursor />}
           </>
         ) : (
-          <StreamingIndicator parts={streamingParts} hasContent={false} />
+          <StreamingIndicator parts={parts} hasContent={false} />
         )}
         <MessageFooter>
-          <MessageActions content={streamingContent} isStreaming />
+          <MessageActions content={content} isStreaming={isStreaming} />
         </MessageFooter>
       </MessageBody>
     </Message>
