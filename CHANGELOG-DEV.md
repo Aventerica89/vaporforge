@@ -1,4 +1,6 @@
 
+### 2026-03-11 · 4626552 · v0.29.0
+FIX     deploy — streaming pop-in (#81): TCP Nagle setNoDelay + useSmoothText rAF redesign + StreamingMessage 700ms linger
 ### 2026-03-11 · 4aebcd3 · v0.29.0
 FIX     deploy — JWT auth on /internal/approval/:id poll endpoint (was unauthenticated)
 ### 2026-03-11 · 4d228c1 · v0.29.0
