@@ -1,3 +1,6 @@
+### 2026-03-11 · f3ce027 · v0.29.0
+FIX     fix: skip corrupted KV entries in sessions/list to prevent 500
+
 ### 2026-03-11 · 38cd944 · v0.29.0
 FEAT    feat: persist MCP mode/scope via PATCH endpoint and seed from server on load
 

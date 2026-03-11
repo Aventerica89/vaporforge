@@ -21,3 +21,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T02:39:46Z", "msg": "feat: /t-file, /t-approve, /t-deny tool-test slash commands in QuickChat", "hash": "fa95fa0" }
 { "v": "0.29.0", "ts": "2026-03-11T04:23:28Z", "msg": "fix: show approval card for needsApproval static tool parts (runCommand) in QuickChat", "hash": "26e5f9e" }
 { "v": "0.29.0", "ts": "2026-03-11T05:02:46Z", "msg": "feat: persist MCP mode/scope via PATCH endpoint and seed from server on load", "hash": "38cd944" }
+{ "v": "0.29.0", "ts": "2026-03-11T05:30:00Z", "msg": "fix: skip corrupted KV entries in sessions/list to prevent 500", "hash": "f3ce027" }
