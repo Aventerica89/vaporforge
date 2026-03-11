@@ -34,3 +34,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T19:39:25Z", "msg": "Tool approval UI for Standard/conservative mode + container canUseTool", "hash": "06e9515" }
 { "v": "0.29.0", "ts": "2026-03-11T19:55:00Z", "msg": "Plan prompt for Standard/conservative mode — create_plan before multi-step tool use", "hash": "ce2134d" }
 { "v": "0.29.0", "ts": "2026-03-11T20:10:00Z", "msg": "Fix: auto-allow create_plan/ask_user_questions in canUseTool (hang in Standard mode)", "hash": "4d228c1" }
+{ "v": "0.29.0", "ts": "2026-03-11T20:35:00Z", "msg": "Fix: JWT auth on approval poll endpoint + void floating Promise lint fix", "hash": "4aebcd3" }

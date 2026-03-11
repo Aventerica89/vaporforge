@@ -1,4 +1,6 @@
 
+### 2026-03-11 · 4aebcd3 · v0.29.0
+FIX     deploy — JWT auth on /internal/approval/:id poll endpoint (was unauthenticated)
 ### 2026-03-11 · 4d228c1 · v0.29.0
 FIX     deploy — auto-allow create_plan/ask_user_questions in canUseTool (hang fix in Standard mode)
 ### 2026-03-11 · ce2134d · v0.29.0
