@@ -19,3 +19,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T01:44:51Z", "msg": "fix: auto-deny unanswered approval-requested tools to prevent tool-result-missing error", "hash": "397388f" }
 { "v": "0.29.0", "ts": "2026-03-11T02:17:05Z", "msg": "fix: correct type check in approval-requested auto-deny (was 'tool', must be 'tool-*')", "hash": "4438d19" }
 { "v": "0.29.0", "ts": "2026-03-11T02:39:46Z", "msg": "feat: /t-file, /t-approve, /t-deny tool-test slash commands in QuickChat", "hash": "fa95fa0" }
+{ "v": "0.29.0", "ts": "2026-03-11T04:23:28Z", "msg": "fix: show approval card for needsApproval static tool parts (runCommand) in QuickChat", "hash": "26e5f9e" }
