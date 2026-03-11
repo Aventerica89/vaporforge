@@ -1,8 +1,55 @@
+### 2026-03-11 · 47c266d · v0.29.0
+CHORE   deploy — V1.5 stability: keepAlive, buffer pruning, clearBuffer retry, list() pagination, orphaned stream buffering
+
+### 2026-03-11 · 742cb44 · v0.29.0
+FEAT    sandbox.watch() SSE endpoint + useFileWatcher hook — live Monaco refresh when Claude writes files
+
+### 2026-03-11 · 3245c5c · v0.29.0
+FIX     marketplace: source name shown correctly, install state immediate, auto-refresh on open
+
+### 2026-03-11 · 487e9e5 · v0.29.0
+CHORE   deploy — marketplace-first plugin UX; rename Add Plugins to Marketplaces
+
+### 2026-03-11 · a85237d · v0.29.0
+FIX     fix: per-package remove button + sequential deletes to prevent KV race condition
+
+### 2026-03-11 · 7f4315f · v0.29.0
+FIX     fix: plugin item toggle 400 (plural itemType) + bulk remove all button
+
+### 2026-03-11 · f3ce027 · v0.29.0
+FIX     fix: skip corrupted KV entries in sessions/list to prevent 500
+
+### 2026-03-11 · 38cd944 · v0.29.0
+FEAT    feat: persist MCP mode/scope via PATCH endpoint and seed from server on load
+
+### 2026-03-11 · 26e5f9e · v0.29.0
+FIX     fix: show approval card for needsApproval static tool parts (runCommand) in QuickChat
+
 # Developer Log
 
 Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
+
+### 2026-03-11 · fa95fa0 · v0.29.0
+FEAT    quickchat — /t-file, /t-approve, /t-deny slash commands for manual tool approval flow testing
+
+### 2026-03-11 · 4438d19 · v0.29.0
+FIX     quickchat — Tool part type is "tool-{name}" (e.g. "tool-runCommand"), not "tool"; Fix 3 approval-requested auto-deny was never matching static tools
+
+### 2026-03-11 · 397388f · v0.29.0
+FIX     quickchat — Auto-deny tools still in approval-requested state (user sent new message without responding); prevents tool-result-missing error on next streamText call
+
+### 2026-03-11 · 237b37d · v0.29.0
+FIX     quickchat — Execute approved tool calls server-side before streamText; Gemini (unlike Claude) validates every tool call has a result, throwing "Tool result is missing" without this
+
+### 2026-03-11 · 1861970 · v0.29.0
+FIX     quickchat — Add explicit runCommand tool hint to system prompt; Gemini was outputting XML tool-call markup instead of using the tool
+
+### 2026-03-11 · 785c928 · v0.29.0
+FIX     quickchat — Fix runCommand approval flow: add sendAutomaticallyWhen + convertToModelMessages to preserve tool-call/approval parts across HTTP round-trips
+FIX     issues — Fix issues.ts TS2322 (issueId non-null assertion)
+CHORE   wrangler — Add limits.cpu_ms: 30000 for wrangler 4.61+ compat; deploy via bun global wrangler to fix arm64 arch mismatch
 
 ### 2026-03-01 · v0.30.0
 FIX     github — Add detailed error logging to repos endpoint; log actual GitHub API status and response body to diagnose 502 failures

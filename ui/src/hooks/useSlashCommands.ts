@@ -44,11 +44,22 @@ export function useSlashCommands(
 
   const filteredCommands = useMemo(() => {
     if (!menuState) return [];
-    return commands.filter(
-      (cmd) =>
-        cmd.kind === menuState.kind &&
-        cmd.name.toLowerCase().startsWith(menuState.query.toLowerCase()),
-    );
+    const q = menuState.query.toLowerCase();
+    return commands
+      .filter((cmd) => cmd.kind === menuState.kind)
+      .filter((cmd) => {
+        const name = cmd.name.toLowerCase();
+        const source = cmd.source.toLowerCase();
+        return name.startsWith(q) || name.includes(q) || source.includes(q);
+      })
+      .sort((a, b) => {
+        // Prioritize prefix matches over substring matches
+        const aPrefix = a.name.toLowerCase().startsWith(q);
+        const bPrefix = b.name.toLowerCase().startsWith(q);
+        if (aPrefix && !bPrefix) return -1;
+        if (!aPrefix && bPrefix) return 1;
+        return a.name.localeCompare(b.name);
+      });
   }, [menuState, commands]);
 
   const menuOpen = menuState !== null && filteredCommands.length > 0;

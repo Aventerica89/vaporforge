@@ -203,8 +203,22 @@ export interface McpServerConfig {
   tools?: string[];
   /** Total tool count from last ping */
   toolCount?: number;
+  /** Full tool schemas from last ping (name + description + inputSchema) */
+  toolSchemas?: Array<{
+    name: string;
+    description?: string;
+    inputSchema?: Record<string, unknown>;
+  }>;
   /** When the MCP server tools are available to the agent */
   mode?: 'always' | 'on-demand' | 'auto';
+  /** Session scope for this MCP server */
+  scope?: 'global' | 'project';
+  /** Rate limit configuration (optional, forward-compatible) */
+  rateLimit?: { maxPerMinute: number; currentUsage?: number };
+  /** Last ping timestamp (ISO) */
+  lastPingAt?: string;
+  /** Last ping round-trip latency in ms */
+  lastPingMs?: number;
   enabled: boolean;
   addedAt: string;
 }
@@ -230,6 +244,8 @@ export interface Plugin {
   commands: PluginItem[];
   rules: PluginItem[];
   mcpServers: McpServerConfig[];
+  sourceId?: string;
+  sourceName?: string;
   addedAt: string;
   updatedAt: string;
 }

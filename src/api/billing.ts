@@ -29,7 +29,7 @@ interface SubscriptionRecord {
 function getStripe(env: Env): Stripe {
   return new Stripe(env.STRIPE_SECRET_KEY, {
     httpClient: Stripe.createFetchHttpClient(),
-    apiVersion: '2026-01-28.clover',
+    apiVersion: '2026-02-25.clover',
   });
 }
 

@@ -970,6 +970,12 @@ export const mcpApi = {
       method: 'DELETE',
     }),
 
+  patch: (name: string, data: { mode?: McpServerConfig['mode']; scope?: McpServerConfig['scope'] }) =>
+    request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
   toggle: (name: string) =>
     request<McpServerConfig>(`/mcp/${encodeURIComponent(name)}/toggle`, {
       method: 'PUT',
@@ -1004,6 +1010,7 @@ export interface PluginSource {
   url: string;
   label: string;
   addedAt: string;
+  autoUpdate?: boolean;
 }
 
 export const pluginSourcesApi = {
@@ -1028,6 +1035,12 @@ export const pluginSourcesApi = {
 
   catalog: () =>
     request<{ plugins: any[]; refreshedAt: string | null }>('/plugin-sources/catalog'),
+
+  patch: (id: string, data: Partial<Pick<PluginSource, 'autoUpdate' | 'label'>>) =>
+    request<PluginSource>(`/plugin-sources/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
 };
 
 // Plugins API

@@ -14,6 +14,8 @@ export function IntegrationsTab() {
     loadMcpServers,
     pingAllMcps,
     sidebarWidth,
+    plugins,
+    mcpServers,
   } = useIntegrationsStore();
 
   // Load data on mount — including custom plugin sources for MarketplaceSlideIn
@@ -23,18 +25,32 @@ export function IntegrationsTab() {
     useMarketplace.getState().loadCustomSources();
   }, [loadPlugins, loadMcpServers, pingAllMcps]);
 
+  const enabledPlugins = plugins.filter((p: { enabled: boolean }) => p.enabled).length;
+  const enabledMcps = mcpServers.filter((s: { enabled: boolean }) => s.enabled).length;
+
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden">
-      {/* Loading indicator — counts live in the sidebar tab buttons */}
-      {(isLoadingPlugins || isLoadingMcps) && (
-        <div className="shrink-0 px-5 py-1.5 text-[10px] text-primary/60 animate-pulse border-b border-border/40">
-          loading...
+      {/* Header Bar */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#21262d] bg-[#0d1117] px-5">
+        <span className="font-['Space_Mono'] text-[12px] font-semibold uppercase tracking-[1px] text-[#cdd9e5]">
+          Integrations
+        </span>
+        <div className="flex items-center gap-[20px]">
+          <span className="font-['Space_Mono'] text-[10px] text-[#8b949e]">
+            {enabledPlugins}/{plugins.length} Plugins
+          </span>
+          <span className="font-['Space_Mono'] text-[10px] text-[#8b949e]">
+            {enabledMcps}/{mcpServers.length} MCPs
+          </span>
+          {(isLoadingPlugins || isLoadingMcps) && (
+            <span className="text-[10px] text-primary/60 animate-pulse">loading...</span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Master / Detail */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div style={{ width: sidebarWidth }} className="shrink-0 h-full overflow-hidden border-r border-border">
+        <div style={{ width: sidebarWidth }} className="shrink-0 h-full overflow-hidden">
           <IntegrationsSidebar />
         </div>
         <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">

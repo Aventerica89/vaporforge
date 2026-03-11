@@ -227,8 +227,25 @@ export const McpServerConfigSchema = z.object({
   tools: z.array(z.string()).optional(),
   /** Total tool count from last ping */
   toolCount: z.number().optional(),
+  /** Full tool schemas from last ping (name + description + inputSchema) */
+  toolSchemas: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    inputSchema: z.record(z.unknown()).optional(),
+  })).optional(),
   /** When the MCP server tools are available to the agent */
   mode: z.enum(['always', 'on-demand', 'auto']).optional(),
+  /** Session scope for this MCP server */
+  scope: z.enum(['global', 'project']).optional(),
+  /** Rate limit configuration (optional, forward-compatible) */
+  rateLimit: z.object({
+    maxPerMinute: z.number(),
+    currentUsage: z.number().optional(),
+  }).optional(),
+  /** Last ping timestamp (ISO) */
+  lastPingAt: z.string().optional(),
+  /** Last ping round-trip latency in ms */
+  lastPingMs: z.number().optional(),
   enabled: z.boolean().default(true),
   addedAt: z.string(),
 });
@@ -258,6 +275,8 @@ export const PluginSchema = z.object({
   commands: z.array(PluginItemSchema).default([]),
   rules: z.array(PluginItemSchema).default([]),
   mcpServers: z.array(McpServerConfigSchema).default([]),
+  sourceId: z.string().optional(),
+  sourceName: z.string().optional(),
   addedAt: z.string(),
   updatedAt: z.string(),
 });

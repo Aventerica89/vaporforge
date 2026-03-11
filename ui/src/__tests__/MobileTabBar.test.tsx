@@ -81,14 +81,14 @@ describe('MobileTabBar', () => {
     expect(tabBar.className).not.toContain('translate-y-full');
   });
 
-  it('highlights active tab with text-primary class', () => {
+  it('highlights active tab with primary color style', () => {
     render(<MobileTabBar {...defaultProps} activeTab="chat" />);
 
     const chatTab = screen.getByRole('tab', { name: /chat/i });
-    expect(chatTab.className).toContain('text-primary');
+    expect(chatTab.style.color).toBe('hsl(var(--primary))');
 
     const filesTab = screen.getByRole('tab', { name: /files/i });
-    expect(filesTab.className).not.toContain('text-primary');
+    expect(filesTab.style.color).toBe('hsl(var(--muted-foreground))');
   });
 
   it('has correct aria-selected on active and inactive tabs', () => {

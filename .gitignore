@@ -16,9 +16,16 @@ landing/node_modules/
 .env.*.local
 .dev.vars
 
-# IDE
+# IDE / AI tool configs (local only)
 .idea/
 .vscode/
+.cursor/
+.cline/
+.kiro/
+.agent/
+.agents/
+.llms/
+.claude/skills/
 *.swp
 *.swo
 
@@ -48,3 +55,11 @@ coverage/
 
 # motion-primitives stray install (component lives in ui/src/components/motion-primitives/)
 ui/components/
+
+# Claude Code session artifacts
+.claude/session-cache.json
+.claude/pencil-relay.md
+.playwright-mcp/
+
+# Playground scratch files
+playground/

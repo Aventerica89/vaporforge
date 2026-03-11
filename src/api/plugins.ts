@@ -198,6 +198,8 @@ const BUILTIN_PLUGINS: Plugin[] = [
     scope: 'local' as const,
     enabled: true,
     builtIn: true,
+    sourceId: 'builtin',
+    sourceName: 'Anthropic Official',
     agents: [{
       name: 'Code Reviewer',
       filename: 'code-reviewer.md',
@@ -222,6 +224,8 @@ const BUILTIN_PLUGINS: Plugin[] = [
     scope: 'local' as const,
     enabled: true,
     builtIn: true,
+    sourceId: 'builtin',
+    sourceName: 'Anthropic Official',
     agents: [{
       name: 'Test Writer',
       filename: 'test-writer.md',
@@ -246,6 +250,8 @@ const BUILTIN_PLUGINS: Plugin[] = [
     scope: 'local' as const,
     enabled: true,
     builtIn: true,
+    sourceId: 'builtin',
+    sourceName: 'Anthropic Official',
     agents: [{
       name: 'Doc Writer',
       filename: 'doc-writer.md',
@@ -270,6 +276,8 @@ const BUILTIN_PLUGINS: Plugin[] = [
     scope: 'local' as const,
     enabled: true,
     builtIn: true,
+    sourceId: 'builtin',
+    sourceName: 'Anthropic Official',
     agents: [{
       name: 'Refactorer',
       filename: 'refactorer.md',
@@ -294,6 +302,8 @@ const BUILTIN_PLUGINS: Plugin[] = [
     scope: 'local' as const,
     enabled: true,
     builtIn: true,
+    sourceId: 'builtin',
+    sourceName: 'Anthropic Official',
     agents: [],
     commands: [{
       name: 'mcp-servers',
@@ -559,8 +569,11 @@ async function applyToggle(
   // Toggle specific sub-item
   const categoryMap: Record<string, 'agents' | 'commands' | 'rules'> = {
     agent: 'agents',
+    agents: 'agents',
     command: 'commands',
+    commands: 'commands',
     rule: 'rules',
+    rules: 'rules',
   };
 
   if (body.itemType === 'mcp') {

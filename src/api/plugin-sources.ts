@@ -12,6 +12,7 @@ export interface PluginSource {
   url: string;
   label: string;
   addedAt: string;
+  autoUpdate?: boolean;
 }
 
 interface CatalogPluginRuntime {
@@ -333,6 +334,31 @@ pluginSourcesRoutes.delete('/:id', async (c) => {
   await c.env.SESSIONS_KV.delete(cacheKvKey(user.id));
 
   return c.json({ success: true, data: { deleted: true } });
+});
+
+// PATCH /:id — update source fields (e.g. autoUpdate)
+pluginSourcesRoutes.patch('/:id', async (c) => {
+  const user = c.get('user');
+  const { id } = c.req.param();
+  const body = (await c.req.json()) as Partial<Pick<PluginSource, 'autoUpdate' | 'label'>>;
+
+  const sources = await readSources(c.env.SESSIONS_KV, user.id);
+  const idx = sources.findIndex((s) => s.id === id);
+
+  if (idx === -1) {
+    return c.json({ success: false, error: 'Source not found' }, 404);
+  }
+
+  const updated: PluginSource = {
+    ...sources[idx],
+    ...(typeof body.autoUpdate === 'boolean' ? { autoUpdate: body.autoUpdate } : {}),
+    ...(typeof body.label === 'string' && body.label.trim() ? { label: body.label.trim() } : {}),
+  };
+
+  const updatedSources = sources.map((s, i) => (i === idx ? updated : s));
+  await writeSources(c.env.SESSIONS_KV, user.id, updatedSources);
+
+  return c.json({ success: true, data: updated });
 });
 
 // POST /refresh — re-discover all sources, return merged catalog

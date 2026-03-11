@@ -201,7 +201,7 @@ mcpRoutes.put('/:name', async (c) => {
     }, 400);
   }
 
-  const { transport, url, command, args, localUrl, headers, env, credentialFiles } = parsed.data;
+  const { transport, url, command, args, localUrl, headers, env, credentialFiles, mode, scope } = parsed.data;
 
   if (transport === 'http' && !url) {
     return c.json<ApiResponse<never>>({ success: false, error: 'URL is required for HTTP transport' }, 400);
@@ -229,6 +229,8 @@ mcpRoutes.put('/:name', async (c) => {
     headers,
     env,
     credentialFiles,
+    mode,
+    scope,
   };
 
   const updated = servers.map((s) => (s.name === name ? updatedServer : s));
@@ -238,6 +240,36 @@ mcpRoutes.put('/:name', async (c) => {
     success: true,
     data: updatedServer,
   });
+});
+
+// PATCH /:name — partial update (mode, scope)
+mcpRoutes.patch('/:name', async (c) => {
+  const user = c.get('user');
+  const name = c.req.param('name');
+
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const index = servers.findIndex((s) => s.name === name);
+
+  if (index === -1) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'MCP server not found' }, 404);
+  }
+
+  const body = await c.req.json();
+  const patchSchema = McpServerConfigSchema.pick({ mode: true, scope: true });
+  const parsed = patchSchema.partial().safeParse(body);
+
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: parsed.error.issues[0]?.message || 'Invalid input',
+    }, 400);
+  }
+
+  const updatedServer: McpServerConfig = { ...servers[index], ...parsed.data };
+  const updated = servers.map((s) => (s.name === name ? updatedServer : s));
+  await writeServers(c.env.SESSIONS_KV, user.id, updated);
+
+  return c.json<ApiResponse<McpServerConfig>>({ success: true, data: updatedServer });
 });
 
 // PUT /:name/toggle — toggle enabled/disabled
@@ -326,10 +358,16 @@ export async function collectMcpConfig(
 async function discoverTools(
   url: string,
   headers?: Record<string, string>
-): Promise<{ tools: string[]; toolCount: number } | null> {
+): Promise<{
+  tools: string[];
+  toolCount: number;
+  toolSchemas: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>;
+  pingMs: number;
+} | null> {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
+    const start = Date.now();
 
     const res = await fetch(url, {
       method: 'POST',
@@ -345,19 +383,25 @@ async function discoverTools(
       }),
       signal: controller.signal,
     });
+    const pingMs = Date.now() - start;
     clearTimeout(timer);
 
     if (!res.ok) return null;
 
     const data = await res.json() as {
-      result?: { tools?: Array<{ name: string }> };
+      result?: { tools?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> };
     };
 
     const toolList = data?.result?.tools;
     if (!Array.isArray(toolList)) return null;
 
     const names = toolList.map((t) => t.name).filter(Boolean);
-    return { tools: names, toolCount: names.length };
+    const toolSchemas = toolList.map((t) => ({
+      name: t.name,
+      ...(t.description ? { description: t.description } : {}),
+      ...(t.inputSchema ? { inputSchema: t.inputSchema } : {}),
+    }));
+    return { tools: names, toolCount: names.length, toolSchemas, pingMs };
   } catch {
     return null;
   }
@@ -445,14 +489,19 @@ mcpRoutes.post('/:name/ping', async (c) => {
     // Discover tools if server is reachable
     let tools: string[] | undefined;
     let toolCount: number | undefined;
+    let toolSchemas: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> | undefined;
+    let pingMs: number | undefined;
     if (status === 'online') {
       const discovered = await discoverTools(server.url, server.headers);
       if (discovered) {
         tools = discovered.tools;
         toolCount = discovered.toolCount;
-        // Cache tools in KV
+        toolSchemas = discovered.toolSchemas;
+        pingMs = discovered.pingMs;
+        const now = new Date().toISOString();
+        // Cache tools + ping data in KV
         const updated = servers.map((s) =>
-          s.name === name ? { ...s, tools, toolCount } : s
+          s.name === name ? { ...s, tools, toolCount, toolSchemas, lastPingAt: now, lastPingMs: pingMs } : s
         );
         await writeServers(c.env.SESSIONS_KV, user.id, updated);
       }
@@ -463,9 +512,11 @@ mcpRoutes.post('/:name/ping', async (c) => {
       httpStatus: number;
       tools?: string[];
       toolCount?: number;
+      toolSchemas?: typeof toolSchemas;
+      pingMs?: number;
     }>>({
       success: true,
-      data: { status, httpStatus: res.status, tools, toolCount },
+      data: { status, httpStatus: res.status, tools, toolCount, toolSchemas, pingMs },
     });
   } catch {
     return c.json<ApiResponse<{ status: string }>>({

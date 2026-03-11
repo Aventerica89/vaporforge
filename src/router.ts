@@ -32,8 +32,9 @@ import { billingRoutes, handleBillingWebhook } from './api/billing';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
+import { getSandbox } from '@cloudflare/sandbox';
 import { SetupTokenRequestSchema } from './types';
-import type { User } from './types';
+import type { User, Session } from './types';
 import { authRateLimit, aiRateLimit } from './utils/rate-limit';
 
 // Extend Hono context
@@ -318,6 +319,38 @@ export function createRouter(env: Env) {
     }
     const sandboxManager = c.get('sandboxManager');
     return handleSdkWs(c.env, c.req.raw, user, sandboxManager);
+  });
+
+  // File watcher SSE — inline auth (EventSource can't use Authorization header)
+  app.get('/api/sdk/watch/:sessionId', async (c) => {
+    const token = new URL(c.req.url).searchParams.get('token');
+    if (!token) return new Response('Missing token', { status: 401 });
+    const authService = c.get('authService');
+    const user = await authService.getUserFromToken(token);
+    if (!user) return new Response('Unauthorized', { status: 401 });
+
+    const sessionId = c.req.param('sessionId');
+    const session = await c.env.SESSIONS_KV.get<Session>(`session:${sessionId}`, 'json');
+    if (!session || session.userId !== user.id) {
+      return new Response('Session not found', { status: 404 });
+    }
+    if (!session.sandboxId) {
+      return new Response('Sandbox not active', { status: 400 });
+    }
+
+    const sandbox = getSandbox(c.env.Sandbox, session.sandboxId);
+    const stream = await sandbox.watch('/workspace', {
+      recursive: true,
+      exclude: ['node_modules', '.git', '.DS_Store'],
+    });
+
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      },
+    });
   });
 
   // Agency edit pre-flight — warms WS server, returns readable JSON error if it fails

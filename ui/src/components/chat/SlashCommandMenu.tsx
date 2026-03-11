@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import type { CommandEntry } from '@/hooks/useCommandRegistry';
 
 interface SlashCommandMenuProps {
-  query: string;
   commands: CommandEntry[];
   selectedIndex: number;
   onSelect: (command: CommandEntry) => void;
@@ -10,7 +9,6 @@ interface SlashCommandMenuProps {
 }
 
 export function SlashCommandMenu({
-  query,
   commands,
   selectedIndex,
   onSelect,
@@ -18,12 +16,7 @@ export function SlashCommandMenu({
 }: SlashCommandMenuProps) {
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Already pre-filtered by kind in PromptInput — just match on query
-  const filtered = commands.filter((cmd) =>
-    cmd.name.toLowerCase().startsWith(query.toLowerCase())
-  );
-
-  const isAgentMode = filtered.length > 0 && filtered[0].kind === 'agent';
+  const isAgentMode = commands.length > 0 && commands[0].kind === 'agent';
 
   // Scroll selected item into view
   useEffect(() => {
@@ -44,7 +37,7 @@ export function SlashCommandMenu({
     return () => document.removeEventListener('mousedown', handleClick);
   }, [onDismiss]);
 
-  if (filtered.length === 0) return null;
+  if (commands.length === 0) return null;
 
   return (
     <div
@@ -52,7 +45,7 @@ export function SlashCommandMenu({
       className="absolute bottom-full left-0 right-0 z-50 mb-1 max-h-[272px] overflow-y-auto rounded-lg border border-border/60 bg-card shadow-lg backdrop-blur-sm"
       role="listbox"
     >
-      {filtered.map((cmd, i) => (
+      {commands.map((cmd, i) => (
         <button
           key={`${cmd.source}-${cmd.name}`}
           type="button"

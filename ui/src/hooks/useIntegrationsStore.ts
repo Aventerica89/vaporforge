@@ -41,6 +41,10 @@ interface IntegrationsState {
   // Scope (visual-only for now)
   pluginScopes: Record<string, 'global' | 'project'>;
 
+  // MCP mode/scope (persisted via PATCH /api/mcp/:name)
+  mcpModes: Record<string, 'always' | 'on-demand' | 'auto'>;
+  mcpScopes: Record<string, 'global' | 'project'>;
+
   // Tier collapse state
   tierCollapsed: Record<string, boolean>;
 
@@ -61,6 +65,8 @@ interface IntegrationsState {
   clearFile: () => void;
   setFileViewMode: (mode: 'rendered' | 'raw') => void;
   setPluginScope: (pluginId: string, scope: 'global' | 'project') => void;
+  setMcpMode: (name: string, mode: 'always' | 'on-demand' | 'auto') => Promise<void>;
+  setMcpScope: (name: string, scope: 'global' | 'project') => Promise<void>;
   toggleTier: (tier: string) => void;
   setConfirmRemove: (id: string | null) => void;
 
@@ -68,10 +74,12 @@ interface IntegrationsState {
   loadPlugins: () => Promise<void>;
   loadMcpServers: () => Promise<void>;
   pingAllMcps: () => Promise<void>;
+  pingSingleMcp: (name: string) => Promise<void>;
   togglePlugin: (id: string) => Promise<void>;
   toggleMcp: (name: string) => Promise<void>;
   togglePluginItem: (pluginId: string, itemType: string, itemName: string) => Promise<void>;
   removePlugin: (id: string) => Promise<void>;
+  removePlugins: (plugins: import('@/lib/types').Plugin[]) => Promise<void>;
   removeMcp: (name: string) => Promise<void>;
   addMcpServer: (server: Omit<McpServerConfig, 'addedAt' | 'enabled'>) => Promise<void>;
 }
@@ -97,6 +105,8 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   selectedFile: null,
   fileViewMode: 'rendered',
   pluginScopes: {},
+  mcpModes: {},
+  mcpScopes: {},
   tierCollapsed: {},
   confirmRemove: null,
 
@@ -129,6 +139,26 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   setPluginScope: (pluginId, scope) => set((state) => ({
     pluginScopes: { ...state.pluginScopes, [pluginId]: scope },
   })),
+  setMcpMode: async (name, mode: 'always' | 'on-demand' | 'auto') => {
+    const prev = get().mcpModes[name];
+    set((state) => ({ mcpModes: { ...state.mcpModes, [name]: mode } }));
+    try {
+      await mcpApi.patch(name, { mode });
+    } catch {
+      set((state) => ({ mcpModes: { ...state.mcpModes, [name]: prev } }));
+      toast.error('Failed to update mode');
+    }
+  },
+  setMcpScope: async (name, scope) => {
+    const prev = get().mcpScopes[name];
+    set((state) => ({ mcpScopes: { ...state.mcpScopes, [name]: scope } }));
+    try {
+      await mcpApi.patch(name, { scope });
+    } catch {
+      set((state) => ({ mcpScopes: { ...state.mcpScopes, [name]: prev } }));
+      toast.error('Failed to update scope');
+    }
+  },
   toggleTier: (tier) => set((state) => ({
     tierCollapsed: { ...state.tierCollapsed, [tier]: !state.tierCollapsed[tier] },
   })),
@@ -153,7 +183,13 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
     try {
       const result = await mcpApi.list();
       if (result.success && result.data) {
-        set({ mcpServers: result.data });
+        const modes: Record<string, 'always' | 'on-demand' | 'auto'> = {};
+        const scopes: Record<string, 'global' | 'project'> = {};
+        for (const s of result.data) {
+          if (s.mode) modes[s.name] = s.mode;
+          if (s.scope) scopes[s.name] = s.scope;
+        }
+        set({ mcpServers: result.data, mcpModes: modes, mcpScopes: scopes });
       }
     } catch {
       toast.error('Failed to load MCP servers');
@@ -168,7 +204,7 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
       if (result.success && result.data) {
         const statuses: Record<string, McpStatus> = {};
         for (const [name, info] of Object.entries(result.data)) {
-          statuses[name] = info.status === 'ok' ? 'connected' : 'error';
+          statuses[name] = info.status === 'online' ? 'connected' : 'error';
         }
         // Mark disabled servers
         const { mcpServers } = get();
@@ -181,6 +217,22 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
       }
     } catch {
       // Non-blocking
+    }
+  },
+
+  pingSingleMcp: async (name) => {
+    try {
+      const result = await mcpApi.pingOne(name);
+      if (result.success && result.data) {
+        const newStatus: McpStatus = result.data.status === 'online' ? 'connected' : 'error';
+        set((state) => ({
+          mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
+        }));
+      }
+    } catch {
+      set((state) => ({
+        mcpStatuses: { ...state.mcpStatuses, [name]: 'error' },
+      }));
     }
   },
 
@@ -279,8 +331,34 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         useMarketplace.setState({ installedRepoUrls: next });
       }
       toast.success('Plugin removed');
-    } catch {
+    } catch (err) {
+      console.error('[removePlugin]', err);
       toast.error('Failed to remove plugin');
+    }
+  },
+
+  removePlugins: async (removable) => {
+    if (removable.length === 0) return;
+    try {
+      for (const p of removable) {
+        await pluginsApi.remove(p.id);
+      }
+      const removedIds = new Set(removable.map((p) => p.id));
+      set((state) => ({
+        plugins: state.plugins.filter((p) => !removedIds.has(p.id)),
+        selectedPluginId: removedIds.has(state.selectedPluginId ?? '') ? null : state.selectedPluginId,
+        confirmRemove: null,
+      }));
+      // Sync marketplace installed state
+      const mkt = useMarketplace.getState();
+      const next = new Set(mkt.installedRepoUrls);
+      for (const p of removable) {
+        if (p.repoUrl) next.delete(p.repoUrl);
+      }
+      useMarketplace.setState({ installedRepoUrls: next });
+      toast.success(`Removed ${removable.length} plugin${removable.length !== 1 ? 's' : ''}`);
+    } catch {
+      toast.error('Failed to remove plugins');
     }
   },
 

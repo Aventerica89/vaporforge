@@ -21,7 +21,7 @@ export const TIER_CONFIG: Record<PluginTier, {
     color: 'primary',
   },
   community: {
-    label: 'Awesome Claude Code Plugins',
+    label: 'Community Plugins',
     badgeClass: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
     color: 'violet',
   },

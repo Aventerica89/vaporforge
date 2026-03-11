@@ -6,6 +6,8 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { usePinchZoom } from '@/hooks/usePinchZoom';
 import { useCodeTransform } from '@/hooks/useCodeTransform';
 import { useCodeAnalysis } from '@/hooks/useCodeAnalysis';
+import { useFileWatcher } from '@/hooks/useFileWatcher';
+import { filesApi } from '@/lib/api';
 
 function getLanguage(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase() || '';
@@ -47,9 +49,30 @@ export function Editor() {
     saveFile,
     closeFile,
     setActiveFile,
+    currentSession,
   } = useSandboxStore();
 
   const editorRef = useRef<MonacoEditorType.IStandaloneCodeEditor | null>(null);
+
+  // Reload active file when Claude modifies it (only if not dirty)
+  useFileWatcher({
+    sessionId: currentSession?.id ?? null,
+    onEvent: async (event) => {
+      if (event.eventType !== 'modify' || event.isDirectory) return;
+      const activeFile = openFiles[activeFileIndex];
+      if (!activeFile || activeFile.isDirty) return;
+      // Normalize paths: event.path is absolute (/workspace/...), activeFile.path may be relative
+      const eventPath = event.path.replace(/^\/workspace\//, '');
+      const filePath = activeFile.path.replace(/^\/workspace\//, '');
+      if (eventPath !== filePath) return;
+      const sessionId = currentSession?.id;
+      if (!sessionId) return;
+      const result = await filesApi.read(sessionId, activeFile.path).catch(() => null);
+      if (result?.success && result.data) {
+        updateFileContent(result.data.content);
+      }
+    },
+  });
 
   const { fontSize: editorFontSize, containerProps: pinchProps } = usePinchZoom({
     min: 10,

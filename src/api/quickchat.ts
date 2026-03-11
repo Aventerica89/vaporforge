@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText, tool, stepCountIs } from 'ai';
+import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
 import type { User, ApiResponse } from '../types';
 import type { SandboxManager } from '../sandbox';
 import {
@@ -111,13 +111,10 @@ async function writeMessages(
 
 /**
  * AI SDK v6 useChat sends UIMessage[] with `parts` instead of `content`.
- * DefaultChatTransport also adds `id`, `trigger`, `messageId`.
+ * Parts include text, reasoning, tool calls, approval requests/responses, etc.
+ * We accept any object here and let convertToModelMessages handle the parsing.
  */
-const UIMessagePartSchema = z.object({
-  type: z.string(),
-  text: z.string().optional(),
-  reasoning: z.string().optional(),
-});
+const UIMessagePartSchema = z.object({ type: z.string() }).passthrough();
 
 const StreamRequestSchema = z.object({
   chatId: z.string().min(1).max(100),
@@ -401,6 +398,7 @@ quickchatRoutes.post('/stream', async (c) => {
   const hasSemanticSearch = tools && 'semanticSearch' in tools;
   const systemParts: string[] = [
     'You are a helpful coding assistant with access to a cloud development sandbox.',
+    'To run shell commands, always use the runCommand tool — never output raw XML, bash blocks, or tool-call markup.',
     'You have a create_github_issue tool — use it to file bug reports, debug findings,',
     'or tasks that the main Claude session should act on.',
     'When creating issues, detect the repo owner/name from .git/config or package.json in the workspace.',
@@ -415,14 +413,113 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
+  // Pre-process: auto-deny any tools in 'approval-requested' state (never answered).
+  // convertToModelMessages keeps these parts but produces no tool-result, causing
+  // "Tool result is missing" errors when the user sends a new message without approving.
+  const resolvedMessages = messages.map((msg) => ({
+    ...msg,
+    parts: (msg.parts ?? []).map((part) => {
+      const p = part as Record<string, unknown>;
+      if (
+        (p.type === 'dynamic-tool' || (typeof p.type === 'string' && p.type.startsWith('tool-'))) &&
+        p.state === 'approval-requested' &&
+        typeof p.approval === 'object' &&
+        p.approval !== null
+      ) {
+        return {
+          ...p,
+          state: 'output-denied',
+          approval: {
+            ...(p.approval as Record<string, unknown>),
+            approved: false,
+            reason: 'Command was not approved.',
+          },
+        };
+      }
+      return part;
+    }),
+  }));
+
+  // Convert UIMessages to CoreMessages, preserving tool-call and approval parts.
+  // This is required for the human-in-the-loop (needsApproval) flow: when the
+  // user approves a tool, the transport re-POSTs with approval state embedded in
+  // the message parts. A plain text extraction would lose that state.
+  const modelMessages = await convertToModelMessages(
+    resolvedMessages as Parameters<typeof convertToModelMessages>[0],
+    { ignoreIncompleteToolCalls: true }
+  );
+
+  // Fix: Execute any approved-but-unexecuted tool calls and inject tool-results.
+  //
+  // Background: convertToModelMessages converts approval-responded tool parts into
+  // CoreMessages that contain tool-approval-request (assistant) + tool-approval-response
+  // (tool) — but NO tool-result. convertToLanguageModelMessage (inside streamText)
+  // strips both approval parts before sending to the model, leaving the model with a
+  // tool-call that has no result. Claude ignores this silently; Gemini (and OpenAI)
+  // validate the history strictly and throw "Tool result is missing."
+  //
+  // Solution: detect this pattern, execute the approved tools eagerly, and inject
+  // tool-result parts so the model receives a complete history.
+  if (tools) {
+    // Pass 1: build lookup maps from the CoreMessage history
+    const approvalIdToCallId = new Map<string, string>();
+    const callIdToArgs = new Map<string, { toolName: string; input: unknown }>();
+
+    for (const msg of modelMessages) {
+      if (msg.role !== 'assistant' || !Array.isArray(msg.content)) continue;
+      for (const part of msg.content as Array<Record<string, unknown>>) {
+        if (part.type === 'tool-call') {
+          callIdToArgs.set(part.toolCallId as string, {
+            toolName: part.toolName as string,
+            input: part.input,
+          });
+        } else if (part.type === 'tool-approval-request') {
+          approvalIdToCallId.set(part.approvalId as string, part.toolCallId as string);
+        }
+      }
+    }
+
+    // Pass 2: find tool messages missing results, execute the tools, inject results
+    for (const msg of modelMessages) {
+      if (msg.role !== 'tool' || !Array.isArray(msg.content)) continue;
+      const content = msg.content as Array<Record<string, unknown>>;
+      if (content.some((p) => p.type === 'tool-result')) continue; // already complete
+
+      for (const part of content) {
+        if (part.type !== 'tool-approval-response' || part.approved !== true) continue;
+        const callId = approvalIdToCallId.get(part.approvalId as string);
+        const args = callId ? callIdToArgs.get(callId) : undefined;
+        if (!callId || !args) continue;
+
+        const t = (tools as Record<string, { execute?: (i: unknown, opts: { messages: unknown[]; abortSignal: AbortSignal }) => Promise<unknown> }>)[args.toolName];
+        if (!t?.execute) continue;
+
+        let output: string;
+        try {
+          const result = await t.execute(args.input, {
+            messages: [],
+            abortSignal: new AbortController().signal,
+          });
+          output = typeof result === 'string' ? result : JSON.stringify(result);
+        } catch (err) {
+          output = `Tool execution error: ${String(err)}`;
+        }
+
+        (msg.content as unknown[]).push({
+          type: 'tool-result',
+          toolCallId: callId,
+          toolName: args.toolName,
+          output: { type: 'text', value: output },
+        });
+      }
+    }
+  }
+
   // Stream using AI SDK — returns UIMessageStream for useChat v6
   const result = streamText({
     model: aiModel,
     system: systemParts.join(' '),
-    messages: messages.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: extractTextFromMessage(m),
-    })),
+    messages: modelMessages,
     maxOutputTokens: 16384,
     ...(tools ? { tools, stopWhen: stepCountIs(10) } : {}),
   });

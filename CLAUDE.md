@@ -268,3 +268,13 @@ QuickChat tools (AI SDK `tool()` in `src/api/quickchat.ts`) follow the same nami
 - `sandbox.writeFile()` crashes on large payloads (>~500KB) — use 8KB chunked exec
 - Use `base64 -d` pipe for binary decode, never `node -e` (shell escaping breaks)
 - R2 `list()` needs explicit `include: ['customMetadata']` with compat_date >= 2022-08-04
+
+<!-- llmstxt:start -->
+## Installed Documentation (llmstxt)
+
+When working with these technologies, read the corresponding skill for detailed reference:
+
+- Cloudflare: .agents/skills/cloudflare/SKILL.md
+- Vercel's AI SDK: .agents/skills/vercel-ai-sdk/SKILL.md
+- Docker Docs: .agents/skills/docker-docs/SKILL.md
+<!-- llmstxt:end -->

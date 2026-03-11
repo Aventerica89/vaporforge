@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, type UIMessage, type DynamicToolUIPart } from 'ai';
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
   X,
   MessageSquare,
@@ -26,6 +26,7 @@ import {
   Github,
   FileText,
   GitBranch,
+  FlaskConical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
@@ -64,7 +65,10 @@ const QC_COMMANDS = [
   { cmd: '/tests',    icon: TestTube2, prompt: 'Write unit tests for the most critical functions in this project.' },
   { cmd: '/optimize', icon: Zap,       prompt: 'Identify performance bottlenecks and suggest optimizations.' },
   { cmd: '/issue',    icon: Github,    prompt: 'Create a GitHub issue for: ' },
-  { cmd: '/docs',     icon: FileText,  prompt: 'Generate documentation for the main modules in this project.' },
+  { cmd: '/docs',     icon: FileText,        prompt: 'Generate documentation for the main modules in this project.' },
+  { cmd: '/t-file',   icon: FlaskConical,    prompt: 'Use runCommand to create a file at /tmp/test.txt containing a short poem, then read it back.' },
+  { cmd: '/t-approve',icon: FlaskConical,    prompt: 'Use runCommand to run: echo "approval works" && ls /tmp' },
+  { cmd: '/t-deny',   icon: FlaskConical,    prompt: 'Use runCommand to run: echo "this should prompt approval". Wait for my response before continuing.' },
 ] as const;
 
 const MODEL_OPTIONS: Record<ProviderName, string[]> = {
@@ -126,14 +130,23 @@ export function QuickChatPanel() {
   const [messageProviders, setMessageProviders] = useState<Record<string, ProviderName>>({});
   const lastSentProviderRef = useRef<ProviderName>(selectedProvider);
 
-  // Transport handles auth only. Dynamic values (provider, model, chatId)
-  // are passed per-request via sendMessage's body arg — the AI SDK docs
-  // recommend this pattern to avoid stale closure bugs in concurrent mode.
+  // Ref holds the last-sent body fields (chatId, provider, model, sessionId).
+  // The transport reads this on every request — including the automatic
+  // follow-up POST triggered by sendAutomaticallyWhen after tool approval,
+  // which does not re-use the body from the original sendMessage call.
+  const dynamicBodyRef = useRef<{
+    chatId: string;
+    provider: string;
+    model?: string;
+    sessionId?: string;
+  }>({ chatId: localChatId, provider: selectedProvider });
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/quickchat/stream',
         headers: () => getAuthHeaders(),
+        body: () => dynamicBodyRef.current,
       }),
     []
   );
@@ -150,6 +163,9 @@ export function QuickChatPanel() {
   } = useChat({
     id: chatId,
     transport,
+    // Automatically re-POST after the user approves a tool so the server
+    // can execute it and continue the stream.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: ({ message }) => {
       // Record which provider generated this assistant message
       setMessageProviders((prev) => ({
@@ -304,15 +320,18 @@ export function QuickChatPanel() {
     }
     setError(null);
     lastSentProviderRef.current = selectedProvider;
+    // Keep the ref in sync so the transport body is current for any
+    // automatic follow-up requests (e.g. after tool approval).
+    dynamicBodyRef.current = {
+      chatId,
+      provider: selectedProvider,
+      model: selectedModel,
+      sessionId: activeSessionId,
+    };
     sendMessage(
       { text },
       {
-        body: {
-          chatId,
-          provider: selectedProvider,
-          model: selectedModel,
-          sessionId: activeSessionId,
-        },
+        body: dynamicBodyRef.current,
       }
     );
   }, [isStreaming, hasAnyProvider, selectedProvider, selectedModel, chatId, activeSessionId, sendMessage, setError]);
@@ -877,7 +896,10 @@ function QuickChatMessage({
   const textContent = getMessageText(msg);
   const activelyStreaming = isLastAssistant && isStreaming;
   const hasToolParts = msg.parts.some(
-    (p) => p.type === 'dynamic-tool' || p.type === 'reasoning'
+    (p) =>
+      p.type === 'dynamic-tool' ||
+      p.type === 'reasoning' ||
+      (typeof p.type === 'string' && p.type.startsWith('tool-'))
   );
 
   // Simple path: no tool/reasoning parts — render as before
@@ -1020,6 +1042,49 @@ function QuickChatMessage({
               </Tool>
             );
           }
+        }
+
+        // Static tool parts (e.g. needsApproval tools): type is 'tool-{name}'
+        if (typeof part.type === 'string' && part.type.startsWith('tool-')) {
+          const toolName = part.type.slice(5); // 'tool-runCommand' → 'runCommand'
+          const sp = part as {
+            type: string;
+            toolCallId: string;
+            state: string;
+            input?: unknown;
+            approval?: { id: string };
+            output?: unknown;
+            errorText?: string;
+          };
+          if (sp.state === 'approval-requested' && sp.approval) {
+            return (
+              <Confirmation
+                key={sp.toolCallId}
+                toolName={toolName}
+                input={sp.input as Record<string, unknown>}
+                approvalId={sp.approval.id}
+                onApprove={onApprove}
+                onDeny={onDeny}
+              />
+            );
+          }
+          const spOutput = typeof sp.output === 'string' ? sp.output : undefined;
+          const spError = typeof sp.errorText === 'string' ? sp.errorText : undefined;
+          return (
+            <Tool
+              key={sp.toolCallId}
+              name={toolName}
+              state={sp.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
+              input={sp.input as Record<string, unknown>}
+              compact
+            >
+              <ToolHeader />
+              <ToolContent>
+                <ToolSchemaInput />
+                <ToolOutput output={spOutput} errorText={spError} />
+              </ToolContent>
+            </Tool>
+          );
         }
 
         return null;

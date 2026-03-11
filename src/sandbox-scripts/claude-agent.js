@@ -335,7 +335,8 @@ function rewriteAtMentions(prompt, agents) {
     return userText;
   }
 
-  return `${embeds.join('\n\n')}\n\nUser request: ${userText}`;
+  const request = userText || 'The user activated you. Introduce yourself briefly and ask how you can help.';
+  return `${embeds.join('\n\n')}\n\nUser request: ${request}`;
 }
 
 function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) {
