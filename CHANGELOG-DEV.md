@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · 1861970 · v0.29.0
+FIX     quickchat — Add explicit runCommand tool hint to system prompt; Gemini was outputting XML tool-call markup instead of using the tool
+
 ### 2026-03-11 · 785c928 · v0.29.0
 FIX     quickchat — Fix runCommand approval flow: add sendAutomaticallyWhen + convertToModelMessages to preserve tool-call/approval parts across HTTP round-trips
 FIX     issues — Fix issues.ts TS2322 (issueId non-null assertion)
