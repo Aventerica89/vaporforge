@@ -23,7 +23,11 @@ The `runCommand` tool has `needsApproval: true`. Flow:
 3. **Fix 2** (`src/api/quickchat.ts`): detects `tool-approval-response` parts without `tool-result`, executes tool, injects result before streamText
 4. If user ignores approval and sends new message → **Fix 3**: converts `approval-requested` (type `"tool-{name}"`) to `output-denied`, `convertToModelMessages` produces proper error `tool-result`
 
-Key gotcha: AI SDK v6 names tool parts `"tool-{toolName}"` (e.g. `"tool-runCommand"`), NOT `"tool"`. Check with `part.type.startsWith('tool-')` or `isStaticToolUIPart()`.
+Key gotchas:
+- AI SDK v6 names static tool parts `"tool-{toolName}"` (e.g. `"tool-runCommand"`), NOT `"tool"`. Check with `part.type.startsWith('tool-')` or `isStaticToolUIPart()`.
+- **`hasToolParts` guard** (`QuickChatPanel.tsx`) must include `p.type.startsWith('tool-')` or static tool messages fall through to plain text rendering — approval card never shows.
+- **Parts renderer** must have an explicit `tool-*` branch: extract name via `part.type.slice(5)`, render `<Confirmation>` for `approval-requested` state, `<Tool>` for all others. No `toolName` field exists on static parts (unlike dynamic).
+- Tool name extraction from static part: `part.type.split("-").slice(1).join("-")` (handles multi-hyphen names like `run-command`).
 
 ---
 

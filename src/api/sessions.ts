@@ -284,9 +284,13 @@ sessionRoutes.get('/list', async (c) => {
   const list = await c.env.SESSIONS_KV.list({ prefix });
 
   for (const key of list.keys) {
-    const session = await c.env.SESSIONS_KV.get<Session>(key.name, 'json');
-    if (session && session.userId === user.id) {
-      sessions.push(session);
+    try {
+      const session = await c.env.SESSIONS_KV.get<Session>(key.name, 'json');
+      if (session && session.userId === user.id) {
+        sessions.push(session);
+      }
+    } catch {
+      // Skip corrupted session entries
     }
   }
 

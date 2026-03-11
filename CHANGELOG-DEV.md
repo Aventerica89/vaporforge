@@ -1,3 +1,6 @@
+### 2026-03-11 · 3245c5c · v0.29.0
+FIX     marketplace: source name shown correctly, install state immediate, auto-refresh on open
+
 ### 2026-03-11 · 487e9e5 · v0.29.0
 CHORE   deploy — marketplace-first plugin UX; rename Add Plugins to Marketplaces
 

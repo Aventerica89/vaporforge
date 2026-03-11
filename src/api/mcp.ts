@@ -201,7 +201,7 @@ mcpRoutes.put('/:name', async (c) => {
     }, 400);
   }
 
-  const { transport, url, command, args, localUrl, headers, env, credentialFiles } = parsed.data;
+  const { transport, url, command, args, localUrl, headers, env, credentialFiles, mode, scope } = parsed.data;
 
   if (transport === 'http' && !url) {
     return c.json<ApiResponse<never>>({ success: false, error: 'URL is required for HTTP transport' }, 400);
@@ -229,6 +229,8 @@ mcpRoutes.put('/:name', async (c) => {
     headers,
     env,
     credentialFiles,
+    mode,
+    scope,
   };
 
   const updated = servers.map((s) => (s.name === name ? updatedServer : s));
@@ -238,6 +240,36 @@ mcpRoutes.put('/:name', async (c) => {
     success: true,
     data: updatedServer,
   });
+});
+
+// PATCH /:name — partial update (mode, scope)
+mcpRoutes.patch('/:name', async (c) => {
+  const user = c.get('user');
+  const name = c.req.param('name');
+
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const index = servers.findIndex((s) => s.name === name);
+
+  if (index === -1) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'MCP server not found' }, 404);
+  }
+
+  const body = await c.req.json();
+  const patchSchema = McpServerConfigSchema.pick({ mode: true, scope: true });
+  const parsed = patchSchema.partial().safeParse(body);
+
+  if (!parsed.success) {
+    return c.json<ApiResponse<never>>({
+      success: false,
+      error: parsed.error.issues[0]?.message || 'Invalid input',
+    }, 400);
+  }
+
+  const updatedServer: McpServerConfig = { ...servers[index], ...parsed.data };
+  const updated = servers.map((s) => (s.name === name ? updatedServer : s));
+  await writeServers(c.env.SESSIONS_KV, user.id, updated);
+
+  return c.json<ApiResponse<McpServerConfig>>({ success: true, data: updatedServer });
 });
 
 // PUT /:name/toggle — toggle enabled/disabled

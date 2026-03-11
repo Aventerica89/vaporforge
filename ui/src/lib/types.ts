@@ -211,6 +211,8 @@ export interface McpServerConfig {
   }>;
   /** When the MCP server tools are available to the agent */
   mode?: 'always' | 'on-demand' | 'auto';
+  /** Session scope for this MCP server */
+  scope?: 'global' | 'project';
   /** Rate limit configuration (optional, forward-compatible) */
   rateLimit?: { maxPerMinute: number; currentUsage?: number };
   /** Last ping timestamp (ISO) */

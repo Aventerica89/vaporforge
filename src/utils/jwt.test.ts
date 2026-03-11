@@ -22,13 +22,13 @@ describe('signExecutionToken', () => {
     expect(payload.sessionId).toBe('session-1');
   });
 
-  it('sets exp claim ~5 minutes in the future', async () => {
+  it('sets exp claim using default TTL (~660s in the future)', async () => {
     const before = Math.floor(Date.now() / 1000);
     const token = await signExecutionToken('exec-1', 'session-1', testSecret);
     const after = Math.floor(Date.now() / 1000);
     const payload = JSON.parse(atob(token.split('.')[1]));
-    expect(payload.exp).toBeGreaterThanOrEqual(before + 298);
-    expect(payload.exp).toBeLessThanOrEqual(after + 302);
+    expect(payload.exp).toBeGreaterThanOrEqual(before + 658);
+    expect(payload.exp).toBeLessThanOrEqual(after + 662);
   });
 });
 

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { pluginsApi, pluginSourcesApi } from '@/lib/api';
 import type { PluginSource } from '@/lib/api';
 import { useSandboxStore } from '@/hooks/useSandbox';
+import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import type { CatalogPlugin } from '@/lib/generated/catalog-types';
 import type { Plugin } from '@/lib/types';
 import { toast } from '@/hooks/useToast';
@@ -15,7 +16,11 @@ function deriveSourceName(sourceId: string): string {
     'awesome-community': 'Awesome CC Plugins',
   };
   if (KNOWN_SOURCES[sourceId]) return KNOWN_SOURCES[sourceId];
-  if (sourceId.startsWith('custom:')) return 'Custom Source';
+  if (sourceId.startsWith('custom:')) {
+    const id = sourceId.slice('custom:'.length);
+    const source = useMarketplace.getState().customSources.find((s) => s.id === id);
+    return source?.label ?? sourceId;
+  }
   return sourceId;
 }
 
@@ -78,6 +83,7 @@ interface MarketplaceState {
   loadCustomSources: () => Promise<void>;
   addSource: (url: string) => Promise<void>;
   removeSource: (id: string) => Promise<void>;
+  patchSource: (id: string, data: Partial<Pick<PluginSource, 'autoUpdate' | 'label'>>) => Promise<void>;
   refreshSources: () => Promise<void>;
 }
 
@@ -210,15 +216,22 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
         pluginSourcesApi.catalog(),
       ]);
 
-      if (sourcesRes.success && sourcesRes.data) {
-        set({ customSources: sourcesRes.data });
+      const sources = sourcesRes.success && sourcesRes.data ? sourcesRes.data : [];
+      if (sources.length > 0) {
+        set({ customSources: sources });
       }
 
+      const catalogPlugins = catalogRes.success && catalogRes.data ? catalogRes.data.plugins : [];
       if (catalogRes.success && catalogRes.data) {
         set({
-          customCatalog: catalogRes.data.plugins as CatalogPlugin[],
+          customCatalog: catalogPlugins as CatalogPlugin[],
           sourcesRefreshedAt: catalogRes.data.refreshedAt,
         });
+      }
+
+      // Auto-refresh if we have sources but no cached catalog
+      if (sources.length > 0 && catalogPlugins.length === 0) {
+        await get().refreshSources();
       }
     } catch {
       // Non-blocking
@@ -253,6 +266,27 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
           (p) => p.source_id !== `custom:${id}`
         ),
       }));
+      // Remove installed plugins from this source
+      const { plugins, removePlugins } = useIntegrationsStore.getState();
+      const fromSource = plugins.filter((p) => p.sourceId === `custom:${id}`);
+      if (fromSource.length > 0) {
+        await removePlugins(fromSource);
+      }
+    } catch {
+      // Silent
+    }
+  },
+
+  patchSource: async (id, data) => {
+    try {
+      const result = await pluginSourcesApi.patch(id, data);
+      if (result.success && result.data) {
+        set((state) => ({
+          customSources: state.customSources.map((s) =>
+            s.id === id ? result.data! : s
+          ),
+        }));
+      }
     } catch {
       // Silent
     }

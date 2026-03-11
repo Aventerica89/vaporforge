@@ -272,7 +272,7 @@ export function McpDetail({ server }: McpDetailProps) {
         <PillGroup
           options={MODE_OPTIONS}
           value={mcpModes[server.name] ?? server.mode ?? 'always'}
-          onChange={(v) => setMcpMode(server.name, v)}
+          onChange={(v) => setMcpMode(server.name, v as 'always' | 'on-demand' | 'auto')}
         />
       </div>
 

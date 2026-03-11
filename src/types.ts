@@ -235,6 +235,8 @@ export const McpServerConfigSchema = z.object({
   })).optional(),
   /** When the MCP server tools are available to the agent */
   mode: z.enum(['always', 'on-demand', 'auto']).optional(),
+  /** Session scope for this MCP server */
+  scope: z.enum(['global', 'project']).optional(),
   /** Rate limit configuration (optional, forward-compatible) */
   rateLimit: z.object({
     maxPerMinute: z.number(),
