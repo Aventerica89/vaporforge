@@ -1,3 +1,6 @@
+### 2026-03-11 · 47c266d · v0.29.0
+CHORE   deploy — V1.5 stability: keepAlive, buffer pruning, clearBuffer retry, list() pagination, orphaned stream buffering
+
 ### 2026-03-11 · 742cb44 · v0.29.0
 FEAT    sandbox.watch() SSE endpoint + useFileWatcher hook — live Monaco refresh when Claude writes files
 
