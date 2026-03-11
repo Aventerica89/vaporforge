@@ -23,3 +23,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T05:02:46Z", "msg": "feat: persist MCP mode/scope via PATCH endpoint and seed from server on load", "hash": "38cd944" }
 { "v": "0.29.0", "ts": "2026-03-11T05:30:00Z", "msg": "fix: skip corrupted KV entries in sessions/list to prevent 500", "hash": "f3ce027" }
 { "v": "0.29.0", "ts": "2026-03-11T05:50:00Z", "msg": "fix: plugin item toggle 400 (plural itemType) + bulk remove all button", "hash": "7f4315f" }
+{ "v": "0.29.0", "ts": "2026-03-11T06:10:00Z", "msg": "fix: per-package remove button + sequential deletes to prevent KV race condition", "hash": "a85237d" }

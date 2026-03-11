@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useRef } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { deriveTier, TIER_CONFIG } from './types';
 import type { PluginTier } from './types';
@@ -79,12 +79,10 @@ export function PluginSidebarList() {
     tierCollapsed,
     toggleTier,
     setShowMarketplace,
-    removeAllCustomPlugins,
+    removePlugins,
   } = useIntegrationsStore();
 
   const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set());
-  const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
-  const confirmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleExpand = useCallback((key: string) => {
     setExpandedPackages((prev) => {
@@ -216,6 +214,7 @@ export function PluginSidebarList() {
                     onToggleAll={() => handleToggleAll(pkg)}
                     onSelectPlugin={selectPlugin}
                     onTogglePlugin={togglePlugin}
+                    onRemovePackage={pkg.tier !== 'official' ? () => removePlugins(pkg.plugins) : undefined}
                   />
                 ))}
             </div>
@@ -223,8 +222,8 @@ export function PluginSidebarList() {
         })}
       </div>
 
-      {/* Bottom buttons */}
-      <div className="shrink-0 flex flex-col gap-2 px-3 pb-3">
+      {/* Add Plugins button */}
+      <div className="shrink-0 px-3 pb-3">
         <button
           className="flex w-full items-center justify-center gap-2 rounded-[6px] border border-[#30363d] bg-[#161b22] px-[16px] py-[12px] font-['Space_Mono'] text-[11px] font-bold text-[#768390] transition-colors hover:border-[#00e5ff33] hover:text-[#00e5ff]"
           onClick={() => setShowMarketplace(true)}
@@ -235,33 +234,6 @@ export function PluginSidebarList() {
           </svg>
           Add Plugins
         </button>
-        {plugins.some((p) => !p.builtIn) && (
-          <button
-            className={`flex w-full items-center justify-center gap-2 rounded-[6px] border px-[16px] py-[10px] font-['Space_Mono'] text-[11px] font-bold transition-colors ${
-              confirmRemoveAll
-                ? 'border-red-500/50 bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                : 'border-[#30363d] bg-[#161b22] text-[#768390] hover:border-red-500/30 hover:text-red-400'
-            }`}
-            onClick={() => {
-              if (confirmRemoveAll) {
-                if (confirmTimerRef.current) clearTimeout(confirmTimerRef.current);
-                setConfirmRemoveAll(false);
-                removeAllCustomPlugins();
-              } else {
-                setConfirmRemoveAll(true);
-                confirmTimerRef.current = setTimeout(() => setConfirmRemoveAll(false), 3000);
-              }
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4h6v2" />
-            </svg>
-            {confirmRemoveAll ? 'Confirm Remove All?' : 'Remove All'}
-          </button>
-        )}
       </div>
     </div>
   );

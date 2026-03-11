@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import type { Plugin } from '@/lib/types';
 import type { PluginTier } from './types';
 import { Toggle, Chevron } from './shared';
@@ -20,6 +21,7 @@ interface PluginSidebarRowProps {
   onToggleAll: () => void;
   onSelectPlugin: (id: string) => void;
   onTogglePlugin: (id: string) => void;
+  onRemovePackage?: () => void;
 }
 
 const TIER_BADGE: Record<PluginTier, { label: string; cls: string }> = {
@@ -58,7 +60,10 @@ export function PluginSidebarRow({
   onToggleAll,
   onSelectPlugin,
   onTogglePlugin,
+  onRemovePackage,
 }: PluginSidebarRowProps) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const badge = TIER_BADGE[pkg.tier];
   const { total, active } = countComponents(pkg.plugins);
   const allEnabled = pkg.plugins.every((p) => p.enabled);
@@ -115,13 +120,43 @@ export function PluginSidebarRow({
           </div>
         </div>
 
-        <Toggle
-          enabled={allEnabled}
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleAll();
-          }}
-        />
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onRemovePackage && (
+            <button
+              className={`rounded p-1 transition-colors ${
+                confirmDelete
+                  ? 'text-red-400 opacity-100'
+                  : 'text-[#4b535d] opacity-0 group-hover:opacity-100 hover:text-red-400'
+              }`}
+              title={confirmDelete ? 'Click again to confirm' : 'Remove group'}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirmDelete) {
+                  if (confirmTimer.current) clearTimeout(confirmTimer.current);
+                  setConfirmDelete(false);
+                  onRemovePackage();
+                } else {
+                  setConfirmDelete(true);
+                  confirmTimer.current = setTimeout(() => setConfirmDelete(false), 3000);
+                }
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14H6L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4h6v2" />
+              </svg>
+            </button>
+          )}
+          <Toggle
+            enabled={allEnabled}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAll();
+            }}
+          />
+        </div>
       </div>
 
       {/* Expanded plugin sub-rows */}

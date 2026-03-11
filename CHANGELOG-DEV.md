@@ -1,3 +1,6 @@
+### 2026-03-11 · a85237d · v0.29.0
+FIX     fix: per-package remove button + sequential deletes to prevent KV race condition
+
 ### 2026-03-11 · 7f4315f · v0.29.0
 FIX     fix: plugin item toggle 400 (plural itemType) + bulk remove all button
 

@@ -79,7 +79,7 @@ interface IntegrationsState {
   toggleMcp: (name: string) => Promise<void>;
   togglePluginItem: (pluginId: string, itemType: string, itemName: string) => Promise<void>;
   removePlugin: (id: string) => Promise<void>;
-  removeAllCustomPlugins: () => Promise<void>;
+  removePlugins: (plugins: import('@/lib/types').Plugin[]) => Promise<void>;
   removeMcp: (name: string) => Promise<void>;
   addMcpServer: (server: Omit<McpServerConfig, 'addedAt' | 'enabled'>) => Promise<void>;
 }
@@ -337,11 +337,12 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
     }
   },
 
-  removeAllCustomPlugins: async () => {
-    const removable = get().plugins.filter((p) => !p.builtIn);
+  removePlugins: async (removable) => {
     if (removable.length === 0) return;
     try {
-      await Promise.all(removable.map((p) => pluginsApi.remove(p.id)));
+      for (const p of removable) {
+        await pluginsApi.remove(p.id);
+      }
       const removedIds = new Set(removable.map((p) => p.id));
       set((state) => ({
         plugins: state.plugins.filter((p) => !removedIds.has(p.id)),
