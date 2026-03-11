@@ -1,4 +1,6 @@
 
+### 2026-03-11 · 35f5e93 · v0.29.0
+FIX     deploy — fix: apply useSmoothText rAF animation to streaming text (fix #81 pop-in)
 ### 2026-03-11 · f4855cb · v0.29.0
 FIX     deploy — fix: pad DO stream writes to >1KB to unblock Chrome Fetch buffering (issue #81)
 ### 2026-03-11 · 0a96327 · v0.29.0
