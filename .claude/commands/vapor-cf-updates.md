@@ -13,6 +13,7 @@ Parse `$ARGUMENTS` for optional flags:
 - `--deep` — include package-level CHANGELOGs (ai-chat, agents, codemode) in addition to standard sources
 - `--label <name>` — name for this scan section (e.g., `--label "Deep Scan"`)
 - `--source <url>` — add a custom URL to scan (repeatable; each is fetched alongside standard sources)
+- `--ideas` — skip CF scanning; capture ideas from the current session, save to `docs/ideas/`, and show ranked index
 - No arguments = full scan + write note + update dashboard
 
 If `--help` is set, print this and stop:
@@ -26,6 +27,7 @@ Flags:
   --deep                 Include package-level CHANGELOGs (ai-chat, agents, codemode)
   --label <name>         Name for this scan section (e.g., "Deep Scan")
   --source <url>         Add custom URL to scan (repeatable)
+  --ideas                Capture ideas from current session → docs/ideas/ + ranked index
   --help                 Show this message
 
 No flags = full scan + write scan note + update dashboard
@@ -33,6 +35,8 @@ No flags = full scan + write scan note + update dashboard
 Files:
   Scan notes:  Obsidian-Claude/John Notes/VaporForge/Research/Cloudflare Changelog - {Month} {Year}.md
   Dashboard:   Obsidian-Claude/John Notes/VaporForge/Research/CF Updates Dashboard.md
+  Ideas dir:   docs/ideas/
+  Ideas index: docs/ideas/INDEX.md
 ```
 
 ---
@@ -50,6 +54,98 @@ Define paths:
 Get today's date in `YYYY-MM-DD` format.
 
 If `--update-dashboard` flag is set, skip to Step 3.
+If `--ideas` flag is set, skip to Step I (Ideas Capture).
+
+---
+
+### Step I: Ideas Capture (only when `--ideas` is set)
+
+This step replaces the full CF scan flow. Do not proceed to Steps 1-7.
+
+**Step I-1: Extract ideas from the current session**
+
+Review the current conversation context. Identify any ideas, proposals, features, or improvements that were discussed — explicit ("we should add X") or implicit ("it would be nice if Y"). Also consider:
+- Problems mentioned that don't have a solution yet
+- Things that were deferred ("we'll do that later")
+- Patterns from external sources (like Moltworker) that could be applied to VaporForge
+
+For each idea found, determine:
+- **Title** — short, descriptive (used as the heading and basis for the filename)
+- **Filename** — kebab-case, max 40 chars (e.g., `sandbox-hot-reload.md`)
+- **Category** — domain area: `Infrastructure`, `DX`, `Feature`, `Performance`, `UX`, `Security`
+- **Priority** — rank based on impact and effort:
+  - `P1` — high value, directly unblocks work or fixes a real pain point
+  - `P2` — medium value, clear benefit but not urgent
+  - `P3` — low value, nice to have or very speculative
+  - `Backlog` — captured for later, no urgency
+- **Summary** — one paragraph capturing the core insight
+- **Details** — key implementation notes, API patterns, gotchas (bullet points)
+- **Next Steps** — concrete actions, not vague aspirations
+
+If no ideas are found in the conversation, say so and stop.
+
+**Step I-2: Save idea files**
+
+For each idea, write to `docs/ideas/{filename}`:
+
+```markdown
+**Added:** {YYYY-MM-DD}
+**Status:** Idea
+**Category:** {Category}
+**Priority:** {P1 | P2 | P3 | Backlog}
+
+## Summary
+
+{one-paragraph summary}
+
+## Details
+
+{bullet points — key insights, patterns, API signatures, gotchas}
+
+## Next Steps
+
+- {concrete action 1}
+- {concrete action 2}
+```
+
+Skip any idea whose filename already exists in `docs/ideas/` — don't overwrite existing files. Mention skipped duplicates in the summary.
+
+**Step I-3: Update the ideas index**
+
+Read `docs/ideas/INDEX.md`. For each new idea file created, insert a row into the index table. Then re-sort the entire table by Priority (P1 → P2 → P3 → Backlog), then by Date descending within each priority group.
+
+The index table format (add `Priority` column if not already present):
+
+```markdown
+| Priority | Date | Title | Category | Status |
+|----------|------|-------|----------|--------|
+| P1 | 2026-03-11 | [Sandbox Hot Reload](sandbox-hot-reload.md) | Infrastructure | Idea |
+```
+
+Write the updated index back to `docs/ideas/INDEX.md`.
+
+**Step I-4: Print summary**
+
+```
+=== IDEAS CAPTURED ===
+Date:      {YYYY-MM-DD}
+Session:   current conversation
+
+Ideas saved ({N}):
+  {filename} [{Priority}] — {Title}
+  ...
+
+Skipped (already exist):
+  {filename} — {reason}
+  ... (or "none")
+
+Index:     docs/ideas/INDEX.md ({total} ideas total)
+
+=== RANKED INDEX ===
+{print the full updated index table}
+```
+
+Stop here. Do not continue to Steps 1-7.
 
 ---
 
