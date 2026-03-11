@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · 397388f · v0.29.0
+FIX     quickchat — Auto-deny tools still in approval-requested state (user sent new message without responding); prevents tool-result-missing error on next streamText call
+
 ### 2026-03-11 · 237b37d · v0.29.0
 FIX     quickchat — Execute approved tool calls server-side before streamText; Gemini (unlike Claude) validates every tool call has a result, throwing "Tool result is missing" without this
 
