@@ -1,3 +1,6 @@
+### 2026-03-11 · 7f4315f · v0.29.0
+FIX     fix: plugin item toggle 400 (plural itemType) + bulk remove all button
+
 ### 2026-03-11 · f3ce027 · v0.29.0
 FIX     fix: skip corrupted KV entries in sessions/list to prevent 500
 

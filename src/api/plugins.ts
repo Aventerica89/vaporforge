@@ -569,8 +569,11 @@ async function applyToggle(
   // Toggle specific sub-item
   const categoryMap: Record<string, 'agents' | 'commands' | 'rules'> = {
     agent: 'agents',
+    agents: 'agents',
     command: 'commands',
+    commands: 'commands',
     rule: 'rules',
+    rules: 'rules',
   };
 
   if (body.itemType === 'mcp') {
