@@ -208,6 +208,12 @@ export class ChatSessionAgent {
 
     // Container polls this to learn if user approved/denied a tool (Standard mode)
     if (request.method === 'GET' && url.pathname.startsWith('/internal/approval/')) {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.replace('Bearer ', '');
+      const payload = await verifyExecutionToken(token, this.env.JWT_SECRET);
+      if (!payload) {
+        return new Response('Unauthorized', { status: 401 });
+      }
       const approvalId = url.pathname.replace('/internal/approval/', '');
       const resolver = this.pendingApprovals.get(approvalId);
       if (resolver === undefined) {
@@ -612,7 +618,8 @@ export class ChatSessionAgent {
       if (event.type === 'confirmation' && typeof event.approvalId === 'string') {
         const approvalId = event.approvalId;
         if (!this.pendingApprovals.has(approvalId)) {
-          new Promise<boolean>((resolve) => {
+          // Store the resolver; timeout auto-denies if browser never responds
+          void new Promise<boolean>((resolve) => {
             this.pendingApprovals.set(approvalId, resolve);
             setTimeout(() => {
               if (this.pendingApprovals.has(approvalId)) {
