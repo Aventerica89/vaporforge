@@ -8,6 +8,17 @@ Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device
 - **Version**: 0.30.0
 - **Repo**: Aventerica89/vaporforge
 
+## Architecture Reference
+
+`docs/CODEMAPS/` contains token-lean structural maps (updated 2026-03-11):
+- `INDEX.md` — start here, navigation guide
+- `architecture.md` — request flows, DO wiring
+- `backend.md` — all API routes and services
+- `frontend.md` — components, hooks, state
+- `data.md` — types, KV key patterns, stream frames
+
+Load these instead of re-reading source files for orientation.
+
 ## MANDATORY RULES
 
 1. **NEVER use Anthropic API keys for authentication.** Auth uses setup-token flow (OAuth tokens `sk-ant-oat01-*`), not API keys.
