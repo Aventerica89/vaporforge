@@ -120,6 +120,7 @@
   // Each sandbox.exec/writeFile/readFile is an HTTP sub-request.
   // Default 10k can be exhausted during extended coding sessions.
   "limits": {
+    "cpu_ms": 30000,
     "subrequests": 50000
   },
 

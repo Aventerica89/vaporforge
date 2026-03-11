@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useChat } from '@ai-sdk/react';
-import { DefaultChatTransport, type UIMessage, type DynamicToolUIPart } from 'ai';
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
   X,
   MessageSquare,
@@ -126,14 +126,23 @@ export function QuickChatPanel() {
   const [messageProviders, setMessageProviders] = useState<Record<string, ProviderName>>({});
   const lastSentProviderRef = useRef<ProviderName>(selectedProvider);
 
-  // Transport handles auth only. Dynamic values (provider, model, chatId)
-  // are passed per-request via sendMessage's body arg — the AI SDK docs
-  // recommend this pattern to avoid stale closure bugs in concurrent mode.
+  // Ref holds the last-sent body fields (chatId, provider, model, sessionId).
+  // The transport reads this on every request — including the automatic
+  // follow-up POST triggered by sendAutomaticallyWhen after tool approval,
+  // which does not re-use the body from the original sendMessage call.
+  const dynamicBodyRef = useRef<{
+    chatId: string;
+    provider: string;
+    model?: string;
+    sessionId?: string;
+  }>({ chatId: localChatId, provider: selectedProvider });
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/quickchat/stream',
         headers: () => getAuthHeaders(),
+        body: () => dynamicBodyRef.current,
       }),
     []
   );
@@ -150,6 +159,9 @@ export function QuickChatPanel() {
   } = useChat({
     id: chatId,
     transport,
+    // Automatically re-POST after the user approves a tool so the server
+    // can execute it and continue the stream.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: ({ message }) => {
       // Record which provider generated this assistant message
       setMessageProviders((prev) => ({
@@ -304,15 +316,18 @@ export function QuickChatPanel() {
     }
     setError(null);
     lastSentProviderRef.current = selectedProvider;
+    // Keep the ref in sync so the transport body is current for any
+    // automatic follow-up requests (e.g. after tool approval).
+    dynamicBodyRef.current = {
+      chatId,
+      provider: selectedProvider,
+      model: selectedModel,
+      sessionId: activeSessionId,
+    };
     sendMessage(
       { text },
       {
-        body: {
-          chatId,
-          provider: selectedProvider,
-          model: selectedModel,
-          sessionId: activeSessionId,
-        },
+        body: dynamicBodyRef.current,
       }
     );
   }, [isStreaming, hasAnyProvider, selectedProvider, selectedModel, chatId, activeSessionId, sendMessage, setError]);

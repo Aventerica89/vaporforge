@@ -4,6 +4,11 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · 785c928 · v0.29.0
+FIX     quickchat — Fix runCommand approval flow: add sendAutomaticallyWhen + convertToModelMessages to preserve tool-call/approval parts across HTTP round-trips
+FIX     issues — Fix issues.ts TS2322 (issueId non-null assertion)
+CHORE   wrangler — Add limits.cpu_ms: 30000 for wrangler 4.61+ compat; deploy via bun global wrangler to fix arm64 arch mismatch
+
 ### 2026-03-01 · v0.30.0
 FIX     github — Add detailed error logging to repos endpoint; log actual GitHub API status and response body to diagnose 502 failures
 

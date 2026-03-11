@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText, tool, stepCountIs } from 'ai';
+import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
 import type { User, ApiResponse } from '../types';
 import type { SandboxManager } from '../sandbox';
 import {
@@ -111,13 +111,10 @@ async function writeMessages(
 
 /**
  * AI SDK v6 useChat sends UIMessage[] with `parts` instead of `content`.
- * DefaultChatTransport also adds `id`, `trigger`, `messageId`.
+ * Parts include text, reasoning, tool calls, approval requests/responses, etc.
+ * We accept any object here and let convertToModelMessages handle the parsing.
  */
-const UIMessagePartSchema = z.object({
-  type: z.string(),
-  text: z.string().optional(),
-  reasoning: z.string().optional(),
-});
+const UIMessagePartSchema = z.object({ type: z.string() }).passthrough();
 
 const StreamRequestSchema = z.object({
   chatId: z.string().min(1).max(100),
@@ -415,14 +412,20 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
+  // Convert UIMessages to CoreMessages, preserving tool-call and approval parts.
+  // This is required for the human-in-the-loop (needsApproval) flow: when the
+  // user approves a tool, the transport re-POSTs with approval state embedded in
+  // the message parts. A plain text extraction would lose that state.
+  const modelMessages = await convertToModelMessages(
+    messages as Parameters<typeof convertToModelMessages>[0],
+    { ignoreIncompleteToolCalls: true }
+  );
+
   // Stream using AI SDK — returns UIMessageStream for useChat v6
   const result = streamText({
     model: aiModel,
     system: systemParts.join(' '),
-    messages: messages.map((m) => ({
-      role: m.role as 'user' | 'assistant',
-      content: extractTextFromMessage(m),
-    })),
+    messages: modelMessages,
     maxOutputTokens: 16384,
     ...(tools ? { tools, stopWhen: stepCountIs(10) } : {}),
   });

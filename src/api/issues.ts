@@ -152,7 +152,7 @@ export async function patchIssue(c: Context<{ Bindings: Env; Variables: Variable
     return c.json({ error: 'Invalid patch data', details: parsed.error.issues }, 400);
   }
 
-  const updatedIssue: Issue = { ...data.issues[idx], ...parsed.data, id: issueId };
+  const updatedIssue: Issue = { ...data.issues[idx], ...parsed.data, id: issueId! };
   const updatedIssues = data.issues.map((issue, i) => (i === idx ? updatedIssue : issue));
   const updatedData: IssueTrackerData = {
     ...data,
