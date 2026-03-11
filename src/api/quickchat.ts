@@ -422,6 +422,72 @@ quickchatRoutes.post('/stream', async (c) => {
     { ignoreIncompleteToolCalls: true }
   );
 
+  // Fix: Execute any approved-but-unexecuted tool calls and inject tool-results.
+  //
+  // Background: convertToModelMessages converts approval-responded tool parts into
+  // CoreMessages that contain tool-approval-request (assistant) + tool-approval-response
+  // (tool) — but NO tool-result. convertToLanguageModelMessage (inside streamText)
+  // strips both approval parts before sending to the model, leaving the model with a
+  // tool-call that has no result. Claude ignores this silently; Gemini (and OpenAI)
+  // validate the history strictly and throw "Tool result is missing."
+  //
+  // Solution: detect this pattern, execute the approved tools eagerly, and inject
+  // tool-result parts so the model receives a complete history.
+  if (tools) {
+    // Pass 1: build lookup maps from the CoreMessage history
+    const approvalIdToCallId = new Map<string, string>();
+    const callIdToArgs = new Map<string, { toolName: string; input: unknown }>();
+
+    for (const msg of modelMessages) {
+      if (msg.role !== 'assistant' || !Array.isArray(msg.content)) continue;
+      for (const part of msg.content as Array<Record<string, unknown>>) {
+        if (part.type === 'tool-call') {
+          callIdToArgs.set(part.toolCallId as string, {
+            toolName: part.toolName as string,
+            input: part.input,
+          });
+        } else if (part.type === 'tool-approval-request') {
+          approvalIdToCallId.set(part.approvalId as string, part.toolCallId as string);
+        }
+      }
+    }
+
+    // Pass 2: find tool messages missing results, execute the tools, inject results
+    for (const msg of modelMessages) {
+      if (msg.role !== 'tool' || !Array.isArray(msg.content)) continue;
+      const content = msg.content as Array<Record<string, unknown>>;
+      if (content.some((p) => p.type === 'tool-result')) continue; // already complete
+
+      for (const part of content) {
+        if (part.type !== 'tool-approval-response' || part.approved !== true) continue;
+        const callId = approvalIdToCallId.get(part.approvalId as string);
+        const args = callId ? callIdToArgs.get(callId) : undefined;
+        if (!callId || !args) continue;
+
+        const t = (tools as Record<string, { execute?: (i: unknown, opts: { messages: unknown[]; abortSignal: AbortSignal }) => Promise<unknown> }>)[args.toolName];
+        if (!t?.execute) continue;
+
+        let output: string;
+        try {
+          const result = await t.execute(args.input, {
+            messages: [],
+            abortSignal: new AbortController().signal,
+          });
+          output = typeof result === 'string' ? result : JSON.stringify(result);
+        } catch (err) {
+          output = `Tool execution error: ${String(err)}`;
+        }
+
+        (msg.content as unknown[]).push({
+          type: 'tool-result',
+          toolCallId: callId,
+          toolName: args.toolName,
+          output: { type: 'text', value: output },
+        });
+      }
+    }
+  }
+
   // Stream using AI SDK — returns UIMessageStream for useChat v6
   const result = streamText({
     model: aiModel,
