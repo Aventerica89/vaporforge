@@ -1,4 +1,6 @@
 
+### 2026-03-11 · f4855cb · v0.29.0
+FIX     deploy — fix: pad DO stream writes to >1KB to unblock Chrome Fetch buffering (issue #81)
 ### 2026-03-11 · 0a96327 · v0.29.0
 FIX     deploy — fix: marketplace discovery fallback, warnings for rate limit/404/empty
 ### 2026-03-11 · 47c266d · v0.29.0
