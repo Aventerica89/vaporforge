@@ -1,4 +1,6 @@
 
+### 2026-03-11 · ce2134d · v0.29.0
+FEAT    deploy — plan prompt for Standard/conservative mode: create_plan required before multi-step tool use
 ### 2026-03-11 · 06e9515 · v0.29.0
 FEAT    deploy — tool approval flow for Standard/conservative autonomy mode (canUseTool + DO broker + browser UI)
 ### 2026-03-11 · 35f5e93 · v0.29.0
