@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · 237b37d · v0.29.0
+FIX     quickchat — Execute approved tool calls server-side before streamText; Gemini (unlike Claude) validates every tool call has a result, throwing "Tool result is missing" without this
+
 ### 2026-03-11 · 1861970 · v0.29.0
 FIX     quickchat — Add explicit runCommand tool hint to system prompt; Gemini was outputting XML tool-call markup instead of using the tool
 
