@@ -21,22 +21,30 @@ npm run lint 2>&1
 
 If either has errors, STOP and report them. Do not deploy broken code.
 
-### 2. Detect Dockerfile changes
+### 2. Detect container changes
+
+Check whether sandbox scripts (not just Dockerfile metadata) actually changed:
 
 ```bash
-git diff HEAD -- Dockerfile | head -5
+git diff HEAD -- src/sandbox-scripts/ | head -5
+git status --porcelain src/sandbox-scripts/
+git diff HEAD -- Dockerfile | grep -v VF_CONTAINER_BUILD | head -5
 git status --porcelain Dockerfile
 ```
 
-If Dockerfile has **any uncommitted or unstaged changes** (modified, untracked):
+Clear Docker cache **only if**:
+- Any file in `src/sandbox-scripts/` has uncommitted changes, OR
+- `Dockerfile` has changes **other than** the `VF_CONTAINER_BUILD` line
+
 ```bash
 docker builder prune --all -f
 docker image prune -a -f
 ```
 
-Output: "Container cache cleared — new image will be built on deploy."
+Output: "Container cache cleared — sandbox scripts changed, new image will be built."
 
-If no Dockerfile changes: skip prune, output "Dockerfile unchanged — using cached image."
+If only `VF_CONTAINER_BUILD` changed (or nothing changed): skip prune entirely.
+Output: "Dockerfile unchanged — using cached Docker layers (fast deploy)."
 
 ### 3. Build
 
