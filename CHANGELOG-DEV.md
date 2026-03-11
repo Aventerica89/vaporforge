@@ -1,3 +1,6 @@
+### 2026-03-11 · 742cb44 · v0.29.0
+FEAT    sandbox.watch() SSE endpoint + useFileWatcher hook — live Monaco refresh when Claude writes files
+
 ### 2026-03-11 · 3245c5c · v0.29.0
 FIX     marketplace: source name shown correctly, install state immediate, auto-refresh on open
 
