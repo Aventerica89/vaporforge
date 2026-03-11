@@ -398,6 +398,7 @@ quickchatRoutes.post('/stream', async (c) => {
   const hasSemanticSearch = tools && 'semanticSearch' in tools;
   const systemParts: string[] = [
     'You are a helpful coding assistant with access to a cloud development sandbox.',
+    'To run shell commands, always use the runCommand tool — never output raw XML, bash blocks, or tool-call markup.',
     'You have a create_github_issue tool — use it to file bug reports, debug findings,',
     'or tasks that the main Claude session should act on.',
     'When creating issues, detect the repo owner/name from .git/config or package.json in the workspace.',
