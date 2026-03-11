@@ -1,4 +1,6 @@
 
+### 2026-03-11 · 4d228c1 · v0.29.0
+FIX     deploy — auto-allow create_plan/ask_user_questions in canUseTool (hang fix in Standard mode)
 ### 2026-03-11 · ce2134d · v0.29.0
 FEAT    deploy — plan prompt for Standard/conservative mode: create_plan required before multi-step tool use
 ### 2026-03-11 · 06e9515 · v0.29.0
