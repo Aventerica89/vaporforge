@@ -4,6 +4,9 @@ Technical log. Updated on every deploy.
 
 <!-- Entries added automatically by deploy hook or /changelog dev -->
 
+### 2026-03-11 · fa95fa0 · v0.29.0
+FEAT    quickchat — /t-file, /t-approve, /t-deny slash commands for manual tool approval flow testing
+
 ### 2026-03-11 · 4438d19 · v0.29.0
 FIX     quickchat — Tool part type is "tool-{name}" (e.g. "tool-runCommand"), not "tool"; Fix 3 approval-requested auto-deny was never matching static tools
 
