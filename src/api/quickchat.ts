@@ -413,12 +413,39 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
+  // Pre-process: auto-deny any tools in 'approval-requested' state (never answered).
+  // convertToModelMessages keeps these parts but produces no tool-result, causing
+  // "Tool result is missing" errors when the user sends a new message without approving.
+  const resolvedMessages = messages.map((msg) => ({
+    ...msg,
+    parts: (msg.parts ?? []).map((part) => {
+      const p = part as Record<string, unknown>;
+      if (
+        (p.type === 'tool' || p.type === 'dynamic-tool') &&
+        p.state === 'approval-requested' &&
+        typeof p.approval === 'object' &&
+        p.approval !== null
+      ) {
+        return {
+          ...p,
+          state: 'output-denied',
+          approval: {
+            ...(p.approval as Record<string, unknown>),
+            approved: false,
+            reason: 'Command was not approved.',
+          },
+        };
+      }
+      return part;
+    }),
+  }));
+
   // Convert UIMessages to CoreMessages, preserving tool-call and approval parts.
   // This is required for the human-in-the-loop (needsApproval) flow: when the
   // user approves a tool, the transport re-POSTs with approval state embedded in
   // the message parts. A plain text extraction would lose that state.
   const modelMessages = await convertToModelMessages(
-    messages as Parameters<typeof convertToModelMessages>[0],
+    resolvedMessages as Parameters<typeof convertToModelMessages>[0],
     { ignoreIncompleteToolCalls: true }
   );
 
