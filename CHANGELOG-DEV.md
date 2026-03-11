@@ -1,4 +1,6 @@
 
+### 2026-03-11 · 06e9515 · v0.29.0
+FEAT    deploy — tool approval flow for Standard/conservative autonomy mode (canUseTool + DO broker + browser UI)
 ### 2026-03-11 · 35f5e93 · v0.29.0
 FIX     deploy — fix: apply useSmoothText rAF animation to streaming text (fix #81 pop-in)
 ### 2026-03-11 · f4855cb · v0.29.0
