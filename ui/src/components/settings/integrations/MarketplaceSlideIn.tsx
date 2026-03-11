@@ -21,6 +21,7 @@ function MarketplaceListView({ onSelectSource, onClose }: MarketplaceListViewPro
     customCatalog,
     isLoadingSources,
     sourcesRefreshedAt,
+    sourceWarnings,
     addSource,
     removeSource,
     patchSource,
@@ -166,6 +167,13 @@ function MarketplaceListView({ onSelectSource, onClose }: MarketplaceListViewPro
                 </button>
               </div>
 
+              {/* Warning row */}
+              {sourceWarnings[src.id]?.length > 0 && (
+                <p className="font-mono text-[9px] text-amber-400/80">
+                  ⚠ {sourceWarnings[src.id][0]}
+                </p>
+              )}
+
               {/* Actions row */}
               <div className="flex items-center justify-between border-t border-border/20 pt-2">
                 {/* Auto-update toggle */}
@@ -223,7 +231,7 @@ interface SourceDetailViewProps {
 }
 
 function SourceDetailView({ sourceId, onBack }: SourceDetailViewProps) {
-  const { customSources, customCatalog, installing, installPlugin, installedRepoUrls } = useMarketplace();
+  const { customSources, customCatalog, installing, installPlugin, installedRepoUrls, sourceWarnings } = useMarketplace();
 
   const [search, setSearch] = useState('');
 
@@ -271,9 +279,20 @@ function SourceDetailView({ sourceId, onBack }: SourceDetailViewProps) {
       {/* Plugin grid */}
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3.5">
         {sourcePlugins.length === 0 && (
-          <p className="py-8 text-center text-[11px] text-muted-foreground">
-            {search ? 'No plugins match your search' : 'No plugins found in this marketplace'}
-          </p>
+          <div className="py-8 text-center">
+            {search ? (
+              <p className="text-[11px] text-muted-foreground">No plugins match your search</p>
+            ) : sourceWarnings[sourceId]?.length > 0 ? (
+              <div className="flex flex-col items-center gap-1">
+                <p className="font-mono text-[10px] text-amber-400/80">⚠ {sourceWarnings[sourceId][0]}</p>
+                {sourceWarnings[sourceId].length > 1 && (
+                  <p className="font-mono text-[10px] text-muted-foreground">{sourceWarnings[sourceId][1]}</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-muted-foreground">No plugins found in this marketplace</p>
+            )}
+          </div>
         )}
         {sourcePlugins.map((c) => {
           const isInstalled = !!(c.repository_url && installedRepoUrls.has(c.repository_url));

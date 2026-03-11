@@ -28,3 +28,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T06:45:00Z", "msg": "fix: marketplace source name, install state, auto-refresh on open", "hash": "3245c5c" }
 { "v": "0.29.0", "ts": "2026-03-11T08:38:00Z", "msg": "Add sandbox.watch() SSE endpoint + useFileWatcher hook for live Monaco refresh", "hash": "742cb44" }
 { "v": "0.29.0", "ts": "2026-03-11T09:31:20Z", "msg": "V1.5 stability: keepAlive, buffer pruning, clearBuffer retry, list() pagination, orphaned stream buffering", "hash": "47c266d" }
+{"v":"0.29.0","ts":"2026-03-11T10:45:00Z","msg":"fix: marketplace discovery fallback, warnings for rate limit/404/empty","hash":"0a96327"}

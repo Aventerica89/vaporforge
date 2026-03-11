@@ -1029,7 +1029,7 @@ export const pluginSourcesApi = {
     }),
 
   refresh: () =>
-    request<{ plugins: any[]; refreshedAt: string }>('/plugin-sources/refresh', {
+    request<{ plugins: any[]; refreshedAt: string; warnings?: Record<string, string[]> }>('/plugin-sources/refresh', {
       method: 'POST',
     }),
 

@@ -1,3 +1,6 @@
+
+### 2026-03-11 · 0a96327 · v0.29.0
+FIX     deploy — fix: marketplace discovery fallback, warnings for rate limit/404/empty
 ### 2026-03-11 · 47c266d · v0.29.0
 CHORE   deploy — V1.5 stability: keepAlive, buffer pruning, clearBuffer retry, list() pagination, orphaned stream buffering
 

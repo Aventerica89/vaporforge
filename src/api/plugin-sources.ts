@@ -164,10 +164,45 @@ function parseTreeForPlugins(
     }
   }
 
-  // Also check for root-level agents/, commands/, rules/ (non-prefixed)
-  // This handles repos that have plugin content at the root
-  if (prefixes.length === 1 && !prefixes[0].includes('/')) {
-    // Already handled by prefix matching
+  // Fallback: if prefix scan found nothing, try root-level and .claude/ conventions.
+  // Treats the whole repo as a single synthetic plugin (repo name = plugin name).
+  if (pluginMap.size === 0) {
+    const ROOT_PREFIXES = ['', '.claude/'];
+    const repoName = repoUrl.split('/').pop() ?? 'plugin';
+    const pluginKey = `${sourceId}:${repoName}`;
+    const syntheticPlugin = {
+      name: repoName,
+      prefix: '',
+      components: [] as Array<{ type: string; name: string; slug: string }>,
+    };
+
+    for (const entry of tree) {
+      if (entry.type !== 'blob') continue;
+      for (const rp of ROOT_PREFIXES) {
+        if (rp && !entry.path.startsWith(rp)) continue;
+        const relativePath = rp ? entry.path.slice(rp.length) : entry.path;
+        const parts = relativePath.split('/');
+        if (parts.length < 2) continue;
+        for (const dir of COMPONENT_DIRS) {
+          if (parts[0] === dir && parts[parts.length - 1].endsWith('.md')) {
+            const fileName = parts[parts.length - 1];
+            const compName = fileName.replace('.md', '');
+            if (fileName === 'SKILL.md' && parts.length >= 3) {
+              const parentName = parts[1];
+              if (!syntheticPlugin.components.some((c) => c.type === 'skill' && c.name === parentName)) {
+                syntheticPlugin.components.push({ type: 'skill', name: parentName, slug: slugify(parentName) });
+              }
+            } else {
+              syntheticPlugin.components.push({ type: dir.replace(/s$/, ''), name: compName, slug: slugify(compName) });
+            }
+          }
+        }
+      }
+    }
+
+    if (syntheticPlugin.components.length > 0) {
+      pluginMap.set(pluginKey, syntheticPlugin);
+    }
   }
 
   const plugins: CatalogPluginRuntime[] = [];
@@ -203,16 +238,21 @@ function parseTreeForPlugins(
   return plugins;
 }
 
+interface DiscoveryResult {
+  plugins: CatalogPluginRuntime[];
+  warnings: string[];
+}
+
 /**
  * Discover plugins from a single GitHub repo URL.
- * Returns CatalogPlugin[] format for frontend consumption.
+ * Returns plugins + any warnings (rate limit, not found, no structure match).
  */
 async function discoverSourceCatalog(
   source: PluginSource,
   githubToken?: string
-): Promise<CatalogPluginRuntime[]> {
+): Promise<DiscoveryResult> {
   const parsed = parseGitHubUrl(source.url);
-  if (!parsed) return [];
+  if (!parsed) return { plugins: [], warnings: ['Invalid GitHub URL'] };
 
   const { owner, repo, branch, prefixes } = parsed;
   const repoUrl = `https://github.com/${owner}/${repo}`;
@@ -230,15 +270,32 @@ async function discoverSourceCatalog(
       { headers: ghHeaders }
     );
 
-    if (!treeRes.ok) return [];
+    if (!treeRes.ok) {
+      if (treeRes.status === 403) {
+        return { plugins: [], warnings: ['GitHub API rate limited — try again later (60 req/hr unauthenticated)'] };
+      }
+      if (treeRes.status === 404) {
+        return { plugins: [], warnings: [`Repository not found: ${owner}/${repo} (branch: ${branch})`] };
+      }
+      return { plugins: [], warnings: [`GitHub API error ${treeRes.status}`] };
+    }
 
     const { tree } = (await treeRes.json()) as {
       tree: Array<{ path: string; type: string }>;
     };
 
-    return parseTreeForPlugins(tree, prefixes, sourceId, repoUrl, branch);
-  } catch {
-    return [];
+    const plugins = parseTreeForPlugins(tree, prefixes, sourceId, repoUrl, branch);
+
+    if (plugins.length === 0) {
+      return {
+        plugins: [],
+        warnings: ['No plugin directories found. This repo may not contain Claude Code plugins, or uses an unsupported structure.'],
+      };
+    }
+
+    return { plugins, warnings: [] };
+  } catch (err) {
+    return { plugins: [], warnings: [`Discovery failed: ${err instanceof Error ? err.message : 'Unknown error'}`] };
   }
 }
 
@@ -377,9 +434,16 @@ pluginSourcesRoutes.post('/refresh', async (c) => {
   const results = await Promise.all(
     sources.map((s) => discoverSourceCatalog(s, c.env.GITHUB_TOKEN))
   );
-  const allPlugins = results.flat();
 
-  // Cache the results
+  const allPlugins = results.flatMap((r) => r.plugins);
+
+  // Collect per-source warnings keyed by source id
+  const warnings: Record<string, string[]> = {};
+  results.forEach((r, i) => {
+    if (r.warnings.length > 0) warnings[sources[i].id] = r.warnings;
+  });
+
+  // Cache the results (warnings not cached — they're transient)
   const cacheData = {
     plugins: allPlugins,
     refreshedAt: new Date().toISOString(),
@@ -390,7 +454,7 @@ pluginSourcesRoutes.post('/refresh', async (c) => {
     { expirationTtl: CACHE_TTL_SECONDS }
   );
 
-  return c.json({ success: true, data: cacheData });
+  return c.json({ success: true, data: { ...cacheData, warnings } });
 });
 
 // GET /catalog — get cached custom catalog (or empty)

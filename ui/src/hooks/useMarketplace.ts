@@ -75,6 +75,7 @@ interface MarketplaceState {
   customCatalog: CatalogPlugin[];
   isLoadingSources: boolean;
   sourcesRefreshedAt: string | null;
+  sourceWarnings: Record<string, string[]>;
 
   clearInstallError: () => void;
   installPlugin: (catalogPlugin: CatalogPlugin) => Promise<void>;
@@ -95,6 +96,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
   customCatalog: [],
   isLoadingSources: false,
   sourcesRefreshedAt: null,
+  sourceWarnings: {},
 
   clearInstallError: () => set({ installError: null }),
 
@@ -300,6 +302,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
         set({
           customCatalog: result.data.plugins as CatalogPlugin[],
           sourcesRefreshedAt: result.data.refreshedAt,
+          sourceWarnings: (result.data.warnings as Record<string, string[]>) ?? {},
           isLoadingSources: false,
         });
       } else {
