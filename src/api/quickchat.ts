@@ -421,7 +421,7 @@ quickchatRoutes.post('/stream', async (c) => {
     parts: (msg.parts ?? []).map((part) => {
       const p = part as Record<string, unknown>;
       if (
-        (p.type === 'tool' || p.type === 'dynamic-tool') &&
+        (p.type === 'dynamic-tool' || (typeof p.type === 'string' && p.type.startsWith('tool-'))) &&
         p.state === 'approval-requested' &&
         typeof p.approval === 'object' &&
         p.approval !== null
