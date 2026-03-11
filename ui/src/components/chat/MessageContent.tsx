@@ -2,6 +2,7 @@ import { memo, useMemo, useState } from 'react';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ChatMarkdown } from './ChatMarkdown';
+import { useSmoothText } from '@/hooks/useSmoothText';
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
@@ -224,7 +225,7 @@ function renderPart(
     case 'text':
       if (!part.content) return null;
       return isStreaming ? (
-        <MessageResponse key={index} mode="streaming">{part.content}</MessageResponse>
+        <SmoothText key={index} content={part.content} />
       ) : (
         <ChatMarkdown key={index} content={part.content} />
       );
@@ -453,6 +454,13 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
   );
 });
 
+/** Renders a streaming text part with rAF-based smooth animation via useSmoothText. */
+function SmoothText({ content }: { content: string }) {
+  const isStreaming = useSandboxStore((s) => s.isStreaming);
+  const smooth = useSmoothText(content, isStreaming);
+  return <MessageResponse mode="streaming">{smooth}</MessageResponse>;
+}
+
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
   const streamingPlan = useMemo(() => parseTaskPlan(parts), [parts]);
 
@@ -478,7 +486,7 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   }
 
   if (fallbackContent) {
-    return <MessageResponse mode="streaming">{fallbackContent}</MessageResponse>;
+    return <SmoothText content={fallbackContent} />;
   }
 
   return null;

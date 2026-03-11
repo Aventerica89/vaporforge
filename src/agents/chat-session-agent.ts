@@ -277,6 +277,11 @@ export class ChatSessionAgent {
     const reader = request.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    // Chrome's Fetch ReadableStream buffers HTTP chunks smaller than ~1KB before
+    // delivering them to reader.read(). Padding each write to >1KB forces Chrome
+    // to flush immediately, enabling token-by-token streaming instead of wall-of-text.
+    // The padding line is whitespace-only and skipped by streamV15's `if (!line.trim()) continue`.
+    const FLUSH_PAD = ' '.repeat(1024) + '\n';
 
     try {
       while (true) {
@@ -290,7 +295,7 @@ export class ChatSessionAgent {
         for (const line of lines) {
           if (!line.trim()) continue;
           await bridge.writer.write(
-            bridge.encoder.encode(line + '\n')
+            bridge.encoder.encode(line + '\n' + FLUSH_PAD)
           );
           this.storeLine(line);
           this.extractMetadata(line);
@@ -300,7 +305,7 @@ export class ChatSessionAgent {
       // Flush remaining buffer
       if (buffer.trim()) {
         await bridge.writer.write(
-          bridge.encoder.encode(buffer + '\n')
+          bridge.encoder.encode(buffer + '\n' + FLUSH_PAD)
         );
         this.storeLine(buffer);
         this.extractMetadata(buffer);
