@@ -40,6 +40,7 @@ const IS_CALLBACK_MODE = IS_WS_CALLBACK_MODE || !!(CALLBACK_URL && CALLBACK_JWT)
 let callbackReq = null;
 let callbackWs = null;
 let wsOpen = false;
+let wsError = false;
 let wsMsgQueue = [];
 
 if (IS_WS_CALLBACK_MODE) {
@@ -52,6 +53,7 @@ if (IS_WS_CALLBACK_MODE) {
     console.error('[claude-agent] V1.5 WS callback connected');
   });
   callbackWs.addEventListener('error', (e) => {
+    wsError = true;
     console.error('[claude-agent] WS callback error:', e.message || e.type);
   });
   callbackWs.addEventListener('close', (e) => {
@@ -130,9 +132,10 @@ function emit(obj) {
   if (IS_WS_CALLBACK_MODE) {
     if (wsOpen) {
       callbackWs.send(line);
-    } else {
+    } else if (!wsError) {
       wsMsgQueue.push(line); // buffer until WS open fires
     }
+    // if wsError: silently drop (connection failed, DO will time out)
   } else if (IS_CALLBACK_MODE && callbackReq) {
     callbackReq.write(line);
   } else {
@@ -960,16 +963,19 @@ async function handleQuery(prompt, sessionId, cwd) {
   });
 }
 
-// Finalize the callback POST (V1.5 mode) — close the chunked request body.
 // Finalize the callback (WS or HTTP) — close connection after all events emitted.
 function finalizeCallback() {
   if (IS_WS_CALLBACK_MODE && callbackWs) {
     if (wsOpen) {
       callbackWs.close(1000, 'done');
+    } else if (wsError || callbackWs.readyState === 2 || callbackWs.readyState === 3) {
+      // WS already failed or closing — log and move on
+      console.error('[claude-agent] WS callback unavailable at finalize');
     } else {
-      // Never connected — drain queue won't happen; close anyway
+      // Still connecting — register open listener to drain and close
       callbackWs.addEventListener('open', () => {
         for (const msg of wsMsgQueue) callbackWs.send(msg);
+        wsMsgQueue = [];
         callbackWs.close(1000, 'done');
       });
     }
