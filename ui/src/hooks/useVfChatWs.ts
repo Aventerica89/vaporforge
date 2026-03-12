@@ -12,7 +12,23 @@
  *            OR raw JSON for VF custom events (confirmation, commit, etc.)
  */
 
-type VfStreamEvent = { type: string; [key: string]: unknown };
+type VfStreamEvent = {
+  type: string;
+  id?: string;
+  content?: string;
+  sessionId?: string;
+  fullText?: string;
+  name?: string;
+  input?: Record<string, unknown>;
+  output?: string;
+  restoredAt?: string;
+  usage?: { inputTokens: number; outputTokens: number };
+  costUsd?: number;
+  msgId?: string;
+  offset?: number;
+  finishReason?: string;
+  containerBuild?: string;
+};
 
 /**
  * Parse a UIMessageStream opcode frame into a VF event shape
@@ -45,7 +61,7 @@ function parseUIStreamFrame(data: string): VfStreamEvent | null {
     case 'd': {
       const d = payload as {
         finishReason: string;
-        usage: Record<string, unknown>;
+        usage?: { inputTokens: number; outputTokens: number };
         sessionId?: string;
         fullText?: string;
         costUsd?: number;
