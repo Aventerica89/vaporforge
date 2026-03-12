@@ -44,3 +44,4 @@
 {"v":"0.29.0","ts":"2026-03-12T07:34:13Z","msg":"fix: streaming pop-in — useSandboxStore.subscribe captures parts pre-batch + stable SmoothText key","hash":"7d7ea71"}
 {"v":"0.29.0","ts":"2026-03-12T07:54:43Z","msg":"fix: show pasted image previews in ChatPanel before send","hash":"49f54cc"}
 { "v": "0.29.0", "ts": "2026-03-12T19:58:00Z", "msg": "WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged)", "hash": "dbde07d" }
+{ "v": "0.29.0", "ts": "2026-03-12T21:28:49Z", "msg": "fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once", "hash": "577807b" }

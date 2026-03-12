@@ -1120,20 +1120,49 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         ...(streamUsage ? { usage: streamUsage } : {}),
       };
 
+      // Linger: keep streamingParts populated so SmoothText can animate the final
+      // content batch. This fixes the case where all WS frames arrive simultaneously
+      // (React batches isStreaming→false with streamingParts:[] in one render, so
+      // the MessageList linger refs never capture the content).
+      // Formula matches MessageList.tsx: max(700, ceil(sqrt(chars)*15)) ms.
+      const lingerMs = content.length > 0
+        ? Math.max(700, Math.ceil(Math.sqrt(content.length) * 15))
+        : 0;
+
+      // Step 1: End streaming, keep parts/content alive for animation.
+      // Message is pre-populated in messagesById but NOT yet in messageIds
+      // so StreamingMessage and the final message don't both render simultaneously.
       set((state) => ({
         messagesById: { ...state.messagesById, [assistantMessage.id]: assistantMessage },
-        messageIds: [...state.messageIds, assistantMessage.id],
         isStreaming: false,
         isPaused: false,
         pausedAt: null,
-        streamingContent: '',
-        streamingParts: [],
+        streamingContent: content,
+        streamingParts: [...parts],
         streamAbortController: null,
       }));
 
-      // Refresh files in case Claude made changes
+      // Refresh files in case Claude made changes (can happen immediately)
       get().loadFiles();
       get().loadGitStatus();
+
+      // Step 2: After linger, commit message to list and clear streaming state.
+      const sessionId = session.id;
+      const msgId = assistantMessage.id;
+      const commitMessage = () => {
+        if (get().currentSession?.id !== sessionId) return;
+        set((state) => ({
+          messageIds: [...state.messageIds, msgId],
+          streamingContent: '',
+          streamingParts: [],
+        }));
+      };
+
+      if (lingerMs > 0) {
+        setTimeout(commitMessage, lingerMs);
+      } else {
+        commitMessage();
+      }
       }
     } catch (error) {
       clearTimeout(timeoutId);

@@ -1,4 +1,7 @@
 
+### 2026-03-12 · 577807b · v0.29.0
+FIX     deploy — fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once
+
 ### 2026-03-12 · dbde07d · v0.29.0
 FEAT    deploy — WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged, vf_use_ws=1)
 
