@@ -1,4 +1,7 @@
 
+### 2026-03-12 · b56bd257 · v0.29.0
+FIX     deploy — show pasted image previews in ChatPanel before send
+
 ### 2026-03-12 · 7d7ea71 · v0.29.0
 FIX     deploy — streaming pop-in: useSandboxStore.subscribe captures parts pre-batch + stable SmoothText key
 

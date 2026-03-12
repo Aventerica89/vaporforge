@@ -23,8 +23,38 @@ import {
   PromptInputTextarea,
   PromptInputFooter,
   PromptInputTools,
+  usePromptInputAttachments,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
+
+/** Shows pending pasted/attached images above the textarea with remove buttons. */
+function AttachmentDraftStrip() {
+  const attachments = usePromptInputAttachments();
+  if (attachments.files.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2 px-3 pt-2">
+      {attachments.files.map((file) => (
+        <div key={file.id} className="group relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/30">
+          {file.mediaType.startsWith('image/') ? (
+            <img src={file.url} alt={file.filename ?? 'attachment'} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground px-1 text-center">
+              {file.filename ?? file.mediaType}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => attachments.remove(file.id)}
+            className="absolute right-0.5 top-0.5 hidden h-4 w-4 items-center justify-center rounded-full bg-background/80 text-foreground group-hover:flex"
+            aria-label="Remove attachment"
+          >
+            <X className="h-2.5 w-2.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 import type { ImageAttachment } from '@/lib/types';
 import { SlashCommandMenu } from '@/components/chat/SlashCommandMenu';
 import { GlowEffect } from '@/components/motion-primitives/glow-effect';
@@ -210,6 +240,7 @@ export function ChatPanel({
         </AnimatePresence>
 
         <PromptInputBody>
+          <AttachmentDraftStrip />
           <PromptInputTextarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
