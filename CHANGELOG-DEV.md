@@ -1,4 +1,7 @@
 
+### 2026-03-12 · 7d7ea71 · v0.29.0
+FIX     deploy — streaming pop-in: useSandboxStore.subscribe captures parts pre-batch + stable SmoothText key
+
 ### 2026-03-12 · 9bbc21d · v0.29.0
 FIX     deploy — padStreamLines byte-length padding + TextDecoder flush + useSmoothText cursor reset
 ### 2026-03-12 · 58d00df · v0.29.0
