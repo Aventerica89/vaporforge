@@ -47,6 +47,16 @@ export function useSmoothText(
     }
   }, [disabled, rawText]);
 
+  // Reset cursor when a new message starts (rawText resets shorter than current cursor).
+  // Needed because SmoothText is keyed by part index — React may reuse the same
+  // component instance for a new message at the same position, leaving cursor stale.
+  useEffect(() => {
+    if (!disabled && rawText.length < cursorRef.current) {
+      cursorRef.current = 0;
+      setDisplayed('');
+    }
+  }, [disabled, rawText]);
+
   // Single rAF loop — runs from mount, self-terminates when caught up and done.
   // Not in the isStreaming dependency array so it keeps running after stream ends.
   useEffect(() => {

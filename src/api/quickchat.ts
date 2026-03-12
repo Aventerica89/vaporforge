@@ -370,6 +370,17 @@ function padStreamLines(source: ReadableStream<Uint8Array>): ReadableStream<Uint
   const dec = new TextDecoder();
   const enc = new TextEncoder();
   let leftover = '';
+
+  function emitLine(line: string, controller: TransformStreamDefaultController<Uint8Array>) {
+    // Measure byte length (not char length) so non-ASCII text is padded correctly.
+    const lineBytes = enc.encode(line);
+    const paddingNeeded = Math.max(0, 1026 - lineBytes.byteLength);
+    // Pad to >1KB and append \n\n (line-end + blank SSE separator) in one chunk.
+    // Chrome delivers chunks >1KB immediately; EventSourceParserStream dispatches
+    // on the blank-line separator — both requirements satisfied at once.
+    controller.enqueue(enc.encode(line + ' '.repeat(paddingNeeded) + '\n\n'));
+  }
+
   return source.pipeThrough(
     new TransformStream<Uint8Array, Uint8Array>({
       transform(chunk, controller) {
@@ -379,18 +390,17 @@ function padStreamLines(source: ReadableStream<Uint8Array>): ReadableStream<Uint
         leftover = lines.pop() ?? '';
         for (const line of lines) {
           // Skip blank lines: they are SSE event separators, now incorporated
-          // into each data line's chunk via the \n\n suffix below.
+          // into each data line's chunk via the \n\n suffix in emitLine.
           if (!line) continue;
-          // Pad to 1025 bytes, then append \n\n (line-end + blank SSE separator).
-          // The entire padded event fits in one >1KB chunk so Chrome delivers it
-          // immediately and EventSourceParserStream dispatches it without delay.
-          const padded = line + ' '.repeat(Math.max(0, 1025 - line.length)) + '\n\n';
-          controller.enqueue(enc.encode(padded));
+          emitLine(line, controller);
         }
       },
       flush(controller) {
-        if (leftover) {
-          controller.enqueue(enc.encode(leftover + '\n\n'));
+        // Drain TextDecoder buffer (handles multi-byte sequences split at stream end)
+        const trailing = dec.decode();
+        const full = leftover + trailing;
+        if (full && full.trim()) {
+          emitLine(full, controller);
         }
       },
     })

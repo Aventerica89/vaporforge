@@ -1,4 +1,6 @@
 
+### 2026-03-12 · 9bbc21d · v0.29.0
+FIX     deploy — padStreamLines byte-length padding + TextDecoder flush + useSmoothText cursor reset
 ### 2026-03-12 · 58d00df · v0.29.0
 FIX     deploy — QuickChat SSE blank-line stripping in padStreamLines + useSmoothText catch-up speed at cursor=0
 ### 2026-03-12 · 179577c · v0.29.0

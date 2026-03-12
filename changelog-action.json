@@ -38,5 +38,6 @@
 { "v": "0.29.0", "ts": "2026-03-11T21:55:00Z", "msg": "Fix streaming pop-in: TCP Nagle (setNoDelay) + useSmoothText rAF + StreamingMessage linger", "hash": "4626552" }
 { "v": "0.29.0", "ts": "2026-03-12T00:00:00Z", "msg": "Security: IDOR ownership checks on V1.5 chat/approve/resume + crypto.randomUUID() for approvalId", "hash": "a27d164" }
 { "v": "0.29.0", "ts": "2026-03-12T04:30:00Z", "msg": "Security: MCP shell injection fix (npm pkg validation) + dynamic stream linger", "hash": "a4f7a94" }
+{ "v": "0.29.0", "ts": "2026-03-12T05:48:19Z", "msg": "fix: padStreamLines byte-length padding + TextDecoder flush + useSmoothText cursor reset", "hash": "9bbc21d" }
 { "v": "0.29.0", "ts": "2026-03-12T05:17:31Z", "msg": "fix: QuickChat SSE blank-line stripping in padStreamLines + useSmoothText catch-up speed at cursor=0", "hash": "58d00df" }
 { "v": "0.29.0", "ts": "2026-03-12T05:00:00Z", "msg": "fix: QuickChat streaming pop-in — useSmoothText + 1KB line padding", "hash": "179577c" }
