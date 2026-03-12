@@ -76,6 +76,7 @@ export class ChatSessionAgent {
   private state: DurableObjectState;
   private env: Env;
   private httpBridges = new Map<string, HttpBridge>();
+  private wsBridges = new Map<string, WebSocket>();
   private bufferSeq = 0;
   private pendingApprovals = new Map<string, (approved: boolean) => void>();
 
@@ -245,6 +246,11 @@ export class ChatSessionAgent {
       });
     }
 
+    // V1.5 WebSocket streaming — browser upgrades to WS for real-time chat
+    if (request.headers.get('Upgrade') === 'websocket' && url.pathname === '/ws') {
+      return this.handleWsUpgrade(request, url);
+    }
+
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
     if (request.method === 'POST' && url.pathname === '/chat') {
       try {
@@ -273,57 +279,69 @@ export class ChatSessionAgent {
   }
 
   /**
-   * Receives chunked POST from container, verifies JWT,
-   * and pipes NDJSON events through to the browser's HTTP response.
+   * Receives chunked POST from container, verifies JWT, and routes to
+   * the active bridge (HTTP or WebSocket). Falls back to orphan buffering
+   * if the DO was force-evicted while the bridge was alive.
    */
   private async handleContainerStream(
     request: Request
   ): Promise<Response> {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
-
-    const payload = await verifyExecutionToken(
-      token,
-      this.env.JWT_SECRET
-    );
+    const payload = await verifyExecutionToken(token, this.env.JWT_SECRET);
     if (!payload) {
       return new Response('Unauthorized', { status: 401 });
     }
+    const { executionId } = payload;
 
-    const bridge = this.httpBridges.get(payload.executionId);
-    if (!bridge) {
-      // httpBridges is in-memory — if the DO was force-evicted while a bridge was
-      // active, the Map is empty on wake. Check SQLite: if we know this executionId,
-      // buffer the remaining output for resume rather than returning 404 (which
-      // causes the container to terminate with no output stored).
-      const knownSession = await this.state.storage.get<string>(`exec:${payload.executionId}`);
-      if (knownSession) {
-        return this.handleOrphanedStream(request, payload.executionId);
-      }
-      return new Response('No active stream for this execution', {
-        status: 404,
-      });
+    // 1. HTTP bridge (in-memory fast path)
+    const httpBridge = this.httpBridges.get(executionId);
+    if (httpBridge) {
+      httpBridge.cancelBridgeTimeout();
+      return this.pipeToHttpBridge(request, httpBridge, executionId);
     }
 
-    // Container connected — cancel the bridge timeout immediately.
-    // The timeout only exists to handle containers that never call back at all.
-    // Once data starts flowing there is no need for it.
-    bridge.cancelBridgeTimeout();
+    // 2. WS bridge — in-memory first, then recover via hibernation tag if DO was evicted
+    let ws = this.wsBridges.get(executionId);
+    if (!ws) {
+      const wsList = this.state.getWebSockets(`exec:${executionId}`);
+      if (wsList.length > 0) {
+        ws = wsList[0];
+        this.wsBridges.set(executionId, ws);
+      }
+    }
+    if (ws) {
+      return this.pipeToWsBridge(request, ws, executionId);
+    }
 
+    // 3. DO was force-evicted — buffer to storage so browser can resume
+    const knownSession = await this.state.storage.get<string>(`exec:${executionId}`);
+    if (knownSession) {
+      return this.handleOrphanedStream(request, executionId);
+    }
+
+    return new Response('No active stream for this execution', { status: 404 });
+  }
+
+  /**
+   * Pipe container NDJSON to an active HTTP bridge (existing V1.5 path).
+   * Pads each write to >1KB to force Chrome's Fetch ReadableStream to flush immediately.
+   */
+  private async pipeToHttpBridge(
+    request: Request,
+    bridge: HttpBridge,
+    executionId: string
+  ): Promise<Response> {
     if (!request.body) {
       bridge.resolve();
-      this.httpBridges.delete(payload.executionId);
-      this.state.storage.delete(`exec:${payload.executionId}`).catch(() => {});
+      this.httpBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
       return new Response('OK', { status: 200 });
     }
 
     const reader = request.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    // Chrome's Fetch ReadableStream buffers HTTP chunks smaller than ~1KB before
-    // delivering them to reader.read(). Padding each write to >1KB forces Chrome
-    // to flush immediately, enabling token-by-token streaming instead of wall-of-text.
-    // The padding line is whitespace-only and skipped by streamV15's `if (!line.trim()) continue`.
     const FLUSH_PAD = ' '.repeat(1024) + '\n';
 
     try {
@@ -337,20 +355,15 @@ export class ChatSessionAgent {
 
         for (const line of lines) {
           if (!line.trim()) continue;
-          await bridge.writer.write(
-            bridge.encoder.encode(line + '\n' + FLUSH_PAD)
-          );
+          await bridge.writer.write(bridge.encoder.encode(line + '\n' + FLUSH_PAD));
           this.storeLine(line);
           this.extractMetadata(line);
           this.maybeRegisterApproval(line);
         }
       }
 
-      // Flush remaining buffer
       if (buffer.trim()) {
-        await bridge.writer.write(
-          bridge.encoder.encode(buffer + '\n' + FLUSH_PAD)
-        );
+        await bridge.writer.write(bridge.encoder.encode(buffer + '\n' + FLUSH_PAD));
         this.storeLine(buffer);
         this.extractMetadata(buffer);
         this.maybeRegisterApproval(buffer);
@@ -358,13 +371,75 @@ export class ChatSessionAgent {
 
       bridge.resolve();
     } catch (err) {
-      console.error('[ChatSessionAgent] stream pipe error:', err);
-      bridge.reject(
-        err instanceof Error ? err : new Error(String(err))
-      );
+      console.error('[ChatSessionAgent] HTTP stream pipe error:', err);
+      bridge.reject(err instanceof Error ? err : new Error(String(err)));
     } finally {
-      this.httpBridges.delete(payload.executionId);
-      this.state.storage.delete(`exec:${payload.executionId}`).catch(() => {});
+      this.httpBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+    }
+
+    return new Response('OK', { status: 200 });
+  }
+
+  /**
+   * Pipe container NDJSON to an active WebSocket bridge.
+   * Translates each NDJSON line to UIMessageStream format (or raw JSON for VF custom events).
+   */
+  private async pipeToWsBridge(
+    request: Request,
+    ws: WebSocket,
+    executionId: string
+  ): Promise<Response> {
+    if (!request.body) {
+      ws.close(1000, 'done');
+      this.wsBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+      this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
+      return new Response('OK', { status: 200 });
+    }
+
+    const reader = request.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          this.storeLine(line);
+          this.extractMetadata(line);
+          this.maybeRegisterApproval(line);
+          const frame = ndjsonToUIStreamFrame(line);
+          if (frame !== null) ws.send(frame);
+        }
+      }
+
+      if (buffer.trim()) {
+        this.storeLine(buffer);
+        this.extractMetadata(buffer);
+        this.maybeRegisterApproval(buffer);
+        const frame = ndjsonToUIStreamFrame(buffer);
+        if (frame !== null) ws.send(frame);
+      }
+
+      ws.close(1000, 'done');
+    } catch (err) {
+      console.error('[ChatSessionAgent] WS stream pipe error:', err);
+      try {
+        ws.send('3:' + JSON.stringify(String(err instanceof Error ? err.message : err)) + '\n');
+        ws.close(1011, 'Stream error');
+      } catch { /* ws may already be closed */ }
+    } finally {
+      this.wsBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+      this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
     }
 
     return new Response('OK', { status: 200 });
@@ -587,6 +662,107 @@ export class ChatSessionAgent {
     });
   }
 
+  /**
+   * Accept a WebSocket upgrade from the browser.
+   * Generates an executionId, tags the WS with it for hibernation recovery,
+   * and stores metadata (userId, sessionId) in SQLite.
+   * The browser sends the first WS message `{ type: 'chat', prompt, ... }` to start a run.
+   */
+  private handleWsUpgrade(request: Request, url: URL): Response {
+    const userId = url.searchParams.get('userId') || '';
+    const sessionId = url.searchParams.get('sessionId') || '';
+    if (!userId || !sessionId) {
+      return new Response('Missing userId or sessionId', { status: 400 });
+    }
+
+    const executionId = crypto.randomUUID();
+    const { 0: client, 1: server } = new WebSocketPair();
+    // Tag with executionId so getWebSockets() can recover the WS after DO eviction
+    this.state.acceptWebSocket(server, [`exec:${executionId}`]);
+
+    // Persist metadata for webSocketMessage (survives DO hibernation)
+    this.state.storage.put(`ws-meta:${executionId}`, { userId, sessionId }).catch(() => {});
+
+    // Immediately notify browser that the WS is ready
+    server.send(JSON.stringify({ type: 'connected', executionId }));
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * CF DO WebSocket message handler (hibernating WebSocket protocol).
+   * Called when the browser sends a WS message. The first message must be
+   * `{ type: 'chat', prompt, mode?, model?, autonomy? }` to dispatch the container.
+   */
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
+    let data: Record<string, unknown>;
+    try {
+      data = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return;
+    }
+
+    if (data.type !== 'chat') return;
+
+    // Recover executionId from the WS tag assigned at upgrade time
+    const tags = this.state.getTags(ws);
+    const execTag = tags.find((t) => t.startsWith('exec:'));
+    if (!execTag) return;
+    const executionId = execTag.slice(5);
+
+    const meta = await this.state.storage.get<{ userId: string; sessionId: string }>(
+      `ws-meta:${executionId}`
+    );
+    if (!meta) {
+      ws.send('3:' + JSON.stringify('WS session metadata not found') + '\n');
+      ws.close(1011, 'Missing metadata');
+      return;
+    }
+
+    const prompt = String(data.prompt || '');
+    if (!prompt) return;
+
+    // Register in-memory bridge so pipeToWsBridge can find the socket immediately
+    this.wsBridges.set(executionId, ws);
+
+    // Persist executionId → sessionId for orphan buffering (if DO is evicted mid-stream)
+    await this.state.storage.put(`exec:${executionId}`, meta.sessionId);
+
+    await this.clearBuffer();
+
+    // Dispatch container. webSocketMessage is awaited by CF before hibernation,
+    // so the full setup (KV reads, file writes, startProcess) completes before
+    // the DO can sleep.
+    try {
+      await this.dispatchContainer(
+        executionId,
+        meta.sessionId,
+        prompt,
+        meta.userId,
+        data.mode as string | undefined,
+        data.model as string | undefined,
+        data.autonomy as string | undefined
+      );
+    } catch (err) {
+      ws.send('3:' + JSON.stringify(String(err instanceof Error ? err.message : err)) + '\n');
+      ws.close(1011, 'Dispatch error');
+      this.wsBridges.delete(executionId);
+    }
+  }
+
+  /**
+   * CF DO WebSocket close handler — clean up any in-memory bridge for this socket.
+   */
+  webSocketClose(ws: WebSocket): void {
+    for (const [executionId, bridge] of this.wsBridges) {
+      if (bridge === ws) {
+        this.wsBridges.delete(executionId);
+        break;
+      }
+    }
+  }
+
   /** Persist sdkSessionId and containerBuild from container events. */
   private extractMetadata(line: string): void {
     try {
@@ -650,32 +826,35 @@ export class ChatSessionAgent {
   ): Promise<void> {
     try {
       const result = await process.waitForExit();
-      // Process exited — if bridge is still open and exit was non-zero, it crashed.
-      const bridge = this.httpBridges.get(executionId);
-      if (bridge && result.exitCode !== 0) {
-        const line =
-          JSON.stringify({
-            type: 'error',
-            error: `Container process exited with code ${result.exitCode}`,
-          }) + '\n';
-        bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
-        bridge.resolve();
-        this.httpBridges.delete(executionId);
-      }
-      // exit code 0: normal completion — bridge should already have resolved
-      // via handleContainerStream; if it hasn't, bridge timeout will handle it.
+      if (result.exitCode === 0) return; // normal exit — bridge resolves via handleContainerStream
+
+      const errMsg = `Container process exited with code ${result.exitCode}`;
+      this.emitBridgeError(executionId, errMsg);
     } catch (err) {
-      // SSE stream error (container sleep, network error, etc.) — close bridge
-      const bridge = this.httpBridges.get(executionId);
-      if (bridge) {
-        const msg = err instanceof Error ? err.message : String(err);
-        const line =
-          JSON.stringify({ type: 'error', error: `Container error: ${msg}` }) +
-          '\n';
-        bridge.writer.write(bridge.encoder.encode(line)).catch(() => {});
-        bridge.resolve();
-        this.httpBridges.delete(executionId);
-      }
+      const msg = err instanceof Error ? err.message : String(err);
+      this.emitBridgeError(executionId, `Container error: ${msg}`);
+    }
+  }
+
+  /** Emit an error to the active bridge (HTTP or WS) and clean up. */
+  private emitBridgeError(executionId: string, errMsg: string): void {
+    const httpBridge = this.httpBridges.get(executionId);
+    if (httpBridge) {
+      const line = JSON.stringify({ type: 'error', error: errMsg }) + '\n';
+      httpBridge.writer.write(httpBridge.encoder.encode(line)).catch(() => {});
+      httpBridge.resolve();
+      this.httpBridges.delete(executionId);
+      return;
+    }
+
+    const ws = this.wsBridges.get(executionId) ??
+      this.state.getWebSockets(`exec:${executionId}`)[0];
+    if (ws) {
+      try {
+        ws.send('3:' + JSON.stringify(errMsg) + '\n');
+        ws.close(1011, 'Process error');
+      } catch { /* ws may already be closed */ }
+      this.wsBridges.delete(executionId);
     }
   }
 
@@ -982,6 +1161,66 @@ export class ChatSessionAgent {
     }
 
     return needsFullInjection;
+  }
+}
+
+/**
+ * Translate a container NDJSON line to the AI SDK UIMessageStream wire format.
+ *
+ * Standard events → opcode:data\n
+ *   0:  text-delta
+ *   g:  reasoning-delta
+ *   9:  tool-start
+ *   a:  tool-result
+ *   d:  done
+ *   3:  error
+ *
+ * VF custom events (confirmation, commit, checkpoint-list, persona,
+ * chain-of-thought, session-init, system-info, etc.) → raw JSON\n
+ *
+ * Dropped events (heartbeat, connected) → null
+ */
+function ndjsonToUIStreamFrame(line: string): string | null {
+  let event: Record<string, unknown>;
+  try {
+    event = JSON.parse(line) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  switch (event.type) {
+    case 'text-delta':
+      return '0:' + JSON.stringify(String(event.text ?? '')) + '\n';
+    case 'reasoning-delta':
+      return 'g:' + JSON.stringify({ type: 'reasoning', reasoning: String(event.text ?? '') }) + '\n';
+    case 'tool-start':
+      return '9:' + JSON.stringify({
+        toolCallId: String(event.id ?? ''),
+        toolName: String(event.name ?? ''),
+        args: (event.input as Record<string, unknown>) ?? {},
+      }) + '\n';
+    case 'tool-result':
+      return 'a:' + JSON.stringify({
+        toolCallId: String(event.id ?? ''),
+        result: event.output ?? '',
+      }) + '\n';
+    case 'done':
+      return 'd:' + JSON.stringify({
+        finishReason: String(event.finishReason ?? 'stop'),
+        usage: event.usage ?? {},
+        sessionId: event.sessionId,
+        fullText: event.fullText,
+        costUsd: event.costUsd,
+        containerBuild: event.containerBuild,
+      }) + '\n';
+    case 'error':
+      return '3:' + JSON.stringify(String(event.error ?? 'Unknown error')) + '\n';
+    case 'heartbeat':
+    case 'connected':
+      return null; // no-op on WS — these were only needed for HTTP chunk flushing
+    default:
+      // VF custom events pass through as raw JSON for the hook to handle
+      return line + '\n';
   }
 }
 

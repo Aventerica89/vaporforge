@@ -123,6 +123,35 @@ export default {
       );
     }
 
+    // V1.5 WebSocket streaming — browser upgrades to WS for real-time chat
+    if (
+      request.headers.get('Upgrade') === 'websocket' &&
+      url.pathname === '/api/v15/ws'
+    ) {
+      const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
+      const wsToken = url.searchParams.get('token');
+      if (!wsToken) return new Response('Missing token', { status: 401 });
+
+      const wsUser = await authService.getUserFromToken(wsToken);
+      if (!wsUser) return new Response('Unauthorized', { status: 401 });
+
+      const wsSessionId = url.searchParams.get('sessionId');
+      if (!wsSessionId) return new Response('Missing sessionId', { status: 400 });
+
+      // Verify session ownership — prevents IDOR WS injection into other users' sessions
+      const wsSession = await env.SESSIONS_KV.get<Session>(`session:${wsSessionId}`, 'json');
+      if (!wsSession || wsSession.userId !== wsUser.id) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
+      const wsDoId = env.CHAT_SESSIONS.idFromName(wsSessionId);
+      const wsStub = env.CHAT_SESSIONS.get(wsDoId);
+      const wsDoUrl = new URL(
+        `https://do/ws?userId=${encodeURIComponent(wsUser.id)}&sessionId=${encodeURIComponent(wsSessionId)}`
+      );
+      return wsStub.fetch(new Request(wsDoUrl, { headers: request.headers }));
+    }
+
     // V1.5: Resume endpoint — serves buffered NDJSON from a given offset after disconnect
     if (
       request.method === 'GET' &&
