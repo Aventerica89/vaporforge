@@ -1,4 +1,7 @@
 
+### 2026-03-12 · dbde07d · v0.29.0
+FEAT    deploy — WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged, vf_use_ws=1)
+
 ### 2026-03-12 · b56bd257 · v0.29.0
 FIX     deploy — show pasted image previews in ChatPanel before send
 
