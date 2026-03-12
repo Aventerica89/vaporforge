@@ -6,6 +6,7 @@ export { Sandbox } from '@cloudflare/sandbox';
 import { proxyToSandbox } from '@cloudflare/sandbox';
 import { verifyExecutionToken } from './utils/jwt';
 import { AuthService, extractAuth } from './auth';
+import type { Session } from './types';
 
 export { SessionDurableObject, ChatSessionAgent };
 
@@ -62,6 +63,12 @@ export default {
         });
       }
 
+      // Verify session ownership — prevents IDOR prompt injection into other users' sessions
+      const chatSession = await env.SESSIONS_KV.get<Session>(`session:${body.sessionId}`, 'json');
+      if (!chatSession || chatSession.userId !== user.id) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
       try {
         const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
         const stub = env.CHAT_SESSIONS.get(doId);
@@ -98,6 +105,13 @@ export default {
       if (!body.sessionId || !body.approvalId || typeof body.approved !== 'boolean') {
         return new Response('Missing sessionId, approvalId, or approved', { status: 400 });
       }
+
+      // Verify session ownership — prevents IDOR tool approval on other users' sessions
+      const approveSession = await env.SESSIONS_KV.get<Session>(`session:${body.sessionId}`, 'json');
+      if (!approveSession || approveSession.userId !== user.id) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
       const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
       const stub = env.CHAT_SESSIONS.get(doId);
       return stub.fetch(
@@ -124,6 +138,13 @@ export default {
       if (!sessionId) {
         return new Response('Missing sessionId', { status: 400 });
       }
+
+      // Verify session ownership — prevents IDOR replay buffer read across users
+      const resumeSession = await env.SESSIONS_KV.get<Session>(`session:${sessionId}`, 'json');
+      if (!resumeSession || resumeSession.userId !== user.id) {
+        return new Response('Forbidden', { status: 403 });
+      }
+
       const doId = env.CHAT_SESSIONS.idFromName(sessionId);
       const stub = env.CHAT_SESSIONS.get(doId);
       return stub.fetch(

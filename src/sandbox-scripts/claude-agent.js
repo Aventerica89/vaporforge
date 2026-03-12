@@ -541,7 +541,7 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
           return { behavior: 'allow', updatedInput: input };
         }
         // Standard/conservative: pause and wait for user approval
-        const approvalId = `ap-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const approvalId = crypto.randomUUID();
         emit({ type: 'confirmation', toolName, input, approvalId });
         console.error(`[claude-agent] Awaiting approval for ${toolName} (${approvalId})`);
         const approved = await waitForApproval(approvalId);
