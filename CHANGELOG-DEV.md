@@ -1,4 +1,6 @@
 
+### 2026-03-12 · 58d00df · v0.29.0
+FIX     deploy — QuickChat SSE blank-line stripping in padStreamLines + useSmoothText catch-up speed at cursor=0
 ### 2026-03-12 · 179577c · v0.29.0
 FIX     deploy — QuickChat streaming pop-in: useSmoothText + 1KB UIMessageStream line padding
 ### 2026-03-12 · a4f7a94 · v0.29.0
