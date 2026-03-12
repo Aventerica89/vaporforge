@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
+import { useSmoothText } from '@/hooks/useSmoothText';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
@@ -866,6 +867,23 @@ function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
   return sources;
 }
 
+/**
+ * Wrapper that feeds Streamdown progressively via useSmoothText.
+ * Prevents React 18 batching and Chrome Fetch buffering from causing pop-in:
+ * even if all tokens arrive in one render cycle, the rAF loop drips them out.
+ */
+function StreamingTextPart({ text, isStreaming }: { text: string; isStreaming: boolean }) {
+  const smooth = useSmoothText(text, isStreaming);
+  // Keep streaming mode while animation is still catching up so Streamdown
+  // renders incrementally rather than jumping to the final static render.
+  const animating = smooth.length < text.length;
+  return (
+    <MessageResponse mode={isStreaming || animating ? 'streaming' : 'static'}>
+      {smooth}
+    </MessageResponse>
+  );
+}
+
 function QuickChatMessage({
   msg,
   isLastAssistant,
@@ -913,7 +931,7 @@ function QuickChatMessage({
           <ProviderBadge provider={provider} />
         </div>
         <div className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-          <MessageResponse mode={activelyStreaming ? 'streaming' : 'static'}>{textContent}</MessageResponse>
+          <StreamingTextPart text={textContent} isStreaming={activelyStreaming} />
         </div>
         {!isStreaming && <MessageActions content={textContent} />}
       </div>
@@ -942,7 +960,7 @@ function QuickChatMessage({
           if (!text.trim()) return null;
           return (
             <div key={i} className="rounded-lg border-l-2 border-secondary/20 bg-muted px-3 py-2 text-sm">
-              <MessageResponse mode={activelyStreaming ? 'streaming' : 'static'}>{text}</MessageResponse>
+              <StreamingTextPart text={text} isStreaming={activelyStreaming} />
             </div>
           );
         }

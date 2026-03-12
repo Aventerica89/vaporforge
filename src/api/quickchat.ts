@@ -341,6 +341,47 @@ function createSandboxTools(
   };
 }
 
+/* ── Stream padding ─────────────────────────── */
+
+/**
+ * Pad each UIMessageStream event line to >1KB so Chrome's Fetch ReadableStream
+ * buffer threshold is exceeded on every chunk.
+ *
+ * Chrome buffers ReadableStream chunks smaller than ~1KB before delivering to
+ * reader.read(). AI SDK text-delta lines are ~30-100 bytes each, so without
+ * padding all events accumulate and arrive in one batch at stream end — causing
+ * the "pop-in" effect in useChat.
+ *
+ * The UIMessageStream protocol is line-oriented (e.g. `g:{"type":"text","value":"hi"}`).
+ * JSON.parse ignores trailing whitespace so padding with spaces is safe.
+ */
+function padStreamLines(source: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const dec = new TextDecoder();
+  const enc = new TextEncoder();
+  let leftover = '';
+  return source.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        const text = leftover + dec.decode(chunk, { stream: true });
+        const lines = text.split('\n');
+        // Last element may be an incomplete line — carry it to the next chunk
+        leftover = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line) continue;
+          // Pad to 1025 bytes so Chrome delivers this line immediately
+          const padded = line + ' '.repeat(Math.max(0, 1025 - line.length)) + '\n';
+          controller.enqueue(enc.encode(padded));
+        }
+      },
+      flush(controller) {
+        if (leftover) {
+          controller.enqueue(enc.encode(leftover + '\n'));
+        }
+      },
+    })
+  );
+}
+
 /* ── Routes ─────────────────────────────────── */
 
 // POST /stream — AI SDK data stream (consumed by useChat on frontend)
@@ -596,11 +637,18 @@ quickchatRoutes.post('/stream', async (c) => {
 
   // Disable CF/proxy compression — buffering kills streaming
   // See: https://ai-sdk.dev/docs/troubleshooting/streaming-not-working-when-proxied
+  // Also pad each line to >1KB so Chrome's Fetch buffer threshold is exceeded
+  // on every event and text-delta chunks are delivered immediately.
   try {
-    return result.toUIMessageStreamResponse({
+    const aiResponse = result.toUIMessageStreamResponse({
       headers: {
         'Content-Encoding': 'none',
       },
+    });
+    const paddedBody = padStreamLines(aiResponse.body!);
+    return new Response(paddedBody, {
+      headers: aiResponse.headers,
+      status: aiResponse.status,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
