@@ -1,6 +1,6 @@
 # VaporForge Architecture Codemap
 
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-11 (rev 2)
 
 ## High-Level System Design
 
@@ -72,6 +72,10 @@ External Storage:
 
 These use direct API keys (not OAuth tokens) for Cloudflare Workers.
 
+**SSE Chrome buffering fix:** `padStreamLines()` in `src/api/quickchat.ts` pads each SSE event to >1KB and appends `\n\n` in a single write, ensuring Chrome's `ReadableStream` threshold is exceeded per chunk for immediate delivery. Without this, Chrome buffers all events and delivers them in one batch at stream end (pop-in).
+
+**Frontend smoothing:** `useSmoothText` drips padded text at 4–15 chars/frame via `requestAnimationFrame`. The `isMidAnimation` guard applies 3x catch-up only when cursor > 0 and streaming has ended (finishing a near-complete response). When cursor = 0 (all text arrived post-tool-use), uses 1.5x so animation remains visible. `StreamingTextPart` in `QuickChatPanel.tsx` wraps this hook per text part.
+
 ### SDK WebSocket (Legacy)
 
 - `GET /api/sdk/ws?token=JWT` → SessionDurableObject
@@ -116,6 +120,13 @@ Cloudflare Services:
 | **EmbeddingsService** | src/services/embeddings.ts | Semantic search, embedding generation |
 | **FileService** | src/services/files.ts | R2 operations, download, metadata |
 | **AgencyInspector** | src/services/agency-inspector.ts | Browser + container-side component tagging |
+
+## Security Architecture
+
+- **IDOR protection:** `/api/v15/chat`, `/api/v15/approve`, `/api/v15/resume` all verify `session.userId === user.id` before routing to ChatSessionAgent DO. Returns 403 on mismatch. Prevents cross-user prompt injection and tool approval spoofing.
+- **Tool approval IDs:** Generated with `crypto.randomUUID()` in `claude-agent.js`. Unguessable; prevents approval replay/forgery.
+- **MCP shell injection guard:** `isValidNpmPackageName()` in `src/utils/validate-npm-package.ts` validates npm package names via allowlist regex before interpolating into `npm install` shell commands. Rejects all shell metacharacters.
+- **Container exec escaping:** `shellEscape()` wraps all user-supplied args passed to `execInSandbox()` in single-quoted strings with embedded single-quote escaping.
 
 ## Version & Deployment
 

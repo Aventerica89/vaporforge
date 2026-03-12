@@ -344,16 +344,27 @@ function createSandboxTools(
 /* ── Stream padding ─────────────────────────── */
 
 /**
- * Pad each UIMessageStream event line to >1KB so Chrome's Fetch ReadableStream
- * buffer threshold is exceeded on every chunk.
+ * Pad each SSE event to >1KB so Chrome's Fetch ReadableStream buffer threshold
+ * is exceeded on every chunk, causing immediate delivery to reader.read().
  *
- * Chrome buffers ReadableStream chunks smaller than ~1KB before delivering to
- * reader.read(). AI SDK text-delta lines are ~30-100 bytes each, so without
- * padding all events accumulate and arrive in one batch at stream end — causing
- * the "pop-in" effect in useChat.
+ * toUIMessageStreamResponse() returns text/event-stream SSE format:
+ *   data: {"type":"text","value":"H"}\n
+ *   \n
  *
- * The UIMessageStream protocol is line-oriented (e.g. `g:{"type":"text","value":"hi"}`).
- * JSON.parse ignores trailing whitespace so padding with spaces is safe.
+ * Chrome buffers ReadableStream chunks until >~1KB before delivering to
+ * reader.read(). Without padding, all text-delta events accumulate and arrive
+ * in one batch at stream end → React batches all state updates → pop-in.
+ *
+ * Fix: pad the data line to 1025 bytes and append \n\n (data-line terminator +
+ * blank-line SSE event separator) in one chunk. This ensures:
+ *  1. Each chunk is >1KB → Chrome delivers immediately
+ *  2. Each chunk is a complete SSE event → EventSourceParserStream dispatches
+ *     immediately (not waiting for a separate blank-line chunk)
+ *
+ * Blank lines in the source (SSE event separators) are skipped because they are
+ * incorporated into the preceding data line's chunk via the appended \n\n.
+ *
+ * JSON.parse ignores trailing whitespace in the data field, so the padding is safe.
  */
 function padStreamLines(source: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const dec = new TextDecoder();
@@ -367,15 +378,19 @@ function padStreamLines(source: ReadableStream<Uint8Array>): ReadableStream<Uint
         // Last element may be an incomplete line — carry it to the next chunk
         leftover = lines.pop() ?? '';
         for (const line of lines) {
+          // Skip blank lines: they are SSE event separators, now incorporated
+          // into each data line's chunk via the \n\n suffix below.
           if (!line) continue;
-          // Pad to 1025 bytes so Chrome delivers this line immediately
-          const padded = line + ' '.repeat(Math.max(0, 1025 - line.length)) + '\n';
+          // Pad to 1025 bytes, then append \n\n (line-end + blank SSE separator).
+          // The entire padded event fits in one >1KB chunk so Chrome delivers it
+          // immediately and EventSourceParserStream dispatches it without delay.
+          const padded = line + ' '.repeat(Math.max(0, 1025 - line.length)) + '\n\n';
           controller.enqueue(enc.encode(padded));
         }
       },
       flush(controller) {
         if (leftover) {
-          controller.enqueue(enc.encode(leftover + '\n'));
+          controller.enqueue(enc.encode(leftover + '\n\n'));
         }
       },
     })
@@ -635,16 +650,11 @@ quickchatRoutes.post('/stream', async (c) => {
     })()
   );
 
-  // Disable CF/proxy compression — buffering kills streaming
-  // See: https://ai-sdk.dev/docs/troubleshooting/streaming-not-working-when-proxied
-  // Also pad each line to >1KB so Chrome's Fetch buffer threshold is exceeded
-  // on every event and text-delta chunks are delivered immediately.
+  // toUIMessageStreamResponse returns Content-Type: text/event-stream — CF does
+  // not compress SSE responses, so our padding is never gzip-collapsed.
+  // padStreamLines pads each SSE event to >1KB so Chrome delivers immediately.
   try {
-    const aiResponse = result.toUIMessageStreamResponse({
-      headers: {
-        'Content-Encoding': 'none',
-      },
-    });
+    const aiResponse = result.toUIMessageStreamResponse();
     const paddedBody = padStreamLines(aiResponse.body!);
     return new Response(paddedBody, {
       headers: aiResponse.headers,

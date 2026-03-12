@@ -1,6 +1,6 @@
 # VaporForge Frontend Codemap
 
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-11 (rev 2)
 
 ## Entry Points
 
@@ -45,7 +45,7 @@ Renders structured NDJSON frames:
 
 | Component | Purpose | Transport |
 |-----------|---------|-----------|
-| **QuickChatPanel.tsx** | Sidebar quick AI chat (Cmd+Shift+Q), history, provider select | SSE/HTTP |
+| **QuickChatPanel.tsx** | Sidebar quick AI chat (Cmd+Shift+Q), history, provider select; uses `StreamingTextPart` wrapper for smooth rendering | SSE/HTTP |
 | **CodeTransformPanel.tsx** | Code transform with side-by-side diff (Cmd+Shift+T) | SSE/HTTP |
 | **CodeAnalysisPanel.tsx** | Structured code analysis overlay (Cmd+Shift+A) | SSE/HTTP |
 | **CommitMessageCard.tsx** | Smart commit message generation | SSE/HTTP |
@@ -108,7 +108,7 @@ Renders structured NDJSON frames:
 | Hook | Purpose |
 |-------|---------|
 | **useWebSocket** | WS connection to container (port 8765) |
-| **useSmoothText** | Typewriter buffer for smooth text streaming |
+| **useSmoothText** | Typewriter buffer for smooth text streaming; `isMidAnimation` guard: 3x catch-up only when cursor>0 + stream ended; 1.5x when cursor=0 (post-tool-use batch) |
 | **useStreamDebug** | Stream event logging for DevTools |
 | **useCodeTransform** | SSE streaming for code transform |
 | **useQuickChat** | SSE streaming for quick chat |
@@ -128,6 +128,12 @@ Renders structured NDJSON frames:
 | **useIsTouchDevice** | Touch device detection |
 | **useMcpRelay** | MCP relay WebSocket manager |
 | **useAutoReconnect** | Auto-reconnect logic for WS |
+
+## Internal Rendering Components (QuickChatPanel)
+
+| Component | Purpose |
+|-----------|---------|
+| **StreamingTextPart** (inline in QuickChatPanel.tsx) | Wraps `useSmoothText` for assistant text parts in quick chat; maintains streaming mode while animation is still catching up to prevent Streamdown jump to static render |
 
 ## AI Elements (Rendering)
 

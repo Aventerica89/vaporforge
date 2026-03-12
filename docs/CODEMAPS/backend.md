@@ -1,6 +1,6 @@
 # VaporForge Backend Codemap
 
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-11 (rev 2)
 
 ## Entry Points
 
@@ -20,9 +20,10 @@
 
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `POST /api/v15/chat` | POST | Browser initiates chat (ChatSessionAgent DO) |
-| `/internal/stream` | POST | Container callback (worker routes to DO) |
-| `/api/v15/resume` | GET | Resume disconnected stream from buffer |
+| `POST /api/v15/chat` | POST | Browser initiates chat (ChatSessionAgent DO); IDOR-checked against session owner |
+| `/internal/stream` | POST | Container callback (worker routes to DO); JWT-authenticated |
+| `/api/v15/resume` | GET | Resume disconnected stream from buffer; IDOR-checked against session owner |
+| `/api/v15/approve` | POST | Browser submits tool approval; IDOR-checked against session owner |
 
 ### SDK (Legacy WebSocket)
 
@@ -35,7 +36,7 @@
 
 | Route | Purpose | Auth | Output |
 |-------|---------|------|--------|
-| `/api/quickchat/*` | Chat with streaming | JWT | SSE text-delta |
+| `/api/quickchat/*` | Chat with streaming | JWT | SSE text-delta (padded to >1KB/chunk) |
 | `/api/transform/*` | Code transform diff | JWT | SSE structured |
 | `/api/analyze/*` | Code analysis | JWT | SSE structured |
 | `/api/commit-msg/*` | Generate commit msg | JWT | SSE structured |
@@ -167,6 +168,7 @@ Assembles per-session SandboxConfig from KV stores:
 | `src/auth.ts` | AuthService, extractAuth(), verifyJWT() |
 | `src/sandbox.ts` | SandboxManager, collectProjectSecrets(), collectUserSecrets() |
 | `src/utils/jwt.ts` | signExecutionToken(), verifyExecutionToken() |
+| `src/utils/validate-npm-package.ts` | isValidNpmPackageName() — shell injection guard for MCP install |
 | `src/services/ai-provider-factory.ts` | createModel(), getProviderCredentials() |
 | `src/services/embeddings.ts` | searchEmbeddings(), generateEmbeddings() |
 | `src/services/files.ts` | FileService (getFile, uploadFile, etc.) |
@@ -192,6 +194,13 @@ interface Env {
   ASSETS: AssetsFetch;
 }
 ```
+
+## Security
+
+- **IDOR protection on V1.5 endpoints:** `/api/v15/chat`, `/api/v15/approve`, and `/api/v15/resume` each verify `session.userId === user.id` before routing to the ChatSessionAgent DO. Returns 403 Forbidden on mismatch.
+- **approvalId generation:** `crypto.randomUUID()` used in `claude-agent.js` for tool approval IDs (unguessable).
+- **MCP shell injection guard:** `src/utils/validate-npm-package.ts` — `isValidNpmPackageName()` validates npm package names via regex before interpolating into shell commands during MCP plugin install. Rejects shell metacharacters and names >214 chars.
+- **QuickChat shell escaping:** `shellEscape()` in `src/api/quickchat.ts` wraps all sandbox exec arguments in single quotes.
 
 ## Rate Limiting
 
