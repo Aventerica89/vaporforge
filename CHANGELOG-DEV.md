@@ -1,4 +1,8 @@
 
+### 2026-03-12 · 179577c · v0.29.0
+FIX     deploy — QuickChat streaming pop-in: useSmoothText + 1KB UIMessageStream line padding
+### 2026-03-12 · a4f7a94 · v0.29.0
+FIX     deploy — MCP shell injection (npm pkg name validation at 3 call sites) + dynamic stream linger
 ### 2026-03-12 · a27d164 · v0.29.0
 FIX     security — IDOR ownership checks on /api/v15/chat, /approve, /resume (#85 #99 #100); crypto.randomUUID() for approvalId (#93)
 ### 2026-03-11 · 4626552 · v0.29.0
