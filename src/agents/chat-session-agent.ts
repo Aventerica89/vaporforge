@@ -28,6 +28,7 @@ import {
   signExecutionToken,
   verifyExecutionToken,
 } from '../utils/jwt';
+import { isValidNpmPackageName } from '../utils/validate-npm-package';
 import {
   collectProjectSecrets,
   collectUserSecrets,
@@ -932,7 +933,13 @@ export class ChatSessionAgent {
         const c = cfg as Record<string, unknown>;
         if (c.command === 'npx' && Array.isArray(c.args)) {
           const pkg = (c.args as string[]).find((a: string) => !a.startsWith('-'));
-          if (pkg) npxPkgs.push(pkg);
+          if (pkg) {
+            if (!isValidNpmPackageName(pkg)) {
+              console.warn(`[ChatSessionAgent] rejected invalid npm package name "${pkg}" — skipping install`);
+            } else {
+              npxPkgs.push(pkg);
+            }
+          }
         }
       }
       if (npxPkgs.length) {

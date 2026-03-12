@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
 import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { isValidNpmPackageName } from '../utils/validate-npm-package';
 import { collectMcpConfig, hasRelayServers, collectCredentialFiles } from './mcp';
 import { collectPluginConfigs } from './plugins';
 import { collectUserConfigs } from './config';
@@ -201,7 +202,13 @@ sessionRoutes.post('/create', async (c) => {
       const mc = cfg as Record<string, unknown>;
       if (mc.command === 'npx' && Array.isArray(mc.args)) {
         const pkg = (mc.args as string[]).find((a: string) => !a.startsWith('-'));
-        if (pkg) npxPkgs.push(pkg);
+        if (pkg) {
+          if (!isValidNpmPackageName(pkg)) {
+            console.warn(`[sessions/create] rejected invalid npm package name "${pkg}" — skipping install`);
+          } else {
+            npxPkgs.push(pkg);
+          }
+        }
       }
     }
     if (npxPkgs.length > 0 && session.sandboxId) {

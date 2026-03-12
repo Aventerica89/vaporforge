@@ -174,8 +174,12 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
   useEffect(() => {
     if (!isStreaming && (lastPartsRef.current.length > 0 || lastContentRef.current)) {
       setLinger(true);
-      // 700ms: enough for useSmoothText to animate ~2000 chars at 3x catch-up speed.
-      const timer = setTimeout(() => setLinger(false), 700);
+      // Dynamic linger: scales with sqrt of accumulated chars so useSmoothText
+      // can finish animating long responses. Formula: max(700, ceil(sqrt(N)*15))
+      // gives ~849ms at 3200 chars, ~1061ms at 5000, ~1500ms at 10000.
+      const chars = lastContentRef.current?.length ?? 0;
+      const lingerMs = Math.max(700, Math.ceil(Math.sqrt(chars) * 15));
+      const timer = setTimeout(() => setLinger(false), lingerMs);
       return () => clearTimeout(timer);
     }
   }, [isStreaming]);

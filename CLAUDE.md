@@ -85,78 +85,7 @@ npm run test         # Vitest tests
 
 ## Key Files
 
-### Backend (src/)
-
-| File | Purpose |
-|------|---------|
-| `src/router.ts` | All API route registration + health endpoint |
-| `src/auth.ts` | Setup-token validation, JWT, token refresh |
-| `src/sandbox.ts` | Container lifecycle, file/agent/credential injection, WS proxy, agency setup |
-| `src/container.ts` | Sandbox DO class, WebSocket upgrade + proxy |
-| `src/config-assembly.ts` | Assembles SandboxConfig from KV (MCP, secrets, plugins, creds) |
-| `src/types.ts` | Shared TypeScript types + Zod schemas |
-| `src/services/ai-provider-factory.ts` | Multi-provider model creation (Claude + Gemini) |
-| `src/services/ai-schemas.ts` | Zod schemas for structured AI output |
-| `src/services/agency-inspector.ts` | Browser-side inspector + container-side injection scripts |
-| `src/services/agency-validator.ts` | Agency site validation |
-| `src/services/embeddings.ts` | Embedding generation service |
-| `src/services/files.ts` | File operations service |
-| `src/agents/chat-session-agent.ts` | V1.5 Durable Object — HTTP streaming bridge, container dispatch, JWT callback |
-| `src/utils/jwt.ts` | Execution token signing/verification for V1.5 container callback |
-| `src/api/sdk.ts` | Main chat — WS proxy to container agent + persist endpoint + replay (stream reconnect) |
-| `src/api/sessions.ts` | Session CRUD, sandbox create/resume |
-| `src/api/agency.ts` | Agency mode API (create site, poll status, preview proxy) |
-| `src/api/chat.ts` | Chat history endpoints |
-| `src/api/mcp.ts` | MCP server CRUD, ping, tool discovery, credential collection |
-| `src/api/secrets.ts` | Per-user secret management |
-| `src/api/quickchat.ts` | SSE streaming chat (AI SDK streamText) |
-| `src/api/transform.ts` | Code transform streaming |
-| `src/api/analyze.ts` | Structured code analysis (streamText + Output.object) |
-| `src/api/commit-msg.ts` | Smart commit message generation |
-| `src/api/plugins.ts` | Plugin discovery from GitHub repos |
-| `src/api/plugin-sources.ts` | Plugin source management |
-| `src/api/user.ts` | VF rules, CLAUDE.md, user config endpoints |
-| `src/api/config.ts` | App configuration endpoints |
-| `src/api/vaporfiles.ts` | R2 file management |
-| `src/api/issues.ts` | Issue tracker backend |
-| `src/api/issues-routes.ts` | Issue tracker route definitions |
-| `src/api/git.ts` | Git operations in container |
-| `src/api/github.ts` | GitHub repo operations |
-| `src/api/github-routes.ts` | GitHub route definitions |
-| `src/api/favorites.ts` | User favorites logic |
-| `src/api/favorites-routes.ts` | Favorites route definitions |
-| `src/api/embeddings.ts` | Embedding API endpoints |
-| `src/api/mcp-relay.ts` | WebSocket relay for local MCP servers |
-
-### Frontend (ui/src/)
-
-| File | Purpose |
-|------|---------|
-| `components/Layout.tsx` | Desktop layout (3-panel: sidebar, chat, editor) |
-| `components/MobileLayout.tsx` | Mobile layout (viewportHeight-driven) |
-| `components/ChatPanel.tsx` | Main chat UI + prompt input composition |
-| `components/QuickChatPanel.tsx` | Quick AI chat slide-out (Cmd+Shift+Q) |
-| `components/CodeTransformPanel.tsx` | Code transform with diff view (Cmd+Shift+T) |
-| `components/CodeAnalysisPanel.tsx` | Structured analysis overlay (Cmd+Shift+A) |
-| `components/SessionTabBar.tsx` | Horizontal session tabs |
-| `components/SettingsPage.tsx` | Full-page settings (MCP, secrets, plugins, AI providers) |
-| `components/Editor.tsx` | Monaco editor |
-| `components/XTerminal.tsx` | xterm.js terminal |
-| `components/IssueTracker.tsx` | Issue/task tracking panel |
-| `components/McpRelayProvider.tsx` | Frontend MCP relay WebSocket manager |
-| `components/agency/AgencyDashboard.tsx` | Agency mode site list + create flow |
-| `components/agency/AgencyEditor.tsx` | Visual editor: iframe preview + component tree + edit panel |
-| `components/agency/AgencyLoadingScreen.tsx` | Setup progress screen (clone, install, dev server) |
-| `components/agency/ComponentTree.tsx` | Discovered component hierarchy sidebar |
-| `components/agency/EditPanel.tsx` | Selected component edit instructions panel |
-| `hooks/useAuth.ts` | Auth state (Zustand) |
-| `hooks/useQuickChat.ts` | Quick chat state + SSE streaming |
-| `hooks/useSandbox.ts` | Sandbox session state |
-| `hooks/useWebSocket.ts` | WebSocket streaming for main chat |
-| `hooks/useSmoothText.ts` | Typewriter buffer for streaming text |
-| `hooks/useLayoutStore.ts` | Panel layout state (Zustand) |
-| `lib/api.ts` | API client with JWT auth |
-| `lib/types.ts` | Frontend TypeScript types |
+See `docs/CODEMAPS/backend.md` and `docs/CODEMAPS/frontend.md` for full file listings. Read those instead of scanning `src/` directly.
 
 ## Agency Mode (v0.25.0)
 
@@ -196,9 +125,11 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **AI SDK v6 stream events** — `text-delta` has `.text` property (not `.textDelta`). Same for `reasoning-delta`.
 - **CF Sandbox `execStream()` is UNFIXABLE for streaming** — internal RPC buffering holds output until process exits. Use `sandbox.wsConnect(request, port)` for real-time WebSocket tunnel instead.
 
-### Streaming (v0.20.0+)
+### Streaming: Legacy WS Path (v0.20.0–v1.4)
 
-- **Main chat uses WebSocket**, not SSE. One WS per message via `sandbox.wsConnect(request, 8765)`.
+> The V1.5 HTTP streaming path (ChatSessionAgent) is the **current primary path** for main chat. The WS path below is retained for replay/reconnect and may be used by older sessions.
+
+- **Main chat (legacy) uses WebSocket**, not SSE. One WS per message via `sandbox.wsConnect(request, 8765)`.
 - **`ws-agent-server.js`** runs in container on port 8765, spawns `claude-agent.js` per query, pipes stdout as WS frames.
 - **Context file pattern**: Worker writes secrets/config to `/tmp/vf-pending-query.json`, container reads + deletes.
 - **`POST /api/sdk/persist`**: Browser saves full assistant text after stream completes (WS doesn't persist).

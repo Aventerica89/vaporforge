@@ -4,6 +4,7 @@ import {
   getInspectorScript,
   getInjectionScript,
 } from './services/agency-inspector';
+import { isValidNpmPackageName } from './utils/validate-npm-package';
 
 const WORKSPACE_PATH = '/workspace';
 const HEALTH_CHECK_TIMEOUT = 5000;
@@ -553,8 +554,12 @@ export class SandboxManager {
           const args = c.args as string[];
           const pkg = args.find((a: string) => !a.startsWith('-'));
           if (pkg) {
-            npxPackages.push(pkg);
-            console.log(`[refreshMcpConfig] ${sid}: will pre-install npx package "${pkg}" for server "${name}"`);
+            if (!isValidNpmPackageName(pkg)) {
+              console.warn(`[refreshMcpConfig] ${sid}: rejected invalid npm package name "${pkg}" for server "${name}" — skipping install`);
+            } else {
+              npxPackages.push(pkg);
+              console.log(`[refreshMcpConfig] ${sid}: will pre-install npx package "${pkg}" for server "${name}"`);
+            }
           }
         }
       }
