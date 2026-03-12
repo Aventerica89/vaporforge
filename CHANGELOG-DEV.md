@@ -1,4 +1,7 @@
 
+### 2026-03-12 · a002f65 · v0.29.0
+FIX     deploy — fix streaming pop-in: slow all-at-once animation to ~3s budget (behind/180) so text is visibly typed out
+
 ### 2026-03-12 · 577807b · v0.29.0
 FIX     deploy — fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once
 
