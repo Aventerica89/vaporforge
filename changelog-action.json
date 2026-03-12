@@ -36,3 +36,4 @@
 { "v": "0.29.0", "ts": "2026-03-11T20:10:00Z", "msg": "Fix: auto-allow create_plan/ask_user_questions in canUseTool (hang in Standard mode)", "hash": "4d228c1" }
 { "v": "0.29.0", "ts": "2026-03-11T20:35:00Z", "msg": "Fix: JWT auth on approval poll endpoint + void floating Promise lint fix", "hash": "4aebcd3" }
 { "v": "0.29.0", "ts": "2026-03-11T21:55:00Z", "msg": "Fix streaming pop-in: TCP Nagle (setNoDelay) + useSmoothText rAF + StreamingMessage linger", "hash": "4626552" }
+{ "v": "0.29.0", "ts": "2026-03-12T00:00:00Z", "msg": "Security: IDOR ownership checks on V1.5 chat/approve/resume + crypto.randomUUID() for approvalId", "hash": "a27d164" }
