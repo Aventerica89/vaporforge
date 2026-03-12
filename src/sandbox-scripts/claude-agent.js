@@ -28,15 +28,38 @@ const path = require('path');
 const https = require('https');
 const http = require('http');
 
-// V1.5 callback mode: stream NDJSON via chunked POST to DO instead of stdout.
-// Activated when VF_CALLBACK_URL + VF_STREAM_JWT env vars are set.
+// V1.5 callback mode: stream NDJSON to DO.
+// WS mode (primary): VF_WS_CALLBACK_URL set → real-time WS frames (no CF buffering).
+// HTTP mode (fallback): VF_CALLBACK_URL set → chunked POST (CF-buffered, legacy).
 const CALLBACK_URL = process.env.VF_CALLBACK_URL || '';
+const WS_CALLBACK_URL = process.env.VF_WS_CALLBACK_URL || '';
 const CALLBACK_JWT = process.env.VF_STREAM_JWT || '';
-const IS_CALLBACK_MODE = !!(CALLBACK_URL && CALLBACK_JWT);
+const IS_WS_CALLBACK_MODE = !!(WS_CALLBACK_URL && CALLBACK_JWT);
+const IS_CALLBACK_MODE = IS_WS_CALLBACK_MODE || !!(CALLBACK_URL && CALLBACK_JWT);
 
 let callbackReq = null;
+let callbackWs = null;
+let wsOpen = false;
+let wsMsgQueue = [];
 
-if (IS_CALLBACK_MODE) {
+if (IS_WS_CALLBACK_MODE) {
+  // Node.js 22+ native WebSocket — no npm package needed
+  callbackWs = new WebSocket(WS_CALLBACK_URL);
+  callbackWs.addEventListener('open', () => {
+    wsOpen = true;
+    for (const msg of wsMsgQueue) callbackWs.send(msg);
+    wsMsgQueue = [];
+    console.error('[claude-agent] V1.5 WS callback connected');
+  });
+  callbackWs.addEventListener('error', (e) => {
+    console.error('[claude-agent] WS callback error:', e.message || e.type);
+  });
+  callbackWs.addEventListener('close', (e) => {
+    if (!e.wasClean) {
+      console.error(`[claude-agent] WS callback closed unexpectedly: ${e.code} ${e.reason}`);
+    }
+  });
+} else if (IS_CALLBACK_MODE) {
   const parsed = new URL(CALLBACK_URL);
   const transport = parsed.protocol === 'https:' ? https : http;
   callbackReq = transport.request({
@@ -50,31 +73,25 @@ if (IS_CALLBACK_MODE) {
       'Transfer-Encoding': 'chunked',
     },
   });
-  // Disable Nagle's algorithm so each callbackReq.write() is sent as its own
-  // TCP packet. Without this, text-delta events (~30 bytes each, generated
-  // every 5-20ms) are coalesced by Nagle into one large TCP segment, causing
-  // all text to arrive at the DO simultaneously and appear as pop-in.
-  callbackReq.on('socket', (socket) => {
-    socket.setNoDelay(true);
-  });
+  callbackReq.on('socket', (socket) => { socket.setNoDelay(true); });
   callbackReq.on('error', (err) => {
     console.error(`[claude-agent] callback POST error: ${err.message}`);
   });
   callbackReq.on('response', (res) => {
-    // Consume response body (required or socket leaks)
     res.resume();
     if (res.statusCode !== 200) {
-      console.error(`[claude-agent] callback POST rejected: HTTP ${res.statusCode} — bridge may have expired or JWT is invalid`);
+      console.error(`[claude-agent] callback POST rejected: HTTP ${res.statusCode}`);
     }
   });
-  console.error('[claude-agent] V1.5 callback mode — streaming to DO');
+  console.error('[claude-agent] V1.5 HTTP callback mode (legacy)');
 }
 
-// Derive base URL for non-streaming DO requests (approval polling).
-// CALLBACK_URL is like https://host/internal/stream — base is https://host
-const CALLBACK_BASE_URL = IS_CALLBACK_MODE
-  ? (() => { const u = new URL(CALLBACK_URL); return `${u.protocol}//${u.host}`; })()
-  : '';
+// Derive base URL for non-streaming DO requests (approval polling, HTTP).
+const CALLBACK_BASE_URL = IS_WS_CALLBACK_MODE
+  ? (() => { const u = new URL(WS_CALLBACK_URL); return `https://${u.host}`; })()
+  : IS_CALLBACK_MODE
+    ? (() => { const u = new URL(CALLBACK_URL); return `${u.protocol}//${u.host}`; })()
+    : '';
 
 /**
  * Poll the DO for tool approval result (Standard/conservative mode).
@@ -105,11 +122,18 @@ async function waitForApproval(approvalId) {
 }
 
 // Emit an event object as NDJSON.
-// V1.0: synchronous write to stdout (fd 1), bypasses Node's stream buffering.
-// V1.5: write to open chunked HTTP POST request to DO callback.
+// WS mode: send each line as a WebSocket frame (real-time, no CF buffering).
+// HTTP mode (legacy): write to chunked POST body (CF-buffered).
+// V1.0: synchronous write to stdout (fd 1).
 function emit(obj) {
   const line = JSON.stringify(obj) + '\n';
-  if (IS_CALLBACK_MODE && callbackReq) {
+  if (IS_WS_CALLBACK_MODE) {
+    if (wsOpen) {
+      callbackWs.send(line);
+    } else {
+      wsMsgQueue.push(line); // buffer until WS open fires
+    }
+  } else if (IS_CALLBACK_MODE && callbackReq) {
     callbackReq.write(line);
   } else {
     fs.writeSync(1, line);
@@ -937,8 +961,19 @@ async function handleQuery(prompt, sessionId, cwd) {
 }
 
 // Finalize the callback POST (V1.5 mode) — close the chunked request body.
+// Finalize the callback (WS or HTTP) — close connection after all events emitted.
 function finalizeCallback() {
-  if (IS_CALLBACK_MODE && callbackReq) {
+  if (IS_WS_CALLBACK_MODE && callbackWs) {
+    if (wsOpen) {
+      callbackWs.close(1000, 'done');
+    } else {
+      // Never connected — drain queue won't happen; close anyway
+      callbackWs.addEventListener('open', () => {
+        for (const msg of wsMsgQueue) callbackWs.send(msg);
+        callbackWs.close(1000, 'done');
+      });
+    }
+  } else if (IS_CALLBACK_MODE && callbackReq) {
     callbackReq.end();
   }
 }
