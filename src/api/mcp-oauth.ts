@@ -213,6 +213,15 @@ export async function fetchAuthServerMetadata(
       if (!res.ok) continue;
       const data = (await res.json()) as Partial<AuthServerMetadata>;
       if (data.authorization_endpoint && data.token_endpoint) {
+        try {
+          validateExternalUrl(data.authorization_endpoint, 'authorization_endpoint');
+          validateExternalUrl(data.token_endpoint, 'token_endpoint');
+          if (data.registration_endpoint) {
+            validateExternalUrl(data.registration_endpoint, 'registration_endpoint');
+          }
+        } catch {
+          continue;
+        }
         return {
           authorization_endpoint: data.authorization_endpoint,
           token_endpoint: data.token_endpoint,
@@ -372,6 +381,8 @@ export function buildCredentialsFile(
 // ─── Public OAuth callback route ───────────────────────────────────────────
 
 type Variables = { user: User };
+const OAUTH_ERROR_ALLOWLIST = new Set(['access_denied', 'invalid_scope', 'server_error', 'temporarily_unavailable']);
+
 export const mcpOAuthPublicRoutes = new Hono<{
   Bindings: Env;
   Variables: Variables;
@@ -383,8 +394,6 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   const error = c.req.query('error');
   const appBase = new URL(c.req.url).origin;
   const settingsUrl = `${appBase}/app/#settings/integrations`;
-
-  const OAUTH_ERROR_ALLOWLIST = new Set(['access_denied', 'invalid_scope', 'server_error', 'temporarily_unavailable']);
 
   if (error || !code || !state) {
     const safeError = error && OAUTH_ERROR_ALLOWLIST.has(error) ? error : 'oauth_error';
