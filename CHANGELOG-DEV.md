@@ -1,3 +1,6 @@
+### 2026-03-13 · c0d6f27 · v0.29.0
+FIX     deploy — fix(ui): message ordering bug — second msg no longer renders before first response (#111)
+
 ### 2026-03-13 · 79eca46 · v0.29.0
 FIX     deploy — fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin
 
