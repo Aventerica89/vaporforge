@@ -253,7 +253,7 @@ export class ChatSessionAgent {
 
     // Container WebSocket upgrade — real-time NDJSON stream from container
     if (request.headers.get('Upgrade') === 'websocket' && url.pathname === '/internal/container-ws') {
-      return this.handleContainerWsUpgrade(request, url);
+      return await this.handleContainerWsUpgrade(request, url);
     }
 
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
@@ -709,10 +709,22 @@ export class ChatSessionAgent {
    * Token is already validated by the Worker. We extract executionId from the
    * query param and tag the WS so webSocketMessage() can route container frames.
    */
-  private handleContainerWsUpgrade(request: Request, url: URL): Response {
+  private async handleContainerWsUpgrade(request: Request, url: URL): Promise<Response> {
     const executionId = url.searchParams.get('executionId') || '';
     if (!executionId) {
       return new Response('Missing executionId', { status: 400 });
+    }
+
+    // Validate JWT — same check as the HTTP /internal/stream route.
+    // WS upgrades can't carry Authorization headers, so token is in query param.
+    const token = url.searchParams.get('token') || '';
+    try {
+      const payload = await verifyExecutionToken(token, this.env.JWT_SECRET);
+      if (!payload || payload.executionId !== executionId) {
+        return new Response('Token/executionId mismatch', { status: 403 });
+      }
+    } catch {
+      return new Response('Invalid or expired token', { status: 403 });
     }
 
     const { 0: client, 1: server } = new WebSocketPair();
