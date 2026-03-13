@@ -12,6 +12,37 @@
 import { Hono } from 'hono';
 import type { User } from '../types';
 
+function uint8ArrayToBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function validateExternalUrl(raw: string, label: string): URL {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`${label}: invalid URL`);
+  }
+  if (url.protocol !== 'https:') {
+    throw new Error(`${label}: must use HTTPS (got ${url.protocol})`);
+  }
+  const host = url.hostname.toLowerCase();
+  if (
+    host === 'localhost' ||
+    host.startsWith('169.254.') ||
+    host.startsWith('10.') ||
+    host.startsWith('172.16.') ||
+    host.startsWith('192.168.') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.local')
+  ) {
+    throw new Error(`${label}: private/internal hosts not allowed`);
+  }
+  return url;
+}
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface McpOAuthTokens {
@@ -94,10 +125,16 @@ export async function readAllOAuthTokens(
   userId: string,
 ): Promise<McpOAuthTokensWithName[]> {
   const prefix = `mcp:oauth:${userId}:`;
-  const list = await kv.list({ prefix });
-  if (!list.keys.length) return [];
+  const allKeys: KVNamespaceListKey<unknown>[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await kv.list({ prefix, cursor } as KVNamespaceListOptions);
+    allKeys.push(...page.keys);
+    cursor = page.list_complete ? undefined : (page as { cursor?: string }).cursor;
+  } while (cursor);
+  if (!allKeys.length) return [];
   const results = await Promise.all(
-    list.keys.map(async (key) => {
+    allKeys.map(async (key) => {
       const serverName = key.name.slice(prefix.length);
       const tokens = await kv.get<McpOAuthTokens>(key.name, 'json');
       return tokens ? { ...tokens, serverName } : null;
@@ -111,19 +148,13 @@ export async function readAllOAuthTokens(
 export function generateCodeVerifier(): string {
   const bytes = new Uint8Array(64);
   crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  return uint8ArrayToBase64Url(bytes);
 }
 
 export async function computeCodeChallenge(verifier: string): Promise<string> {
   const data = new TextEncoder().encode(verifier);
   const digest = await crypto.subtle.digest('SHA-256', data);
-  return btoa(String.fromCharCode(...new Uint8Array(digest)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  return uint8ArrayToBase64Url(new Uint8Array(digest));
 }
 
 export function generateState(): string {
@@ -143,6 +174,7 @@ export function generateState(): string {
 export async function detectOAuthRequirement(
   serverUrl: string,
 ): Promise<string | null> {
+  validateExternalUrl(serverUrl, 'serverUrl');
   try {
     const url = new URL('/.well-known/oauth-protected-resource', serverUrl);
     const res = await fetch(url.toString(), {
@@ -152,7 +184,14 @@ export async function detectOAuthRequirement(
     });
     if (!res.ok) return null;
     const data = (await res.json()) as { authorization_servers?: string[] };
-    return data.authorization_servers?.[0] ?? null;
+    const raw = data.authorization_servers?.[0];
+    if (!raw) return null;
+    try {
+      validateExternalUrl(raw, 'authorization_server');
+    } catch {
+      return null;
+    }
+    return raw;
   } catch {
     return null;
   }
@@ -161,6 +200,7 @@ export async function detectOAuthRequirement(
 export async function fetchAuthServerMetadata(
   authServerUrl: string,
 ): Promise<AuthServerMetadata | null> {
+  validateExternalUrl(authServerUrl, 'authServerUrl');
   for (const path of [
     '/.well-known/oauth-authorization-server',
     '/.well-known/openid-configuration',
@@ -199,6 +239,7 @@ export async function getOrRegisterClient(
   const existing = await kv.get(oauthClientKey(userId, serverName));
   if (existing) return existing;
   if (!metadata.registration_endpoint) return 'vaporforge';
+  validateExternalUrl(metadata.registration_endpoint, 'registration_endpoint');
 
   const res = await fetch(metadata.registration_endpoint, {
     method: 'POST',
@@ -231,6 +272,7 @@ export async function exchangeCodeForTokens(
   redirectUri: string,
   tokenEndpoint: string,
 ): Promise<McpOAuthTokens> {
+  validateExternalUrl(tokenEndpoint, 'tokenEndpoint');
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -245,7 +287,9 @@ export async function exchangeCodeForTokens(
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) {
-    throw new Error(`Token exchange failed: ${res.status} ${await res.text()}`);
+    const errBody = (await res.text()).slice(0, 200);
+    console.error(`[mcp-oauth] token exchange HTTP ${res.status}: ${errBody}`);
+    throw new Error(`token_exchange_failed`);
   }
   const data = (await res.json()) as {
     access_token: string;
@@ -276,6 +320,7 @@ export async function refreshTokenIfExpired(
   const { token_endpoint } =
     tokens.discoveryState.authorizationServerMetadata;
   try {
+    validateExternalUrl(token_endpoint, 'token_endpoint');
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
       refresh_token: tokens.refreshToken,
@@ -339,9 +384,12 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   const appBase = new URL(c.req.url).origin;
   const settingsUrl = `${appBase}/app/#settings/integrations`;
 
+  const OAUTH_ERROR_ALLOWLIST = new Set(['access_denied', 'invalid_scope', 'server_error', 'temporarily_unavailable']);
+
   if (error || !code || !state) {
+    const safeError = error && OAUTH_ERROR_ALLOWLIST.has(error) ? error : 'oauth_error';
     return c.redirect(
-      `${settingsUrl}?oauth_error=${encodeURIComponent(error ?? 'missing_params')}`,
+      `${settingsUrl}?oauth_error=${encodeURIComponent(safeError)}`,
     );
   }
 
@@ -374,11 +422,8 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
       },
     };
   } catch (err) {
-    return c.redirect(
-      `${settingsUrl}?oauth_error=${encodeURIComponent(
-        err instanceof Error ? err.message : 'token_exchange_failed',
-      )}`,
-    );
+    console.error('[mcp-oauth] callback token exchange failed:', err);
+    return c.redirect(`${settingsUrl}?oauth_error=token_exchange_failed`);
   }
 
   await writeOAuthTokens(
