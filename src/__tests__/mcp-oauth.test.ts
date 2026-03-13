@@ -26,4 +26,16 @@ describe('McpServerConfig OAuth fields', () => {
       expect(result.success).toBe(true);
     }
   });
+
+  it('rejects an invalid oauthStatus value', () => {
+    const result = McpServerConfigSchema.safeParse({
+      name: 'test',
+      transport: 'http',
+      url: 'https://example.com',
+      enabled: true,
+      addedAt: new Date().toISOString(),
+      oauthStatus: 'connected',
+    });
+    expect(result.success).toBe(false);
+  });
 });
