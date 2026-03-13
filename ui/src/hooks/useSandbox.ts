@@ -1147,15 +1147,26 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       get().loadGitStatus();
 
       // Step 2: After linger, commit message to list and clear streaming state.
+      // Insert the assistant message immediately after its paired user message
+      // (not at the tail) so that a second message sent during streaming
+      // doesn't end up between the first user bubble and its response (#111).
       const sessionId = session.id;
       const msgId = assistantMessage.id;
+      const userMsgId = userMessage.id;
       const commitMessage = () => {
         if (get().currentSession?.id !== sessionId) return;
-        set((state) => ({
-          messageIds: [...state.messageIds, msgId],
-          streamingContent: '',
-          streamingParts: [],
-        }));
+        set((state) => {
+          const insertIdx = state.messageIds.indexOf(userMsgId);
+          const newIds =
+            insertIdx >= 0
+              ? [
+                  ...state.messageIds.slice(0, insertIdx + 1),
+                  msgId,
+                  ...state.messageIds.slice(insertIdx + 1),
+                ]
+              : [...state.messageIds, msgId]; // fallback: append
+          return { messageIds: newIds, streamingContent: '', streamingParts: [] };
+        });
       };
 
       if (lingerMs > 0) {
