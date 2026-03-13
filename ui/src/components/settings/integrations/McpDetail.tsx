@@ -100,10 +100,10 @@ function McpOAuthSection({ server, onRefresh }: McpOAuthSectionProps) {
       if (res.success && res.data?.authUrl) {
         window.open(res.data.authUrl, '_blank');
       } else {
-        toast({ title: 'Failed to start OAuth', variant: 'destructive' });
+        toast('Failed to start OAuth', 'error');
       }
     } catch (err) {
-      toast({ title: 'Failed to start OAuth', description: String(err), variant: 'destructive' });
+      toast('Failed to start OAuth', 'error');
     } finally {
       setIsConnecting(false);
     }
@@ -114,9 +114,9 @@ function McpOAuthSection({ server, onRefresh }: McpOAuthSectionProps) {
     try {
       await mcpApi.oauthRevoke(server.name);
       await onRefresh();
-      toast({ title: `OAuth revoked for ${server.name}` });
+      toast(`OAuth revoked for ${server.name}`, 'success');
     } catch (err) {
-      toast({ title: 'Failed to revoke OAuth', description: String(err), variant: 'destructive' });
+      toast('Failed to revoke OAuth', 'error');
     } finally {
       setIsRevoking(false);
     }

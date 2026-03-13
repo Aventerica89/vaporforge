@@ -36,7 +36,7 @@ export function IntegrationsTab() {
     const serverName = params.get('oauth_success');
 
     if (serverName) {
-      toast({ title: `Connected to ${serverName}`, description: 'OAuth authorization successful.' });
+      toast(`Connected to ${serverName}`, 'success');
       loadMcpServers();
       // Remove oauth_success param from URL without triggering navigation
       window.history.replaceState(
