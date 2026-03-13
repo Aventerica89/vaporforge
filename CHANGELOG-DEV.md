@@ -1,4 +1,7 @@
 
+### 2026-03-13 · 0dd7c1e · v0.29.0
+FIX     deploy — fix: replace container→DO HTTP POST with WebSocket tunnel for real-time streaming
+
 ### 2026-03-12 · a002f65 · v0.29.0
 FIX     deploy — fix streaming pop-in: slow all-at-once animation to ~3s budget (behind/180) so text is visibly typed out
 
