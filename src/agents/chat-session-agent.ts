@@ -850,6 +850,29 @@ export class ChatSessionAgent {
     }
   }
 
+  webSocketError(ws: WebSocket, error: unknown): void {
+    const tags = this.state.getTags(ws);
+
+    // Container WS error — emit error to browser and clean up
+    const containerTag = tags.find((t) => t.startsWith('container:'));
+    if (containerTag) {
+      const executionId = containerTag.slice(10);
+      this.emitBridgeError(executionId, `Container WS error: ${String(error)}`);
+      this.wsBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+      this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
+      return;
+    }
+
+    // Browser WS error — clean up bridge reference
+    for (const [executionId, bridge] of this.wsBridges) {
+      if (bridge === ws) {
+        this.wsBridges.delete(executionId);
+        break;
+      }
+    }
+  }
+
   /** Persist sdkSessionId and containerBuild from container events. */
   private extractMetadata(line: string): void {
     try {
