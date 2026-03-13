@@ -37,6 +37,23 @@ export default {
       return env.CHAT_SESSIONS.get(id).fetch(request);
     }
 
+    // V1.5: Container WebSocket upgrade — real-time NDJSON stream from container.
+    // Token in query param (WS clients can't send Authorization headers).
+    // JWT validated here before routing to DO to prevent unauthorized DO wakes.
+    if (
+      request.headers.get('Upgrade') === 'websocket' &&
+      new URL(request.url).pathname === '/internal/container-ws'
+    ) {
+      const wsUrl = new URL(request.url);
+      const token = wsUrl.searchParams.get('token') || '';
+      const payload = await verifyExecutionToken(token, env.JWT_SECRET);
+      if (!payload) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const id = env.CHAT_SESSIONS.idFromName(payload.sessionId);
+      return env.CHAT_SESSIONS.get(id).fetch(request);
+    }
+
     // V1.5: Browser HTTP streaming endpoint — authenticates user,
     // routes to ChatSessionAgent DO which dispatches container.
     const url = new URL(request.url);
