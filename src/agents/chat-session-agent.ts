@@ -252,7 +252,7 @@ export class ChatSessionAgent {
     }
 
     // Container WebSocket upgrade — real-time NDJSON stream from container
-    if (request.headers.get('Upgrade') === 'websocket' && url.pathname === '/container-ws') {
+    if (request.headers.get('Upgrade') === 'websocket' && url.pathname === '/internal/container-ws') {
       return this.handleContainerWsUpgrade(request, url);
     }
 
