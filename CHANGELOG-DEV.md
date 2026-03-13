@@ -1,3 +1,9 @@
+### 2026-03-13 · 79eca46 · v0.29.0
+FIX     deploy — fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin
+
+### 2026-03-13 · 79eca46 · v0.29.0
+FIX     deploy — fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin
+
 
 ### 2026-03-13 · e7a9065 · v0.29.0
 FIX     deploy — fix: use ws npm package instead of native WebSocket global for Node compat in container
