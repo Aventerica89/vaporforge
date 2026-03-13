@@ -27,6 +27,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
+const WsClient = require('ws');
 
 // V1.5 callback mode: stream NDJSON to DO.
 // WS mode (primary): VF_WS_CALLBACK_URL set → real-time WS frames (no CF buffering).
@@ -44,21 +45,21 @@ let wsError = false;
 let wsMsgQueue = [];
 
 if (IS_WS_CALLBACK_MODE) {
-  // Node.js 22+ native WebSocket — no npm package needed
-  callbackWs = new WebSocket(WS_CALLBACK_URL);
-  callbackWs.addEventListener('open', () => {
+  // Use the 'ws' npm package (installed globally in container) for Node version compatibility
+  callbackWs = new WsClient(WS_CALLBACK_URL);
+  callbackWs.on('open', () => {
     wsOpen = true;
     for (const msg of wsMsgQueue) callbackWs.send(msg);
     wsMsgQueue = [];
     console.error('[claude-agent] V1.5 WS callback connected');
   });
-  callbackWs.addEventListener('error', (e) => {
+  callbackWs.on('error', (e) => {
     wsError = true;
-    console.error('[claude-agent] WS callback error:', e.message || e.type);
+    console.error('[claude-agent] WS callback error:', e.message);
   });
-  callbackWs.addEventListener('close', (e) => {
-    if (!e.wasClean) {
-      console.error(`[claude-agent] WS callback closed unexpectedly: ${e.code} ${e.reason}`);
+  callbackWs.on('close', (code, reason) => {
+    if (code !== 1000) {
+      console.error(`[claude-agent] WS callback closed unexpectedly: ${code} ${reason.toString()}`);
     }
   });
 } else if (IS_CALLBACK_MODE) {
