@@ -50,3 +50,4 @@
 { "v": "0.29.0", "ts": "2026-03-13T01:15:00Z", "msg": "fix: use ws npm package instead of native WebSocket global for Node compat in container", "hash": "e7a9065" }
 { "v": "0.29.0", "ts": "2026-03-13T04:39:30.000Z", "msg": "fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin", "hash": "79eca46" }
 {"v":"0.29.0","ts":"2026-03-13T05:20:18Z","msg":"fix(ui): message ordering bug — second msg no longer renders before first response (#111)","hash":"c0d6f27"}
+{ "v": "0.29.0", "ts": "2026-03-13T22:52:04Z", "msg": "MCP OAuth: PKCE flow + credentials injection + Connect/Revoke UI", "hash": "12aabd9" }

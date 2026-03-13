@@ -1,3 +1,6 @@
+### 2026-03-13 · 12aabd9 · v0.29.0
+FEAT    deploy — MCP OAuth: PKCE flow, token KV storage, credentials injection into container, Connect/Revoke UI
+
 ### 2026-03-13 · c0d6f27 · v0.29.0
 FIX     deploy — fix(ui): message ordering bug — second msg no longer renders before first response (#111)
 
