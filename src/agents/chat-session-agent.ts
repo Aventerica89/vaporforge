@@ -251,6 +251,11 @@ export class ChatSessionAgent {
       return this.handleWsUpgrade(request, url);
     }
 
+    // Container WebSocket upgrade — real-time NDJSON stream from container
+    if (request.headers.get('Upgrade') === 'websocket' && url.pathname === '/container-ws') {
+      return this.handleContainerWsUpgrade(request, url);
+    }
+
     // V1.5 HTTP streaming — browser sends chat via HTTP, gets NDJSON stream back
     if (request.method === 'POST' && url.pathname === '/chat') {
       try {
@@ -690,11 +695,69 @@ export class ChatSessionAgent {
   }
 
   /**
+   * Accept a WebSocket upgrade from the container (real-time NDJSON stream).
+   * Token is already validated by the Worker. We extract executionId from the
+   * query param and tag the WS so webSocketMessage() can route container frames.
+   */
+  private handleContainerWsUpgrade(request: Request, url: URL): Response {
+    const executionId = url.searchParams.get('executionId') || '';
+    if (!executionId) {
+      return new Response('Missing executionId', { status: 400 });
+    }
+
+    const { 0: client, 1: server } = new WebSocketPair();
+    // Tag with `container:` prefix — distinguishes from browser WS (`exec:` prefix)
+    this.state.acceptWebSocket(server, [`container:${executionId}`]);
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Process a single NDJSON line received from the container via WebSocket.
+   * Stores to replay buffer, translates to UIMessageStream, sends to browser WS.
+   */
+  private handleContainerWsMessage(
+    executionId: string,
+    message: string | ArrayBuffer
+  ): void {
+    const text = typeof message === 'string'
+      ? message.trim()
+      : new TextDecoder().decode(message).trim();
+    if (!text) return;
+
+    this.storeLine(text);
+    this.extractMetadata(text);
+    this.maybeRegisterApproval(text);
+
+    // Find browser WS — check in-memory map first, then hibernation storage
+    const browserWs = this.wsBridges.get(executionId)
+      ?? this.state.getWebSockets(`exec:${executionId}`)[0];
+    if (!browserWs) return; // browser disconnected — buffered above for replay
+
+    const frame = ndjsonToUIStreamFrame(text);
+    if (frame !== null) {
+      try {
+        browserWs.send(frame);
+      } catch {
+        // Browser WS may have closed — ignore, replay buffer has the frame
+      }
+    }
+  }
+
+  /**
    * CF DO WebSocket message handler (hibernating WebSocket protocol).
    * Called when the browser sends a WS message. The first message must be
    * `{ type: 'chat', prompt, mode?, model?, autonomy? }` to dispatch the container.
    */
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    // Route container WS messages separately from browser WS messages
+    const tags = this.state.getTags(ws);
+    const containerTag = tags.find((t) => t.startsWith('container:'));
+    if (containerTag) {
+      this.handleContainerWsMessage(containerTag.slice(10), message);
+      return;
+    }
+
     const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
     let data: Record<string, unknown>;
     try {
@@ -706,7 +769,6 @@ export class ChatSessionAgent {
     if (data.type !== 'chat') return;
 
     // Recover executionId from the WS tag assigned at upgrade time
-    const tags = this.state.getTags(ws);
     const execTag = tags.find((t) => t.startsWith('exec:'));
     if (!execTag) return;
     const executionId = execTag.slice(5);
@@ -752,9 +814,34 @@ export class ChatSessionAgent {
   }
 
   /**
-   * CF DO WebSocket close handler — clean up any in-memory bridge for this socket.
+   * CF DO WebSocket close handler — handles both container and browser WS closes.
    */
-  webSocketClose(ws: WebSocket): void {
+  webSocketClose(ws: WebSocket, code: number, reason: string): void {
+    const tags = this.state.getTags(ws);
+
+    // Container WS closed — normal (1000) means done, abnormal means error
+    const containerTag = tags.find((t) => t.startsWith('container:'));
+    if (containerTag) {
+      const executionId = containerTag.slice(10);
+      if (code === 1000) {
+        // Container finished cleanly — close browser WS too
+        const browserWs = this.wsBridges.get(executionId)
+          ?? this.state.getWebSockets(`exec:${executionId}`)[0];
+        if (browserWs) {
+          try { browserWs.close(1000, 'done'); } catch { /* already closed */ }
+        }
+      } else {
+        // Abnormal close — emit error to browser
+        this.emitBridgeError(executionId, `Container stream ended unexpectedly: ${code} ${reason || 'no reason'}`);
+      }
+      // Cleanup
+      this.wsBridges.delete(executionId);
+      this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+      this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
+      return;
+    }
+
+    // Browser WS closed — clean up any in-memory bridge for this socket
     for (const [executionId, bridge] of this.wsBridges) {
       if (bridge === ws) {
         this.wsBridges.delete(executionId);
