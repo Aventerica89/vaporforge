@@ -1023,6 +1023,15 @@ export class ChatSessionAgent {
       this.env.JWT_SECRET
     );
 
+    // Build container WS callback URL (real-time streaming, no CF buffering).
+    // WS upgrades can't carry Authorization headers, so token goes in query param.
+    const wsCallbackUrl = new URL(
+      `/internal/container-ws?executionId=${encodeURIComponent(executionId)}&token=${encodeURIComponent(token)}`,
+      this.env.WORKER_BASE_URL
+    );
+    wsCallbackUrl.protocol = wsCallbackUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsCallbackUrlStr = wsCallbackUrl.toString();
+
     // Collect env vars + config in parallel (all KV reads)
     const projectSecrets = collectProjectSecrets(this.env);
     const [sandboxConfig, userSecrets, userRecord] = await Promise.all([
@@ -1106,8 +1115,8 @@ export class ChatSessionAgent {
           // VF runtime
           IS_SANDBOX: '1',
           CLAUDE_CODE_OAUTH_TOKEN: oauthToken,
-          VF_CALLBACK_URL: `${this.env.WORKER_BASE_URL}/internal/stream`,
-          VF_STREAM_JWT: token,
+          VF_WS_CALLBACK_URL: wsCallbackUrlStr,
+          VF_STREAM_JWT: token, // kept for approval polling (HTTP)
           VF_SDK_SESSION_ID: effectiveSessionId,
           VF_STORED_BUILD: storedBuild,
           VF_SESSION_MODE: mode || 'agent',
