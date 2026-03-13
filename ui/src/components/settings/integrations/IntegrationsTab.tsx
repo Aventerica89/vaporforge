@@ -5,6 +5,7 @@ import { IntegrationsSidebar } from './IntegrationsSidebar';
 import { IntegrationsDetail } from './IntegrationsDetail';
 import { McpAddModal } from './McpAddModal';
 import { MarketplaceSlideIn } from './MarketplaceSlideIn';
+import { toast } from '@/hooks/useToast';
 
 export function IntegrationsTab() {
   const {
@@ -24,6 +25,27 @@ export function IntegrationsTab() {
     loadMcpServers().then(() => pingAllMcps());
     useMarketplace.getState().loadCustomSources();
   }, [loadPlugins, loadMcpServers, pingAllMcps]);
+
+  // Handle OAuth callback redirect: /app/#settings/integrations?oauth_success=serverName
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.includes('oauth_success=')) return;
+
+    const queryPart = hash.split('?')[1] ?? '';
+    const params = new URLSearchParams(queryPart);
+    const serverName = params.get('oauth_success');
+
+    if (serverName) {
+      toast({ title: `Connected to ${serverName}`, description: 'OAuth authorization successful.' });
+      loadMcpServers();
+      // Remove oauth_success param from URL without triggering navigation
+      window.history.replaceState(
+        null,
+        '',
+        window.location.pathname + window.location.search
+      );
+    }
+  }, []);
 
   const enabledPlugins = plugins.filter((p: { enabled: boolean }) => p.enabled).length;
   const enabledMcps = mcpServers.filter((s: { enabled: boolean }) => s.enabled).length;
