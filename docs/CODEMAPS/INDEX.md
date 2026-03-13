@@ -1,6 +1,6 @@
 # VaporForge Codemaps Index
 
-**Last Updated:** 2026-03-11 (rev 2)
+**Last Updated:** 2026-03-12 (rev 3)
 
 ## Overview
 
@@ -146,16 +146,19 @@ Type definitions, data models, schemas, storage patterns, NDJSON format.
 
 ## Key Concepts
 
-### V1.5 HTTP Streaming Architecture
+### V1.5 HTTP Streaming Architecture (with WS Container Tunnel)
 
-Main chat uses **HTTP POST streaming**, not WebSocket. A ChatSessionAgent DO acts as a bridge:
+Main chat uses **HTTP POST streaming** for the browser leg and a **WebSocket tunnel** for the container→DO leg. A ChatSessionAgent DO acts as the bridge:
 
 1. Browser: `POST /api/v15/chat` with prompt
 2. Worker: Routes to ChatSessionAgent DO
-3. DO: Spawns container via `sandbox.startProcess()`
-4. Container: claude-agent.js streams NDJSON to `/internal/stream` callback
-5. Worker: Pipes stream to browser HTTP response
-6. **Persistence:** DO buffers stream in storage for reconnect/replay
+3. DO: Spawns container via `sandbox.startProcess()`, sets `VF_WS_CALLBACK_URL`
+4. Container: claude-agent.js opens outbound WS to `/internal/container-ws`
+5. Worker: Validates JWT (`?token=`), routes WS upgrade to same ChatSessionAgent DO
+6. DO: Tags container WS socket, routes incoming frames to browser + replay buffer
+7. **Persistence:** DO buffers stream in storage for reconnect/replay
+
+The WS tunnel replaces the old chunked HTTP POST callback (`/internal/stream`). CF's DO HTTP handler buffers entire responses before delivering, breaking real-time streaming. WS frames are delivered immediately. The legacy HTTP path is retained as a fallback.
 
 See [architecture.md](./architecture.md) for detailed flow.
 

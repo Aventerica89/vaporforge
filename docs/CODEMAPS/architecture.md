@@ -1,6 +1,6 @@
 # VaporForge Architecture Codemap
 
-**Last Updated:** 2026-03-11 (rev 2)
+**Last Updated:** 2026-03-12 (rev 3)
 
 ## High-Level System Design
 
@@ -28,7 +28,7 @@
 │ - Buffer replay      │       │ - MCP relay (HTTP/stdio)     │
 │ - Sentinel keepalive │       │ - File change watchers       │
 └──────────────────────┘       └──────────────────────────────┘
-        ↓ Callback                        ↓ WS
+        ↓ WebSocket (real-time)           ↓ WS
 ┌──────────────────────────────────────────────────────────────────┐
 │ Cloudflare Sandbox (Container)                                   │
 │ ├─ claude-agent.js (Claude SDK, streaming agents)                │
@@ -51,17 +51,25 @@ External Storage:
 
 ## Request Flows
 
-### Main Chat (V1.5 HTTP Streaming)
+### Main Chat (V1.5 HTTP Streaming with WS Container Tunnel)
 
 1. Browser: `POST /api/v15/chat` with sessionId, prompt, mode, model
 2. Worker: Validates JWT, routes to ChatSessionAgent DO
-3. DO: Calls `sandbox.startProcess()` with claude-agent.js
-4. Container: claude-agent.js streams NDJSON to `/internal/stream` callback
-5. Worker: Pipes container stream to browser HTTP response
-6. Browser: Receives NDJSON frames in real-time, parses + renders
+3. DO: Signs execution JWT, builds `VF_WS_CALLBACK_URL` pointing to `/internal/container-ws`
+4. DO: Calls `sandbox.startProcess()` with claude-agent.js + `VF_WS_CALLBACK_URL` env var
+5. Container: claude-agent.js opens outbound WebSocket to `/internal/container-ws` (token in query param)
+6. Worker: WS upgrade validated (JWT in `?token=`), routed to ChatSessionAgent DO
+7. DO: `handleContainerWsUpgrade()` accepts WS, tags it `container:{executionId}`
+8. Container: Sends NDJSON frames as WS text messages in real-time (no CF buffering)
+9. DO: `handleContainerWsMessage()` buffers frames + pipes to browser HTTP response
+10. Browser: Receives NDJSON frames in real-time, parses + renders
+
+**Why WebSocket over HTTP POST callback:** CF's Durable Object HTTP request handler buffers the entire response before dispatching, making chunked HTTP POST useless for real-time streaming. WebSocket frames are delivered immediately per-message.
 
 **Persistence:** DO buffers stream to storage for replay on disconnect.
 **Keepalive:** DO alarm fires every 8 min to ping sandbox, resetting idle timer.
+
+**Legacy HTTP callback path** (`VF_CALLBACK_URL` / `/internal/stream`) is retained as fallback. If `VF_WS_CALLBACK_URL` is not set, claude-agent.js falls back to the chunked POST path.
 
 ### Quick Chat & AI Endpoints (AI SDK Direct)
 

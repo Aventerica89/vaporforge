@@ -1,6 +1,6 @@
 # VaporForge Backend Codemap
 
-**Last Updated:** 2026-03-11 (rev 2)
+**Last Updated:** 2026-03-12 (rev 3)
 
 ## Entry Points
 
@@ -21,7 +21,8 @@
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
 | `POST /api/v15/chat` | POST | Browser initiates chat (ChatSessionAgent DO); IDOR-checked against session owner |
-| `/internal/stream` | POST | Container callback (worker routes to DO); JWT-authenticated |
+| `/internal/stream` | POST | Container HTTP callback (legacy fallback); JWT in `Authorization` header |
+| `/internal/container-ws` | WS | Container WS tunnel (primary); JWT in `?token=` query param; real-time per-token frames |
 | `/api/v15/resume` | GET | Resume disconnected stream from buffer; IDOR-checked against session owner |
 | `/api/v15/approve` | POST | Browser submits tool approval; IDOR-checked against session owner |
 
@@ -134,10 +135,14 @@
 
 - **Purpose:** V1.5 HTTP streaming bridge, stream persistence, sentinel keepalive
 - **Methods:**
-  - `fetch()` — Handle browser POST /chat and container callback POST /internal/stream
+  - `fetch()` — Handle browser POST /chat, container WS upgrade, and legacy HTTP callback
   - `alarm()` — Periodic keepalive ping to reset container idle timer
   - `handleChatHttp()` — Create NDJSON stream, dispatch container, pipe response
-  - `handleContainerStream()` — Accept container callback, write to browser + buffer
+  - `handleContainerWsUpgrade()` — Accept container WS upgrade, tag socket `container:{executionId}`
+  - `handleContainerWsMessage()` — Route incoming WS frames to browser + replay buffer
+  - `webSocketError()` — Handle WS error events (logs, closes gracefully)
+  - `handleContainerStream()` — Legacy: accept chunked HTTP POST callback (fallback path)
+  - `dispatchContainer()` — Build env vars (now sets `VF_WS_CALLBACK_URL` instead of `VF_CALLBACK_URL`)
 
 ### SessionDurableObject (`src/websocket.ts`)
 
