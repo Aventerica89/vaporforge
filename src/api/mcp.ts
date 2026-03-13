@@ -2,6 +2,16 @@ import { Hono } from 'hono';
 import { McpServerConfigSchema } from '../types';
 import type { User, ApiResponse, McpServerConfig } from '../types';
 import { validateExternalUrl } from '../utils/validate-url';
+import {
+  detectOAuthRequirement,
+  fetchAuthServerMetadata,
+  getOrRegisterClient,
+  generateCodeVerifier,
+  computeCodeChallenge,
+  generateState,
+  oauthStateKey,
+  deleteOAuthTokens,
+} from './mcp-oauth';
 
 type Variables = {
   user: User;
@@ -122,6 +132,15 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
+  // Detect OAuth requirement (non-blocking — failure does not prevent server add)
+  let requiresOAuth = false;
+  if (transport === 'http' && url) {
+    try {
+      const authServer = await detectOAuthRequirement(url);
+      if (authServer) requiresOAuth = true;
+    } catch { /* detection failure is non-fatal */ }
+  }
+
   const newServer: McpServerConfig = {
     name,
     transport,
@@ -134,6 +153,7 @@ mcpRoutes.post('/', async (c) => {
     credentialFiles,
     enabled: true,
     addedAt: new Date().toISOString(),
+    ...(requiresOAuth ? { requiresOAuth: true, oauthStatus: 'pending' as const } : {}),
   };
 
   const updated = [...servers, newServer];
@@ -299,6 +319,77 @@ mcpRoutes.put('/:name/toggle', async (c) => {
     success: true,
     data: toggled,
   });
+});
+
+// GET /:name/oauth/start — initiate PKCE OAuth flow
+mcpRoutes.get('/:name/oauth/start', async (c) => {
+  const user = c.get('user');
+  const serverName = c.req.param('name');
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const server = servers.find((s) => s.name === serverName);
+
+  if (!server || server.transport !== 'http' || !server.url) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Server not found or not HTTP' }, 404);
+  }
+
+  const authServerUrl = await detectOAuthRequirement(server.url);
+  if (!authServerUrl) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Server does not require OAuth' }, 400);
+  }
+
+  const metadata = await fetchAuthServerMetadata(authServerUrl);
+  if (!metadata) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
+  }
+
+  const callbackUrl = `${new URL(c.req.url).origin}/api/mcp-oauth/callback`;
+
+  let clientId: string;
+  try {
+    clientId = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+  } catch (err) {
+    return c.json<ApiResponse<never>>({ success: false, error: `DCR failed: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
+  const codeVerifier = generateCodeVerifier();
+  const [codeChallenge, state] = await Promise.all([
+    computeCodeChallenge(codeVerifier),
+    Promise.resolve(generateState()),
+  ]);
+
+  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify({
+    userId: user.id, serverName, serverUrl: server.url,
+    codeVerifier, redirectUri: callbackUrl, clientId,
+    metadata: { token_endpoint: metadata.token_endpoint, authorization_endpoint: metadata.authorization_endpoint },
+    createdAt: Date.now(),
+  }), { expirationTtl: 30 * 60 });
+
+  const authUrl = new URL(metadata.authorization_endpoint);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('redirect_uri', callbackUrl);
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('code_challenge', codeChallenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  if (metadata.scopes_supported?.length) {
+    authUrl.searchParams.set('scope', metadata.scopes_supported.join(' '));
+  }
+
+  return c.json<ApiResponse<{ authUrl: string }>>({ success: true, data: { authUrl: authUrl.toString() } });
+});
+
+// DELETE /:name/oauth — revoke stored OAuth tokens
+mcpRoutes.delete('/:name/oauth', async (c) => {
+  const user = c.get('user');
+  const serverName = c.req.param('name');
+  await deleteOAuthTokens(c.env.SESSIONS_KV, user.id, serverName);
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  await writeServers(
+    c.env.SESSIONS_KV,
+    user.id,
+    servers.map((s) => s.name === serverName ? { ...s, oauthStatus: 'none' as const } : s),
+  );
+  return c.json<ApiResponse<{ revoked: boolean }>>({ success: true, data: { revoked: true } });
 });
 
 /**

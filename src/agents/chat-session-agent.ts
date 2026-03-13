@@ -38,6 +38,7 @@ import type { SandboxConfig } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
 import type { Process, Sandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
+import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens, buildCredentialsFile } from '../api/mcp-oauth';
 
 /** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
 const MODEL_ALIASES: Record<string, string> = {
@@ -1073,6 +1074,29 @@ export class ChatSessionAgent {
     // After container sleep wipes disk, this restores everything the SDK needs.
     // Returns true if full injection was needed (container slept / fresh disk).
     const didFullInject = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig);
+
+    // Inject MCP OAuth tokens as ~/.claude/.credentials.json (pre-flight refresh included)
+    try {
+      const allTokens = await readAllOAuthTokens(this.env.SESSIONS_KV, userId);
+      if (allTokens.length > 0) {
+        const refreshed = await Promise.all(
+          allTokens.map(async (t) => {
+            const updated = await refreshTokenIfExpired(t);
+            if (updated && updated !== t) {
+              await writeOAuthTokens(this.env.SESSIONS_KV, userId, t.serverName, updated);
+              return { ...updated, serverName: t.serverName };
+            }
+            return updated ? { ...updated, serverName: t.serverName } : t;
+          })
+        );
+        const credentialsJson = buildCredentialsFile(refreshed);
+        await sandbox.mkdir('/root/.claude', { recursive: true });
+        await sandbox.writeFile('/root/.claude/.credentials.json', credentialsJson);
+        console.log(`[ChatSessionAgent] ${sid}: wrote .credentials.json (${refreshed.length} OAuth server(s))`);
+      }
+    } catch (err) {
+      console.error(`[ChatSessionAgent] ${sid}: MCP OAuth injection failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     // If the container slept (stamp missing → full injection), the SDK session
     // files on disk are gone. Resuming a dead session hangs for 4+ minutes
