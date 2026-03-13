@@ -508,6 +508,16 @@ export class ChatSessionAgent {
       autonomy?: string;
     };
 
+    // Guard: reject double-dispatch if a container execution is already in-flight.
+    // Each handleChatHttp call generates a new executionId, so httpBridges having
+    // any entry means a container is already running for this DO instance.
+    if (this.httpBridges.size > 0) {
+      return new Response(
+        JSON.stringify({ error: 'A response is already in progress. Please wait for it to complete.' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Clear buffer from previous execution before starting a new one.
     // Awaited to prevent delete from racing with new storeLine() calls.
     await this.clearBuffer();
