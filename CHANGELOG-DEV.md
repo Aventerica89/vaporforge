@@ -1,4 +1,7 @@
 
+### 2026-03-13 · e7a9065 · v0.29.0
+FIX     deploy — fix: use ws npm package instead of native WebSocket global for Node compat in container
+
 ### 2026-03-13 · 0dd7c1e · v0.29.0
 FIX     deploy — fix: replace container→DO HTTP POST with WebSocket tunnel for real-time streaming
 
