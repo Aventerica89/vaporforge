@@ -1,6 +1,6 @@
 # VaporForge Data Models & Types
 
-**Last Updated:** 2026-03-11
+**Last Updated:** 2026-03-14
 
 ## Backend Types (src/types.ts)
 
@@ -210,14 +210,41 @@ interface McpServerConfig {
   url?: string;                             // For HTTP
   command?: string;                         // For stdio
   args?: string[];                          // Stdio args
+  localUrl?: string;                        // For relay (browser-side URL)
 
   // Credentials
-  credentials?: Record<string, string>;
-  credentialPath?: string;                  // Where to inject creds
+  headers?: Record<string, string>;         // HTTP headers (static auth)
+  env?: Record<string, string>;             // Stdio environment vars
+  credentialFiles?: Record<string, string>; // Files to inject (path -> content)
+
+  // OAuth (added by server if requiresOAuth detected)
+  requiresOAuth?: boolean;
+  oauthStatus?: 'none' | 'pending' | 'authorized';
+
+  // Metadata (server-maintained)
+  addedAt: string;                          // ISO-8601
+  tools?: string[];                         // Cached tool names from last ping
+  toolCount?: number;
+  toolSchemas?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>;
+  lastPingAt?: string;
+  lastPingMs?: number;
+  mode?: string;                            // Custom field (user-defined)
+  scope?: string;                           // Custom field (user-defined)
 }
 ```
 
 **Storage:** KV `user-mcp:${userId}` (JSON array)
+
+**OAuth Flow:**
+1. User adds HTTP server → detectOAuthRequirement checks `/.well-known/oauth-protected-resource`
+2. If OAuth required: fetchAuthServerMetadata discovers auth endpoints (PKCE-capable)
+3. Server auto-sets `requiresOAuth=true, oauthStatus='pending'`
+4. User clicks "Authorize" → browser navigates to `/api/mcp/:name/oauth/start`
+5. Worker generates PKCE state, redirects to auth server's authorization_endpoint
+6. User approves → browser redirected to `/api/mcp-oauth/callback?code=...&state=...`
+7. Worker exchanges code for tokens (via refresh_token_endpoint), stores in `mcp:oauth:{userId}:{name}`
+8. Server status updated to `oauthStatus='authorized'`
+9. On future pings, tokens injected as `Authorization: Bearer {accessToken}` (with auto-refresh)
 
 ### Plugin Manifest
 
@@ -305,7 +332,17 @@ interface GitCommit {
 | `favorites:{userId}` | Bookmarks | — |
 | `github-username:{userId}` | GitHub login | — |
 
-### SESSIONS_KV (Session State)
+### SESSIONS_KV (Session State + MCP OAuth)
+
+Also includes MCP OAuth tokens:
+
+| Key | Value | TTL |
+|-----|-------|-----|
+| `mcp:oauth:{userId}:{serverName}` | McpOAuthTokens | — |
+| `mcp:oauth:state:{state}` | OAuthPkceState (PKCE flow temp data) | 30 min |
+| `mcp:oauth:client:{userId}:{serverName}` | client_id (DCR cache) | 1 year |
+
+### SESSIONS_KV (Session State Continued)
 
 | Key | Value | TTL |
 |-----|-------|-----|
@@ -313,7 +350,7 @@ interface GitCommit {
 | `message:{sessionId}:{msgId}` | Message object | — |
 | `user-secrets:{userId}` | Env var object | — |
 | `user-ai-providers:{userId}` | Provider array | — |
-| `user-mcp:{userId}` | MCP server array | — |
+| `user-mcp:{userId}` | MCP server array (includes OAuth status) | — |
 | `user-plugins:{userId}` | Plugin array | — |
 | `user-config:{userId}:rules` | CLAUDE.md content | — |
 | `user-config:{userId}:commands` | Commands JSON | — |

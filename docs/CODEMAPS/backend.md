@@ -1,6 +1,6 @@
 # VaporForge Backend Codemap
 
-**Last Updated:** 2026-03-12 (rev 3)
+**Last Updated:** 2026-03-14 (rev 4)
 
 ## Entry Points
 
@@ -78,9 +78,14 @@
 | `/api/mcp` | GET | List user's MCP servers |
 | `/api/mcp/:name` | GET | Get server config |
 | `/api/mcp/:name` | PUT | Create/update server |
+| `/api/mcp/:name` | PATCH | Partial update (mode, scope) |
 | `/api/mcp/:name` | DELETE | Delete server |
-| `/api/mcp/:name/ping` | POST | Test server + discover tools |
+| `/api/mcp/ping` | POST | Batch health-check all enabled HTTP servers (OAuth Bearer injection) |
+| `/api/mcp/:name/ping` | POST | Single server health-check + tool discovery (OAuth Bearer injection) |
 | `/api/mcp/:name/toggle` | PUT | Enable/disable server |
+| `/api/mcp/:name/oauth/start` | GET | Initiate PKCE OAuth flow (for OAuth-protected servers) |
+| `/api/mcp/:name/oauth` | DELETE | Revoke stored OAuth tokens |
+| `/api/mcp-oauth/callback` | GET | OAuth callback endpoint (public, no auth) |
 
 ### Plugins & Plugin Sources
 
@@ -133,16 +138,22 @@
 
 ### ChatSessionAgent (`src/agents/chat-session-agent.ts`)
 
-- **Purpose:** V1.5 HTTP streaming bridge, stream persistence, sentinel keepalive
+- **Purpose:** V1.5 HTTP streaming bridge, stream persistence, sentinel keepalive, tool approval workflow
 - **Methods:**
-  - `fetch()` — Handle browser POST /chat, container WS upgrade, and legacy HTTP callback
-  - `alarm()` — Periodic keepalive ping to reset container idle timer
-  - `handleChatHttp()` — Create NDJSON stream, dispatch container, pipe response
-  - `handleContainerWsUpgrade()` — Accept container WS upgrade, tag socket `container:{executionId}`
-  - `handleContainerWsMessage()` — Route incoming WS frames to browser + replay buffer
-  - `webSocketError()` — Handle WS error events (logs, closes gracefully)
-  - `handleContainerStream()` — Legacy: accept chunked HTTP POST callback (fallback path)
-  - `dispatchContainer()` — Build env vars (now sets `VF_WS_CALLBACK_URL` instead of `VF_CALLBACK_URL`)
+  - `fetch()` — Router for /chat (HTTP), /internal/stream (legacy), /internal/container-ws (WS), /internal/approval, /approve, /init, /sentinel/start, /sentinel/stop, /chat/resume
+  - `alarm()` — Periodic keepalive ping (every 8 min) to reset container idle timer
+  - `handleChatHttp()` — Create NDJSON stream response, dispatch container, pipe response
+  - `handleContainerWsUpgrade()` — Accept container WS upgrade, tag socket `container:{executionId}`, set up bridges
+  - `handleContainerWsMessage()` — Receive WS frames from container, route to browser WS or buffer to storage
+  - `pipeToHttpBridge()` — Stream container NDJSON to browser HTTP response (legacy fallback path)
+  - `pipeToWsBridge()` — Stream container NDJSON to browser via WS (primary path)
+  - `handleOrphanedStream()` — DO was evicted mid-stream; buffer remaining container output for recovery
+  - `handleContainerStream()` — Accept chunked HTTP POST callback from container (legacy, replaced by WS)
+  - `handleResume()` — Serve buffered NDJSON lines from given offset (reconnect after disconnect)
+  - `storeLine()` — Buffer NDJSON line to DO SQLite for replay (rolling 2000-line window)
+  - `clearBuffer()` — Clear old buffer before new chat request
+  - `startSentinel()` — Start keepalive sentinel for a sandbox (schedules DO alarm)
+  - `stopSentinel()` — Stop keepalive sentinel (deletes stored sandboxId, cancels alarm)
 
 ### SessionDurableObject (`src/websocket.ts`)
 
@@ -202,9 +213,12 @@ interface Env {
 
 ## Security
 
-- **IDOR protection on V1.5 endpoints:** `/api/v15/chat`, `/api/v15/approve`, and `/api/v15/resume` each verify `session.userId === user.id` before routing to the ChatSessionAgent DO. Returns 403 Forbidden on mismatch.
+- **IDOR protection on V1.5 endpoints:** `/api/v15/chat`, `/api/v15/approve`, and `/api/v15/resume` each verify `session.userId === user.id` before routing to the ChatSessionAgent DO. Returns 403 Forbidden on mismatch. Plus Worker validates before routing (double-check).
+- **WS auth:** JWT in `?token=` query param validated in Worker before routing to DO (prevents unauthorized DO wakes).
 - **approvalId generation:** `crypto.randomUUID()` used in `claude-agent.js` for tool approval IDs (unguessable).
 - **MCP shell injection guard:** `src/utils/validate-npm-package.ts` — `isValidNpmPackageName()` validates npm package names via regex before interpolating into shell commands during MCP plugin install. Rejects shell metacharacters and names >214 chars.
+- **MCP OAuth:** Private/internal host detection in `detectOAuthRequirement()` and `fetchAuthServerMetadata()` prevents leaking internal services. HTTPS-only for external URLs.
+- **OAuth state validation:** PKCE state stored in KV with 30-min TTL, deleted after use. Prevents state reuse/forgery.
 - **QuickChat shell escaping:** `shellEscape()` in `src/api/quickchat.ts` wraps all sandbox exec arguments in single quotes.
 
 ## Rate Limiting

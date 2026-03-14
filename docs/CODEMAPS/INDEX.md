@@ -1,6 +1,6 @@
 # VaporForge Codemaps Index
 
-**Last Updated:** 2026-03-12 (rev 3)
+**Last Updated:** 2026-03-14 (rev 4)
 
 ## Overview
 
@@ -150,13 +150,14 @@ Type definitions, data models, schemas, storage patterns, NDJSON format.
 
 Main chat uses **HTTP POST streaming** for the browser leg and a **WebSocket tunnel** for the container→DO leg. A ChatSessionAgent DO acts as the bridge:
 
-1. Browser: `POST /api/v15/chat` with prompt
-2. Worker: Routes to ChatSessionAgent DO
-3. DO: Spawns container via `sandbox.startProcess()`, sets `VF_WS_CALLBACK_URL`
-4. Container: claude-agent.js opens outbound WS to `/internal/container-ws`
-5. Worker: Validates JWT (`?token=`), routes WS upgrade to same ChatSessionAgent DO
-6. DO: Tags container WS socket, routes incoming frames to browser + replay buffer
-7. **Persistence:** DO buffers stream in storage for reconnect/replay
+1. Browser: `POST /api/v15/chat` with prompt (includes userId in body as fallback)
+2. Worker: Validates JWT + IDOR (session.userId === user.id), routes to ChatSessionAgent DO
+3. DO: Spawns container via `sandbox.startProcess()`, sets `VF_WS_CALLBACK_URL` env var
+4. Container: claude-agent.js opens outbound WS to `/internal/container-ws?token=JWT`
+5. Worker: Validates JWT in query param (`?token=`), routes WS upgrade to ChatSessionAgent DO
+6. DO: `handleContainerWsUpgrade()` accepts WS, tags socket `container:{executionId}`
+7. DO: `handleContainerWsMessage()` receives NDJSON frames, pipes to browser + replay buffer
+8. **Persistence:** DO buffers stream in SQLite for reconnect/replay after disconnect
 
 The WS tunnel replaces the old chunked HTTP POST callback (`/internal/stream`). CF's DO HTTP handler buffers entire responses before delivering, breaking real-time streaming. WS frames are delivered immediately. The legacy HTTP path is retained as a fallback.
 
@@ -164,7 +165,7 @@ See [architecture.md](./architecture.md) for detailed flow.
 
 ### Durable Objects
 
-- **ChatSessionAgent:** V1.5 HTTP bridge, stream buffering, sentinel keepalive
+- **ChatSessionAgent:** V1.5 HTTP/WS bridge, stream buffering, sentinel keepalive, tool approval workflow
 - **SessionDurableObject:** Legacy WebSocket proxy, MCP relay, file watchers
 
 ### Config Assembly

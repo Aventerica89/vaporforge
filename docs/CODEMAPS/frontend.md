@@ -1,6 +1,6 @@
 # VaporForge Frontend Codemap
 
-**Last Updated:** 2026-03-11 (rev 2)
+**Last Updated:** 2026-03-14 (rev 3)
 
 ## Entry Points
 
@@ -91,7 +91,7 @@ Renders structured NDJSON frames:
 
 | Hook | Store | Purpose |
 |------|-------|---------|
-| **useSandbox** | Session + streaming state | Main chat state, message list, session ID, mode/model selection |
+| **useSandbox** | Session + streaming state | Main chat state, message list, session ID, mode/model selection, `streamingLinger` flag |
 | **useAuth** | User + JWT token | Login state, user profile, token refresh |
 | **useQuickChat** | Quick chat history | Per-chat message list, active chat ID |
 | **useLayoutStore** | Panel visibility | Show/hide panels, responsive breakpoints |
@@ -107,13 +107,14 @@ Renders structured NDJSON frames:
 
 | Hook | Purpose |
 |-------|---------|
-| **useWebSocket** | WS connection to container (port 8765) |
+| **useWebSocket** | WS connection to container (port 8765, legacy path) |
 | **useSmoothText** | Typewriter buffer for smooth text streaming; `isMidAnimation` guard: 3x catch-up only when cursor>0 + stream ended; 1.5x when cursor=0 (post-tool-use batch) |
 | **useStreamDebug** | Stream event logging for DevTools |
 | **useCodeTransform** | SSE streaming for code transform |
 | **useQuickChat** | SSE streaming for quick chat |
 | **useCodeAnalysis** | SSE streaming for analysis |
 | **useCommitMessage** | SSE streaming for commit msg |
+| **useVfChatWs** | V1.5 HTTP streaming consumer (browser-side parser for NDJSON) |
 
 ## Utility Hooks
 
@@ -129,11 +130,12 @@ Renders structured NDJSON frames:
 | **useMcpRelay** | MCP relay WebSocket manager |
 | **useAutoReconnect** | Auto-reconnect logic for WS |
 
-## Internal Rendering Components (QuickChatPanel)
+## Streaming Message Rendering
 
 | Component | Purpose |
 |-----------|---------|
-| **StreamingTextPart** (inline in QuickChatPanel.tsx) | Wraps `useSmoothText` for assistant text parts in quick chat; maintains streaming mode while animation is still catching up to prevent Streamdown jump to static render |
+| **StreamingMessage** (in MessageList.tsx) | Renders assistant response during streaming. Checks `hasContent = !!(streamingContent \|\| streamingParts.length > 0)` to show message while streaming OR lingering (linger = 300ms delay before clearing streamingParts) |
+| **StreamingTextPart** (inline in QuickChatPanel.tsx) | Wraps `useSmoothText` for assistant text parts in quick chat; maintains streaming mode while animation is still catching up to prevent jump to static render |
 
 ## AI Elements (Rendering)
 
@@ -204,6 +206,19 @@ App
 ├─ McpRelayProvider (WS context)
 └─ MobileBottomSheet (mobile navigation)
 ```
+
+## Navigation (Hash Router)
+
+**File:** `ui/src/lib/hash-nav.ts`
+
+Hash-based routing without query params (React #130 workaround):
+- `#` or `#home` → home (session selection screen)
+- `#session/{sessionId}` → open session
+- `#settings` or `#settings/{tab}` → settings page
+- `#agency` → agency mode dashboard
+- `#settings/integrations?oauth_success=...` → OAuth callback with status
+
+Hash parsing strips `?params` from tab name using `.split('?')[0]` to prevent React router hash collision. Layout applies state on mount and hashchange via `applyHashState()`.
 
 ## Styling
 
