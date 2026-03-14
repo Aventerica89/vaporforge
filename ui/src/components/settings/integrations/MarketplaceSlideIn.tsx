@@ -91,7 +91,7 @@ function MarketplaceListView({ onSelectSource, onClose }: MarketplaceListViewPro
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !urlAdding) handleAddSource();
             }}
-            placeholder="https://github.com/owner/repo"
+            placeholder="owner/repo or https://github.com/owner/repo"
             className="min-w-0 flex-1 rounded-md border border-border bg-card px-2.5 py-1.5 font-mono text-[10px] text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
           <button
