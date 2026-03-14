@@ -38,7 +38,7 @@ import type { SandboxConfig } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
 import type { Process, Sandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
-import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens, buildCredentialsFile } from '../api/mcp-oauth';
+import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens } from '../api/mcp-oauth';
 
 /** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
 const MODEL_ALIASES: Record<string, string> = {
@@ -1070,12 +1070,10 @@ export class ChatSessionAgent {
       throw new Error('Only OAuth tokens are accepted for sandbox sessions');
     }
 
-    // Inject/refresh config into container (MCP servers, CLAUDE.md, plugins, creds).
-    // After container sleep wipes disk, this restores everything the SDK needs.
-    // Returns true if full injection was needed (container slept / fresh disk).
-    const didFullInject = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig);
-
-    // Inject MCP OAuth tokens as ~/.claude/.credentials.json (pre-flight refresh included)
+    // Load MCP OAuth tokens (pre-flight refresh). Tokens are injected as
+    // Authorization: Bearer headers in ~/.claude.json — NOT via .credentials.json,
+    // which Claude CLI does not read for HTTP MCP server auth.
+    const oauthTokensByName = new Map<string, string>();
     try {
       const allTokens = await readAllOAuthTokens(this.env.SESSIONS_KV, userId);
       if (allTokens.length > 0) {
@@ -1089,14 +1087,19 @@ export class ChatSessionAgent {
             return updated ? { ...updated, serverName: t.serverName } : t;
           })
         );
-        const credentialsJson = buildCredentialsFile(refreshed);
-        await sandbox.mkdir('/root/.claude', { recursive: true });
-        await sandbox.writeFile('/root/.claude/.credentials.json', credentialsJson);
-        console.log(`[ChatSessionAgent] ${sid}: wrote .credentials.json (${refreshed.length} OAuth server(s))`);
+        for (const t of refreshed) {
+          oauthTokensByName.set(t.serverName, t.accessToken);
+        }
+        console.log(`[ChatSessionAgent] ${sid}: loaded ${refreshed.length} MCP OAuth token(s) for header injection`);
       }
     } catch (err) {
-      console.error(`[ChatSessionAgent] ${sid}: MCP OAuth injection failed: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(`[ChatSessionAgent] ${sid}: MCP OAuth token load failed: ${err instanceof Error ? err.message : String(err)}`);
     }
+
+    // Inject/refresh config into container (MCP servers, CLAUDE.md, plugins, creds).
+    // After container sleep wipes disk, this restores everything the SDK needs.
+    // Returns true if full injection was needed (container slept / fresh disk).
+    const didFullInject = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig, oauthTokensByName);
 
     // If the container slept (stamp missing → full injection), the SDK session
     // files on disk are gone. Resuming a dead session hangs for 4+ minutes
@@ -1205,7 +1208,8 @@ export class ChatSessionAgent {
   private async ensureContainerConfig(
     sandbox: Sandbox,
     sessionId: string,
-    config: SandboxConfig
+    config: SandboxConfig,
+    oauthTokensByName: Map<string, string> = new Map()
   ): Promise<boolean> {
     const sid = sessionId.slice(0, 8);
 
@@ -1298,6 +1302,20 @@ export class ChatSessionAgent {
       // Write stamp
       await sandbox.writeFile('/root/.claude/.vf-config-stamp', `${sessionId}:${Date.now()}`);
       console.log(`[ChatSessionAgent] ${sid}: config injected, stamp written`);
+    }
+
+    // Patch HTTP MCP servers that have OAuth tokens with Authorization: Bearer header.
+    // Claude CLI reads headers from ~/.claude.json mcpServers entries, not .credentials.json.
+    if (oauthTokensByName.size > 0) {
+      for (const [name, cfg] of Object.entries(mergedMcp)) {
+        const token = oauthTokensByName.get(name);
+        if (token && cfg.url) {
+          const existingHeaders = typeof cfg.headers === 'object' && cfg.headers !== null
+            ? cfg.headers as Record<string, string>
+            : {};
+          mergedMcp[name] = { ...cfg, headers: { ...existingHeaders, Authorization: `Bearer ${token}` } };
+        }
+      }
     }
 
     // Always refresh MCP config + credential files (handles hot-add between messages)
