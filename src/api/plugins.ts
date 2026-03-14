@@ -631,9 +631,14 @@ pluginsRoutes.post('/discover', async (c) => {
     }, 400);
   }
 
+  // Expand owner/repo shorthand to full GitHub URL
+  const repoUrl = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(body.repoUrl.trim())
+    ? `https://github.com/${body.repoUrl.trim()}`
+    : body.repoUrl;
+
   // Parse owner/repo and optional subpath from URL
   // Matches: github.com/owner/repo or github.com/owner/repo/tree/branch/sub/path
-  const fullMatch = body.repoUrl.match(
+  const fullMatch = repoUrl.match(
     /github\.com\/([^/]+)\/([^/\s#?]+)(?:\/tree\/[^/]+\/(.+))?/
   );
   if (!fullMatch) {

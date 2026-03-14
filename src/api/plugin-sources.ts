@@ -320,10 +320,14 @@ pluginSourcesRoutes.post('/', async (c) => {
   const user = c.get('user');
   const body = (await c.req.json()) as { url?: string; label?: string };
 
-  const url = typeof body.url === 'string' ? body.url.trim() : '';
-  if (!url) {
+  const rawUrl = typeof body.url === 'string' ? body.url.trim() : '';
+  if (!rawUrl) {
     return c.json({ success: false, error: 'url is required' }, 400);
   }
+  // Expand owner/repo shorthand to full GitHub URL
+  const url = /^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(rawUrl)
+    ? `https://github.com/${rawUrl}`
+    : rawUrl;
 
   // Validate GitHub URL
   if (!parseGitHubUrl(url)) {
