@@ -1,3 +1,6 @@
+### 2026-03-14 · a90d130 · v0.29.0
+FIX     deploy — MCP ping: inject OAuth Bearer token for requiresOAuth servers; toast feedback + server list reload after ping
+
 ### 2026-03-14 · 6ef6733 · v0.29.0
 FIX     deploy — MCP OAuth spec compliance: RFC 8707 resource binding in auth URL + token exchange; expiresAt default 1yr for non-expiring tokens (Notion); diagnostic logging for OAuth header injection
 
