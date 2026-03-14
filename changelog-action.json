@@ -52,3 +52,4 @@
 {"v":"0.29.0","ts":"2026-03-13T05:20:18Z","msg":"fix(ui): message ordering bug — second msg no longer renders before first response (#111)","hash":"c0d6f27"}
 { "v": "0.29.0", "ts": "2026-03-13T22:52:04Z", "msg": "MCP OAuth: PKCE flow + credentials injection + Connect/Revoke UI", "hash": "12aabd9" }
 { "v": "0.29.0", "ts": "2026-03-14T02:35:28Z", "msg": "Fix: MCP OAuth Bearer token injected into ~/.claude.json headers (was using .credentials.json which CLI ignores)", "hash": "d9e332a" }
+{ "v": "0.29.0", "ts": "2026-03-14T08:28:10Z", "msg": "MCP OAuth RFC 8707 resource binding + expiresAt fix for non-expiring tokens", "hash": "6ef6733" }

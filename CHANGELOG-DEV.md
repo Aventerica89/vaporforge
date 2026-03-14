@@ -1,3 +1,6 @@
+### 2026-03-14 · 6ef6733 · v0.29.0
+FIX     deploy — MCP OAuth spec compliance: RFC 8707 resource binding in auth URL + token exchange; expiresAt default 1yr for non-expiring tokens (Notion); diagnostic logging for OAuth header injection
+
 ### 2026-03-13 · d9e332a · v0.29.0
 FIX     deploy — MCP OAuth: inject Bearer token as Authorization header in ~/.claude.json (CLI ignores .credentials.json)
 
