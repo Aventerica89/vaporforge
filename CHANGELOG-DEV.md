@@ -1,3 +1,6 @@
+### 2026-03-13 · d9e332a · v0.29.0
+FIX     deploy — MCP OAuth: inject Bearer token as Authorization header in ~/.claude.json (CLI ignores .credentials.json)
+
 ### 2026-03-13 · 12aabd9 · v0.29.0
 FEAT    deploy — MCP OAuth: PKCE flow, token KV storage, credentials injection into container, Connect/Revoke UI
 
