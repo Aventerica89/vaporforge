@@ -235,7 +235,7 @@ function renderPart(
     case 'text':
       if (!part.content) return null;
       return isStreaming ? (
-        <SmoothText key={index} content={part.content} />
+        <SmoothText key="streaming-text" content={part.content} />
       ) : (
         <ChatMarkdown key={index} content={part.content} />
       );

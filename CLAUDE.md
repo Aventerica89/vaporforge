@@ -226,4 +226,5 @@ When working with these technologies, read the corresponding skill for detailed 
 - Cloudflare: .agents/skills/cloudflare/SKILL.md
 - Vercel's AI SDK: .agents/skills/vercel-ai-sdk/SKILL.md
 - Docker Docs: .agents/skills/docker-docs/SKILL.md
+- Model Context Protocol (MCP): .agents/skills/model-context-protocol-mcp/SKILL.md
 <!-- llmstxt:end -->

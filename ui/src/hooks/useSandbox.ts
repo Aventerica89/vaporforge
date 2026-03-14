@@ -40,6 +40,7 @@ interface SandboxState {
   messagesById: Record<string, Message>;
   messageIds: string[];
   isStreaming: boolean;
+  streamingLinger: boolean;
   streamingContent: string;
   streamingParts: MessagePart[];
   sdkMode: 'agent' | 'plan';
