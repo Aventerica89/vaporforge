@@ -159,6 +159,8 @@ Visual website editor — click components in a live Astro preview, describe edi
 ### MCP Servers
 
 - **MCP configs stored in SESSIONS_KV** per user, injected into `~/.claude.json` at session start.
+- **`toast()` signature**: `toast(message, variant)` — two strings. NOT `toast({ title, variant })`. See `ui/src/components/SessionRemote.tsx` for examples.
+- **HTTP MCP OAuth token injection**: Inject Bearer token as `headers: { "Authorization": "Bearer <token>" }` in the mcpServers entry in `~/.claude.json`. `~/.claude/.credentials.json` is NOT read by Claude CLI for HTTP MCP server auth.
 - **3 transport types**: `http` (direct URL), `stdio` (command in container), `relay` (browser-to-container WS tunnel).
 - **Credential files**: Stored per-server, injected to container filesystem at configured paths. Paths auto-appended to CLAUDE.md so the agent knows they exist.
 - **PUT /api/mcp/:name** for editing servers. **PUT /api/mcp/:name/toggle** for enable/disable.
