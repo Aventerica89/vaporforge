@@ -228,11 +228,19 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         set((state) => ({
           mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
         }));
+        const toolCount = result.data.toolCount ?? 0;
+        const msg =
+          newStatus === 'connected'
+            ? `${name}: connected${toolCount > 0 ? ` — ${toolCount} tools` : ''}`
+            : `${name}: connection failed`;
+        toast(msg, newStatus === 'connected' ? 'success' : 'error');
+        await get().loadMcpServers();
       }
     } catch {
       set((state) => ({
         mcpStatuses: { ...state.mcpStatuses, [name]: 'error' },
       }));
+      toast(`${name}: ping failed`, 'error');
     }
   },
 
