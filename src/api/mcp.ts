@@ -371,6 +371,8 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   authUrl.searchParams.set('state', state);
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('code_challenge_method', 'S256');
+  // RFC 8707: resource parameter binds tokens to this MCP server (required by MCP spec)
+  authUrl.searchParams.set('resource', server.url);
   if (metadata.scopes_supported?.length) {
     authUrl.searchParams.set('scope', metadata.scopes_supported.join(' '));
   }

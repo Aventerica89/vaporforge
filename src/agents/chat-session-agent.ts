@@ -1325,6 +1325,8 @@ export class ChatSessionAgent {
     // Patch HTTP MCP servers that have OAuth tokens with Authorization: Bearer header.
     // Claude CLI reads headers from ~/.claude.json mcpServers entries, not .credentials.json.
     if (oauthTokensByName.size > 0) {
+      const patched: string[] = [];
+      const skippedNoUrl: string[] = [];
       for (const [name, cfg] of Object.entries(mergedMcp)) {
         const token = oauthTokensByName.get(name);
         if (token && cfg.url) {
@@ -1332,8 +1334,15 @@ export class ChatSessionAgent {
             ? cfg.headers as Record<string, string>
             : {};
           mergedMcp[name] = { ...cfg, headers: { ...existingHeaders, Authorization: `Bearer ${token}` } };
+          patched.push(name);
+        } else if (token && !cfg.url) {
+          skippedNoUrl.push(name);
         }
       }
+      if (patched.length) console.log(`[ChatSessionAgent] ${sid}: OAuth headers applied to: ${patched.join(', ')}`);
+      if (skippedNoUrl.length) console.warn(`[ChatSessionAgent] ${sid}: OAuth token found but server has no url (not HTTP?): ${skippedNoUrl.join(', ')}`);
+      const unmatched = [...oauthTokensByName.keys()].filter(n => !mergedMcp[n]);
+      if (unmatched.length) console.warn(`[ChatSessionAgent] ${sid}: OAuth tokens have no matching MCP server: ${unmatched.join(', ')}`);
     }
 
     // Always refresh MCP config + credential files (handles hot-add between messages)

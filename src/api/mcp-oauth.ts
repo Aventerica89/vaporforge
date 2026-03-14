@@ -280,15 +280,19 @@ export async function exchangeCodeForTokens(
   clientId: string,
   redirectUri: string,
   tokenEndpoint: string,
+  resourceUrl?: string,
 ): Promise<McpOAuthTokens> {
   validateExternalUrl(tokenEndpoint, 'tokenEndpoint');
-  const body = new URLSearchParams({
+  const bodyParams: Record<string, string> = {
     grant_type: 'authorization_code',
     code,
     redirect_uri: redirectUri,
     client_id: clientId,
     code_verifier: codeVerifier,
-  });
+  };
+  // RFC 8707: include resource to bind token to this specific MCP server
+  if (resourceUrl) bodyParams.resource = resourceUrl;
+  const body = new URLSearchParams(bodyParams);
   const res = await fetch(tokenEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -310,7 +314,9 @@ export async function exchangeCodeForTokens(
   return {
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
-    expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+    // If expires_in is absent, the provider issues non-expiring tokens (e.g. Notion).
+    // Use 1 year as sentinel; refreshTokenIfExpired will only act on tokens near expiry.
+    expiresAt: Date.now() + (data.expires_in ?? 365 * 24 * 3600) * 1000,
     clientId,
     tokenType: data.token_type ?? 'Bearer',
     discoveryState: {
@@ -352,7 +358,7 @@ export async function refreshTokenIfExpired(
       ...tokens,
       accessToken: data.access_token,
       refreshToken: data.refresh_token ?? tokens.refreshToken,
-      expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000,
+      expiresAt: Date.now() + (data.expires_in ?? 365 * 24 * 3600) * 1000,
     };
   } catch {
     return null;
@@ -420,6 +426,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
       pkceState.clientId,
       pkceState.redirectUri,
       pkceState.metadata.token_endpoint,
+      pkceState.serverUrl,
     );
     tokens = {
       ...tokens,
