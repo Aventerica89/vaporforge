@@ -23,7 +23,12 @@ landing/node_modules/
 .cline/
 .kiro/
 .agent/
-.agents/
+.agents/*
+!.agents/skills
+.agents/skills/*
+!.agents/skills/*/
+.agents/skills/*/references/*
+!.agents/skills/*/references/
 .llms/
 .claude/skills/
 *.swp
