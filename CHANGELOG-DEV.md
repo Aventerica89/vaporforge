@@ -1,3 +1,6 @@
+### 2026-03-14 · e2921f3 · v0.29.0
+FIX     deploy — hash-nav: strip query params from tab segment so OAuth redirect ?oauth_success= doesn't corrupt activeTab (React #130 blank screen)
+
 ### 2026-03-14 · a90d130 · v0.29.0
 FIX     deploy — MCP ping: inject OAuth Bearer token for requiresOAuth servers; toast feedback + server list reload after ping
 
