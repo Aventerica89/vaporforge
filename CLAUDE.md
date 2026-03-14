@@ -155,6 +155,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **`useSmoothText` is the streaming animation layer**: `hooks/useSmoothText.ts` runs a `requestAnimationFrame` loop that advances a cursor through accumulated text at 4–15 chars/frame. It MUST be used for streaming text — without it, React 18's automatic batching causes all tokens to pop in at once. Wired in `MessageContent.tsx` for the streaming `case 'text'` path and in `QuickChatPanel.tsx`.
 - **`useSmoothText` catch-up speed guard**: 3x catch-up applies only when `cursorRef.current > 0` (`isMidAnimation`). At cursor=0 (fresh mount), 1.5x is used so the initial animation is visible. Never apply 3x unconditionally — it makes the first render appear as pop-in.
 - **Debugging streaming pop-in**: Check Network tab → Response first. If individual `text-delta` events are visible, the transport is fine and the bug is in the React rendering layer (likely `useSmoothText` not applied, or React batching).
+- **`useWsStreaming` MUST default true (CRITICAL)**: In `ui/src/hooks/useSandbox.ts`, the initializer MUST be `localStorage.getItem('vf_use_ws') !== '0'`, NOT `=== '1'`. The `!== '0'` form means WS is on by default (opt-out). The `=== '1'` form means WS is off by default (opt-in) — every new user, cleared-localStorage user, and new-device user silently falls through to the HTTP path, which CF buffers and dumps all at once. WS bypasses CF buffering entirely; HTTP fights it. See `docs/WS-STREAMING-IS-THE-DEFAULT-MANIFESTO.md` for full rationale.
 
 ### MCP Servers
 

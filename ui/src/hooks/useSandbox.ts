@@ -146,6 +146,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   messagesById: {},
   messageIds: [],
   isStreaming: false,
+  streamingLinger: false,
   streamingContent: '',
   streamingParts: [],
   sdkMode: 'agent' as const,
@@ -162,7 +163,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   sentinelDataReady: false,
   sentinelDataSizeBytes: 0,
   useV15: localStorage.getItem('vf_use_v15') !== '0',
-  useWsStreaming: localStorage.getItem('vf_use_ws') === '1',
+  useWsStreaming: localStorage.getItem('vf_use_ws') !== '0',
 
   gitStatus: null,
 

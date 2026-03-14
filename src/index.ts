@@ -54,6 +54,22 @@ export default {
       return env.CHAT_SESSIONS.get(id).fetch(request);
     }
 
+    // V1.5: Approval polling — container polls this to check if user approved/denied.
+    // GET /internal/approval/:sessionId/:executionId
+    if (
+      request.method === 'GET' &&
+      new URL(request.url).pathname.startsWith('/internal/approval/')
+    ) {
+      const authHeader = request.headers.get('Authorization') || '';
+      const token = authHeader.replace('Bearer ', '');
+      const payload = await verifyExecutionToken(token, env.JWT_SECRET);
+      if (!payload) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const id = env.CHAT_SESSIONS.idFromName(payload.sessionId);
+      return env.CHAT_SESSIONS.get(id).fetch(request);
+    }
+
     // V1.5: Browser HTTP streaming endpoint — authenticates user,
     // routes to ChatSessionAgent DO which dispatches container.
     const url = new URL(request.url);
