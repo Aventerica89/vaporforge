@@ -728,6 +728,11 @@ export class ChatSessionAgent {
       return new Response('Invalid or expired token', { status: 403 });
     }
 
+    // Cancel HTTP bridge timeout — container is alive and sending data.
+    // Without this, the 10-min timeout fires even while the container is streaming.
+    const httpBridge = this.httpBridges.get(executionId);
+    if (httpBridge) httpBridge.cancelBridgeTimeout();
+
     const { 0: client, 1: server } = new WebSocketPair();
     // Tag with `container:` prefix — distinguishes from browser WS (`exec:` prefix)
     this.state.acceptWebSocket(server, [`container:${executionId}`]);
@@ -752,7 +757,16 @@ export class ChatSessionAgent {
     this.extractMetadata(text);
     this.maybeRegisterApproval(text);
 
-    // Find browser WS — check in-memory map first, then hibernation storage
+    // HTTP bridge path (browser connected via /api/v15/chat HTTP streaming)
+    const httpBridge = this.httpBridges.get(executionId);
+    if (httpBridge) {
+      // Pad to >1KB so Chrome's Fetch ReadableStream flushes the chunk immediately.
+      const FLUSH_PAD = ' '.repeat(1024) + '\n';
+      httpBridge.writer.write(httpBridge.encoder.encode(text + '\n' + FLUSH_PAD)).catch(() => {});
+      return;
+    }
+
+    // WS bridge path (browser connected via WebSocket)
     const browserWs = this.wsBridges.get(executionId)
       ?? this.state.getWebSockets(`exec:${executionId}`)[0];
     if (!browserWs) return; // browser disconnected — buffered above for replay
@@ -847,11 +861,17 @@ export class ChatSessionAgent {
     if (containerTag) {
       const executionId = containerTag.slice(10);
       if (code === 1000) {
-        // Container finished cleanly — close browser WS too
-        const browserWs = this.wsBridges.get(executionId)
-          ?? this.state.getWebSockets(`exec:${executionId}`)[0];
-        if (browserWs) {
-          try { browserWs.close(1000, 'done'); } catch { /* already closed */ }
+        // Container finished cleanly — resolve HTTP bridge or close browser WS
+        const httpBridge = this.httpBridges.get(executionId);
+        if (httpBridge) {
+          httpBridge.resolve();
+          this.httpBridges.delete(executionId);
+        } else {
+          const browserWs = this.wsBridges.get(executionId)
+            ?? this.state.getWebSockets(`exec:${executionId}`)[0];
+          if (browserWs) {
+            try { browserWs.close(1000, 'done'); } catch { /* already closed */ }
+          }
         }
       } else {
         // Abnormal close — emit error to browser
