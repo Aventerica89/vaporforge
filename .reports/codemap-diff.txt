@@ -1,0 +1,33 @@
+Codemap Diff Report — 2026-03-12 (rev 2 → rev 3)
+====================================================
+
+Change trigger: Bug #81 — container→DO streaming tunnel switched from
+chunked HTTP POST to outbound WebSocket for real-time per-token delivery.
+
+Estimated change percentage: ~12% (targeted architectural change to 3 sections
+across architecture.md, backend.md, and INDEX.md — data.md and frontend.md
+unchanged).
+
+Files updated:
+  docs/CODEMAPS/INDEX.md          — timestamp, V1.5 Key Concepts rewrite
+  docs/CODEMAPS/architecture.md   — timestamp, Main Chat flow rewrite (steps 3–9), diagram arrow label
+  docs/CODEMAPS/backend.md        — timestamp, new /internal/container-ws route row, ChatSessionAgent methods expanded
+
+Source files changed (Bug #81):
+  src/index.ts                            — added /internal/container-ws WS upgrade handler
+  src/agents/chat-session-agent.ts        — handleContainerWsUpgrade(), handleContainerWsMessage(),
+                                            webSocketError(), dispatchContainer() now sets VF_WS_CALLBACK_URL
+  src/sandbox-scripts/claude-agent.js     — WS callback mode (VF_WS_CALLBACK_URL), queues msgs before open
+  Dockerfile                              — VF_CONTAINER_BUILD=20260312-ws2
+
+Key architectural change summary:
+  OLD: Container → chunked HTTP POST → /internal/stream → DO (buffered by CF until response ends)
+  NEW: Container → outbound WS → /internal/container-ws → Worker JWT check → DO
+       DO.handleContainerWsUpgrade() tags socket, DO.webSocketMessage() routes frames immediately.
+
+  Reason: CF Durable Object HTTP response handler buffers the full body before delivering
+  to DO fetch(), making chunked streaming impossible. WebSocket messages are dispatched
+  per-frame with no buffering.
+
+  Backward compat: VF_CALLBACK_URL / /internal/stream path retained as fallback.
+  claude-agent.js checks VF_WS_CALLBACK_URL first; falls back to HTTP if absent.

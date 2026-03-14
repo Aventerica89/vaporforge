@@ -1,5 +1,6 @@
 import { create, type StateCreator } from 'zustand';
 import { sessionsApi, filesApi, gitApi, chatApi, sdkApi, summaryApi, sendWsCommand } from '@/lib/api';
+import { streamVfChatWs } from '@/hooks/useVfChatWs';
 import { isShellCommand, isClaudeUtility } from '@/lib/terminal-utils';
 import { generateSessionName, extractRepoName, deduplicateSessionName } from '@/lib/session-names';
 import { useDebugLog } from '@/hooks/useDebugLog';
@@ -98,6 +99,8 @@ interface SandboxState {
   setAutonomy: (mode: 'conservative' | 'standard' | 'autonomous') => void;
   useV15: boolean;
   setUseV15: (enabled: boolean) => void;
+  useWsStreaming: boolean;
+  setUseWsStreaming: (enabled: boolean) => void;
 
   // Derived helper — returns messages array from normalized state.
   // Use messageIds + messagesById selectors in components instead for perf.
@@ -159,6 +162,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   sentinelDataReady: false,
   sentinelDataSizeBytes: 0,
   useV15: localStorage.getItem('vf_use_v15') !== '0',
+  useWsStreaming: localStorage.getItem('vf_use_ws') === '1',
 
   gitStatus: null,
 
@@ -587,16 +591,24 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       let shouldAutoRetry = false; // transient crash detected — eligible for auto-retry
       let v15IncompleteOffset = -1; // set when V1.5 stream ends without 'done' (reconnect offset)
 
-      // V1.5 feature flag: use DO-mediated HTTP stream vs direct WS
-      const streamSource = get().useV15
-        ? sdkApi.streamV15(
+      // Stream source selection:
+      // 1. WS path (V1.5 WS) — bypasses HTTP buffering entirely
+      // 2. HTTP path (V1.5 HTTP) — DO-mediated with 1KB padding hacks
+      // 3. Legacy WS path — direct sandbox WebSocket
+      const streamSource = get().useWsStreaming
+        ? streamVfChatWs(
             session.id, message, undefined, controller.signal,
             get().sdkMode, get().selectedModel, get().autonomyMode
           )
-        : sdkApi.streamWs(
-            session.id, message, undefined, controller.signal,
-            get().sdkMode, get().selectedModel, get().autonomyMode
-          );
+        : get().useV15
+          ? sdkApi.streamV15(
+              session.id, message, undefined, controller.signal,
+              get().sdkMode, get().selectedModel, get().autonomyMode
+            )
+          : sdkApi.streamWs(
+              session.id, message, undefined, controller.signal,
+              get().sdkMode, get().selectedModel, get().autonomyMode
+            );
 
       for await (const chunk of streamSource) {
         // Guard: if user switched sessions mid-stream, stop processing.
@@ -1109,20 +1121,60 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         ...(streamUsage ? { usage: streamUsage } : {}),
       };
 
+      // Linger: keep streamingParts populated so SmoothText can animate the final
+      // content batch. This fixes the case where all WS frames arrive simultaneously
+      // (React batches isStreaming→false with streamingParts:[] in one render, so
+      // the MessageList linger refs never capture the content).
+      // Formula matches MessageList.tsx: max(700, ceil(sqrt(chars)*15)) ms.
+      const lingerMs = content.length > 0
+        ? Math.max(700, Math.ceil(Math.sqrt(content.length) * 15))
+        : 0;
+
+      // Step 1: End streaming, keep parts/content alive for animation.
+      // Message is pre-populated in messagesById but NOT yet in messageIds
+      // so StreamingMessage and the final message don't both render simultaneously.
       set((state) => ({
         messagesById: { ...state.messagesById, [assistantMessage.id]: assistantMessage },
-        messageIds: [...state.messageIds, assistantMessage.id],
         isStreaming: false,
         isPaused: false,
         pausedAt: null,
-        streamingContent: '',
-        streamingParts: [],
+        streamingContent: content,
+        streamingParts: [...parts],
         streamAbortController: null,
       }));
 
-      // Refresh files in case Claude made changes
+      // Refresh files in case Claude made changes (can happen immediately)
       get().loadFiles();
       get().loadGitStatus();
+
+      // Step 2: After linger, commit message to list and clear streaming state.
+      // Insert the assistant message immediately after its paired user message
+      // (not at the tail) so that a second message sent during streaming
+      // doesn't end up between the first user bubble and its response (#111).
+      const sessionId = session.id;
+      const msgId = assistantMessage.id;
+      const userMsgId = userMessage.id;
+      const commitMessage = () => {
+        if (get().currentSession?.id !== sessionId) return;
+        set((state) => {
+          const insertIdx = state.messageIds.indexOf(userMsgId);
+          const newIds =
+            insertIdx >= 0
+              ? [
+                  ...state.messageIds.slice(0, insertIdx + 1),
+                  msgId,
+                  ...state.messageIds.slice(insertIdx + 1),
+                ]
+              : [...state.messageIds, msgId]; // fallback: append
+          return { messageIds: newIds, streamingContent: '', streamingParts: [] };
+        });
+      };
+
+      if (lingerMs > 0) {
+        setTimeout(commitMessage, lingerMs);
+      } else {
+        commitMessage();
+      }
       }
     } catch (error) {
       clearTimeout(timeoutId);
@@ -1288,6 +1340,11 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   setUseV15: (enabled: boolean) => {
     localStorage.setItem('vf_use_v15', enabled ? '1' : '0');
     set({ useV15: enabled });
+  },
+
+  setUseWsStreaming: (enabled: boolean) => {
+    localStorage.setItem('vf_use_ws', enabled ? '1' : '0');
+    set({ useWsStreaming: enabled });
   },
 
   getMessages: () => {

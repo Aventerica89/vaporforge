@@ -219,6 +219,10 @@ export interface McpServerConfig {
   lastPingAt?: string;
   /** Last ping round-trip latency in ms */
   lastPingMs?: number;
+  /** Whether this server requires OAuth authorization before use */
+  requiresOAuth?: boolean;
+  /** OAuth authorization state for this server */
+  oauthStatus?: 'none' | 'pending' | 'authorized' | 'expired';
   enabled: boolean;
   addedAt: string;
 }

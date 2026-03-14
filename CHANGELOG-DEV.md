@@ -1,3 +1,45 @@
+### 2026-03-14 · 71cf302 · v0.29.0
+FIX     deploy — bulk MCP ping: inject OAuth Bearer for requiresOAuth servers (Notion stays green on load); add CF API + Vercel auth headers for workers-bindings/builds/vercel
+
+### 2026-03-14 · e2921f3 · v0.29.0
+FIX     deploy — hash-nav: strip query params from tab segment so OAuth redirect ?oauth_success= doesn't corrupt activeTab (React #130 blank screen)
+
+### 2026-03-14 · a90d130 · v0.29.0
+FIX     deploy — MCP ping: inject OAuth Bearer token for requiresOAuth servers; toast feedback + server list reload after ping
+
+### 2026-03-14 · 6ef6733 · v0.29.0
+FIX     deploy — MCP OAuth spec compliance: RFC 8707 resource binding in auth URL + token exchange; expiresAt default 1yr for non-expiring tokens (Notion); diagnostic logging for OAuth header injection
+
+### 2026-03-13 · d9e332a · v0.29.0
+FIX     deploy — MCP OAuth: inject Bearer token as Authorization header in ~/.claude.json (CLI ignores .credentials.json)
+
+### 2026-03-13 · 12aabd9 · v0.29.0
+FEAT    deploy — MCP OAuth: PKCE flow, token KV storage, credentials injection into container, Connect/Revoke UI
+
+### 2026-03-13 · c0d6f27 · v0.29.0
+FIX     deploy — fix(ui): message ordering bug — second msg no longer renders before first response (#111)
+
+### 2026-03-13 · 79eca46 · v0.29.0
+FIX     deploy — fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin
+
+### 2026-03-13 · 79eca46 · v0.29.0
+FIX     deploy — fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin
+
+
+### 2026-03-13 · e7a9065 · v0.29.0
+FIX     deploy — fix: use ws npm package instead of native WebSocket global for Node compat in container
+
+### 2026-03-13 · 0dd7c1e · v0.29.0
+FIX     deploy — fix: replace container→DO HTTP POST with WebSocket tunnel for real-time streaming
+
+### 2026-03-12 · a002f65 · v0.29.0
+FIX     deploy — fix streaming pop-in: slow all-at-once animation to ~3s budget (behind/180) so text is visibly typed out
+
+### 2026-03-12 · 577807b · v0.29.0
+FIX     deploy — fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once
+
+### 2026-03-12 · dbde07d · v0.29.0
+FEAT    deploy — WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged, vf_use_ws=1)
 
 ### 2026-03-12 · b56bd257 · v0.29.0
 FIX     deploy — show pasted image previews in ChatPanel before send

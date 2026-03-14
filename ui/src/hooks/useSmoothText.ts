@@ -70,15 +70,18 @@ export function useSmoothText(
 
       if (cursorRef.current < target) {
         const behind = target - cursorRef.current;
-        // Fast catch-up (3x) only when already mid-animation (cursor > 0) and
-        // streaming has ended — finishing a near-complete response quickly.
-        // When cursor is at 0 (all text arrived at once, e.g. after tool use),
-        // use 1.5x so the animation is visible at ~15-30 chars/frame (~250ms
-        // for a typical 300-char response) rather than completing instantly.
         const isMidAnimation = cursorRef.current > 0;
-        const multiplier = isMidAnimation && !streaming ? 3.0 : 1.5;
+        // Three cases when behind > 100:
+        // 1. Mid-animation post-stream: 3x fast catch-up (finishing a real-time stream)
+        // 2. All-at-once post-stream (cursor=0): ~3s budget so animation is clearly
+        //    visible — behind/180 ≈ 9 chars/frame for 1500 chars → ~2.8s
+        // 3. Still streaming: moderate 1.5x catch-up to stay close to incoming text
         const speed = behind > 100
-          ? Math.max(cpf, Math.ceil(Math.sqrt(behind) * multiplier))
+          ? isMidAnimation && !streaming
+            ? Math.max(cpf, Math.ceil(Math.sqrt(behind) * 3.0))
+            : !isMidAnimation && !streaming
+            ? Math.max(cpf, Math.ceil(behind / 180))
+            : Math.max(cpf, Math.ceil(Math.sqrt(behind) * 1.5))
           : cpf;
         cursorRef.current = Math.min(cursorRef.current + speed, target);
         setDisplayed(text.slice(0, cursorRef.current));

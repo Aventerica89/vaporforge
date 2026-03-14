@@ -246,6 +246,10 @@ export const McpServerConfigSchema = z.object({
   lastPingAt: z.string().optional(),
   /** Last ping round-trip latency in ms */
   lastPingMs: z.number().optional(),
+  /** Whether this server requires OAuth authorization before use */
+  requiresOAuth: z.boolean().optional(),
+  /** OAuth authorization state for this server */
+  oauthStatus: z.enum(['none', 'pending', 'authorized', 'expired']).optional(),
   enabled: z.boolean().default(true),
   addedAt: z.string(),
 });

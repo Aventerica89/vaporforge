@@ -1,183 +1,201 @@
-# VaporForge Streaming Manifesto
+# VaporForge Manifesto
 
-> How we solved the hardest bug in VaporForge: zero streaming in a cloud IDE.
+## What This Is
 
-## The Problem
+VaporForge is a web-based Claude Code IDE that runs on Cloudflare's edge infrastructure. It lets you use your existing Anthropic Pro or Max subscription from any device — phone, tablet, borrowed laptop, whatever's in front of you — without installing anything, without paying for API credits, and without giving up the full Claude Code experience.
 
-VaporForge is a web-based Claude Code IDE running on Cloudflare Workers + Sandbox Containers. The core UX promise is: you type a message, Claude responds, and you watch the text stream in real-time — like every AI chat app.
+That's the pitch. Here's why it's hard and what we did about it.
 
-**It didn't work.** For 60+ seconds, users saw a loading shimmer. No text. No progress. Then BAM — the entire response appeared at once. Nothing to everything. The app felt broken.
+---
 
-## The Pipeline
+## The Core Problem
 
-The streaming data flows through 4 layers:
+When you pay for Claude Pro or Max, you get access to one of the most capable coding agents available. But that agent is installed as a CLI tool on one machine. Specifically, your machine. The one at your desk.
+
+You're away from your desk. You have a laptop with nothing installed. You're on your phone. You're on a company machine you can't touch. Your subscription is sitting there, idle, 80% of the time.
+
+The obvious solution is a web interface. The non-obvious part is doing it without either (a) requiring users to paste in raw API keys, or (b) making them wait 23 seconds before seeing their first token.
+
+Those were the two problems that defined everything else.
+
+---
+
+## Why OAuth, Not API Keys
+
+Anthropic's Claude subscription (Pro, Max) authenticates via OAuth. When you run `claude setup-token` locally, the CLI exchanges credentials for a long-lived OAuth token (`sk-ant-oat01-*`). That token represents your subscription. It's not a pay-per-token API key — it's proof that you're a paid subscriber.
+
+VaporForge uses this token. The setup flow:
+
+1. Run `claude setup-token` once on any machine that has Claude installed.
+2. Paste the resulting token into VaporForge.
+3. We validate it against `api.anthropic.com/v1/oauth/token`.
+4. On success, we create your account and store the token server-side (encrypted, per-user in KV).
+5. Your browser gets a session JWT. That's it.
+
+No API key. No credit card required beyond your existing subscription. You use Claude the same way you would locally — because it actually is the same token, running the actual Claude Code CLI, inside a container we manage for you.
+
+One critical constraint: OAuth tokens work with `@anthropic-ai/sdk` in Node.js (via the `authToken` field), but they do NOT work with `@ai-sdk/anthropic` in Cloudflare Workers. This is a CF Workers / Vercel AI SDK limitation, not an Anthropic limitation. The implication: the main agentic chat session runs inside a container (Node.js), not in the Worker directly. Secondary features like QuickChat, code transform, and commit message generation require explicit API keys stored separately — they run in the Worker and must use `@ai-sdk/anthropic`.
+
+This distinction matters. Never conflate them.
+
+---
+
+## Why Cloudflare, Not a VPS
+
+A traditional architecture for this would be: user connects, spin up a VM or Lambda, run the CLI, proxy responses back. Simple.
+
+The problems:
+
+- **Lambda has a 15-minute execution limit.** Claude can take longer. Tool use, large codebases, complex agents — they run long.
+- **Lambda/VPS can't hold a WebSocket open indefinitely.** The connection dies, the session dies.
+- **VPS requires provisioning.** Startup latency is seconds to minutes. Users won't accept that.
+- **Lambda buffers HTTP responses.** You can't stream tokens to the browser from a Lambda-originated request in all configurations.
+
+Cloudflare's combination of Workers + Durable Objects + Containers sidesteps all of this:
+
+- **Workers** handle auth, routing, and fast-path requests (QuickChat, transform, analyze) at the edge. Sub-millisecond routing, no cold start.
+- **Durable Objects** are stateful, long-lived, single-instance objects that survive the 30-second Worker request limit. They hold the streaming session open as long as needed. They're the bridge between the container and the browser.
+- **Containers** (CF Sandboxes) are persistent compute instances. They start in seconds, run indefinitely as long as they're active, and have a real filesystem. This is where the Claude Code CLI runs.
+
+The container is standard-3: 2 vCPU, 8 GiB RAM. Enough to clone a repo, run tests, run build tools, do real work.
+
+---
+
+## The Streaming Problem
+
+This is the part that took the longest to get right.
+
+The naive approach: container runs the Claude CLI, outputs tokens to stdout, you pipe stdout back to the browser via HTTP. Easy.
+
+Cloudflare broke this in a non-obvious way.
+
+Cloudflare's Durable Object HTTP request handler buffers the entire response before dispatching it to the next handler. The documentation doesn't shout this. You find it by watching your browser wait 23 seconds (the full duration of a response) and then receiving all the tokens at once. Everything pops in simultaneously. No streaming.
+
+We tried the obvious workaround: make the container POST its output back to the DO in chunks. Same result. The DO HTTP handler buffers the entire POST body before calling your handler. You can't stream in either direction through a DO using HTTP.
+
+The fix: WebSockets.
+
+WebSocket frames are delivered immediately, per-message, without buffering. The solution:
+
+1. Container opens an outbound WebSocket to `/internal/container-ws` on the DO.
+2. Each NDJSON token line becomes a WebSocket text frame.
+3. The DO receives frames in real-time via `webSocketMessage()`.
+4. The DO writes each frame to the browser's HTTP response immediately.
+
+This is the architecture that actually works. The container→DO leg is WebSocket. The DO→browser leg is HTTP streaming (with a `TransformStream` and `ReadableStream`). The DO is the relay.
+
+The current path:
 
 ```
-Layer 1: claude-agent.js  →  stdout (Node.js process in container)
-Layer 2: execStream()     →  SSE-over-RPC (Cloudflare Sandbox API)
-Layer 3: Worker sdk.ts    →  TransformStream → SSE Response
-Layer 4: Browser          →  fetch reader → React render
+Browser POST /api/v15/chat
+  → Worker validates JWT, routes to ChatSessionAgent DO
+  → DO calls sandbox.startProcess() with VF_WS_CALLBACK_URL env var
+  → Container claude-agent.js opens outbound WS to /internal/container-ws
+  → Worker validates JWT (?token=), upgrades and routes to same DO
+  → DO tags the socket container:{executionId}, bridges to browser HTTP response
+  → Each token = one WS frame = one NDJSON line in the browser's stream
 ```
 
-Every layer is a potential bottleneck. The output is only as fast as the slowest layer.
+One more gotcha: Chrome buffers HTTP response chunks smaller than ~1KB before delivering them to `reader.read()`. Even with WebSocket-backed real-time data arriving at the DO, the browser won't see tokens until 1KB has accumulated. The fix: pad each write to the browser response to exceed 1KB. The padding is whitespace; the client skips blank lines.
 
-## Layer 1: Node.js Block Buffering
+Then there's the SSE separator issue. `EventSourceParserStream` requires `\n\n` after each `data:` line to dispatch an event. Even with chunking, omitting the double newline causes all events to queue until EOF. The padding and the separator have to be combined in a single write — if they're separate chunks, Chrome can still buffer the small `\n\n` chunk.
 
-**Root cause:** When stdout is a pipe (not a TTY — always true inside containers), Node.js switches `process.stdout.write()` from line-buffered to **block-buffered** with a ~16KB buffer. Our `console.log(JSON.stringify({type:'text-delta', text:'Hello'}))` calls produce ~50-200 bytes each. The 16KB buffer fills slowly. Node only flushes when the buffer fills or the process exits. Most responses are under 16KB total — so nothing flushes until Claude finishes.
+All of this is in `ChatSessionAgent.handleContainerStream()` and `src/api/quickchat.ts:padStreamLines()`.
 
-**Fix (v0.19.0):** Replace `console.log(JSON.stringify(obj))` with `fs.writeSync(1, JSON.stringify(obj) + '\n')`. The `fs.writeSync` call is synchronous and writes directly to file descriptor 1 (stdout), bypassing Node's stream buffering entirely. Every `text-delta` event is immediately visible.
+---
 
-```javascript
-const fs = require('fs');
+## Walk-Away Persistence
 
-function emit(obj) {
-  fs.writeSync(1, JSON.stringify(obj) + '\n');
-}
+This is the other thing that separates VaporForge from a naive proxy.
 
-// Before: console.log(JSON.stringify({ type: 'text-delta', text }));
-// After:  emit({ type: 'text-delta', text });
-```
+If you close your browser tab while Claude is mid-execution, the session does not die. The container keeps running. The DO keeps buffering the stream. When you reconnect, the DO replays the buffered output and you see everything that happened while you were away.
 
-We replaced all 14 `console.log(JSON.stringify(...))` calls across the agent script.
+This works because the DO and the container are decoupled. The browser connection is just a consumer of the stream. The stream's source of truth is the DO's buffer. The container doesn't know or care whether anyone is watching.
 
-**Result:** Layer 1 now delivers data instantly. But streaming still didn't work.
+The DO also runs a sentinel alarm every 8 minutes to ping the container, resetting its idle timer. Without this, Cloudflare would terminate the container after 10 minutes of inactivity.
 
-## Layer 2: The Unfixable Layer
+---
 
-**Root cause:** Cloudflare Sandbox `execStream()` returns SSE-over-RPC. The SSE/RPC transport inside Cloudflare's infrastructure **buffers internally until the child process exits**. This is not configurable. There is no flush option. There is no workaround within the `execStream()` API.
+## What We Refuse to Do
 
-We confirmed this by fixing Layer 1 and observing that even with unbuffered stdout, the Worker's `execStream()` reader received zero bytes until the process completed. The buffering is between the container's process and the RPC channel — inside Cloudflare's platform code.
+**No polling.** Polling introduces latency, wastes compute, and produces a janky experience. Every streaming path in VaporForge uses real push transport — WebSocket or HTTP streaming. If a transport doesn't support real-time push, we don't use it.
 
-**This layer cannot be fixed. It must be bypassed.**
+**No buffering until done.** The 23-second pop-in issue is a regression, not a shipping decision. When CF's transport layer imposed buffering on us, we found a different transport (WebSocket). We didn't accept the degraded UX.
 
-## The Solution: WebSocket Tunnel (v0.20.0)
+**No fake streaming.** `useSmoothText` animates text arrival for visual smoothness, but it operates on real token data as it arrives. It doesn't simulate streaming by dripping out pre-received content. The animation advances a cursor through actual buffered text. If the network is fast, the cursor catches up. If it's slow, the animation renders what's arrived.
 
-Cloudflare Sandboxes have another API: `sandbox.wsConnect(request, port)`. This establishes a **direct WebSocket tunnel** from the Worker to a TCP port inside the container. No SSE. No RPC buffering. Raw WebSocket frames, delivered instantly.
+**No raw API keys in the main flow.** The primary session path uses the user's OAuth token from their existing subscription. We don't ask users to expose their API keys to run the main agent. QuickChat and transform features require API keys because of the CF Workers / `@ai-sdk/anthropic` OAuth limitation — that's a documented constraint, not a design preference.
 
-### New Architecture
+**No single-machine lock-in.** The entire point of this project is that your compute is remote and persistent. Your session on an iPad is the same session as your MacBook. Same history, same workspace, same running process.
 
-```
-BEFORE (broken):
-  Browser → fetch SSE → Worker TransformStream → execStream() → [RPC BUFFER] → stdout
+---
 
-AFTER (working):
-  Browser → WebSocket → Worker wsConnect() → container port 8765 → WS frames from stdout
-```
+## What Lives Where
 
-### Three New Components
+The architecture has two distinct compute contexts:
 
-**1. WebSocket Agent Server** (`ws-agent-server.js` — runs inside container)
+**Cloudflare Worker (edge, stateless per-request):**
+- Auth, JWT validation
+- Request routing
+- QuickChat, code transform, commit message generation (via AI SDK + API keys)
+- File operations (R2)
+- Session management API
 
-A Node.js WebSocket server on port 8765. When a connection arrives:
-- Reads `/tmp/vf-pending-query.json` (context file with prompt, secrets, env vars)
-- Deletes the context file immediately (secrets don't persist on disk)
-- Spawns `claude-agent.js` with the query
-- Pipes every stdout line as an individual WebSocket frame
+**Container (persistent, stateful, per-session):**
+- Claude Code CLI (`claude-agent.js` via `@anthropic-ai/sdk` with OAuth token)
+- MCP servers (stdio transport)
+- File system (`/workspace`)
+- Real-time streaming output via outbound WebSocket
 
-```javascript
-child.stdout.on('data', (chunk) => {
-  for (const line of chunk.toString().split('\n').filter(Boolean)) {
-    ws.send(line);  // Each line = one frame = instant delivery
-  }
-});
-```
+**Durable Object (long-lived bridge):**
+- Holds browser HTTP connection open
+- Accepts container WebSocket
+- Bridges frames between the two
+- Buffers for replay
+- Keepalive sentinel
 
-**2. Worker WebSocket Handler** (`sdk.ts`)
+The Worker is stateless and fast. The Container is stateful and capable. The DO is the connective tissue.
 
-Handles the WS upgrade request:
-- Authenticates via JWT in query parameter (WebSocket connections can't carry custom headers from browsers)
-- Starts the WS server in the container (idempotent — checks if already running)
-- Writes the context file with prompt, OAuth token, secrets, MCP config
-- Proxies the connection: `sandbox.wsConnect(request, 8765)`
+---
 
-**3. Frontend WebSocket Client** (`api.ts`)
+## On the Claude SDK in Containers
 
-An async generator that:
-- Opens a WS connection to `/api/sdk/ws?token=JWT`
-- Uses a push/pull queue pattern: `onmessage` pushes parsed events, `yield` pulls them
-- Handles `text-delta`, `tool-start`, `tool-result`, `session-init`, `error`, `done` events
-- On completion, POSTs the full response text to `/api/sdk/persist` for chat history
+The container runs `@anthropic-ai/sdk` in Node.js, not `@ai-sdk/anthropic`. These are different packages with different behavior.
 
-### Design Decisions
+`@anthropic-ai/sdk` accepts `authToken` for OAuth tokens. `@ai-sdk/anthropic` does not. This is why the main session must run in a container, not directly in a Worker.
 
-| Decision | Rationale |
-|----------|-----------|
-| One WS per message | Fresh auth + config each time. No stale state. Simple lifecycle. |
-| Context file pattern | Can't pass secrets through WS handshake. File write + read + delete is atomic enough. |
-| JWT in query param | WS API doesn't support custom headers from browser. Query param is the standard workaround. |
-| POST /persist | Can't use `ctx.waitUntil()` with WS responses. Browser POSTs text back after stream ends. |
-| Port 8765 | Arbitrary high port. Container has full network control. |
+Additionally: the Node.js version in the `cloudflare/sandbox` base image is older than 22.4, which means no native WebSocket global. Container scripts must `require('ws')` (the npm package). Using `new WebSocket()` causes a `ReferenceError` at module load and a silent code 1 exit. The error is nearly invisible without direct container log access.
 
-## The Frontend: Smooth Text
+The `IS_SANDBOX: '1'` environment variable must be set in the container or the Claude CLI exits with code 1 immediately. This is non-negotiable.
 
-Even with instant WebSocket delivery, text can arrive in bursts (multiple deltas in one frame, or frames arriving in clusters). We added a **typewriter buffer** for visual smoothness:
+When passing environment variables to `startProcess()`, the `env` option completely replaces the container's existing environment — it does not merge. Always spread `...process.env` first, then add your custom variables. Forgetting this causes the Claude CLI to fail silently because PATH, HOME, and NODE_PATH are missing.
 
-```typescript
-function useSmoothText(rawText: string, isStreaming: boolean): string {
-  // Uses requestAnimationFrame to advance a cursor through rawText
-  // Default: 2 chars/frame (~120 chars/sec at 60fps)
-  // Accelerates when >200 chars behind (catches up without lagging)
-  // When isStreaming goes false: immediately flush all remaining text
-}
-```
+---
 
-Applied only to streaming text parts via `SmoothTextPart` component. Completed messages render instantly — no artificial delay on historical messages.
+## The Agency Mode Extension
 
-## The Docker Cache Trap
+VaporForge has a visual website editor mode (Agency, v0.25.0+). The idea: connect a GitHub repo containing an Astro site, click on a component in a live preview, describe the edit, and Claude modifies the source.
 
-After building the new Dockerfile with `ws-agent-server.js` and the `ws` npm package, deployment said "Image already exists remotely, skipping push." The container image hash hadn't changed because Docker used cached layers.
+The implementation injects a custom inspector script (`vf-inspector.js`) into the Astro dev server's public directory. Container-side, a script walks the `.astro` files and adds `data-vf-component`/`data-vf-file` attributes to root elements. The browser-side inspector picks these up and posts `vf-select`/`vf-tree` messages via `postMessage` to the parent frame.
 
-**New sessions were still getting the OLD container image.** Even after creating fresh sessions, `ws-agent-server.js` was missing and `ws` was not installed.
+The Astro Dev Toolbar is disabled entirely (`ASTRO_DISABLE_DEV_OVERLAY=true`) because it has its own Inspect mode that conflicts with the VF inspector.
 
-Fix: `docker image prune -a -f && docker builder prune -a -f` to destroy all cached layers, then redeploy. The new image hash was different, and Cloudflare accepted it.
+External links are intercepted in the iframe to prevent navigation away from the preview.
 
-**Rule: Always clear Docker cache before deploying Dockerfile changes to Cloudflare Sandboxes.**
+This mode uses the same container/DO/browser architecture as regular chat — it's the same streaming pipeline, same auth, same session persistence. The difference is the workspace contains a cloned repo with a running dev server instead of an empty directory.
 
-## Verification
+---
 
-We verified streaming works by:
-1. Sending "Say hello in exactly 3 words" in a fresh session
-2. Taking a screenshot 2 seconds later — captured "Hell" with a blinking cursor (mid-stream!)
-3. Taking another screenshot — full response "Hello! How's going?" complete with timestamp
-4. Sending a second message "Write a haiku about coding at night" — also streamed progressively
-5. Confirmed: shimmer → progressive text → complete response with timestamp
+## Summary
 
-Before: 60 seconds of nothing, then everything at once.
-After: Text appears within 2 seconds and streams character by character.
+VaporForge exists because Claude Code is powerful and its value is largely inaccessible when you're away from your primary machine.
 
-## Lessons
+The architecture choices were driven by specific technical constraints:
+- OAuth tokens require Node.js containers, not CF Workers
+- Real-time streaming requires WebSockets through the DO layer (HTTP is buffered)
+- Long-running sessions require Durable Objects (Worker requests have a 30-second ceiling)
+- Walk-away persistence requires the DO to buffer and replay independently of browser state
 
-1. **When debugging streaming, identify ALL buffering layers.** Fixing one layer doesn't help if another is still blocking. We fixed Node stdout (Layer 1) first, which was necessary but not sufficient.
+Every significant design decision traces back to one of those constraints. The system is not complicated for its own sake. It's as simple as the constraints allow.
 
-2. **Platform APIs can have undocumented buffering.** Cloudflare's `execStream()` documentation doesn't mention that SSE/RPC buffers until process exit. We discovered this empirically.
-
-3. **When an API is fundamentally broken for your use case, bypass it entirely.** Don't try to work around `execStream()` — use a completely different transport (`wsConnect()`).
-
-4. **Docker layer caching can silently prevent deployments.** The image hash didn't change, so Cloudflare didn't update the container. Always clear Docker cache after Dockerfile changes.
-
-5. **WebSocket auth from browsers requires query params.** The WebSocket API doesn't support custom headers. JWT-in-query-param is the standard pattern.
-
-6. **Test with screenshots at timed intervals.** The only way to verify streaming is to observe the UI mid-stream. A single "did it work?" check after completion tells you nothing about progressive rendering.
-
-## Timeline
-
-| Version | What | Impact |
-|---------|------|--------|
-| v0.1.0-v0.18.0 | Used `execStream()` + SSE | Zero streaming. 60s delay. |
-| v0.19.0 | Fixed Node stdout buffering (`emit()` + `fs.writeSync`) | Layer 1 fixed. Still no streaming (Layer 2). |
-| v0.20.0 | WebSocket tunnel bypassing execStream entirely | Real-time streaming. 2s to first token. |
-
-## Files
-
-| File | Purpose |
-|------|---------|
-| `src/sandbox-scripts/ws-agent-server.js` | WS server in container (port 8765) |
-| `src/sandbox-scripts/claude-agent.js` | Agent script with `emit()` helper |
-| `src/api/sdk.ts` | Worker WS handler + persist endpoint |
-| `src/sandbox.ts` | `startWsServer()`, `wsConnectToSandbox()`, `writeContextFile()` |
-| `src/router.ts` | WS route with inline JWT auth |
-| `ui/src/lib/api.ts` | `sdkApi.streamWs()` async generator |
-| `ui/src/hooks/useSandbox.ts` | Switched from `sdkApi.stream` to `sdkApi.streamWs` |
-| `ui/src/hooks/useSmoothText.ts` | Typewriter buffer hook |
-| `ui/src/components/chat/MessageContent.tsx` | `SmoothTextPart` component |
-| `Dockerfile` | Installs `ws` package, embeds both scripts |
+The goal is straightforward: when you open VaporForge, you have the full Claude Code experience, from any device, using the subscription you already pay for.

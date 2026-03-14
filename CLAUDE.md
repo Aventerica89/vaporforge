@@ -34,13 +34,13 @@ Browser <-> Worker (Hono, auth, orchestration)
               |
               ├── POST /chat ──> ChatSessionAgent DO ──> startProcess in Container
               |                        ↑                        |
-              |                        └── HTTP POST /internal/stream (NDJSON callback)
+              |                        └── WS /internal/container-ws (NDJSON frames, real-time)
               |
               └── AI SDK (direct API) ──> Anthropic / Gemini APIs
                   (QuickChat, Transform, Analyze, CommitMsg)
 ```
 
-**Main chat uses HTTP streaming via ChatSessionAgent DO.** The DO spawns `claude-agent.js` via `startProcess`, and the container streams NDJSON back to the DO via an HTTP POST to `/internal/stream` (authenticated with a per-execution JWT). The DO pipes events through to the browser's HTTP response. Enables walk-away persistence and crash recovery (container output collected by DO while browser is away).
+**Main chat uses WebSocket streaming via ChatSessionAgent DO.** The DO spawns `claude-agent.js` via `startProcess`, and the container opens an outbound WS to `/internal/container-ws?executionId=...&token=JWT`. Each NDJSON line arrives as a WS frame in real-time — no CF transport buffering. The DO forwards frames to the browser's WS. Enables walk-away persistence and crash recovery (container output buffered by DO while browser is away).
 
 ### Monorepo Structure
 
@@ -57,7 +57,7 @@ Browser <-> Worker (Hono, auth, orchestration)
 | Binding | Type | Purpose |
 |---------|------|---------|
 | `SESSIONS` | Durable Object | Session persistence (SQLite-backed) |
-| `CHAT_SESSIONS` | Durable Object | V1.5 HTTP streaming bridge (ChatSessionAgent) |
+| `CHAT_SESSIONS` | Durable Object | V1.5 WS streaming bridge (ChatSessionAgent) |
 | `Sandbox` | Container | Claude SDK runtime (standard-3: 2 vCPU, 8 GiB) |
 | `AUTH_KV` | KV | User records, plugin config, AI provider settings |
 | `SESSIONS_KV` | KV | Chat history, secrets, VF rules, MCP configs, issue tracker |
@@ -143,7 +143,11 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **`startProcess` env REPLACES container env** — must explicitly include `PATH`, `HOME`, `NODE_PATH`, `LANG`, `TERM` or the Claude CLI fails silently. This is the #1 gotcha.
 - **OAuth token location**: Stored as `claudeToken` field inside user JSON at `user:{userId}` in `AUTH_KV`. NOT a separate `user:{userId}:token` key (this was the V1.5 launch bug).
 - **`betas` array causes warnings for OAuth tokens** — `context-1m-2025-08-07` only works for API key users. Container-side `claude-agent.js` detects `sk-ant-oat` prefix and skips the beta.
-- **Bridge timeout**: 5 minutes. If container never calls back to `/internal/stream`, the DO closes the browser's HTTP response with an error event.
+- **Bridge timeout**: 5 minutes. If container never connects via WS to `/internal/container-ws`, the DO emits an error event and closes the browser WS.
+- **Container callback is now WebSocket, not HTTP POST** — `dispatchContainer()` sets `VF_WS_CALLBACK_URL` (not `VF_CALLBACK_URL`). Container opens outbound WS to `/internal/container-ws?executionId=...&token=JWT`. Each NDJSON line is a WS frame — no CF transport buffering. Old `/internal/stream` HTTP route is still present for legacy sessions only.
+- **`cloudflare/sandbox` base image: Node < 22.4 — no native WebSocket global** — container scripts MUST use `require('ws')` (npm package, already installed globally), NOT `new WebSocket()` (WHATWG global). Using the native global causes `ReferenceError` at module load → immediate code 1 exit with no useful error output.
+- **Container→DO WS tag routing**: Browser WS tagged `exec:{executionId}`, Container WS tagged `container:{executionId}`. `webSocketMessage`, `webSocketClose`, and `webSocketError` all call `state.getTags(ws)` to determine source. All three handlers are required — missing `webSocketError` leaks dead socket refs in `wsBridges` map.
+- **DO pathname for container WS upgrade is `/internal/container-ws`** (full path, matching what the Worker forwards). Using `/container-ws` routes to the Worker instead of the DO → 404.
 - **Mode/model/autonomy threading**: Frontend sends `mode`, `model`, `autonomy` in POST body. Worker passes through to DO. DO must forward them as `VF_SESSION_MODE`, `VF_MODEL`, `VF_AUTONOMY_MODE` env vars in `startProcess`.
 - **`/init` endpoint**: Called from session creation to persist `userId` in DO storage. Unauthenticated (internal-only). The `/chat` path also passes `userId` in the body as a more reliable source.
 - **Chrome Fetch ReadableStream buffering**: Chrome buffers HTTP chunks smaller than ~1KB before delivering to `reader.read()`. Each `bridge.writer.write()` call in `handleContainerStream` pads writes with `' '.repeat(1024) + '\n'` to force immediate delivery. The padding line is whitespace-only; `streamV15`'s `if (!line.trim()) continue` skips it.
@@ -155,6 +159,8 @@ Visual website editor — click components in a live Astro preview, describe edi
 ### MCP Servers
 
 - **MCP configs stored in SESSIONS_KV** per user, injected into `~/.claude.json` at session start.
+- **`toast()` signature**: `toast(message, variant)` — two strings. NOT `toast({ title, variant })`. See `ui/src/components/SessionRemote.tsx` for examples.
+- **HTTP MCP OAuth token injection**: Inject Bearer token as `headers: { "Authorization": "Bearer <token>" }` in the mcpServers entry in `~/.claude.json`. `~/.claude/.credentials.json` is NOT read by Claude CLI for HTTP MCP server auth.
 - **3 transport types**: `http` (direct URL), `stdio` (command in container), `relay` (browser-to-container WS tunnel).
 - **Credential files**: Stored per-server, injected to container filesystem at configured paths. Paths auto-appended to CLAUDE.md so the agent knows they exist.
 - **PUT /api/mcp/:name** for editing servers. **PUT /api/mcp/:name/toggle** for enable/disable.

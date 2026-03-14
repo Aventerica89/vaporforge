@@ -3,6 +3,8 @@ import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { STATUS_CONFIG } from './types';
 import { Toggle, RemoveButton, PillGroup, Chevron } from './shared';
 import type { McpServerConfig } from '@/lib/types';
+import { mcpApi } from '@/lib/api';
+import { toast } from '@/hooks/useToast';
 
 interface McpDetailProps {
   server: McpServerConfig;
@@ -66,6 +68,102 @@ function getCredentials(server: McpServerConfig): Array<{ key: string; masked: b
   return creds;
 }
 
+const OAUTH_STATUS_CONFIG: Record<
+  string,
+  { label: string; dot: string; text: string }
+> = {
+  none: { label: 'Not connected', dot: 'bg-[#768390]', text: 'text-[#768390]' },
+  pending: { label: 'Authorization required', dot: 'bg-[#e3b341]', text: 'text-[#e3b341]' },
+  authorized: { label: 'Connected', dot: 'bg-[#3fb950]', text: 'text-[#3fb950]' },
+  expired: { label: 'Token expired', dot: 'bg-[#f85149]', text: 'text-[#f85149]' },
+};
+
+interface McpOAuthSectionProps {
+  server: McpServerConfig;
+  onRefresh: () => Promise<void>;
+}
+
+function McpOAuthSection({ server, onRefresh }: McpOAuthSectionProps) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
+
+  const status = server.oauthStatus ?? 'none';
+  const cfg = OAUTH_STATUS_CONFIG[status] ?? OAUTH_STATUS_CONFIG.none;
+
+  const showConnect = status === 'none' || status === 'pending' || status === 'expired';
+  const showRevoke = status === 'authorized' || status === 'expired';
+
+  async function handleConnect() {
+    setIsConnecting(true);
+    try {
+      const res = await mcpApi.oauthStart(server.name);
+      if (res.success && res.data?.authUrl) {
+        window.open(res.data.authUrl, '_blank');
+      } else {
+        toast('Failed to start OAuth', 'error');
+      }
+    } catch (err) {
+      toast('Failed to start OAuth', 'error');
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  async function handleRevoke() {
+    setIsRevoking(true);
+    try {
+      await mcpApi.oauthRevoke(server.name);
+      await onRefresh();
+      toast(`OAuth revoked for ${server.name}`, 'success');
+    } catch (err) {
+      toast('Failed to revoke OAuth', 'error');
+    } finally {
+      setIsRevoking(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <SectionLabel color="#a371f7">OAUTH</SectionLabel>
+      <div className="flex items-center gap-[12px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[10px]">
+        <span
+          className={`h-[7px] w-[7px] shrink-0 rounded-full ${cfg.dot}`}
+          style={
+            status === 'authorized'
+              ? { boxShadow: '0 0 4px #3fb950' }
+              : status === 'expired'
+                ? { boxShadow: '0 0 4px #f85149' }
+                : undefined
+          }
+        />
+        <span className={`flex-1 font-['Space_Mono'] text-[11px] font-semibold ${cfg.text}`}>
+          {cfg.label}
+        </span>
+        <div className="flex items-center gap-[8px]">
+          {showConnect && (
+            <button
+              className="rounded-[4px] border border-[#a371f747] bg-[#a371f71a] px-[10px] py-[4px] font-['Space_Mono'] text-[10px] font-bold text-[#a371f7] transition-colors hover:bg-[#a371f733] disabled:opacity-40"
+              disabled={isConnecting}
+              onClick={handleConnect}
+            >
+              {isConnecting ? 'Opening...' : 'Connect'}
+            </button>
+          )}
+          {showRevoke && (
+            <button
+              className="rounded-[4px] border border-[#f8514933] bg-[#f851490a] px-[10px] py-[4px] font-['Space_Mono'] text-[10px] font-bold text-[#f85149] transition-colors hover:bg-[#f8514922] disabled:opacity-40"
+              disabled={isRevoking}
+              onClick={handleRevoke}
+            >
+              {isRevoking ? 'Revoking...' : 'Revoke'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Format ping time as human-readable "Xs ago" or "Xms" */
 function formatPingAge(lastPingAt?: string, lastPingMs?: number): string | null {
   if (lastPingAt) {
@@ -90,6 +188,7 @@ export function McpDetail({ server }: McpDetailProps) {
     confirmRemove,
     setConfirmRemove,
     removeMcp,
+    loadMcpServers,
   } = useIntegrationsStore();
 
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
@@ -186,6 +285,11 @@ export function McpDetail({ server }: McpDetailProps) {
           {server.transport}
         </span>
       </div>
+
+      {/* OAuth Section (HTTP servers with OAuth requirement) */}
+      {server.transport === 'http' && server.requiresOAuth && (
+        <McpOAuthSection server={server} onRefresh={loadMcpServers} />
+      )}
 
       {/* URL / Command Row */}
       {server.url && (

@@ -12,6 +12,7 @@ import { userRoutes } from './api/user';
 import { secretsRoutes } from './api/secrets';
 import { mcpRoutes } from './api/mcp';
 import { mcpRelayRoutes } from './api/mcp-relay';
+import { mcpOAuthPublicRoutes } from './api/mcp-oauth';
 import { pluginsRoutes } from './api/plugins';
 import { pluginSourcesRoutes } from './api/plugin-sources';
 import { configRoutes } from './api/config';
@@ -276,6 +277,9 @@ export function createRouter(env: Env) {
 
   // MCP relay route (uses relay token auth, not user JWT)
   app.route('/api/mcp-relay', mcpRelayRoutes);
+
+  // MCP OAuth callback — public (auth server redirects here, no JWT)
+  app.route('/api/mcp-oauth', mcpOAuthPublicRoutes);
 
   // Stripe webhook — must be public (Stripe calls this directly, no JWT)
   app.post('/api/billing/webhook', (c) =>

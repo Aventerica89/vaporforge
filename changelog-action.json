@@ -43,3 +43,16 @@
 { "v": "0.29.0", "ts": "2026-03-12T05:00:00Z", "msg": "fix: QuickChat streaming pop-in — useSmoothText + 1KB line padding", "hash": "179577c" }
 {"v":"0.29.0","ts":"2026-03-12T07:34:13Z","msg":"fix: streaming pop-in — useSandboxStore.subscribe captures parts pre-batch + stable SmoothText key","hash":"7d7ea71"}
 {"v":"0.29.0","ts":"2026-03-12T07:54:43Z","msg":"fix: show pasted image previews in ChatPanel before send","hash":"49f54cc"}
+{ "v": "0.29.0", "ts": "2026-03-12T19:58:00Z", "msg": "WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged)", "hash": "dbde07d" }
+{ "v": "0.29.0", "ts": "2026-03-12T21:28:49Z", "msg": "fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once", "hash": "577807b" }
+{ "v": "0.29.0", "ts": "2026-03-12T21:00:00Z", "msg": "fix streaming pop-in: slow all-at-once animation to ~3s budget (behind/180) so text is visibly typed out", "hash": "a002f65" }
+{ "v": "0.29.0", "ts": "2026-03-13T00:56:25Z", "msg": "fix: replace container→DO HTTP POST with WebSocket tunnel for real-time streaming", "hash": "0dd7c1e" }
+{ "v": "0.29.0", "ts": "2026-03-13T01:15:00Z", "msg": "fix: use ws npm package instead of native WebSocket global for Node compat in container", "hash": "e7a9065" }
+{ "v": "0.29.0", "ts": "2026-03-13T04:39:30.000Z", "msg": "fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin", "hash": "79eca46" }
+{"v":"0.29.0","ts":"2026-03-13T05:20:18Z","msg":"fix(ui): message ordering bug — second msg no longer renders before first response (#111)","hash":"c0d6f27"}
+{ "v": "0.29.0", "ts": "2026-03-13T22:52:04Z", "msg": "MCP OAuth: PKCE flow + credentials injection + Connect/Revoke UI", "hash": "12aabd9" }
+{ "v": "0.29.0", "ts": "2026-03-14T02:35:28Z", "msg": "Fix: MCP OAuth Bearer token injected into ~/.claude.json headers (was using .credentials.json which CLI ignores)", "hash": "d9e332a" }
+{ "v": "0.29.0", "ts": "2026-03-14T08:28:10Z", "msg": "MCP OAuth RFC 8707 resource binding + expiresAt fix for non-expiring tokens", "hash": "6ef6733" }
+{ "v": "0.29.0", "ts": "2026-03-14T09:00:00Z", "msg": "fix: ping injects OAuth token + toast feedback + reload on ping result", "hash": "a90d130" }
+{ "v": "0.29.0", "ts": "2026-03-14T09:30:00Z", "msg": "fix: strip query params from hash before parsing settings tab (fixes OAuth redirect blank screen)", "hash": "e2921f3" }
+{"v":"0.29.0","ts":"2026-03-14T09:53:33Z","msg":"fix: inject OAuth Bearer in bulk MCP ping; add auth headers for CF/Vercel MCP servers","hash":"71cf302"}

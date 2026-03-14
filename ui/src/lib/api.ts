@@ -1002,6 +1002,16 @@ export const mcpApi = {
     }>(`/mcp/${encodeURIComponent(name)}/ping`, {
       method: 'POST',
     }),
+
+  /** Start OAuth flow — returns the provider's authUrl to open in a new tab */
+  oauthStart: (name: string) =>
+    request<{ authUrl: string }>(`/mcp/${encodeURIComponent(name)}/oauth/start`),
+
+  /** Revoke OAuth tokens for this server */
+  oauthRevoke: (name: string) =>
+    request<{ revoked: boolean }>(`/mcp/${encodeURIComponent(name)}/oauth`, {
+      method: 'DELETE',
+    }),
 };
 
 // Plugin Sources API (custom catalog repos)

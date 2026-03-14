@@ -9,7 +9,7 @@ export function parseHash(hash: string): HashState {
   if (!h || h === 'home') return { type: 'home' };
   if (h === 'agency') return { type: 'agency' };
   if (h === 'settings') return { type: 'settings' };
-  if (h.startsWith('settings/')) return { type: 'settings', tab: h.slice(9) };
+  if (h.startsWith('settings/')) return { type: 'settings', tab: h.slice(9).split('?')[0] };
   if (h.startsWith('session/')) return { type: 'session', id: h.slice(8) };
   // Redirect legacy #marketplace to settings/integrations
   if (h === 'marketplace') return { type: 'settings', tab: 'integrations' };

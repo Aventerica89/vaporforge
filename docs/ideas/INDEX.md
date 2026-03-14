@@ -11,6 +11,8 @@ One file per idea — use `git blame` to see when each was added.
 | P2 | 2026-03-11 | [Repo-Local Idea Storage](ideas-repo-local-storage.md) | DX | Done |
 | P2 | 2026-03-11 | [Sandbox API Improvements — Learnings from Moltworker/OpenClaw](moltworker-sandbox-patterns.md) | Infrastructure | Idea |
 | P2 | 2026-03-13 | [GitHub Auth — Private Repo Access](github-auth-private-repos.md) | Integrations | Idea |
+| P1 | 2026-03-13 | [MCP OAuth — Worker as OAuth Client](mcp-oauth-worker-as-client.md) | MCP / Auth | Idea |
+| P1 | 2026-03-13 | [Login with Claude — OAuth Onboarding](login-with-claude-oauth.md) | Auth / Onboarding | Idea |
 
 ---
 

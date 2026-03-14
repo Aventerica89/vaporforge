@@ -2,6 +2,19 @@ import { Hono } from 'hono';
 import { McpServerConfigSchema } from '../types';
 import type { User, ApiResponse, McpServerConfig } from '../types';
 import { validateExternalUrl } from '../utils/validate-url';
+import {
+  detectOAuthRequirement,
+  fetchAuthServerMetadata,
+  getOrRegisterClient,
+  generateCodeVerifier,
+  computeCodeChallenge,
+  generateState,
+  oauthStateKey,
+  deleteOAuthTokens,
+  readOAuthTokens,
+  writeOAuthTokens,
+  refreshTokenIfExpired,
+} from './mcp-oauth';
 
 type Variables = {
   user: User;
@@ -122,6 +135,15 @@ mcpRoutes.post('/', async (c) => {
     }, 400);
   }
 
+  // Detect OAuth requirement (non-blocking — failure does not prevent server add)
+  let requiresOAuth = false;
+  if (transport === 'http' && url) {
+    try {
+      const authServer = await detectOAuthRequirement(url);
+      if (authServer) requiresOAuth = true;
+    } catch { /* detection failure is non-fatal */ }
+  }
+
   const newServer: McpServerConfig = {
     name,
     transport,
@@ -134,6 +156,7 @@ mcpRoutes.post('/', async (c) => {
     credentialFiles,
     enabled: true,
     addedAt: new Date().toISOString(),
+    ...(requiresOAuth ? { requiresOAuth: true, oauthStatus: 'pending' as const } : {}),
   };
 
   const updated = [...servers, newServer];
@@ -301,6 +324,79 @@ mcpRoutes.put('/:name/toggle', async (c) => {
   });
 });
 
+// GET /:name/oauth/start — initiate PKCE OAuth flow
+mcpRoutes.get('/:name/oauth/start', async (c) => {
+  const user = c.get('user');
+  const serverName = c.req.param('name');
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  const server = servers.find((s) => s.name === serverName);
+
+  if (!server || server.transport !== 'http' || !server.url) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Server not found or not HTTP' }, 404);
+  }
+
+  const authServerUrl = await detectOAuthRequirement(server.url);
+  if (!authServerUrl) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Server does not require OAuth' }, 400);
+  }
+
+  const metadata = await fetchAuthServerMetadata(authServerUrl);
+  if (!metadata) {
+    return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
+  }
+
+  const callbackUrl = `${new URL(c.req.url).origin}/api/mcp-oauth/callback`;
+
+  let clientId: string;
+  try {
+    clientId = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+  } catch (err) {
+    return c.json<ApiResponse<never>>({ success: false, error: `DCR failed: ${err instanceof Error ? err.message : String(err)}` }, 502);
+  }
+
+  const codeVerifier = generateCodeVerifier();
+  const [codeChallenge, state] = await Promise.all([
+    computeCodeChallenge(codeVerifier),
+    Promise.resolve(generateState()),
+  ]);
+
+  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify({
+    userId: user.id, serverName, serverUrl: server.url,
+    codeVerifier, redirectUri: callbackUrl, clientId,
+    metadata: { token_endpoint: metadata.token_endpoint, authorization_endpoint: metadata.authorization_endpoint },
+    createdAt: Date.now(),
+  }), { expirationTtl: 30 * 60 });
+
+  const authUrl = new URL(metadata.authorization_endpoint);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('redirect_uri', callbackUrl);
+  authUrl.searchParams.set('state', state);
+  authUrl.searchParams.set('code_challenge', codeChallenge);
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  // RFC 8707: resource parameter binds tokens to this MCP server (required by MCP spec)
+  authUrl.searchParams.set('resource', server.url);
+  if (metadata.scopes_supported?.length) {
+    authUrl.searchParams.set('scope', metadata.scopes_supported.join(' '));
+  }
+
+  return c.json<ApiResponse<{ authUrl: string }>>({ success: true, data: { authUrl: authUrl.toString() } });
+});
+
+// DELETE /:name/oauth — revoke stored OAuth tokens
+mcpRoutes.delete('/:name/oauth', async (c) => {
+  const user = c.get('user');
+  const serverName = c.req.param('name');
+  await deleteOAuthTokens(c.env.SESSIONS_KV, user.id, serverName);
+  const servers = await readServers(c.env.SESSIONS_KV, user.id);
+  await writeServers(
+    c.env.SESSIONS_KV,
+    user.id,
+    servers.map((s) => s.name === serverName ? { ...s, oauthStatus: 'none' as const } : s),
+  );
+  return c.json<ApiResponse<{ revoked: boolean }>>({ success: true, data: { revoked: true } });
+});
+
 /**
  * Collect enabled MCP servers for a user, returning them in the
  * ~/.claude.json mcpServers format.
@@ -418,11 +514,23 @@ mcpRoutes.post('/ping', async (c) => {
   await Promise.all(
     httpServers.map(async (server) => {
       try {
+        let effectiveHeaders: Record<string, string> = server.headers || {};
+        if (server.requiresOAuth) {
+          const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, server.name);
+          if (storedTokens) {
+            const refreshed = await refreshTokenIfExpired(storedTokens);
+            const tokenToUse = refreshed ?? storedTokens;
+            if (refreshed && refreshed !== storedTokens) {
+              await writeOAuthTokens(c.env.SESSIONS_KV, user.id, server.name, refreshed);
+            }
+            effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
+          }
+        }
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(server.url!, {
           method: 'GET',
-          headers: server.headers || {},
+          headers: effectiveHeaders,
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -475,11 +583,25 @@ mcpRoutes.post('/:name/ping', async (c) => {
   }
 
   try {
+    // Build effective headers: base headers + OAuth Bearer token if available
+    let effectiveHeaders: Record<string, string> = server.headers || {};
+    if (server.requiresOAuth) {
+      const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, name);
+      if (storedTokens) {
+        const refreshed = await refreshTokenIfExpired(storedTokens);
+        const tokenToUse = refreshed ?? storedTokens;
+        if (refreshed && refreshed !== storedTokens) {
+          await writeOAuthTokens(c.env.SESSIONS_KV, user.id, name, refreshed);
+        }
+        effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
+      }
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(server.url, {
       method: 'GET',
-      headers: server.headers || {},
+      headers: effectiveHeaders,
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -492,7 +614,7 @@ mcpRoutes.post('/:name/ping', async (c) => {
     let toolSchemas: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> | undefined;
     let pingMs: number | undefined;
     if (status === 'online') {
-      const discovered = await discoverTools(server.url, server.headers);
+      const discovered = await discoverTools(server.url, effectiveHeaders);
       if (discovered) {
         tools = discovered.tools;
         toolCount = discovered.toolCount;
