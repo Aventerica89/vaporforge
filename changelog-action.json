@@ -55,3 +55,4 @@
 { "v": "0.29.0", "ts": "2026-03-14T08:28:10Z", "msg": "MCP OAuth RFC 8707 resource binding + expiresAt fix for non-expiring tokens", "hash": "6ef6733" }
 { "v": "0.29.0", "ts": "2026-03-14T09:00:00Z", "msg": "fix: ping injects OAuth token + toast feedback + reload on ping result", "hash": "a90d130" }
 { "v": "0.29.0", "ts": "2026-03-14T09:30:00Z", "msg": "fix: strip query params from hash before parsing settings tab (fixes OAuth redirect blank screen)", "hash": "e2921f3" }
+{"v":"0.29.0","ts":"2026-03-14T09:53:33Z","msg":"fix: inject OAuth Bearer in bulk MCP ping; add auth headers for CF/Vercel MCP servers","hash":"71cf302"}

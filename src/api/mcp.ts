@@ -11,6 +11,9 @@ import {
   generateState,
   oauthStateKey,
   deleteOAuthTokens,
+  readOAuthTokens,
+  writeOAuthTokens,
+  refreshTokenIfExpired,
 } from './mcp-oauth';
 
 type Variables = {
@@ -511,11 +514,23 @@ mcpRoutes.post('/ping', async (c) => {
   await Promise.all(
     httpServers.map(async (server) => {
       try {
+        let effectiveHeaders: Record<string, string> = server.headers || {};
+        if (server.requiresOAuth) {
+          const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, server.name);
+          if (storedTokens) {
+            const refreshed = await refreshTokenIfExpired(storedTokens);
+            const tokenToUse = refreshed ?? storedTokens;
+            if (refreshed && refreshed !== storedTokens) {
+              await writeOAuthTokens(c.env.SESSIONS_KV, user.id, server.name, refreshed);
+            }
+            effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
+          }
+        }
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(server.url!, {
           method: 'GET',
-          headers: server.headers || {},
+          headers: effectiveHeaders,
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -568,11 +583,25 @@ mcpRoutes.post('/:name/ping', async (c) => {
   }
 
   try {
+    // Build effective headers: base headers + OAuth Bearer token if available
+    let effectiveHeaders: Record<string, string> = server.headers || {};
+    if (server.requiresOAuth) {
+      const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, name);
+      if (storedTokens) {
+        const refreshed = await refreshTokenIfExpired(storedTokens);
+        const tokenToUse = refreshed ?? storedTokens;
+        if (refreshed && refreshed !== storedTokens) {
+          await writeOAuthTokens(c.env.SESSIONS_KV, user.id, name, refreshed);
+        }
+        effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
+      }
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     const res = await fetch(server.url, {
       method: 'GET',
-      headers: server.headers || {},
+      headers: effectiveHeaders,
       signal: controller.signal,
     });
     clearTimeout(timer);
@@ -585,7 +614,7 @@ mcpRoutes.post('/:name/ping', async (c) => {
     let toolSchemas: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> | undefined;
     let pingMs: number | undefined;
     if (status === 'online') {
-      const discovered = await discoverTools(server.url, server.headers);
+      const discovered = await discoverTools(server.url, effectiveHeaders);
       if (discovered) {
         tools = discovered.tools;
         toolCount = discovered.toolCount;
