@@ -1099,7 +1099,9 @@ export class ChatSessionAgent {
     // Inject/refresh config into container (MCP servers, CLAUDE.md, plugins, creds).
     // After container sleep wipes disk, this restores everything the SDK needs.
     // Returns true if full injection was needed (container slept / fresh disk).
-    const didFullInject = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig, oauthTokensByName);
+    // ensureContainerConfig returns both the injection flag and the OAuth-patched MCP config.
+    // Using the patched config for CLAUDE_MCP_SERVERS ensures Bearer tokens reach the SDK.
+    const { needsFullInjection: didFullInject, patchedMcp } = await this.ensureContainerConfig(sandbox, sessionId, sandboxConfig, oauthTokensByName);
 
     // If the container slept (stamp missing → full injection), the SDK session
     // files on disk are gone. Resuming a dead session hangs for 4+ minutes
@@ -1111,14 +1113,10 @@ export class ChatSessionAgent {
       this.state.storage.put('sdkSessionId', '').catch(() => {});
     }
 
-    // Compute CLAUDE_MCP_SERVERS env for startProcess
-    const freshMcpConfig: Record<string, Record<string, unknown>> = {
-      ...(sandboxConfig.mcpServers || {}),
-      ...(sandboxConfig.pluginConfigs?.mcpServers || {}),
-      ...(sandboxConfig.geminiMcpServers || {}),
-    };
-    const mcpConfigStr = Object.keys(freshMcpConfig).length > 0
-      ? JSON.stringify(freshMcpConfig)
+    // Build CLAUDE_MCP_SERVERS from the OAuth-patched config (same object written to ~/.claude.json).
+    // Building from sandboxConfig directly (before OAuth patching) would omit Authorization headers.
+    const mcpConfigStr = Object.keys(patchedMcp).length > 0
+      ? JSON.stringify(patchedMcp)
       : null;
 
     // Strip [command:/name] or [agent:/name] UI prefix before sending to Claude.
@@ -1210,7 +1208,7 @@ export class ChatSessionAgent {
     sessionId: string,
     config: SandboxConfig,
     oauthTokensByName: Map<string, string> = new Map()
-  ): Promise<boolean> {
+  ): Promise<{ needsFullInjection: boolean; patchedMcp: Record<string, Record<string, unknown>> }> {
     const sid = sessionId.slice(0, 8);
 
     // Check stamp — if valid, skip full injection (only refresh MCP + creds)
@@ -1343,7 +1341,7 @@ export class ChatSessionAgent {
       }
     }
 
-    return needsFullInjection;
+    return { needsFullInjection, patchedMcp: mergedMcp };
   }
 }
 
