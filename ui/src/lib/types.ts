@@ -213,6 +213,8 @@ export interface McpServerConfig {
   mode?: 'always' | 'on-demand' | 'auto';
   /** Session scope for this MCP server */
   scope?: 'global' | 'project';
+  /** Repo path this MCP applies to when scope is 'project' */
+  gitRepo?: string;
   /** Rate limit configuration (optional, forward-compatible) */
   rateLimit?: { maxPerMinute: number; currentUsage?: number };
   /** Last ping timestamp (ISO) */

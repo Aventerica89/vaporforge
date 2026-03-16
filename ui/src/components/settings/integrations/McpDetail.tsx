@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { STATUS_CONFIG } from './types';
 import { Toggle, RemoveButton, PillGroup, Chevron } from './shared';
@@ -51,6 +51,14 @@ function LatencySparkline() {
       ))}
     </div>
   );
+}
+
+/** Determine auth credential type label */
+function getAuthType(server: McpServerConfig): string {
+  if (server.headers && Object.keys(server.headers).length > 0) return 'Bearer Token';
+  if (server.env && Object.keys(server.env).length > 0) return 'Environment Variable';
+  if (server.credentialFiles && server.credentialFiles.length > 0) return 'Credential File';
+  return 'Unknown';
 }
 
 /** Extract credential env var names from server config */
@@ -198,6 +206,11 @@ export function McpDetail({ server }: McpDetailProps) {
   const [editingCreds, setEditingCreds] = useState(false);
   const [credEntries, setCredEntries] = useState<Array<{ key: string; value: string }>>([]);
   const [isSavingCreds, setIsSavingCreds] = useState(false);
+  const [repoPath, setRepoPath] = useState(server.gitRepo ?? currentSession?.gitRepo ?? '');
+
+  useEffect(() => {
+    setRepoPath(server.gitRepo ?? currentSession?.gitRepo ?? '');
+  }, [server.name]);
 
   function startEditingCreds() {
     const existing = Object.entries(server.env ?? {}).map(([key, value]) => ({ key, value }));
@@ -383,14 +396,12 @@ export function McpDetail({ server }: McpDetailProps) {
           <SectionLabel color="#a371f7">AUTHENTICATION</SectionLabel>
 
           <div className="flex flex-col gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[10px]">
-            {server.credentialFiles && server.credentialFiles.length > 0 && (
-              <div className="flex items-center gap-[10px]">
-                <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">Type</span>
-                <span className="rounded-[3px] border border-[#a371f733] bg-[#a371f70a] px-[10px] py-[4px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7]">
-                  Environment Variable
-                </span>
-              </div>
-            )}
+            <div className="flex items-center gap-[10px]">
+              <span className="font-['Space_Mono'] text-[11px] text-[#8b949e]">Type</span>
+              <span className="rounded-[3px] border border-[#a371f733] bg-[#a371f70a] px-[10px] py-[4px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7]">
+                {getAuthType(server)}
+              </span>
+            </div>
             {credentials.map((cred) => (
               <div key={cred.key} className="flex items-center gap-[10px]">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
@@ -483,21 +494,23 @@ export function McpDetail({ server }: McpDetailProps) {
           value={currentScope}
           onChange={(v) => setMcpScope(server.name, v as 'global' | 'project')}
         />
-        {/* Repo Selector (shown when scope is "project" and a session is active) */}
-        {currentScope === 'project' && currentSession && (
-          <div className="flex items-center gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[8px]">
+        {/* Repo path input (shown when scope is "project") */}
+        {currentScope === 'project' && (
+          <div className="flex items-center gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[8px] focus-within:border-[#a371f733]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
-              <circle cx="12" cy="13" r="2" />
-              <path d="M12 15v5" />
-              <path d="M9.5 17.5h5" />
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
             </svg>
-            <span className="flex-1 font-['Space_Mono'] text-[10px] text-[#cdd9e5]">
-              {currentSession.gitRepo}
-            </span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
+            <input
+              className="flex-1 bg-transparent font-['Space_Mono'] text-[10px] text-[#cdd9e5] placeholder-[#4b535d] focus:outline-none"
+              placeholder={currentSession?.gitRepo || '/path/to/repo'}
+              value={repoPath}
+              onChange={(e) => setRepoPath(e.target.value)}
+              onBlur={async () => {
+                try {
+                  await mcpApi.update(server.name, { gitRepo: repoPath || undefined });
+                } catch { /* non-critical */ }
+              }}
+            />
           </div>
         )}
         <span className="font-['Space_Mono'] text-[9px] text-[#8b949e]">
@@ -540,10 +553,20 @@ export function McpDetail({ server }: McpDetailProps) {
                         {tool.name}
                       </span>
                     </div>
-                    {/* Approval badge (if tool requires approval) */}
-                    <span className="rounded-[3px] border border-[#e3b341] bg-[#e3b341] px-[6px] py-[2px] font-['Space_Mono'] text-[8px] font-bold uppercase text-[#0d1117]">
-                      approval
-                    </span>
+                    <div className="flex items-center gap-[6px]">
+                      {/* Tool lifecycle status badge */}
+                      <span className={`rounded-[3px] border px-[6px] py-[2px] font-['Space_Mono'] text-[8px] font-bold uppercase ${
+                        isPinging
+                          ? 'border-[#e3b34133] bg-[#e3b3410a] text-[#e3b341]'
+                          : 'border-[#3fb95033] bg-[#3fb9500a] text-[#3fb950]'
+                      }`}>
+                        {isPinging ? 'arriving' : 'active'}
+                      </span>
+                      {/* Approval badge */}
+                      <span className="rounded-[3px] border border-[#e3b341] bg-[#e3b341] px-[6px] py-[2px] font-['Space_Mono'] text-[8px] font-bold uppercase text-[#0d1117]">
+                        approval
+                      </span>
+                    </div>
                   </button>
 
                   {/* Tool body */}

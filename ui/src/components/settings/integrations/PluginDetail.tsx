@@ -74,12 +74,26 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
         <div className="flex h-0 flex-1 flex-col gap-[14px] overflow-y-auto px-[40px] py-[32px]">
           {/* Detail Header */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <span className="font-['Space_Mono'] text-[18px] font-semibold text-white">
                 {plugin.name}
               </span>
               <span className={`rounded-[3px] border px-[5px] py-[1px] font-['Space_Mono'] text-[8px] font-bold tracking-[0.8px] ${tierBadgeClass}`}>
                 {tierLabel}
+              </span>
+              <span className={`rounded-full border px-[6px] py-[2px] font-['Space_Mono'] text-[8px] font-bold ${
+                plugin.enabled
+                  ? 'border-[#3fb95033] bg-[#3fb9500a] text-[#3fb950]'
+                  : 'border-[#30363d] bg-transparent text-[#4b535d]'
+              }`}>
+                {plugin.enabled ? 'active' : 'inactive'}
+              </span>
+              <span className={`rounded-full border px-[6px] py-[2px] font-['Space_Mono'] text-[8px] font-bold ${
+                scope === 'global'
+                  ? 'border-[#00e5ff33] bg-[#00e5ff0a] text-[#00e5ff]'
+                  : 'border-[#a371f733] bg-[#a371f70a] text-[#a371f7]'
+              }`}>
+                {scope === 'global' ? 'global' : 'this repo'}
               </span>
             </div>
             <div className="flex items-center gap-3">

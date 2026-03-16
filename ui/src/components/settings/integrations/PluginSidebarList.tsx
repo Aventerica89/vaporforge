@@ -75,6 +75,7 @@ export function PluginSidebarList() {
     setPluginSearch,
     selectedPluginId,
     selectPlugin,
+    selectGroup,
     togglePlugin,
     tierCollapsed,
     toggleTier,
@@ -215,6 +216,7 @@ export function PluginSidebarList() {
                     onSelectPlugin={selectPlugin}
                     onTogglePlugin={togglePlugin}
                     onRemovePackage={pkg.tier !== 'official' ? () => removePlugins(pkg.plugins) : undefined}
+                    onSelectGroup={() => selectGroup(pkg.key, pkg.name, pkg.plugins)}
                   />
                 ))}
             </div>

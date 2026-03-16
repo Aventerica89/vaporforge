@@ -1,10 +1,16 @@
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { PluginDetail } from './PluginDetail';
 import { McpDetail } from './McpDetail';
+import { GroupDetail } from './GroupDetail';
 
 export function IntegrationsDetail() {
-  const { selectedPluginId, selectedMcpName, plugins, mcpServers } =
+  const { selectedPluginId, selectedMcpName, selectedGroupKey, selectedGroupName, selectedGroupPlugins, plugins, mcpServers } =
     useIntegrationsStore();
+
+  // Group detail
+  if (selectedGroupKey && selectedGroupName && selectedGroupPlugins) {
+    return <GroupDetail groupName={selectedGroupName} plugins={selectedGroupPlugins} />;
+  }
 
   // Plugin detail
   if (selectedPluginId) {

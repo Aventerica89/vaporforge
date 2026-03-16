@@ -22,6 +22,7 @@ interface PluginSidebarRowProps {
   onSelectPlugin: (id: string) => void;
   onTogglePlugin: (id: string) => void;
   onRemovePackage?: () => void;
+  onSelectGroup?: () => void;
 }
 
 const TIER_BADGE: Record<PluginTier, { label: string; cls: string }> = {
@@ -61,6 +62,7 @@ export function PluginSidebarRow({
   onSelectPlugin,
   onTogglePlugin,
   onRemovePackage,
+  onSelectGroup,
 }: PluginSidebarRowProps) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -121,6 +123,21 @@ export function PluginSidebarRow({
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
+          {onSelectGroup && (
+            <button
+              className="rounded p-1 text-[#4b535d] opacity-0 transition-colors group-hover:opacity-100 hover:text-[#a371f7]"
+              title="View group info"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectGroup();
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4M12 8h.01" />
+              </svg>
+            </button>
+          )}
           {onRemovePackage && (
             <button
               className={`rounded p-1 transition-colors ${

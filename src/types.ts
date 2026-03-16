@@ -237,6 +237,8 @@ export const McpServerConfigSchema = z.object({
   mode: z.enum(['always', 'on-demand', 'auto']).optional(),
   /** Session scope for this MCP server */
   scope: z.enum(['global', 'project']).optional(),
+  /** Repo path this MCP applies to when scope is 'project' */
+  gitRepo: z.string().optional(),
   /** Rate limit configuration (optional, forward-compatible) */
   rateLimit: z.object({
     maxPerMinute: z.number(),

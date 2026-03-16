@@ -10,6 +10,9 @@ interface IntegrationsState {
   activeTab: ViewTab;
   selectedPluginId: string | null;
   selectedMcpName: string | null;
+  selectedGroupKey: string | null;
+  selectedGroupName: string | null;
+  selectedGroupPlugins: import('@/lib/types').Plugin[] | null;
 
   // Data
   plugins: Plugin[];
@@ -55,6 +58,7 @@ interface IntegrationsState {
   setActiveTab: (tab: ViewTab) => void;
   selectPlugin: (id: string | null) => void;
   selectMcp: (name: string | null) => void;
+  selectGroup: (key: string | null, name: string | null, plugins: import('@/lib/types').Plugin[] | null) => void;
   setPluginSearch: (q: string) => void;
   setMcpSearch: (q: string) => void;
   setSidebarWidth: (w: number) => void;
@@ -91,6 +95,9 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   activeTab: 'plugins',
   selectedPluginId: null,
   selectedMcpName: null,
+  selectedGroupKey: null,
+  selectedGroupName: null,
+  selectedGroupPlugins: null,
   plugins: [],
   mcpServers: [],
   mcpStatuses: {},
@@ -114,12 +121,27 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
   selectPlugin: (id) => set({
     selectedPluginId: id,
     selectedMcpName: null,
+    selectedGroupKey: null,
+    selectedGroupName: null,
+    selectedGroupPlugins: null,
     confirmRemove: null,
     selectedFile: null,
   }),
   selectMcp: (name) => set({
     selectedMcpName: name,
     selectedPluginId: null,
+    selectedGroupKey: null,
+    selectedGroupName: null,
+    selectedGroupPlugins: null,
+    confirmRemove: null,
+    selectedFile: null,
+  }),
+  selectGroup: (key, name, plugins) => set({
+    selectedGroupKey: key,
+    selectedGroupName: name,
+    selectedGroupPlugins: plugins,
+    selectedPluginId: null,
+    selectedMcpName: null,
     confirmRemove: null,
     selectedFile: null,
   }),
