@@ -1,3 +1,6 @@
+### 2026-03-16 · 6fcadbd · v0.29.0
+FIX     deploy — fix MCP ping: POST JSON-RPC instead of GET, fixes Streamable HTTP servers
+
 ### 2026-03-16 · 2b88624 · v0.29.0
 FEAT    deploy — complete MCP OAuth: cross-tab BroadcastChannel sync, error handling
 

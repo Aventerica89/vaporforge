@@ -1,6 +1,12 @@
 [
   {
     "v": "0.29.0",
+    "ts": "2026-03-16T08:11:00.000Z",
+    "msg": "fix MCP ping: POST JSON-RPC instead of GET, fixes Streamable HTTP servers",
+    "hash": "6fcadbd"
+  },
+  {
+    "v": "0.29.0",
     "ts": "2026-03-16T06:45:58.873Z",
     "msg": "fix approval leak, SSRF, rate limits, code review cleanups",
     "hash": "9940636"
