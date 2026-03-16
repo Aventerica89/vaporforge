@@ -9,10 +9,14 @@ type Variables = {
 
 export const fileRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-/** Reject paths containing traversal sequences */
+/** Reject paths containing traversal sequences or shell metacharacters */
 function validatePath(path: string): string | null {
   const normalized = path.replace(/\\/g, '/');
   if (normalized.includes('..') || normalized.includes('\0')) {
+    return null;
+  }
+  // Reject shell metacharacters that could enable command injection
+  if (/[`$;|&(){}[\]<>!\\]/.test(normalized)) {
     return null;
   }
   return normalized;

@@ -45,6 +45,24 @@ embeddingsRoutes.post('/index', async (c) => {
 
   const { sessionId } = parsed.data;
 
+  // Verify session ownership before indexing
+  const sessionRecord = await c.env.SESSIONS_KV.get<{ userId: string }>(
+    `session:${sessionId}`,
+    'json'
+  );
+  if (!sessionRecord) {
+    return c.json<ApiResponse<never>>(
+      { success: false, error: 'Session not found' },
+      404
+    );
+  }
+  if (sessionRecord.userId !== user.id) {
+    return c.json<ApiResponse<never>>(
+      { success: false, error: 'Forbidden' },
+      403
+    );
+  }
+
   const creds = await getProviderCredentials(
     c.env.SESSIONS_KV,
     user.id,
@@ -168,6 +186,24 @@ embeddingsRoutes.post('/search', async (c) => {
   }
 
   const { sessionId, query, topK } = parsed.data;
+
+  // Verify session ownership before searching
+  const sessionRecord = await c.env.SESSIONS_KV.get<{ userId: string }>(
+    `session:${sessionId}`,
+    'json'
+  );
+  if (!sessionRecord) {
+    return c.json<ApiResponse<never>>(
+      { success: false, error: 'Session not found' },
+      404
+    );
+  }
+  if (sessionRecord.userId !== user.id) {
+    return c.json<ApiResponse<never>>(
+      { success: false, error: 'Forbidden' },
+      403
+    );
+  }
 
   const creds = await getProviderCredentials(
     c.env.SESSIONS_KV,

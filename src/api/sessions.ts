@@ -800,6 +800,14 @@ sessionRoutes.post('/:sessionId/clone', async (c) => {
 
   // Checkout branch if specified
   if (body.branch) {
+    // Validate branch name: only allow safe git ref characters
+    if (!/^[a-zA-Z0-9._\-\/]+$/.test(body.branch)) {
+      return c.json<ApiResponse<never>>({
+        success: false,
+        error: 'Invalid branch name',
+      }, 400);
+    }
+
     const checkoutResult = await sandboxManager.execInSandbox(
       session.sandboxId,
       ['git', '-C', targetPath, 'checkout', body.branch]

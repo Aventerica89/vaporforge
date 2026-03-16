@@ -29,14 +29,21 @@ function validateExternalUrl(raw: string, label: string): URL {
     throw new Error(`${label}: must use HTTPS (got ${url.protocol})`);
   }
   const host = url.hostname.toLowerCase();
+  // Check private/internal IP ranges (RFC 1918, link-local, loopback)
+  const privateRanges = [
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2[0-9]|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,
+    /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./,
+    /^fe80:/i,
+  ];
   if (
     host === 'localhost' ||
-    host.startsWith('169.254.') ||
-    host.startsWith('10.') ||
-    host.startsWith('172.16.') ||
-    host.startsWith('192.168.') ||
     host.endsWith('.internal') ||
-    host.endsWith('.local')
+    host.endsWith('.local') ||
+    privateRanges.some((re) => re.test(host))
   ) {
     throw new Error(`${label}: private/internal hosts not allowed`);
   }
@@ -373,12 +380,18 @@ export async function refreshTokenIfExpired(
  * Note: Claude CLI may use "serverName|hash" when it stores tokens itself.
  * VF-pre-populated "serverName" should work since VF controls ~/.claude.json too.
  */
+const SERVER_NAME_RE = /^[a-zA-Z0-9._\-]+$/;
+
 export function buildCredentialsFile(
   tokens: McpOAuthTokensWithName[],
 ): string {
   const mcpOAuth: Record<string, Omit<McpOAuthTokensWithName, 'serverName'>> =
     {};
   for (const { serverName, ...rest } of tokens) {
+    if (!SERVER_NAME_RE.test(serverName)) {
+      console.warn(`[mcp-oauth] buildCredentialsFile: skipping invalid serverName "${serverName}"`);
+      continue;
+    }
     mcpOAuth[serverName] = rest;
   }
   return JSON.stringify({ mcpOAuth }, null, 2);
@@ -416,8 +429,6 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
     return c.redirect(`${settingsUrl}?oauth_error=state_expired`);
   }
 
-  await c.env.SESSIONS_KV.delete(oauthStateKey(state));
-
   let tokens: McpOAuthTokens;
   try {
     tokens = await exchangeCodeForTokens(
@@ -441,6 +452,9 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
     console.error('[mcp-oauth] callback token exchange failed:', err);
     return c.redirect(`${settingsUrl}?oauth_error=token_exchange_failed`);
   }
+
+  // Delete PKCE state only after successful token exchange so the user can retry on failure
+  await c.env.SESSIONS_KV.delete(oauthStateKey(state));
 
   await writeOAuthTokens(
     c.env.SESSIONS_KV,
@@ -472,7 +486,6 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
     }
   }
 
-  return c.redirect(
-    `${settingsUrl}?oauth_success=${encodeURIComponent(pkceState.serverName)}`,
-  );
+  const safeServerName = encodeURIComponent(pkceState.serverName);
+  return c.redirect(`${settingsUrl}?oauth_success=${safeServerName}`);
 });

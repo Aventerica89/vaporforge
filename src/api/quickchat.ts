@@ -452,6 +452,26 @@ quickchatRoutes.post('/stream', async (c) => {
     );
   }
 
+  // Verify session ownership before granting sandbox tool access
+  if (sessionId) {
+    const session = await c.env.SESSIONS_KV.get<{ userId: string }>(
+      `session:${sessionId}`,
+      'json'
+    );
+    if (!session) {
+      return c.json<ApiResponse<never>>(
+        { success: false, error: 'Session not found' },
+        404
+      );
+    }
+    if (session.userId !== user.id) {
+      return c.json<ApiResponse<never>>(
+        { success: false, error: 'Forbidden' },
+        403
+      );
+    }
+  }
+
   // Build tools if the user has an active sandbox session
   const sandboxManager: SandboxManager | null = sessionId
     ? c.get('sandboxManager')

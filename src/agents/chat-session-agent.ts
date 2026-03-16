@@ -190,6 +190,10 @@ export class ChatSessionAgent {
       return this.handleInit(request);
     }
 
+    // Trust model: DOs are not exposed to the internet. Only the Worker (src/index.ts)
+    // can call DO stub methods. The Worker authenticates the user session JWT before
+    // routing to this DO, so sentinel routes are implicitly protected by the Worker's
+    // auth middleware. No additional header check is needed here.
     if (request.method === 'POST' && url.pathname === '/sentinel/start') {
       const body = (await request.json()) as { sandboxId: string };
       if (!body.sandboxId) {
@@ -220,7 +224,23 @@ export class ChatSessionAgent {
       const approvalId = url.pathname.replace('/internal/approval/', '');
       const resolver = this.pendingApprovals.get(approvalId);
       if (resolver === undefined) {
-        // Not found — either already resolved or invalid
+        // Not in memory — check DO storage to distinguish eviction from already-resolved
+        const stored = await this.state.storage.get<string>(`approval:${approvalId}`);
+        if (stored === 'approved' || stored === 'denied') {
+          // Resolved before DO eviction — report the stored decision
+          return new Response(JSON.stringify({ status: 'resolved', approved: stored === 'approved' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (stored === 'pending') {
+          // DO was evicted while approval was in-flight — container should abort
+          return new Response(JSON.stringify({ status: 'evicted' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        // Never registered — invalid approvalId
         return new Response(JSON.stringify({ status: 'resolved', approved: false }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
@@ -239,6 +259,8 @@ export class ChatSessionAgent {
       const resolver = this.pendingApprovals.get(body.approvalId);
       if (resolver) {
         this.pendingApprovals.delete(body.approvalId);
+        // Persist resolution so container can read it even after a DO eviction
+        this.state.storage.put(`approval:${body.approvalId}`, body.approved ? 'approved' : 'denied').catch(() => {});
         resolver(body.approved);
       }
       return new Response(JSON.stringify({ ok: true }), {
@@ -647,7 +669,11 @@ export class ChatSessionAgent {
    * any missed events without re-running the agent.
    */
   private async handleResume(url: URL): Promise<Response> {
-    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10));
+    const rawOffset = parseInt(url.searchParams.get('offset') || '0', 10);
+    if (isNaN(rawOffset) || rawOffset < 0) {
+      return new Response('Invalid offset parameter', { status: 400 });
+    }
+    const offset = rawOffset;
 
     // Paginate to avoid CF's ~128KB storage.list() result size cap.
     // Each page fetches 200 entries; we loop until a page returns fewer than 200.
@@ -884,10 +910,12 @@ export class ChatSessionAgent {
       return;
     }
 
-    // Browser WS closed — clean up any in-memory bridge for this socket
+    // Browser WS closed — clean up any in-memory bridge and storage keys for this socket
     for (const [executionId, bridge] of this.wsBridges) {
       if (bridge === ws) {
         this.wsBridges.delete(executionId);
+        this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+        this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
         break;
       }
     }
@@ -907,10 +935,12 @@ export class ChatSessionAgent {
       return;
     }
 
-    // Browser WS error — clean up bridge reference
+    // Browser WS error — clean up bridge reference and storage keys
     for (const [executionId, bridge] of this.wsBridges) {
       if (bridge === ws) {
         this.wsBridges.delete(executionId);
+        this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+        this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
         break;
       }
     }
@@ -948,12 +978,15 @@ export class ChatSessionAgent {
       if (event.type === 'confirmation' && typeof event.approvalId === 'string') {
         const approvalId = event.approvalId;
         if (!this.pendingApprovals.has(approvalId)) {
+          // Persist to DO storage so containers can detect eviction (approval:id = 'pending')
+          this.state.storage.put(`approval:${approvalId}`, 'pending').catch(() => {});
           // Store the resolver; timeout auto-denies if browser never responds
           void new Promise<boolean>((resolve) => {
             this.pendingApprovals.set(approvalId, resolve);
             setTimeout(() => {
               if (this.pendingApprovals.has(approvalId)) {
                 this.pendingApprovals.delete(approvalId);
+                this.state.storage.delete(`approval:${approvalId}`).catch(() => {});
                 resolve(false);
               }
             }, APPROVAL_TIMEOUT_MS);
@@ -1163,6 +1196,18 @@ export class ChatSessionAgent {
         timestamp: Date.now(),
       })
     );
+
+    // Guard: check if claude-agent.js is already running in the container.
+    // Catches cases where httpBridges was cleared (DO eviction/restart) but
+    // the container process is still alive from a previous execution.
+    const runningProcesses = await sandbox.listProcesses();
+    const agentRunning = runningProcesses.some(
+      (p) => p.command.includes('claude-agent.js') && (p.status === 'running' || p.status === 'starting')
+    );
+    if (agentRunning) {
+      console.warn(`[ChatSessionAgent] dispatchContainer: claude-agent.js already running, skipping startProcess`);
+      return;
+    }
 
     // Spawn claude-agent.js via startProcess (fire-and-forget).
     // Returns immediately — process runs in background.
