@@ -3,7 +3,7 @@ import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { STATUS_CONFIG } from './types';
 import { Toggle, RemoveButton, PillGroup, Chevron } from './shared';
 import type { McpServerConfig } from '@/lib/types';
-import { mcpApi } from '@/lib/api';
+import { mcpApi, secretsApi } from '@/lib/api';
 import { toast } from '@/hooks/useToast';
 import { useSandboxStore } from '@/hooks/useSandbox';
 
@@ -195,6 +195,36 @@ export function McpDetail({ server }: McpDetailProps) {
 
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const [isPinging, setIsPinging] = useState(false);
+  const [editingCreds, setEditingCreds] = useState(false);
+  const [credEntries, setCredEntries] = useState<Array<{ key: string; value: string }>>([]);
+  const [isSavingCreds, setIsSavingCreds] = useState(false);
+
+  function startEditingCreds() {
+    const existing = Object.entries(server.env ?? {}).map(([key, value]) => ({ key, value }));
+    setCredEntries(existing.length > 0 ? existing : [{ key: '', value: '' }]);
+    setEditingCreds(true);
+  }
+
+  async function saveCredentials() {
+    const entries = credEntries.filter((e) => e.key.trim());
+    const env = Object.fromEntries(entries.map((e) => [e.key.trim(), e.value]));
+    setIsSavingCreds(true);
+    try {
+      for (const { key, value } of entries) {
+        if (value) {
+          try { await secretsApi.add(key.trim(), value); } catch { /* already exists */ }
+        }
+      }
+      await mcpApi.update(server.name, { env });
+      await loadMcpServers();
+      setEditingCreds(false);
+      toast('Credentials saved', 'success');
+    } catch {
+      toast('Failed to save credentials', 'error');
+    } finally {
+      setIsSavingCreds(false);
+    }
+  }
 
   const status = !server.enabled
     ? 'disabled'
@@ -376,9 +406,62 @@ export function McpDetail({ server }: McpDetailProps) {
             ))}
           </div>
 
-          <button className="flex items-center justify-center rounded-[6px] border border-[#a371f747] bg-[#a371f71a] px-[16px] py-[10px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7] transition-colors hover:bg-[#a371f733]">
-            Update Credentials
-          </button>
+          {editingCreds ? (
+            <div className="flex flex-col gap-[8px]">
+              {credEntries.map((entry, i) => (
+                <div key={i} className="flex items-center gap-[6px]">
+                  <input
+                    className="w-[120px] shrink-0 rounded-[4px] border border-[#30363d] bg-[#0d1117] px-[8px] py-[5px] font-['Space_Mono'] text-[10px] text-[#cdd9e5] placeholder-[#4b535d] focus:border-[#a371f7] focus:outline-none"
+                    placeholder="KEY"
+                    value={entry.key}
+                    onChange={(e) => setCredEntries((prev) => prev.map((en, j) => j === i ? { ...en, key: e.target.value } : en))}
+                  />
+                  <input
+                    className="min-w-0 flex-1 rounded-[4px] border border-[#30363d] bg-[#0d1117] px-[8px] py-[5px] font-['Space_Mono'] text-[10px] text-[#cdd9e5] placeholder-[#4b535d] focus:border-[#a371f7] focus:outline-none"
+                    placeholder="value"
+                    type="password"
+                    value={entry.value}
+                    onChange={(e) => setCredEntries((prev) => prev.map((en, j) => j === i ? { ...en, value: e.target.value } : en))}
+                  />
+                  <button
+                    className="shrink-0 rounded-[3px] px-[6px] py-[4px] font-['Space_Mono'] text-[10px] text-[#4b535d] hover:text-[#f85149]"
+                    onClick={() => setCredEntries((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <button
+                className="self-start font-['Space_Mono'] text-[9px] text-[#4b535d] hover:text-[#a371f7]"
+                onClick={() => setCredEntries((prev) => [...prev, { key: '', value: '' }])}
+              >
+                + add variable
+              </button>
+              <div className="flex items-center gap-[8px]">
+                <button
+                  className="flex-1 rounded-[6px] border border-[#a371f747] bg-[#a371f71a] px-[16px] py-[8px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7] transition-colors hover:bg-[#a371f733] disabled:opacity-40"
+                  disabled={isSavingCreds}
+                  onClick={saveCredentials}
+                >
+                  {isSavingCreds ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  className="rounded-[6px] border border-[#30363d] bg-[#161b22] px-[16px] py-[8px] font-['Space_Mono'] text-[11px] text-[#8b949e] transition-colors hover:border-[#a371f733] hover:text-[#cdd9e5] disabled:opacity-40"
+                  disabled={isSavingCreds}
+                  onClick={() => setEditingCreds(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              className="flex items-center justify-center rounded-[6px] border border-[#a371f747] bg-[#a371f71a] px-[16px] py-[10px] font-['Space_Mono'] text-[11px] font-bold text-[#a371f7] transition-colors hover:bg-[#a371f733]"
+              onClick={startEditingCreds}
+            >
+              Update Credentials
+            </button>
+          )}
         </div>
       )}
 

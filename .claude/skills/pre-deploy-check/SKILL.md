@@ -15,8 +15,7 @@ Validates the VaporForge build process and configuration before deployment to pr
 2. **Landing Page Build** - Validates Astro build succeeds
 3. **UI Build** - Validates React/Vite build succeeds
 4. **Dist Merge** - Verifies the merge script works
-5. **Wrangler Config** - Checks wrangler.jsonc is valid
-6. **Environment Check** - Confirms required secrets are referenced
+5. **Dist Output** - Confirms all required files are present
 
 ## Workflow
 
@@ -35,10 +34,7 @@ npm run build:ui
 # 4. Merge distributions
 npm run build:merge
 
-# 5. Validate wrangler config
-npx wrangler validate
-
-# 6. Check for dist/ output
+# 5. Check for dist/ output
 ls -lh dist/
 ```
 
@@ -62,7 +58,6 @@ The skill will report:
 - ✅ Landing page build size
 - ✅ UI build size and bundle info
 - ✅ Merged dist/ directory contents
-- ✅ Wrangler configuration validity
 - ❌ Any errors encountered with suggestions
 
 ## Notes

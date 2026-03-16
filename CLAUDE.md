@@ -5,12 +5,12 @@
 Web-based Claude Code IDE on Cloudflare Sandboxes. Access Claude from any device using your existing Pro/Max subscription.
 
 - **Live**: https://vaporforge.dev (app at /app/, landing at /)
-- **Version**: 0.30.0
+- **Version**: 0.29.0
 - **Repo**: Aventerica89/vaporforge
 
 ## Architecture Reference
 
-`docs/CODEMAPS/` contains token-lean structural maps (updated 2026-03-11):
+`docs/CODEMAPS/` contains token-lean structural maps (updated 2026-03-15):
 - `INDEX.md` — start here, navigation guide
 - `architecture.md` — request flows, DO wiring
 - `backend.md` — all API routes and services
@@ -108,7 +108,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Astro Dev Toolbar conflicts** — has its own Inspect mode + external links that break in sandboxed iframe. Disabled via env var.
 - **External links blocked** — inspector intercepts clicks on `<a>` with external URLs to prevent iframe navigation
 - **Auto-tagging fallback** — if no `data-vf-component` found, semantic elements (header, nav, main, section, etc.) are auto-tagged
-- **Shadow DOM inspector regression (v0.27.0)** — `vf-highlight`/`vf-tooltip` custom elements. Fix `46b7db4` applied (static getter syntax + single-string cssText) but not verified in production. If inspector hover/click is broken, revert overlays in `agency-inspector.ts` to plain divs with `all:unset` + `!important` CSS overrides instead of Shadow DOM Web Components.
+- **Shadow DOM inspector regression (v0.27.0)** — `vf-highlight`/`vf-tooltip` custom elements. Fix `46b7db4` applied (static getter syntax + single-string cssText). If inspector hover/click is broken, revert overlays in `agency-inspector.ts` to plain divs with `all:unset` + `!important` CSS overrides instead of Shadow DOM Web Components.
 
 ## Critical Gotchas
 
@@ -119,7 +119,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **NO `options.plugins`** — `plugins: [{ type: 'local', path }]` requires `.claude-plugin/plugin.json` manifest and crashes on AJV validation without it. Use `settingSources: ['project']` for filesystem discovery.
 - **Plugin file path split (CRITICAL)** — `injectPluginFiles()` writes to two locations intentionally: commands+rules → `/workspace/.claude/commands|rules/` (scanned by `settingSources: ['project']`); agents → `/root/.claude/agents/` (loaded by `loadAgentsFromDisk()`). Never consolidate these — the CLI subprocess only finds slash commands in `/workspace/.claude/`, not `/root/.claude/`.
 - **Dockerfile uses `COPY` for scripts** — `COPY src/sandbox-scripts/file.js /opt/claude-agent/file.js`. Do NOT use heredocs (`RUN cat > file << 'EOF'`) — they require BuildKit which GH Actions / CF builders may lack.
-- **Docker cache trap** — deploy workflow runs `docker builder prune --all -f` automatically. If deploying manually, prune first.
+- **Docker cache trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" after changing the Dockerfile, Docker cached layers produced the same hash. Fix: `docker builder prune --all -f && docker image prune -a -f` then redeploy. Only needed when sandbox scripts or Dockerfile (beyond `VF_CONTAINER_BUILD`) actually changed.
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: `docker image prune -a -f && docker builder prune -a -f` then redeploy.
 - **Container scripts MUST stay in sync** — `src/sandbox-scripts/*.js` is the source of truth. After editing ANY sandbox script: (1) update the file in `src/sandbox-scripts/`, (2) bump `VF_CONTAINER_BUILD` env in Dockerfile, (3) the `COPY` instructions in the Dockerfile will pick up the changes automatically.
 - **AI SDK v6 stream events** — `text-delta` has `.text` property (not `.textDelta`). Same for `reasoning-delta`.
