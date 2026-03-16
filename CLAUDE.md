@@ -162,6 +162,10 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **MCP configs stored in SESSIONS_KV** per user, injected into `~/.claude.json` at session start.
 - **`toast()` signature**: `toast(message, variant)` — two strings. NOT `toast({ title, variant })`. See `ui/src/components/SessionRemote.tsx` for examples.
 - **HTTP MCP OAuth token injection**: Inject Bearer token as `headers: { "Authorization": "Bearer <token>" }` in the mcpServers entry in `~/.claude.json`. `~/.claude/.credentials.json` is NOT read by Claude CLI for HTTP MCP server auth.
+- **MCP OAuth: Never gate on `requiresOAuth` flag** — check KV directly for stored tokens (KV key `mcp:oauth:{userId}:{name}`). Servers can have valid tokens without the flag set (added before detection ran, or detection failed). If tokens are in KV, inject them.
+- **MCP OAuth: Callback must set both fields** — `oauthStatus: 'authorized'` AND `requiresOAuth: true` must be written together in the callback. They are checked independently downstream; missing either breaks token injection or UI visibility.
+- **MCP OAuth: Bare `WWW-Authenticate: Bearer`** — Anthropic-hosted MCPs (`*.mcp.claude.com`) return this with no `resource_metadata` or `realm`. Strategy: probe `{origin}/.well-known/oauth-protected-resource` first (RFC 9728), then `{origin}/.well-known/oauth-authorization-server` (RFC 8414), then return origin as last resort.
+- **`acquireBestEffortLock` needs `AUTH_KV`** — functions with only `SESSIONS_KV` access cannot use the refresh lock. Lock-free token refresh is acceptable for infrequent paths like `collectMcpConfig`.
 - **3 transport types**: `http` (direct URL), `stdio` (command in container), `relay` (browser-to-container WS tunnel).
 - **Credential files**: Stored per-server, injected to container filesystem at configured paths. Paths auto-appended to CLAUDE.md so the agent knows they exist.
 - **PUT /api/mcp/:name** for editing servers. **PUT /api/mcp/:name/toggle** for enable/disable.
