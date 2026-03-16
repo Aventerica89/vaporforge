@@ -46,7 +46,8 @@ async function acquireBestEffortLock(
 ): Promise<boolean> {
   const existing = await kv.get(key);
   if (existing !== null) return false;
-  await kv.put(key, '1', { expirationTtl: ttlSeconds });
+  // CF KV requires expirationTtl >= 60; clamp to satisfy the minimum
+  await kv.put(key, '1', { expirationTtl: Math.max(ttlSeconds, 60) });
   return true;
 }
 
@@ -579,7 +580,7 @@ mcpRoutes.post('/ping', async (c) => {
           // If another request is already refreshing this token, skip the refresh
           // and use the stored (possibly near-expiry) token as-is.
           const lockKey = `mcp-refresh-lock:${user.id}:${server.name}`;
-          const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 15);
+          const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 60);
           let tokenToUse = storedTokens;
           if (hasLock) {
             try {
@@ -611,7 +612,8 @@ mcpRoutes.post('/ping', async (c) => {
         } else {
           results[server.name] = { status: 'online', httpStatus: res.status };
         }
-      } catch {
+      } catch (err) {
+        console.error(`[mcp-batch-ping] ${server.name} threw:`, String(err));
         results[server.name] = { status: 'offline' };
       }
     })
@@ -662,7 +664,7 @@ mcpRoutes.post('/:name/ping', async (c) => {
       // If another request is already refreshing this token, skip the refresh
       // and use the stored (possibly near-expiry) token as-is.
       const lockKey = `mcp-refresh-lock:${user.id}:${name}`;
-      const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 15);
+      const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 60);
       let tokenToUse = storedTokens;
       if (hasLock) {
         try {
@@ -734,7 +736,8 @@ mcpRoutes.post('/:name/ping', async (c) => {
       success: true,
       data: { status, httpStatus: res.status, tools, toolCount, toolSchemas, pingMs },
     });
-  } catch {
+  } catch (err) {
+    console.error(`[mcp-single-ping] ${name} threw:`, String(err));
     return c.json<ApiResponse<{ status: string }>>({
       success: true,
       data: { status: 'offline' },
