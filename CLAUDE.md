@@ -173,6 +173,12 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Tool discovery**: `POST /api/mcp/:name/ping` sends JSON-RPC `tools/list` and caches results in KV.
 - **MCP schema fields must appear in both** `McpServerConfigSchema` (src/types.ts Zod) AND `McpServerConfig` interface (ui/src/lib/types.ts). Missing from either = silently dropped on save.
 
+### Debugging
+
+- **`wrangler tail` for live Worker errors**: `npx wrangler tail --format=pretty > /tmp/vf-tail.log 2>&1 &` — captures `console.error()` from catch blocks; essential for diagnosing 4xx/5xx errors in deployed Workers.
+- **`wrangler kv key` requires `--remote`**: Without `--remote`, reads/writes hit LOCAL dev KV, not production. Omitting this flag shows empty results even when production has data.
+- **KV `put` with `--remote` is destructive**: Always read existing KV data before writing. Running `wrangler kv key put` overwrites the entire value — partial writes to user data (e.g., MCP server lists) silently delete unincluded keys.
+
 ### Testing
 
 - Tests live in `src/**/__tests__/` (backend, Vitest) and `ui/src/**/__tests__/` (frontend, Vitest + jsdom). Run with `npm run test`.
