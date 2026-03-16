@@ -174,6 +174,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 ### Build
 
+- **`.claude/skills/` is gitignored** — `git add .claude/skills/...` fails silently. Force-add with `-f` if intentional.
 - **Build pipeline**: `build:info` (git hash) -> `build:landing` (Astro) -> `build:ui` (Vite) -> `build:merge` (combine into dist/)
 - **Wrangler deploys from `dist/`** — never from `ui/dist/` directly
 - **`npx wrangler deploy`** preferred over `wrangler deploy` (avoids hangs)
