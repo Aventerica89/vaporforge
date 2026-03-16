@@ -72,7 +72,10 @@ function stopSentinel(
 
 const CreateSessionSchema = z.object({
   name: z.string().optional(),
-  gitRepo: z.string().url().optional(),
+  gitRepo: z.string().url().refine(
+    (url) => url.startsWith('https://'),
+    { message: 'gitRepo must use https://' }
+  ).optional(),
   branch: z.string().optional(),
 });
 
@@ -868,6 +871,11 @@ sessionRoutes.get('/debug/error/:sessionId', async (c) => {
 
 // Debug: test sandbox operations step-by-step
 sessionRoutes.post('/debug/sandbox', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'admin') {
+    return c.json({ success: false, error: 'Forbidden' }, 403);
+  }
+
   const sandboxManager = c.get('sandboxManager');
   const debugId = `debug-${crypto.randomUUID().slice(0, 8)}`;
   const steps: Array<{ step: string; ok: boolean; ms: number; detail?: string }> = [];

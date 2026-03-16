@@ -25,6 +25,9 @@ export const mcpRoutes = new Hono<{ Bindings: Env; Variables: Variables }>();
 /** Max MCP servers per user */
 const MAX_SERVERS = 20;
 
+// Rate limit oauth/start per user — max 10 calls per minute (CF Worker in-memory, resets on cold start)
+const oauthStartRateLimit = new Map<string, { count: number; resetAt: number }>();
+
 /** KV key for a user's MCP server list */
 function kvKey(userId: string): string {
   return `user-mcp:${userId}`;
@@ -327,6 +330,14 @@ mcpRoutes.put('/:name/toggle', async (c) => {
 // GET /:name/oauth/start — initiate PKCE OAuth flow
 mcpRoutes.get('/:name/oauth/start', async (c) => {
   const user = c.get('user');
+
+  // Rate limit: max 10 calls per user per minute
+  const rl = oauthStartRateLimit.get(user.id) ?? { count: 0, resetAt: Date.now() + 60_000 };
+  if (Date.now() > rl.resetAt) { rl.count = 0; rl.resetAt = Date.now() + 60_000; }
+  rl.count++;
+  oauthStartRateLimit.set(user.id, rl);
+  if (rl.count > 10) return c.json<ApiResponse<never>>({ success: false, error: 'Rate limit exceeded' }, 429);
+
   const serverName = c.req.param('name');
   const servers = await readServers(c.env.SESSIONS_KV, user.id);
   const server = servers.find((s) => s.name === serverName);

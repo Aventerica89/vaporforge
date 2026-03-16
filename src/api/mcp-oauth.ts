@@ -402,6 +402,9 @@ export function buildCredentialsFile(
 type Variables = { user: User };
 const OAUTH_ERROR_ALLOWLIST = new Set(['access_denied', 'invalid_scope', 'server_error', 'temporarily_unavailable']);
 
+// Rate limit callback by state value — max 3 attempts per state (CF Worker in-memory, resets on cold start)
+const callbackRateLimit = new Map<string, number>();
+
 export const mcpOAuthPublicRoutes = new Hono<{
   Bindings: Env;
   Variables: Variables;
@@ -420,6 +423,11 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
       `${settingsUrl}?oauth_error=${encodeURIComponent(safeError)}`,
     );
   }
+
+  // Rate limit: max 3 attempts per state value
+  const attempts = (callbackRateLimit.get(state) ?? 0) + 1;
+  callbackRateLimit.set(state, attempts);
+  if (attempts > 3) return c.json({ error: 'Too many attempts' }, 429);
 
   const pkceState = await c.env.SESSIONS_KV.get<OAuthPkceState>(
     oauthStateKey(state),

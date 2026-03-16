@@ -44,6 +44,11 @@ interface SandboxState {
   streamingLinger: boolean;
   streamingContent: string;
   streamingParts: MessagePart[];
+  // Monotonically-increasing counter incremented on each sendMessage call.
+  // Used to detect stale stream completions: if the generation has advanced,
+  // a new stream is active and the finishing stream must not clobber
+  // isStreaming=false or clear streamingContent/Parts.
+  streamGeneration: number;
   sdkMode: 'agent' | 'plan';
   selectedModel: 'auto' | 'sonnet' | 'haiku' | 'opus' | 'opusplan' | 'sonnet1m';
   autonomyMode: 'conservative' | 'standard' | 'autonomous';
@@ -149,6 +154,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingLinger: false,
   streamingContent: '',
   streamingParts: [],
+  streamGeneration: 0,
   sdkMode: 'agent' as const,
   selectedModel: 'auto' as const,
   autonomyMode: 'autonomous' as const,
@@ -553,12 +559,17 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       images,
     };
 
+    // Increment the stream generation so any in-flight stream completion can
+    // detect it is now stale and must not set isStreaming=false or clear
+    // streaming content that belongs to this new stream.
+    const myGeneration = get().streamGeneration + 1;
     set((state) => ({
       messagesById: { ...state.messagesById, [userMessage.id]: userMessage },
       messageIds: [...state.messageIds, userMessage.id],
       isStreaming: true,
       streamingContent: '',
       streamingParts: [],
+      streamGeneration: myGeneration,
     }));
 
     // Start stream debug tracking
@@ -1134,14 +1145,21 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       // Step 1: End streaming, keep parts/content alive for animation.
       // Message is pre-populated in messagesById but NOT yet in messageIds
       // so StreamingMessage and the final message don't both render simultaneously.
+      // Guard: only clear isStreaming and update streaming display state if this
+      // stream is still the current one (generation matches). If a new sendMessage
+      // has already started, leave isStreaming=true and streaming content alone
+      // so the new stream's UI is not disrupted.
+      const isCurrentStream = get().streamGeneration === myGeneration;
       set((state) => ({
         messagesById: { ...state.messagesById, [assistantMessage.id]: assistantMessage },
-        isStreaming: false,
-        isPaused: false,
-        pausedAt: null,
-        streamingContent: content,
-        streamingParts: [...parts],
-        streamAbortController: null,
+        ...(isCurrentStream ? {
+          isStreaming: false,
+          isPaused: false,
+          pausedAt: null,
+          streamingContent: content,
+          streamingParts: [...parts],
+          streamAbortController: null,
+        } : {}),
       }));
 
       // Refresh files in case Claude made changes (can happen immediately)
@@ -1167,7 +1185,13 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
                   ...state.messageIds.slice(insertIdx + 1),
                 ]
               : [...state.messageIds, msgId]; // fallback: append
-          return { messageIds: newIds, streamingContent: '', streamingParts: [] };
+          // Only clear streaming display state if this stream is still current.
+          // A newer stream may be actively using streamingContent/Parts.
+          const clearStreaming = state.streamGeneration === myGeneration;
+          return {
+            messageIds: newIds,
+            ...(clearStreaming ? { streamingContent: '', streamingParts: [] } : {}),
+          };
         });
       };
 

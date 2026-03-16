@@ -80,6 +80,7 @@ export class ChatSessionAgent {
   private wsBridges = new Map<string, WebSocket>();
   private bufferSeq = 0;
   private pendingApprovals = new Map<string, (approved: boolean) => void>();
+  private approvalPollCounts = new Map<string, { lastMinute: number; count: number }>();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
@@ -222,6 +223,20 @@ export class ChatSessionAgent {
         return new Response('Unauthorized', { status: 401 });
       }
       const approvalId = url.pathname.replace('/internal/approval/', '');
+
+      // Rate limit: max 60 polls per minute per approvalId
+      const now = Date.now();
+      const poll = this.approvalPollCounts.get(approvalId) ?? { lastMinute: now, count: 0 };
+      if (now - poll.lastMinute > 60000) {
+        poll.lastMinute = now;
+        poll.count = 0;
+      }
+      poll.count++;
+      this.approvalPollCounts.set(approvalId, poll);
+      if (poll.count > 60) {
+        return new Response('Too Many Requests', { status: 429 });
+      }
+
       const resolver = this.pendingApprovals.get(approvalId);
       if (resolver === undefined) {
         // Not in memory — check DO storage to distinguish eviction from already-resolved
@@ -259,6 +274,7 @@ export class ChatSessionAgent {
       const resolver = this.pendingApprovals.get(body.approvalId);
       if (resolver) {
         this.pendingApprovals.delete(body.approvalId);
+        this.approvalPollCounts.delete(body.approvalId);
         // Persist resolution so container can read it even after a DO eviction
         this.state.storage.put(`approval:${body.approvalId}`, body.approved ? 'approved' : 'denied').catch(() => {});
         resolver(body.approved);
@@ -848,6 +864,13 @@ export class ChatSessionAgent {
     const prompt = String(data.prompt || '');
     if (!prompt) return;
 
+    // Guard: reject double-dispatch if a container execution is already in-flight.
+    // wsBridges holds an entry for the duration of an active WS execution.
+    if (this.wsBridges.has(executionId)) {
+      ws.send('3:' + JSON.stringify('A response is already in progress. Please wait for it to complete.') + '\n');
+      return;
+    }
+
     // Register in-memory bridge so pipeToWsBridge can find the socket immediately
     this.wsBridges.set(executionId, ws);
 
@@ -1396,6 +1419,15 @@ export class ChatSessionAgent {
     }
     if (config.credentialFiles?.length) {
       for (const cred of config.credentialFiles) {
+        // Validate path to prevent directory traversal attacks.
+        // Reject any path containing '..' or outside allowed prefixes.
+        const allowedPrefixes = ['/root/', '/workspace/', '/tmp/'];
+        const hasTraversal = cred.path.includes('..');
+        const hasAllowedPrefix = allowedPrefixes.some((p) => cred.path.startsWith(p));
+        if (hasTraversal || !hasAllowedPrefix) {
+          console.warn(`[ChatSessionAgent] ${sid}: rejected credential file path "${cred.path}" — must start with /root/, /workspace/, or /tmp/ and contain no '..'`);
+          continue;
+        }
         const parentDir = cred.path.substring(0, cred.path.lastIndexOf('/'));
         if (parentDir) await sandbox.mkdir(parentDir, { recursive: true });
         await sandbox.writeFile(cred.path, cred.content);

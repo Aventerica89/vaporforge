@@ -105,6 +105,11 @@ function parseTreeForPlugins(
     {
       name: string;
       prefix: string;
+      // True for the fallback synthetic plugin that represents the entire repo
+      // at its root. In this case repository_url must be the bare repoUrl so
+      // that /plugins/discover looks at the repo root, not at a nonexistent
+      // subdirectory whose name happens to match the repo name.
+      isRoot?: boolean;
       components: Array<{ type: string; name: string; slug: string }>;
     }
   >();
@@ -173,6 +178,7 @@ function parseTreeForPlugins(
     const syntheticPlugin = {
       name: repoName,
       prefix: '',
+      isRoot: true,
       components: [] as Array<{ type: string; name: string; slug: string }>,
     };
 
@@ -217,6 +223,12 @@ function parseTreeForPlugins(
     if (totalComponents === 0) continue;
 
     const pluginPath = `${info.prefix}${info.name}`;
+    // Root-level synthetic plugins represent the entire repo — use the bare
+    // repoUrl so that /plugins/discover scans the repo root instead of a
+    // nonexistent subdirectory named after the repo.
+    const repositoryUrl = info.isRoot
+      ? repoUrl
+      : `${repoUrl}/tree/${branch}/${pluginPath}`;
 
     plugins.push({
       id: key,
@@ -224,7 +236,7 @@ function parseTreeForPlugins(
       name: info.name,
       description: null,
       author: null,
-      repository_url: `${repoUrl}/tree/${branch}/${pluginPath}`,
+      repository_url: repositoryUrl,
       categories: ['General'],
       agent_count: agentCount,
       skill_count: skillCount,
