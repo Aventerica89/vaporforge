@@ -28,6 +28,28 @@ const MAX_SERVERS = 20;
 // Rate limit oauth/start per user — max 10 calls per minute (CF Worker in-memory, resets on cold start)
 const oauthStartRateLimit = new Map<string, { count: number; resetAt: number }>();
 
+/**
+ * Acquire a best-effort distributed lock via KV.
+ *
+ * TOCTOU note: KV does not support atomic compare-and-set. This lock is
+ * best-effort only — two concurrent requests may both pass the get check
+ * before either puts the lock. Acceptable for non-critical deduplication
+ * like MCP ping token-refresh coalescing.
+ *
+ * Returns true if the lock was acquired (caller must release), false if
+ * the lock was already held.
+ */
+async function acquireBestEffortLock(
+  kv: KVNamespace,
+  key: string,
+  ttlSeconds: number,
+): Promise<boolean> {
+  const existing = await kv.get(key);
+  if (existing !== null) return false;
+  await kv.put(key, '1', { expirationTtl: ttlSeconds });
+  return true;
+}
+
 /** KV key for a user's MCP server list */
 function kvKey(userId: string): string {
   return `user-mcp:${userId}`;
@@ -332,8 +354,13 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   const user = c.get('user');
 
   // Rate limit: max 10 calls per user per minute
-  const rl = oauthStartRateLimit.get(user.id) ?? { count: 0, resetAt: Date.now() + 60_000 };
-  if (Date.now() > rl.resetAt) { rl.count = 0; rl.resetAt = Date.now() + 60_000; }
+  // Prune stale entries on each access to prevent unbounded Map growth
+  const now = Date.now();
+  for (const [k, v] of oauthStartRateLimit) {
+    if (now > v.resetAt) oauthStartRateLimit.delete(k);
+  }
+  const rl = oauthStartRateLimit.get(user.id) ?? { count: 0, resetAt: now + 60_000 };
+  if (now > rl.resetAt) { rl.count = 0; rl.resetAt = now + 60_000; }
   rl.count++;
   oauthStartRateLimit.set(user.id, rl);
   if (rl.count > 10) return c.json<ApiResponse<never>>({ success: false, error: 'Rate limit exceeded' }, 429);
@@ -533,10 +560,9 @@ mcpRoutes.post('/ping', async (c) => {
             // If another request is already refreshing this token, skip the refresh
             // and use the stored (possibly near-expiry) token as-is.
             const lockKey = `mcp-refresh-lock:${user.id}:${server.name}`;
-            const hasLock = (await c.env.AUTH_KV.get(lockKey)) === null;
+            const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 15);
             let tokenToUse = storedTokens;
             if (hasLock) {
-              await c.env.AUTH_KV.put(lockKey, '1', { expirationTtl: 15 });
               try {
                 const refreshed = await refreshTokenIfExpired(storedTokens);
                 tokenToUse = refreshed ?? storedTokens;
@@ -616,10 +642,9 @@ mcpRoutes.post('/:name/ping', async (c) => {
         // If another request is already refreshing this token, skip the refresh
         // and use the stored (possibly near-expiry) token as-is.
         const lockKey = `mcp-refresh-lock:${user.id}:${name}`;
-        const hasLock = (await c.env.AUTH_KV.get(lockKey)) === null;
+        const hasLock = await acquireBestEffortLock(c.env.AUTH_KV, lockKey, 15);
         let tokenToUse = storedTokens;
         if (hasLock) {
-          await c.env.AUTH_KV.put(lockKey, '1', { expirationTtl: 15 });
           try {
             const refreshed = await refreshTokenIfExpired(storedTokens);
             tokenToUse = refreshed ?? storedTokens;

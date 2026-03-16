@@ -400,8 +400,8 @@ export function McpDetail({ server }: McpDetailProps) {
           value={currentScope}
           onChange={(v) => setMcpScope(server.name, v as 'global' | 'project')}
         />
-        {/* Repo Selector (shown when scope is "project") */}
-        {currentScope === 'project' && (
+        {/* Repo Selector (shown when scope is "project" and a session is active) */}
+        {currentScope === 'project' && currentSession && (
           <div className="flex items-center gap-[8px] rounded-[6px] border border-[#30363d] bg-[#161b22] px-[12px] py-[8px]">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
@@ -410,7 +410,7 @@ export function McpDetail({ server }: McpDetailProps) {
               <path d="M9.5 17.5h5" />
             </svg>
             <span className="flex-1 font-['Space_Mono'] text-[10px] text-[#cdd9e5]">
-              {currentSession?.gitRepo ?? '~/your-project'}
+              {currentSession.gitRepo}
             </span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="m6 9 6 6 6-6" />

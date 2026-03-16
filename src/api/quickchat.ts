@@ -12,6 +12,7 @@ import {
   type ProviderCredentials,
 } from '../services/ai-provider-factory';
 import { searchEmbeddings } from '../services/embeddings';
+import { assertSessionOwnership } from '../utils/assert-session-ownership';
 
 type Variables = { user: User; sandboxManager: SandboxManager };
 
@@ -454,21 +455,11 @@ quickchatRoutes.post('/stream', async (c) => {
 
   // Verify session ownership before granting sandbox tool access
   if (sessionId) {
-    const session = await c.env.SESSIONS_KV.get<{ userId: string }>(
-      `session:${sessionId}`,
-      'json'
-    );
-    if (!session) {
-      return c.json<ApiResponse<never>>(
-        { success: false, error: 'Session not found' },
-        404
-      );
-    }
-    if (session.userId !== user.id) {
-      return c.json<ApiResponse<never>>(
-        { success: false, error: 'Forbidden' },
-        403
-      );
+    try {
+      await assertSessionOwnership(c.env.SESSIONS_KV, sessionId, user.id);
+    } catch (err) {
+      if (err instanceof Response) return err;
+      throw err;
     }
   }
 

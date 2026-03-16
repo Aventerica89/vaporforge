@@ -4,9 +4,17 @@
  */
 
 const PRIVATE_RANGES = [
-  // Loopback
+  // Loopback (IPv4)
   /^127\./,
+  // Wildcard bind address — routes to localhost on some systems
+  /^0\.0\.0\.0$/,
+  // IPv6 loopback — bare and bracket-wrapped forms
   /^::1$/,
+  /^\[::1\]$/,
+  // IPv4-mapped IPv6 addresses (bypass naive 127.x.x.x checks)
+  // e.g. ::ffff:127.0.0.1 or [::ffff:127.0.0.1]
+  /^::ffff:/i,
+  /^\[::ffff:/i,
   // Private RFC 1918
   /^10\./,
   /^172\.(1[6-9]|2[0-9]|3[01])\./,

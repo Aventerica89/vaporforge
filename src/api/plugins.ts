@@ -318,6 +318,23 @@ const BUILTIN_PLUGINS: Plugin[] = [
   },
 ];
 
+/**
+ * Resolve the filename for a skill file path.
+ * When multiple plugins share the same SKILL.md filename, use the parent
+ * directory name to avoid collisions on injection.
+ */
+function resolveSkillFilename(filePath: string, rawFilename: string): { name: string; filename: string } {
+  if (rawFilename !== 'SKILL.md') {
+    return { name: rawFilename.replace(/\.md$/, ''), filename: rawFilename };
+  }
+  const parts = filePath.split('/');
+  if (parts.length >= 2) {
+    const skillDirName = parts[parts.length - 2];
+    return { name: skillDirName, filename: `${skillDirName}.md` };
+  }
+  return { name: rawFilename.replace(/\.md$/, ''), filename: rawFilename };
+}
+
 /** Read user plugins from KV */
 async function readPlugins(
   kv: KVNamespace,
@@ -769,18 +786,8 @@ pluginsRoutes.post('/discover', async (c) => {
       const content = await fetchFileContent(p);
       const rawFilename = p.split('/').pop() || p;
       // Keep dashes for slash-command-friendly names (/code-map not /code map)
-      let name = rawFilename.replace(/\.md$/, '');
-      // SKILL.md is Claude's convention for skill entry points — use parent dir name
-      // to avoid all skills overwriting the same filename on injection
-      let filename = rawFilename;
-      if (rawFilename === 'SKILL.md') {
-        const parts = p.split('/');
-        if (parts.length >= 2) {
-          const skillDirName = parts[parts.length - 2];
-          name = skillDirName;
-          filename = `${skillDirName}.md`;
-        }
-      }
+      // SKILL.md convention: use parent dir name to avoid filename collisions on injection
+      const { name, filename } = resolveSkillFilename(p, rawFilename);
       commands.push({
         name,
         filename,
@@ -924,18 +931,8 @@ async function discoverPluginContent(
         const content = await fetchContent(p);
         const rawFilename = p.split('/').pop() || p;
         // Keep dashes for slash-command-friendly names (/code-map not /code map)
-        let name = rawFilename.replace(/\.md$/, '');
-        // SKILL.md is Claude's convention for skill entry points — use parent dir name
-        // to avoid all skills overwriting the same filename on injection
-        let filename = rawFilename;
-        if (rawFilename === 'SKILL.md') {
-          const parts = p.split('/');
-          if (parts.length >= 2) {
-            const skillDirName = parts[parts.length - 2];
-            name = skillDirName;
-            filename = `${skillDirName}.md`;
-          }
-        }
+        // SKILL.md convention: use parent dir name to avoid filename collisions on injection
+        const { name, filename } = resolveSkillFilename(p, rawFilename);
         items.push({
           name,
           filename,

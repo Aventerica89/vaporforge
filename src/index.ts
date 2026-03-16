@@ -191,7 +191,12 @@ export default {
 
       let wsUser = null;
       if (wsTicket) {
-        // Burn the ticket immediately (single-use)
+        // Burn the ticket immediately (single-use).
+        // TOCTOU note: KV does not support atomic get-and-delete. A race window exists
+        // between the get and delete where the same ticket could theoretically be used
+        // twice. In practice this is mitigated by: (1) 60s TTL on the ticket key,
+        // (2) nanoid entropy making ticket values unguessable, and (3) the window
+        // being microseconds in a single-region deployment. No additional locking needed.
         const ticketUserId = await env.AUTH_KV.get(`ws-ticket:${wsTicket}`);
         if (ticketUserId) {
           await env.AUTH_KV.delete(`ws-ticket:${wsTicket}`);

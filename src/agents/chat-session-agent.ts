@@ -302,8 +302,13 @@ export class ChatSessionAgent {
       if (resolver) {
         this.pendingApprovals.delete(body.approvalId);
         this.approvalPollCounts.delete(body.approvalId);
-        // Persist resolution so container can read it even after a DO eviction
+        // Persist resolution so container can read it even after a DO eviction.
+        // Schedule cleanup after 30s — long enough for the container to poll and
+        // receive the decision, but short enough to prevent unbounded storage growth.
         this.state.storage.put(`approval:${body.approvalId}`, body.approved ? 'approved' : 'denied').catch(() => {});
+        setTimeout(() => {
+          this.state.storage.delete(`approval:${body.approvalId}`).catch(() => {});
+        }, 30_000);
         resolver(body.approved);
       }
       return new Response(JSON.stringify({ ok: true }), {
@@ -929,6 +934,22 @@ export class ChatSessionAgent {
   }
 
   /**
+   * Remove a WebSocket entry from wsBridges by socket reference.
+   * Safe to call when the socket may be either a browser or container WS.
+   * Also deletes the associated exec and ws-meta storage keys.
+   */
+  private removeBridgeBySocket(ws: WebSocket): void {
+    for (const [executionId, bridge] of this.wsBridges) {
+      if (bridge === ws) {
+        this.wsBridges.delete(executionId);
+        this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+        this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
+        break;
+      }
+    }
+  }
+
+  /**
    * CF DO WebSocket close handler — handles both container and browser WS closes.
    */
   webSocketClose(ws: WebSocket, code: number, reason: string): void {
@@ -963,14 +984,7 @@ export class ChatSessionAgent {
     }
 
     // Browser WS closed — clean up any in-memory bridge and storage keys for this socket
-    for (const [executionId, bridge] of this.wsBridges) {
-      if (bridge === ws) {
-        this.wsBridges.delete(executionId);
-        this.state.storage.delete(`exec:${executionId}`).catch(() => {});
-        this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
-        break;
-      }
-    }
+    this.removeBridgeBySocket(ws);
   }
 
   webSocketError(ws: WebSocket, error: unknown): void {
@@ -988,14 +1002,7 @@ export class ChatSessionAgent {
     }
 
     // Browser WS error — clean up bridge reference and storage keys
-    for (const [executionId, bridge] of this.wsBridges) {
-      if (bridge === ws) {
-        this.wsBridges.delete(executionId);
-        this.state.storage.delete(`exec:${executionId}`).catch(() => {});
-        this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
-        break;
-      }
-    }
+    this.removeBridgeBySocket(ws);
   }
 
   /** Persist sdkSessionId and containerBuild from container events. */
@@ -1038,6 +1045,7 @@ export class ChatSessionAgent {
             setTimeout(() => {
               if (this.pendingApprovals.has(approvalId)) {
                 this.pendingApprovals.delete(approvalId);
+                this.approvalPollCounts.delete(approvalId);
                 this.state.storage.delete(`approval:${approvalId}`).catch(() => {});
                 resolve(false);
               }
@@ -1256,12 +1264,21 @@ export class ChatSessionAgent {
     // Catches cases where httpBridges was cleared (DO eviction/restart) but
     // the container process is still alive from a previous execution.
     const runningProcesses = await sandbox.listProcesses();
-    const agentRunning = runningProcesses.some(
+    const agentProcess = runningProcesses.find(
       (p) => p.command.includes('claude-agent.js') && (p.status === 'running' || p.status === 'starting')
     );
-    if (agentRunning) {
-      console.warn(`[ChatSessionAgent] dispatchContainer: claude-agent.js already running, skipping startProcess`);
-      return;
+    if (agentProcess) {
+      // Staleness check: if the process has been running for >10 minutes it is likely
+      // stuck or orphaned (e.g. DO was evicted mid-stream). Proceed with a fresh start.
+      const stale =
+        agentProcess.startTime != null &&
+        Date.now() - new Date(agentProcess.startTime).getTime() > 600_000;
+      if (stale) {
+        console.warn(`[ChatSessionAgent] stale process detected (>10min), restarting`);
+      } else {
+        console.warn(`[ChatSessionAgent] dispatchContainer: claude-agent.js already running, skipping startProcess`);
+        return;
+      }
     }
 
     // Spawn claude-agent.js via startProcess (fire-and-forget).

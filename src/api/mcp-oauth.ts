@@ -403,7 +403,10 @@ type Variables = { user: User };
 const OAUTH_ERROR_ALLOWLIST = new Set(['access_denied', 'invalid_scope', 'server_error', 'temporarily_unavailable']);
 
 // Rate limit callback by state value — max 3 attempts per state (CF Worker in-memory, resets on cold start)
-const callbackRateLimit = new Map<string, number>();
+// Tracks attempt count + first-seen timestamp so stale entries can be pruned.
+// State values expire from KV after 30 minutes; entries older than that window are dead.
+const CALLBACK_RL_WINDOW_MS = 30 * 60 * 1000;
+const callbackRateLimit = new Map<string, { count: number; firstSeen: number }>();
 
 export const mcpOAuthPublicRoutes = new Hono<{
   Bindings: Env;
@@ -425,8 +428,14 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   }
 
   // Rate limit: max 3 attempts per state value
-  const attempts = (callbackRateLimit.get(state) ?? 0) + 1;
-  callbackRateLimit.set(state, attempts);
+  // Prune stale entries on each access to prevent unbounded Map growth
+  const rlNow = Date.now();
+  for (const [k, v] of callbackRateLimit) {
+    if (rlNow - v.firstSeen > CALLBACK_RL_WINDOW_MS) callbackRateLimit.delete(k);
+  }
+  const existing = callbackRateLimit.get(state);
+  const attempts = (existing?.count ?? 0) + 1;
+  callbackRateLimit.set(state, { count: attempts, firstSeen: existing?.firstSeen ?? rlNow });
   if (attempts > 3) return c.json({ error: 'Too many attempts' }, 429);
 
   const pkceState = await c.env.SESSIONS_KV.get<OAuthPkceState>(
