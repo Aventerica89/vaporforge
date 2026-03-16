@@ -1,3 +1,6 @@
+### 2026-03-16 · 2b88624 · v0.29.0
+FEAT    deploy — complete MCP OAuth: cross-tab BroadcastChannel sync, error handling
+
 ### 2026-03-15 · 9940636 · v0.29.0
 CHORE   deploy — fix approval leak, SSRF, rate limits, code review cleanups
 

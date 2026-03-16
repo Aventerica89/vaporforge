@@ -4,5 +4,11 @@
     "ts": "2026-03-16T06:45:58.873Z",
     "msg": "fix approval leak, SSRF, rate limits, code review cleanups",
     "hash": "9940636"
+  },
+  {
+    "v": "0.29.0",
+    "ts": "2026-03-16T07:28:00.000Z",
+    "msg": "complete MCP OAuth: cross-tab BroadcastChannel sync, error handling",
+    "hash": "2b88624"
   }
 ]
