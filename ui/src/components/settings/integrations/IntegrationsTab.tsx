@@ -27,24 +27,53 @@ export function IntegrationsTab() {
   }, [loadPlugins, loadMcpServers, pingAllMcps]);
 
   // Handle OAuth callback redirect: /app/#settings/integrations?oauth_success=serverName
+  // or ?oauth_error=access_denied etc.
   useEffect(() => {
     const hash = window.location.hash;
-    if (!hash.includes('oauth_success=')) return;
+    if (!hash.includes('oauth_success=') && !hash.includes('oauth_error=')) return;
 
     const queryPart = hash.split('?')[1] ?? '';
     const params = new URLSearchParams(queryPart);
     const serverName = params.get('oauth_success');
+    const oauthError = params.get('oauth_error');
+
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
 
     if (serverName) {
       toast(`Connected to ${serverName}`, 'success');
       loadMcpServers();
-      // Remove oauth_success param from URL without triggering navigation
-      window.history.replaceState(
-        null,
-        '',
-        window.location.pathname + window.location.search
-      );
+      // Notify the original tab that OAuth completed (this tab is the popup)
+      try {
+        new BroadcastChannel('vf-mcp-oauth').postMessage({ type: 'oauth_complete', serverName });
+      } catch {
+        // BroadcastChannel not supported (rare)
+      }
+    } else if (oauthError) {
+      const msg =
+        oauthError === 'access_denied'
+          ? 'Authorization denied'
+          : oauthError === 'state_expired'
+            ? 'OAuth session expired — try again'
+            : 'OAuth failed — try again';
+      toast(msg, 'error');
     }
+  }, []);
+
+  // Listen for OAuth completion from popup tab — reload servers so status updates
+  useEffect(() => {
+    let ch: BroadcastChannel;
+    try {
+      ch = new BroadcastChannel('vf-mcp-oauth');
+      ch.onmessage = (e) => {
+        if (e.data?.type === 'oauth_complete') {
+          useIntegrationsStore.getState().loadMcpServers();
+          toast(`Connected to ${e.data.serverName as string}`, 'success');
+        }
+      };
+    } catch {
+      return;
+    }
+    return () => ch.close();
   }, []);
 
   const enabledPlugins = plugins.filter((p: { enabled: boolean }) => p.enabled).length;

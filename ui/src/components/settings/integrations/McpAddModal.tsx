@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import type { McpServerConfig } from '@/lib/types';
+import { mcpApi } from '@/lib/api';
 
 type Transport = 'stdio' | 'http' | 'relay';
 type Mode = 'always' | 'on-demand' | 'auto';
@@ -50,6 +51,22 @@ export function McpAddModal() {
     };
 
     await addMcpServer(server);
+
+    // Auto-start OAuth if the server requires it (HTTP servers only)
+    if (transport === 'http') {
+      const added = useIntegrationsStore.getState().mcpServers.find((s) => s.name === trimmed);
+      if (added?.requiresOAuth) {
+        try {
+          const res = await mcpApi.oauthStart(trimmed);
+          if (res.success && res.data?.authUrl) {
+            window.open(res.data.authUrl, '_blank');
+          }
+        } catch {
+          // Non-critical — user can connect from the server detail panel
+        }
+      }
+    }
+
     reset();
   };
 
