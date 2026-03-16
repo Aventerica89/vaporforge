@@ -250,6 +250,8 @@ export interface Plugin {
   mcpServers: McpServerConfig[];
   sourceId?: string;
   sourceName?: string;
+  /** True when command content is generated fallback boilerplate, not real markdown from the repo. */
+  contentFallback?: boolean;
   addedAt: string;
   updatedAt: string;
 }

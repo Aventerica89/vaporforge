@@ -556,14 +556,16 @@ quickchatRoutes.post('/stream', async (c) => {
       }
     }
 
-    // Collect tool IDs that already have results so we only execute tool calls
+    // Collect tool call IDs that already have results so we only execute tool calls
     // from the current turn and skip historical ones (prevents re-execution loop).
-    const executedToolIds = new Set(
+    // Uses callId (tool_use_id / toolCallId) as the key — NOT approvalId — because
+    // tool-result blocks reference the call ID, not the approval ID.
+    const executedCallIds = new Set(
       modelMessages.flatMap((m) =>
         Array.isArray(m.content)
           ? (m.content as Array<Record<string, unknown>>)
-              .filter((b) => b.type === 'tool_result')
-              .map((b) => b.tool_use_id as string)
+              .filter((b) => b.type === 'tool-result' || b.type === 'tool_result')
+              .map((b) => (b.toolCallId ?? b.tool_use_id) as string)
           : []
       )
     );
@@ -576,10 +578,11 @@ quickchatRoutes.post('/stream', async (c) => {
 
       for (const part of content) {
         if (part.type !== 'tool-approval-response' || part.approved !== true) continue;
-        if (executedToolIds.has(part.approvalId as string)) continue; // already resolved in history
         const callId = approvalIdToCallId.get(part.approvalId as string);
-        const args = callId ? callIdToArgs.get(callId) : undefined;
-        if (!callId || !args) continue;
+        if (!callId) continue;
+        if (executedCallIds.has(callId)) continue; // already resolved in a prior turn — skip
+        const args = callIdToArgs.get(callId);
+        if (!args) continue;
 
         const t = (tools as Record<string, { execute?: (i: unknown, opts: { messages: unknown[]; abortSignal: AbortSignal }) => Promise<unknown> }>)[args.toolName];
         if (!t?.execute) continue;

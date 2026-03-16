@@ -44,6 +44,11 @@ interface SandboxState {
   streamingLinger: boolean;
   streamingContent: string;
   streamingParts: MessagePart[];
+  // ID of the user message that triggered the current active stream.
+  // Used by MessageList to position StreamingMessage immediately after the
+  // paired user bubble, so any optimistic inserts for a second concurrent
+  // message appear below the in-progress response rather than above it.
+  streamingForMessageId: string | null;
   // Monotonically-increasing counter incremented on each sendMessage call.
   // Used to detect stale stream completions: if the generation has advanced,
   // a new stream is active and the finishing stream must not clobber
@@ -154,6 +159,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   streamingLinger: false,
   streamingContent: '',
   streamingParts: [],
+  streamingForMessageId: null,
   streamGeneration: 0,
   sdkMode: 'agent' as const,
   selectedModel: 'auto' as const,
@@ -318,6 +324,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       terminalOutput: [],
       gitStatus: null,
       streamingContent: '',
+      streamingForMessageId: null,
       isStreaming: false,
     });
   },
@@ -569,6 +576,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       isStreaming: true,
       streamingContent: '',
       streamingParts: [],
+      streamingForMessageId: userMessage.id,
       streamGeneration: myGeneration,
     }));
 
@@ -952,7 +960,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
         const now = Date.now();
         if (!lastRetry || now - parseInt(lastRetry, 10) > 30000) {
           sessionStorage.setItem(retryKey, String(now));
-          set({ streamingContent: '', streamingParts: [], isStreaming: false });
+          set({ streamingContent: '', streamingParts: [], streamingForMessageId: null, isStreaming: false });
           toast.info('Connection issue — retrying automatically...');
           await new Promise((r) => setTimeout(r, 2000));
           // Re-invoke sendMessage (non-recursive — just calls the store action)
@@ -1120,6 +1128,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           pausedAt: null,
           streamingContent: '',
           streamingParts: [],
+          streamingForMessageId: null,
           streamAbortController: null,
         });
       } else {
@@ -1158,6 +1167,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           pausedAt: null,
           streamingContent: content,
           streamingParts: [...parts],
+          streamingForMessageId: null,
           streamAbortController: null,
         } : {}),
       }));
@@ -1244,6 +1254,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
+          streamingForMessageId: null,
           streamAbortController: null,
         }));
       } else {
@@ -1264,6 +1275,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           isCompacting: false,
           streamingContent: '',
           streamingParts: [],
+          streamingForMessageId: null,
           streamAbortController: null,
         }));
       }
@@ -1304,6 +1316,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           pausedAt: null,
           streamingContent: '',
           streamingParts: [],
+          streamingForMessageId: null,
           streamAbortController: null,
         }));
       } else {
@@ -1313,6 +1326,7 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
           pausedAt: null,
           streamingContent: '',
           streamingParts: [],
+          streamingForMessageId: null,
           streamAbortController: null,
         });
       }

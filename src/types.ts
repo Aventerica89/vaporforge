@@ -281,6 +281,7 @@ export const PluginSchema = z.object({
   mcpServers: z.array(McpServerConfigSchema).default([]),
   sourceId: z.string().optional(),
   sourceName: z.string().optional(),
+  contentFallback: z.boolean().optional(),
   addedAt: z.string(),
   updatedAt: z.string(),
 });

@@ -119,7 +119,13 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
       let fallbackCommands: Array<{
         name: string; filename: string; content: string; enabled: boolean;
       }> = [];
+      let usingFallback = false;
       if (!hasDiscoveredContent && catalogPlugin.components.length > 0) {
+        console.warn(
+          `[marketplace] discover() returned no content for "${catalogPlugin.name}" (${repoUrl}). ` +
+          'Using generated fallback content — command bodies will be generic boilerplate.',
+        );
+        usingFallback = true;
         const pluginDesc = catalogPlugin.description || catalogPlugin.name;
         fallbackCommands = catalogPlugin.components
           .filter((comp) => comp.type === 'command' || comp.type === 'skill')
@@ -142,6 +148,7 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
         builtIn: false,
         sourceId: catalogPlugin.source_id,
         sourceName: deriveSourceName(catalogPlugin.source_id),
+        contentFallback: usingFallback || undefined,
         agents: discovered?.agents || [],
         commands: hasDiscoveredContent
           ? (discovered?.commands || [])
@@ -159,7 +166,13 @@ export const useMarketplace = create<MarketplaceState>((set, get) => ({
           return next;
         })(),
       }));
-      toast.success(`${catalogPlugin.name} installed`);
+      if (usingFallback) {
+        toast.warning(
+          `${catalogPlugin.name} installed with generic command content — the repository's actual markdown could not be fetched.`,
+        );
+      } else {
+        toast.success(`${catalogPlugin.name} installed`);
+      }
       syncToActiveSession();
       return;
     } catch (err) {

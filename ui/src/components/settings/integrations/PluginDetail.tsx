@@ -97,6 +97,18 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
             </div>
           </div>
 
+          {/* Fallback content warning */}
+          {plugin.contentFallback && (
+            <div className="rounded-[6px] border border-[#d2992047] bg-[#d299201a] px-[12px] py-[10px]">
+              <div className="mb-[2px] font-['Space_Mono'] text-[8px] font-bold uppercase tracking-[1px] text-[#d29920]">
+                Generic Content
+              </div>
+              <p className="font-['Space_Mono'] text-[10px] leading-[1.5] text-[#768390]">
+                Command content could not be fetched from the repository. The commands below use generated boilerplate instead of the plugin's real markdown.
+              </p>
+            </div>
+          )}
+
           {/* Scope Section */}
           <div>
             <div className="mb-1.5 font-['Space_Mono'] text-[9px] font-semibold uppercase tracking-[1.2px] text-[#8b949e]">

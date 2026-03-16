@@ -259,6 +259,20 @@ interface MessageListProps {
 
 export function MessageList({ compact }: MessageListProps) {
   const messageIds = useMessageIds();
+  // ID of the user message that triggered the current in-progress stream.
+  // Used to position StreamingMessage immediately after its paired user
+  // bubble so any subsequent optimistic inserts (second message sent while
+  // stream 1 is still running) render below the in-progress response rather
+  // than above it.
+  const streamingForMessageId = useSandboxStore((s) => s.streamingForMessageId);
+
+  // Split messageIds at the streaming anchor point so StreamingMessage renders
+  // directly after the user message that triggered it.
+  const anchorIdx = streamingForMessageId
+    ? messageIds.indexOf(streamingForMessageId)
+    : -1;
+  const beforeStream = anchorIdx >= 0 ? messageIds.slice(0, anchorIdx + 1) : messageIds;
+  const afterStream = anchorIdx >= 0 ? messageIds.slice(anchorIdx + 1) : [];
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
@@ -273,11 +287,14 @@ export function MessageList({ compact }: MessageListProps) {
               : 'mx-auto max-w-3xl space-y-1 px-4 py-3'
           }
         >
-          {messageIds.map((id) => (
+          {beforeStream.map((id) => (
+            <MemoizedMessageItem key={id} id={id} compact={compact} />
+          ))}
+          <StreamingMessage compact={compact} />
+          {afterStream.map((id) => (
             <MemoizedMessageItem key={id} id={id} compact={compact} />
           ))}
           <CompactionBanner />
-          <StreamingMessage compact={compact} />
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>

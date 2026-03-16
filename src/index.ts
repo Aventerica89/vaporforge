@@ -67,6 +67,20 @@ export default {
       if (!payload) {
         return new Response('Unauthorized', { status: 401 });
       }
+
+      // Rate limit: 60 requests per 60-second window per executionId.
+      // Uses SESSIONS_KV with a 60s TTL key so the counter auto-expires.
+      const rateLimitKey = `approval-poll-rl:${payload.executionId}`;
+      const rawCount = await env.SESSIONS_KV.get(rateLimitKey);
+      const count = rawCount ? parseInt(rawCount, 10) : 0;
+      if (count >= 60) {
+        return new Response('Too Many Requests', { status: 429 });
+      }
+      // expirationTtl only applies on the first write; subsequent writes reset the TTL.
+      // We accept this: a burst at the window boundary may get up to 120 requests across
+      // two windows, but sustained polling is still capped at ~60 req/min on average.
+      await env.SESSIONS_KV.put(rateLimitKey, String(count + 1), { expirationTtl: 60 });
+
       const id = env.CHAT_SESSIONS.idFromName(payload.sessionId);
       return env.CHAT_SESSIONS.get(id).fetch(request);
     }
