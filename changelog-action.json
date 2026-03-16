@@ -1,6 +1,12 @@
 [
   {
     "v": "0.29.0",
+    "ts": "2026-03-16T09:55:00.000Z",
+    "msg": "feat: wire up Update Credentials button with inline env var editor + secrets sync",
+    "hash": "4895e87"
+  },
+  {
+    "v": "0.29.0",
     "ts": "2026-03-16T09:40:00.000Z",
     "msg": "fix MCP ping: add Accept header required by Streamable HTTP spec",
     "hash": "9e244be"

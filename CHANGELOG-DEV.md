@@ -1,3 +1,6 @@
+### 2026-03-16 · 4895e87 · v0.29.0
+FEAT    deploy — feat: wire up Update Credentials button with inline env var editor + secrets sync
+
 ### 2026-03-16 · 9e244be · v0.29.0
 FIX     deploy — fix MCP ping: add Accept header required by Streamable HTTP spec
 
