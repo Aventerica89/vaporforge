@@ -182,6 +182,8 @@ export async function detectOAuthRequirement(
   serverUrl: string,
 ): Promise<string | null> {
   validateExternalUrl(serverUrl, 'serverUrl');
+
+  // Strategy 1: well-known resource metadata (RFC 9728)
   try {
     const url = new URL('/.well-known/oauth-protected-resource', serverUrl);
     const res = await fetch(url.toString(), {
@@ -189,19 +191,47 @@ export async function detectOAuthRequirement(
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(5000),
     });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { authorization_servers?: string[] };
-    const raw = data.authorization_servers?.[0];
-    if (!raw) return null;
-    try {
-      validateExternalUrl(raw, 'authorization_server');
-    } catch {
-      return null;
+    if (res.ok) {
+      const data = (await res.json()) as { authorization_servers?: string[] };
+      const raw = data.authorization_servers?.[0];
+      if (raw) {
+        try { validateExternalUrl(raw, 'authorization_server'); return raw; } catch { /* invalid */ }
+      }
     }
-    return raw;
-  } catch {
-    return null;
-  }
+  } catch { /* try fallback */ }
+
+  // Strategy 2: probe endpoint for 401 + WWW-Authenticate header (MCP OAuth spec fallback)
+  try {
+    const probe = await fetch(serverUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'vaporforge', version: '1.0' } } }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (probe.status === 401) {
+      const wwwAuth = probe.headers.get('WWW-Authenticate') ?? '';
+      // Try resource_metadata URL first
+      const rmMatch = wwwAuth.match(/resource_metadata="([^"]+)"/);
+      if (rmMatch) {
+        try {
+          validateExternalUrl(rmMatch[1], 'resource_metadata');
+          const rmRes = await fetch(rmMatch[1], { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(5000) });
+          if (rmRes.ok) {
+            const data = (await rmRes.json()) as { authorization_servers?: string[] };
+            const raw = data.authorization_servers?.[0];
+            if (raw) { try { validateExternalUrl(raw, 'authorization_server'); return raw; } catch { /* invalid */ } }
+          }
+        } catch { /* continue */ }
+      }
+      // Fall back to Bearer realm
+      const realmMatch = wwwAuth.match(/realm="([^"]+)"/);
+      if (realmMatch) {
+        try { validateExternalUrl(realmMatch[1], 'realm'); return realmMatch[1]; } catch { /* invalid */ }
+      }
+    }
+  } catch { /* not OAuth */ }
+
+  return null;
 }
 
 export async function fetchAuthServerMetadata(
