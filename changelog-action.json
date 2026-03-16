@@ -1,58 +1,8 @@
-{ "v": "0.27.0", "ts": "2026-02-20T11:18:24Z", "msg": "Stream reconnect: auto-recover dropped WS mid-response", "hash": "de304f8" }
-{ "v": "0.27.0", "ts": "2026-02-20T19:30:00Z", "msg": "Fix: CLAUDE.md no longer overwritten by credential section", "hash": "eae501c" }
-{ "v": "0.27.0", "ts": "2026-02-20T22:00:00Z", "msg": "CitationCard for WebFetch + ApprovalCard upgrade", "hash": "2c77c81" }
-{ "v": "0.28.0", "ts": "2026-02-20T23:30:00Z", "msg": "QuestionFlow: AI-driven form collection in QuickChat", "hash": "11117ee" }
-{ "v": "0.29.0", "ts": "2026-02-21T00:30:00Z", "msg": "Compaction indicator + PlanCard tool UI", "hash": "877aa34" }
-{ "v": "0.29.0", "ts": "2026-02-21T02:00:00Z", "msg": "PlanCard + QuestionFlow wired to main sessions", "hash": "fb6bb5c5" }
-{ "v": "0.29.0", "ts": "2026-02-21T03:30:00Z", "msg": "Fix: ask_user_questions now shows panel (not text)", "hash": "d16f5f5d" }
-{ "v": "0.29.0", "ts": "2026-02-20T19:29:18Z", "msg": "Cost meter: per-message USD + session total", "hash": "243255f" }
-{ "v": "0.29.0", "ts": "2026-02-20T19:50:00Z", "msg": "Fix: tree/file hierarchy blocks now render with whitespace-pre", "hash": "1a9b4f4" }
-{ "v": "0.29.0", "ts": "2026-02-20T22:10:00Z", "msg": "Personal component registry in Dev Playground", "hash": "23199a4" }
-{ "v": "0.29.0", "ts": "2026-02-20T22:20:00Z", "msg": "Sync public CHANGELOG: add v0.26-0.29 What's New entries", "hash": "cfe455d" }
-{ "v": "0.29.0", "ts": "2026-02-21T05:48:00Z", "msg": "HIG UX audit: touch targets, focus traps, live swipe, overlay sheets", "hash": "f098c96" }
-{ "v": "0.29.0", "ts": "2026-03-01T06:52:00Z", "msg": "settings scroll fixes deployed to production", "hash": "2fd7d8b" }
-{ "v": "0.29.0", "ts": "2026-03-01T08:19:00Z", "msg": "deploy: sandbox deploy via docker-shim + 1password auth", "hash": "ff745cc" }
-{ "v": "0.29.0", "ts": "2026-03-01T08:20:00Z", "msg": "chore: deploy — docker-shim enables in-sandbox deploys via podman+1password", "hash": "856c165" }
-{ "v": "0.29.0", "ts": "2026-03-11T00:16:10Z", "msg": "fix QuickChat runCommand approval flow (sendAutomaticallyWhen + convertToModelMessages)", "hash": "785c928" }
-{ "v": "0.29.0", "ts": "2026-03-11T05:00:00Z", "msg": "fix: add runCommand tool hint to QuickChat system prompt for non-Claude models", "hash": "1861970" }
-{ "v": "0.29.0", "ts": "2026-03-11T06:00:00Z", "msg": "fix: execute approved QuickChat tool calls server-side (Gemini tool result missing)", "hash": "237b37d" }
-{ "v": "0.29.0", "ts": "2026-03-11T01:44:51Z", "msg": "fix: auto-deny unanswered approval-requested tools to prevent tool-result-missing error", "hash": "397388f" }
-{ "v": "0.29.0", "ts": "2026-03-11T02:17:05Z", "msg": "fix: correct type check in approval-requested auto-deny (was 'tool', must be 'tool-*')", "hash": "4438d19" }
-{ "v": "0.29.0", "ts": "2026-03-11T02:39:46Z", "msg": "feat: /t-file, /t-approve, /t-deny tool-test slash commands in QuickChat", "hash": "fa95fa0" }
-{ "v": "0.29.0", "ts": "2026-03-11T04:23:28Z", "msg": "fix: show approval card for needsApproval static tool parts (runCommand) in QuickChat", "hash": "26e5f9e" }
-{ "v": "0.29.0", "ts": "2026-03-11T05:02:46Z", "msg": "feat: persist MCP mode/scope via PATCH endpoint and seed from server on load", "hash": "38cd944" }
-{ "v": "0.29.0", "ts": "2026-03-11T05:30:00Z", "msg": "fix: skip corrupted KV entries in sessions/list to prevent 500", "hash": "f3ce027" }
-{ "v": "0.29.0", "ts": "2026-03-11T05:50:00Z", "msg": "fix: plugin item toggle 400 (plural itemType) + bulk remove all button", "hash": "7f4315f" }
-{ "v": "0.29.0", "ts": "2026-03-11T06:10:00Z", "msg": "fix: per-package remove button + sequential deletes to prevent KV race condition", "hash": "a85237d" }
-{ "v": "0.29.0", "ts": "2026-03-11T06:25:00Z", "msg": "marketplace-first plugin UX; rename Add Plugins to Marketplaces", "hash": "487e9e5" }
-{ "v": "0.29.0", "ts": "2026-03-11T06:45:00Z", "msg": "fix: marketplace source name, install state, auto-refresh on open", "hash": "3245c5c" }
-{ "v": "0.29.0", "ts": "2026-03-11T08:38:00Z", "msg": "Add sandbox.watch() SSE endpoint + useFileWatcher hook for live Monaco refresh", "hash": "742cb44" }
-{ "v": "0.29.0", "ts": "2026-03-11T09:31:20Z", "msg": "V1.5 stability: keepAlive, buffer pruning, clearBuffer retry, list() pagination, orphaned stream buffering", "hash": "47c266d" }
-{"v":"0.29.0","ts":"2026-03-11T10:45:00Z","msg":"fix: marketplace discovery fallback, warnings for rate limit/404/empty","hash":"0a96327"}
-{"v":"0.29.0","ts":"2026-03-11T11:15:00Z","msg":"fix: pad DO stream writes to >1KB to unblock Chrome Fetch buffering (issue #81)","hash":"f4855cb"}
-{"v":"0.29.0","ts":"2026-03-11T11:35:00Z","msg":"fix: apply useSmoothText rAF animation to streaming text (fix #81 pop-in)","hash":"35f5e93"}
-{ "v": "0.29.0", "ts": "2026-03-11T19:39:25Z", "msg": "Tool approval UI for Standard/conservative mode + container canUseTool", "hash": "06e9515" }
-{ "v": "0.29.0", "ts": "2026-03-11T19:55:00Z", "msg": "Plan prompt for Standard/conservative mode — create_plan before multi-step tool use", "hash": "ce2134d" }
-{ "v": "0.29.0", "ts": "2026-03-11T20:10:00Z", "msg": "Fix: auto-allow create_plan/ask_user_questions in canUseTool (hang in Standard mode)", "hash": "4d228c1" }
-{ "v": "0.29.0", "ts": "2026-03-11T20:35:00Z", "msg": "Fix: JWT auth on approval poll endpoint + void floating Promise lint fix", "hash": "4aebcd3" }
-{ "v": "0.29.0", "ts": "2026-03-11T21:55:00Z", "msg": "Fix streaming pop-in: TCP Nagle (setNoDelay) + useSmoothText rAF + StreamingMessage linger", "hash": "4626552" }
-{ "v": "0.29.0", "ts": "2026-03-12T00:00:00Z", "msg": "Security: IDOR ownership checks on V1.5 chat/approve/resume + crypto.randomUUID() for approvalId", "hash": "a27d164" }
-{ "v": "0.29.0", "ts": "2026-03-12T04:30:00Z", "msg": "Security: MCP shell injection fix (npm pkg validation) + dynamic stream linger", "hash": "a4f7a94" }
-{ "v": "0.29.0", "ts": "2026-03-12T05:48:19Z", "msg": "fix: padStreamLines byte-length padding + TextDecoder flush + useSmoothText cursor reset", "hash": "9bbc21d" }
-{ "v": "0.29.0", "ts": "2026-03-12T05:17:31Z", "msg": "fix: QuickChat SSE blank-line stripping in padStreamLines + useSmoothText catch-up speed at cursor=0", "hash": "58d00df" }
-{ "v": "0.29.0", "ts": "2026-03-12T05:00:00Z", "msg": "fix: QuickChat streaming pop-in — useSmoothText + 1KB line padding", "hash": "179577c" }
-{"v":"0.29.0","ts":"2026-03-12T07:34:13Z","msg":"fix: streaming pop-in — useSandboxStore.subscribe captures parts pre-batch + stable SmoothText key","hash":"7d7ea71"}
-{"v":"0.29.0","ts":"2026-03-12T07:54:43Z","msg":"fix: show pasted image previews in ChatPanel before send","hash":"49f54cc"}
-{ "v": "0.29.0", "ts": "2026-03-12T19:58:00Z", "msg": "WS streaming adapter: bypass Chrome HTTP buffering (feature-flagged)", "hash": "dbde07d" }
-{ "v": "0.29.0", "ts": "2026-03-12T21:28:49Z", "msg": "fix streaming pop-in: move linger to store so SmoothText animates when all WS frames arrive at once", "hash": "577807b" }
-{ "v": "0.29.0", "ts": "2026-03-12T21:00:00Z", "msg": "fix streaming pop-in: slow all-at-once animation to ~3s budget (behind/180) so text is visibly typed out", "hash": "a002f65" }
-{ "v": "0.29.0", "ts": "2026-03-13T00:56:25Z", "msg": "fix: replace container→DO HTTP POST with WebSocket tunnel for real-time streaming", "hash": "0dd7c1e" }
-{ "v": "0.29.0", "ts": "2026-03-13T01:15:00Z", "msg": "fix: use ws npm package instead of native WebSocket global for Node compat in container", "hash": "e7a9065" }
-{ "v": "0.29.0", "ts": "2026-03-13T04:39:30.000Z", "msg": "fix(security): validate JWT on container WS upgrade, double-dispatch guard, esbuild vuln pin", "hash": "79eca46" }
-{"v":"0.29.0","ts":"2026-03-13T05:20:18Z","msg":"fix(ui): message ordering bug — second msg no longer renders before first response (#111)","hash":"c0d6f27"}
-{ "v": "0.29.0", "ts": "2026-03-13T22:52:04Z", "msg": "MCP OAuth: PKCE flow + credentials injection + Connect/Revoke UI", "hash": "12aabd9" }
-{ "v": "0.29.0", "ts": "2026-03-14T02:35:28Z", "msg": "Fix: MCP OAuth Bearer token injected into ~/.claude.json headers (was using .credentials.json which CLI ignores)", "hash": "d9e332a" }
-{ "v": "0.29.0", "ts": "2026-03-14T08:28:10Z", "msg": "MCP OAuth RFC 8707 resource binding + expiresAt fix for non-expiring tokens", "hash": "6ef6733" }
-{ "v": "0.29.0", "ts": "2026-03-14T09:00:00Z", "msg": "fix: ping injects OAuth token + toast feedback + reload on ping result", "hash": "a90d130" }
-{ "v": "0.29.0", "ts": "2026-03-14T09:30:00Z", "msg": "fix: strip query params from hash before parsing settings tab (fixes OAuth redirect blank screen)", "hash": "e2921f3" }
-{"v":"0.29.0","ts":"2026-03-14T09:53:33Z","msg":"fix: inject OAuth Bearer in bulk MCP ping; add auth headers for CF/Vercel MCP servers","hash":"71cf302"}
+[
+  {
+    "v": "0.29.0",
+    "ts": "2026-03-16T06:45:58.873Z",
+    "msg": "fix approval leak, SSRF, rate limits, code review cleanups",
+    "hash": "9940636"
+  }
+]

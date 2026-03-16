@@ -1,3 +1,6 @@
+### 2026-03-15 · 9940636 · v0.29.0
+CHORE   deploy — fix approval leak, SSRF, rate limits, code review cleanups
+
 ### 2026-03-14 · 71cf302 · v0.29.0
 FIX     deploy — bulk MCP ping: inject OAuth Bearer for requiresOAuth servers (Notion stays green on load); add CF API + Vercel auth headers for workers-bindings/builds/vercel
 
