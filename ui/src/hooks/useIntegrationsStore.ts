@@ -204,7 +204,13 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
       if (result.success && result.data) {
         const statuses: Record<string, McpStatus> = {};
         for (const [name, info] of Object.entries(result.data)) {
-          statuses[name] = info.status === 'online' ? 'connected' : 'error';
+          if (info.status === 'online') {
+            statuses[name] = 'connected';
+          } else if (info.status === 'auth-required') {
+            statuses[name] = 'auth-required';
+          } else {
+            statuses[name] = 'error';
+          }
         }
         // Mark disabled servers
         const { mcpServers } = get();
@@ -224,17 +230,35 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
     try {
       const result = await mcpApi.pingOne(name);
       if (result.success && result.data) {
-        const newStatus: McpStatus = result.data.status === 'online' ? 'connected' : 'error';
+        const rawStatus = result.data.status;
+        const newStatus: McpStatus =
+          rawStatus === 'online'
+            ? 'connected'
+            : rawStatus === 'auth-required'
+              ? 'auth-required'
+              : 'error';
         set((state) => ({
           mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
+          mcpServers: state.mcpServers.map((s) =>
+            s.name === name
+              ? {
+                  ...s,
+                  tools: result.data!.tools ?? s.tools,
+                  toolCount: result.data!.toolCount ?? s.toolCount,
+                  toolSchemas: result.data!.toolSchemas ?? s.toolSchemas,
+                }
+              : s
+          ),
         }));
         const toolCount = result.data.toolCount ?? 0;
         const msg =
           newStatus === 'connected'
             ? `${name}: connected${toolCount > 0 ? ` — ${toolCount} tools` : ''}`
-            : `${name}: connection failed`;
-        toast(msg, newStatus === 'connected' ? 'success' : 'error');
-        await get().loadMcpServers();
+            : newStatus === 'auth-required'
+              ? `${name}: authentication required`
+              : `${name}: connection failed`;
+        const toastVariant = newStatus === 'connected' ? 'success' : newStatus === 'auth-required' ? 'warning' : 'error';
+        toast(msg, toastVariant);
       }
     } catch {
       set((state) => ({

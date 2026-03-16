@@ -767,13 +767,19 @@ pluginsRoutes.post('/discover', async (c) => {
     const commands: PluginItem[] = [];
     for (const p of commandPaths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
       const content = await fetchFileContent(p);
-      const filename = p.split('/').pop() || p;
+      const rawFilename = p.split('/').pop() || p;
       // Keep dashes for slash-command-friendly names (/code-map not /code map)
-      let name = filename.replace(/\.md$/, '');
+      let name = rawFilename.replace(/\.md$/, '');
       // SKILL.md is Claude's convention for skill entry points — use parent dir name
-      if (filename === 'SKILL.md') {
+      // to avoid all skills overwriting the same filename on injection
+      let filename = rawFilename;
+      if (rawFilename === 'SKILL.md') {
         const parts = p.split('/');
-        if (parts.length >= 2) name = parts[parts.length - 2];
+        if (parts.length >= 2) {
+          const skillDirName = parts[parts.length - 2];
+          name = skillDirName;
+          filename = `${skillDirName}.md`;
+        }
       }
       commands.push({
         name,
@@ -916,13 +922,19 @@ async function discoverPluginContent(
       const items: PluginItem[] = [];
       for (const p of paths.slice(0, MAX_ITEMS_PER_CATEGORY)) {
         const content = await fetchContent(p);
-        const filename = p.split('/').pop() || p;
+        const rawFilename = p.split('/').pop() || p;
         // Keep dashes for slash-command-friendly names (/code-map not /code map)
-        let name = filename.replace(/\.md$/, '');
+        let name = rawFilename.replace(/\.md$/, '');
         // SKILL.md is Claude's convention for skill entry points — use parent dir name
-        if (filename === 'SKILL.md') {
+        // to avoid all skills overwriting the same filename on injection
+        let filename = rawFilename;
+        if (rawFilename === 'SKILL.md') {
           const parts = p.split('/');
-          if (parts.length >= 2) name = parts[parts.length - 2];
+          if (parts.length >= 2) {
+            const skillDirName = parts[parts.length - 2];
+            name = skillDirName;
+            filename = `${skillDirName}.md`;
+          }
         }
         items.push({
           name,

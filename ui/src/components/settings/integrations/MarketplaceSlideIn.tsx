@@ -300,9 +300,10 @@ function SourceDetailView({ sourceId, onBack }: SourceDetailViewProps) {
           const tier: PluginTier = 'community';
           const tierCfg = TIER_CONFIG[tier];
 
+          const commandAndSkillCount = c.command_count + (c.skill_count ?? 0);
           const counts = [
             c.agent_count > 0 && `${c.agent_count}a`,
-            c.command_count > 0 && `${c.command_count}c`,
+            commandAndSkillCount > 0 && `${commandAndSkillCount}c`,
             c.rule_count > 0 && `${c.rule_count}r`,
           ].filter(Boolean).join(' ');
 

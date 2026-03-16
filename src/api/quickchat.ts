@@ -565,6 +565,18 @@ quickchatRoutes.post('/stream', async (c) => {
       }
     }
 
+    // Collect tool IDs that already have results so we only execute tool calls
+    // from the current turn and skip historical ones (prevents re-execution loop).
+    const executedToolIds = new Set(
+      modelMessages.flatMap((m) =>
+        Array.isArray(m.content)
+          ? (m.content as Array<Record<string, unknown>>)
+              .filter((b) => b.type === 'tool_result')
+              .map((b) => b.tool_use_id as string)
+          : []
+      )
+    );
+
     // Pass 2: find tool messages missing results, execute the tools, inject results
     for (const msg of modelMessages) {
       if (msg.role !== 'tool' || !Array.isArray(msg.content)) continue;
@@ -573,6 +585,7 @@ quickchatRoutes.post('/stream', async (c) => {
 
       for (const part of content) {
         if (part.type !== 'tool-approval-response' || part.approved !== true) continue;
+        if (executedToolIds.has(part.approvalId as string)) continue; // already resolved in history
         const callId = approvalIdToCallId.get(part.approvalId as string);
         const args = callId ? callIdToArgs.get(callId) : undefined;
         if (!callId || !args) continue;

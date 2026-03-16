@@ -38,6 +38,9 @@ const CALLBACK_JWT = process.env.VF_STREAM_JWT || '';
 const IS_WS_CALLBACK_MODE = !!(WS_CALLBACK_URL && CALLBACK_JWT);
 const IS_CALLBACK_MODE = IS_WS_CALLBACK_MODE || !!(CALLBACK_URL && CALLBACK_JWT);
 
+const WS_CONNECT_TIMEOUT_MS = 10000;
+const WS_QUEUE_MAX = 500;
+
 let callbackReq = null;
 let callbackWs = null;
 let wsOpen = false;
@@ -47,7 +50,16 @@ let wsMsgQueue = [];
 if (IS_WS_CALLBACK_MODE) {
   // Use the 'ws' npm package (installed globally in container) for Node version compatibility
   callbackWs = new WsClient(WS_CALLBACK_URL);
+  const wsConnectTimer = setTimeout(() => {
+    if (!wsOpen) {
+      wsError = true;
+      wsMsgQueue = [];
+      callbackWs.close();
+      console.error('[claude-agent] WS callback connect timeout — aborting');
+    }
+  }, WS_CONNECT_TIMEOUT_MS);
   callbackWs.on('open', () => {
+    clearTimeout(wsConnectTimer);
     wsOpen = true;
     for (const msg of wsMsgQueue) callbackWs.send(msg);
     wsMsgQueue = [];
@@ -133,7 +145,7 @@ function emit(obj) {
   if (IS_WS_CALLBACK_MODE) {
     if (wsOpen) {
       callbackWs.send(line);
-    } else if (!wsError) {
+    } else if (!wsError && wsMsgQueue.length < WS_QUEUE_MAX) {
       wsMsgQueue.push(line); // buffer until WS open fires
     }
     // if wsError: silently drop (connection failed, DO will time out)
@@ -554,6 +566,12 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
     includePartialMessages: true,
     permissionMode,
     allowDangerouslySkipPermissions,
+    // NOTE (Issue #89): canUseTool approval gating is only available in V1.5 callback
+    // mode (IS_CALLBACK_MODE=true). In V1.0 legacy WS mode (IS_CALLBACK_MODE=false),
+    // the container communicates over ws-agent-server.js which has no approval polling
+    // route. Users on V1.0 WS mode with standard/conservative autonomy will have tools
+    // execute without waiting for approval — upgrade to V1.5 for full approval support.
+    // The startup warning below is emitted when this limitation is active.
     ...((isPlan || (IS_CALLBACK_MODE && (autonomy === 'standard' || autonomy === 'conservative'))) ? {
       canUseTool: async (toolName, input) => {
         // Plan mode: block destructive tools
@@ -994,8 +1012,19 @@ const args = process.argv.slice(2);
 let prompt, sessionId, cwd;
 
 if (args.length >= 1) {
-  // V1.0 mode: CLI arguments
+  // V1.0 legacy WS mode: CLI arguments (passed by ws-agent-server.js)
   [prompt, sessionId, cwd] = args;
+  // Issue #89: warn when V1.0 mode is active with a non-autonomous autonomy setting.
+  // In V1.0 mode, canUseTool approval gating is not installed — tools execute without
+  // waiting for user approval. Users requiring approval should use V1.5 (WebSocket path).
+  const v10Autonomy = process.env.VF_AUTONOMY_MODE || 'autonomous';
+  if (v10Autonomy === 'standard' || v10Autonomy === 'conservative') {
+    console.error(
+      `[claude-agent] WARNING: V1.0 WS mode detected with autonomy=${v10Autonomy}. ` +
+      'Tool approval gating is NOT active — tools will execute without waiting for user approval. ' +
+      'Switch to V1.5 (WebSocket streaming) for full approval support.'
+    );
+  }
 } else if (IS_CALLBACK_MODE && fs.existsSync(CONTEXT_FILE)) {
   // V1.5 mode: read from context file written by ChatSessionAgent.dispatchContainer
   try {

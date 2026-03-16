@@ -7,6 +7,7 @@ import { proxyToSandbox } from '@cloudflare/sandbox';
 import { verifyExecutionToken } from './utils/jwt';
 import { AuthService, extractAuth } from './auth';
 import type { Session } from './types';
+import { nanoid } from 'nanoid';
 
 export { SessionDurableObject, ChatSessionAgent };
 
@@ -156,16 +157,50 @@ export default {
       );
     }
 
+    // V1.5: Issue a short-lived single-use WS ticket so the session JWT
+    // does not appear in WS upgrade URLs (which land in CF access logs).
+    // The ticket is a 16-char nanoid stored in AUTH_KV with a 60s TTL.
+    if (
+      request.method === 'POST' &&
+      url.pathname === '/api/v15/ws-ticket'
+    ) {
+      const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
+      const ticketUser = await extractAuth(request, authService);
+      if (!ticketUser) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+      const ticket = nanoid(16);
+      await env.AUTH_KV.put(`ws-ticket:${ticket}`, ticketUser.id, { expirationTtl: 60 });
+      return new Response(JSON.stringify({ ticket }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     // V1.5 WebSocket streaming — browser upgrades to WS for real-time chat
     if (
       request.headers.get('Upgrade') === 'websocket' &&
       url.pathname === '/api/v15/ws'
     ) {
       const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
-      const wsToken = url.searchParams.get('token');
-      if (!wsToken) return new Response('Missing token', { status: 401 });
 
-      const wsUser = await authService.getUserFromToken(wsToken);
+      // Prefer short-lived ticket over long-lived JWT in URL — tickets avoid
+      // the session token appearing in CF access logs and browser history.
+      const wsTicket = url.searchParams.get('ticket');
+      const wsToken = url.searchParams.get('token');
+
+      let wsUser = null;
+      if (wsTicket) {
+        // Burn the ticket immediately (single-use)
+        const ticketUserId = await env.AUTH_KV.get(`ws-ticket:${wsTicket}`);
+        if (ticketUserId) {
+          await env.AUTH_KV.delete(`ws-ticket:${wsTicket}`);
+          wsUser = await env.AUTH_KV.get<import('./types').User>(`user:${ticketUserId}`, 'json');
+        }
+      } else if (wsToken) {
+        wsUser = await authService.getUserFromToken(wsToken);
+      }
+
       if (!wsUser) return new Response('Unauthorized', { status: 401 });
 
       const wsSessionId = url.searchParams.get('sessionId');

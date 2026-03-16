@@ -91,6 +91,27 @@ function parseUIStreamFrame(data: string): VfStreamEvent | null {
  * Yields events in the same shape as sdkApi.streamV15 so the existing
  * sendMessage event loop in useSandbox.ts requires no changes.
  */
+/**
+ * Fetch a short-lived single-use WS ticket from the backend.
+ * Tickets prevent the session JWT from appearing in WS upgrade URLs,
+ * which would expose it in CF access logs and browser history.
+ * Falls back to the raw token if the ticket fetch fails.
+ */
+async function fetchWsTicket(token: string): Promise<{ ticket: string } | null> {
+  try {
+    const res = await fetch('/api/v15/ws-ticket', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { ticket?: string };
+    if (!data.ticket) return null;
+    return { ticket: data.ticket };
+  } catch {
+    return null;
+  }
+}
+
 export async function* streamVfChatWs(
   sessionId: string,
   prompt: string,
@@ -104,10 +125,17 @@ export async function* streamVfChatWs(
   if (!token) throw new Error('Not authenticated');
 
   const base = window.location.origin.replace(/^http/, 'ws');
-  const wsUrl =
-    `${base}/api/v15/ws` +
-    `?sessionId=${encodeURIComponent(sessionId)}` +
-    `&token=${encodeURIComponent(token)}`;
+
+  // Prefer short-lived ticket to avoid long-lived JWT in WS URL.
+  // Fall back to ?token= path if ticket fetch fails (e.g. network error).
+  const ticketResult = await fetchWsTicket(token);
+  const wsUrl = ticketResult
+    ? `${base}/api/v15/ws` +
+      `?sessionId=${encodeURIComponent(sessionId)}` +
+      `&ticket=${encodeURIComponent(ticketResult.ticket)}`
+    : `${base}/api/v15/ws` +
+      `?sessionId=${encodeURIComponent(sessionId)}` +
+      `&token=${encodeURIComponent(token)}`;
 
   const ws = new WebSocket(wsUrl);
 

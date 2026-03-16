@@ -529,10 +529,23 @@ mcpRoutes.post('/ping', async (c) => {
         if (server.requiresOAuth) {
           const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, server.name);
           if (storedTokens) {
-            const refreshed = await refreshTokenIfExpired(storedTokens);
-            const tokenToUse = refreshed ?? storedTokens;
-            if (refreshed && refreshed !== storedTokens) {
-              await writeOAuthTokens(c.env.SESSIONS_KV, user.id, server.name, refreshed);
+            // Acquire a short-TTL lock to prevent concurrent refresh races.
+            // If another request is already refreshing this token, skip the refresh
+            // and use the stored (possibly near-expiry) token as-is.
+            const lockKey = `mcp-refresh-lock:${user.id}:${server.name}`;
+            const hasLock = (await c.env.AUTH_KV.get(lockKey)) === null;
+            let tokenToUse = storedTokens;
+            if (hasLock) {
+              await c.env.AUTH_KV.put(lockKey, '1', { expirationTtl: 15 });
+              try {
+                const refreshed = await refreshTokenIfExpired(storedTokens);
+                tokenToUse = refreshed ?? storedTokens;
+                if (refreshed && refreshed !== storedTokens) {
+                  await writeOAuthTokens(c.env.SESSIONS_KV, user.id, server.name, refreshed);
+                }
+              } finally {
+                await c.env.AUTH_KV.delete(lockKey);
+              }
             }
             effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
           }
@@ -599,10 +612,23 @@ mcpRoutes.post('/:name/ping', async (c) => {
     if (server.requiresOAuth) {
       const storedTokens = await readOAuthTokens(c.env.SESSIONS_KV, user.id, name);
       if (storedTokens) {
-        const refreshed = await refreshTokenIfExpired(storedTokens);
-        const tokenToUse = refreshed ?? storedTokens;
-        if (refreshed && refreshed !== storedTokens) {
-          await writeOAuthTokens(c.env.SESSIONS_KV, user.id, name, refreshed);
+        // Acquire a short-TTL lock to prevent concurrent refresh races.
+        // If another request is already refreshing this token, skip the refresh
+        // and use the stored (possibly near-expiry) token as-is.
+        const lockKey = `mcp-refresh-lock:${user.id}:${name}`;
+        const hasLock = (await c.env.AUTH_KV.get(lockKey)) === null;
+        let tokenToUse = storedTokens;
+        if (hasLock) {
+          await c.env.AUTH_KV.put(lockKey, '1', { expirationTtl: 15 });
+          try {
+            const refreshed = await refreshTokenIfExpired(storedTokens);
+            tokenToUse = refreshed ?? storedTokens;
+            if (refreshed && refreshed !== storedTokens) {
+              await writeOAuthTokens(c.env.SESSIONS_KV, user.id, name, refreshed);
+            }
+          } finally {
+            await c.env.AUTH_KV.delete(lockKey);
+          }
         }
         effectiveHeaders = { ...effectiveHeaders, Authorization: `Bearer ${tokenToUse.accessToken}` };
       }

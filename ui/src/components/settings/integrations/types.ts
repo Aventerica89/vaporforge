@@ -42,6 +42,7 @@ export const STATUS_CONFIG = {
   connected: { dot: 'bg-green-500 shadow-[0_0_4px_theme(colors.green.500)]', label: 'Connected' },
   disabled: { dot: 'bg-muted-foreground', label: 'Disabled' },
   error: { dot: 'bg-red-500 shadow-[0_0_4px_theme(colors.red.500)]', label: 'Error' },
+  'auth-required': { dot: 'bg-yellow-400 shadow-[0_0_4px_theme(colors.yellow.400)]', label: 'Auth Required' },
 } as const;
 
 export type McpStatus = keyof typeof STATUS_CONFIG;

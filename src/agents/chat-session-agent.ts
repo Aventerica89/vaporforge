@@ -79,12 +79,22 @@ export class ChatSessionAgent {
   private httpBridges = new Map<string, HttpBridge>();
   private wsBridges = new Map<string, WebSocket>();
   private bufferSeq = 0;
+  /** Generation counter — incremented at the start of each new execution.
+   * Stored in DO SQLite so it survives eviction. Buffer keys use the format
+   * `buf:{gen}:{seq}` to prevent stale keys from a prior generation mixing
+   * with new keys when the DO is evicted mid-clearBuffer (Issue #102). */
+  private bufferGen = 0;
   private pendingApprovals = new Map<string, (approved: boolean) => void>();
   private approvalPollCounts = new Map<string, { lastMinute: number; count: number }>();
 
   constructor(state: DurableObjectState, env: Env) {
     this.state = state;
     this.env = env;
+    // Load bufferGen from storage on construction so it survives DO eviction.
+    // blockConcurrencyWhile ensures this completes before any fetch() is served.
+    this.state.blockConcurrencyWhile(async () => {
+      this.bufferGen = (await this.state.storage.get<number>('bufferGen')) ?? 0;
+    });
   }
 
   /**
@@ -139,30 +149,43 @@ export class ChatSessionAgent {
    * Fire-and-forget — CF guarantees durability before DO eviction.
    */
   private storeLine(line: string): void {
-    const key = 'buf:' + String(this.bufferSeq++).padStart(10, '0');
+    const key = `buf:${this.bufferGen}:` + String(this.bufferSeq++).padStart(10, '0');
     this.state.storage.put(key, line);
     // Prune the oldest line once the buffer exceeds the cap (rolling window).
     // Prevents storage.list() from hitting CF's ~128KB result size limit on long sessions.
     if (this.bufferSeq > MAX_BUFFER_LINES) {
-      const oldest = 'buf:' + String(this.bufferSeq - MAX_BUFFER_LINES - 1).padStart(10, '0');
+      const oldest = `buf:${this.bufferGen}:` + String(this.bufferSeq - MAX_BUFFER_LINES - 1).padStart(10, '0');
       this.state.storage.delete(oldest).catch(() => {});
     }
   }
 
   /**
-   * Clear the stream buffer from a previous execution.
-   * Called at the start of each new chat request. Awaited so new storeLine()
-   * calls cannot interleave with the delete of the previous buffer's entries.
+   * Clear the stream buffer from the previous generation and advance the generation counter.
+   * Called at the start of each new chat request. Awaited so new storeLine() calls cannot
+   * interleave with the delete of the previous generation's entries.
+   *
+   * Generation-based keys (`buf:{gen}:{seq}`) prevent stale high-numbered keys from a prior
+   * generation mixing with new keys when the DO is evicted mid-clearBuffer (Issue #102).
+   * After incrementing bufferGen, the previous generation's prefix is a distinct namespace
+   * that can be deleted independently of any new writes using the new generation prefix.
    */
   private async clearBuffer(): Promise<void> {
     this.bufferSeq = 0;
+    const prevGen = this.bufferGen;
+    // Increment generation and persist before deleting old keys.
+    // If the DO is evicted after this put but before the deletes, the next
+    // run will load the new generation and write fresh buf:{newGen}:* keys,
+    // while old buf:{prevGen}:* keys are simply ignored (different prefix).
+    this.bufferGen = prevGen + 1;
+    await this.state.storage.put('bufferGen', this.bufferGen);
+
     // Retry up to 3 times — if the DO was just woken from eviction, the first
     // storage.list() may fail transiently. Without retries this throws and returns
     // a 500 to the browser with no recovery path.
     let entries: Map<string, unknown> | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        entries = await this.state.storage.list({ prefix: 'buf:' });
+        entries = await this.state.storage.list({ prefix: `buf:${prevGen}:` });
         break;
       } catch (err) {
         if (attempt === 2) throw err;
@@ -191,10 +214,12 @@ export class ChatSessionAgent {
       return this.handleInit(request);
     }
 
-    // Trust model: DOs are not exposed to the internet. Only the Worker (src/index.ts)
-    // can call DO stub methods. The Worker authenticates the user session JWT before
-    // routing to this DO, so sentinel routes are implicitly protected by the Worker's
-    // auth middleware. No additional header check is needed here.
+    // Trust model: /sentinel/start and /sentinel/stop are internal Worker→DO routes.
+    // They are called exclusively from src/api/sessions.ts via DO stub.fetch() after
+    // the Worker has already authenticated the user session JWT. These endpoints are
+    // not reachable from the browser — the Worker proxies all /api/* routes and does
+    // not expose DO-internal paths (/sentinel/*) to external callers. No credential
+    // check is added here by design; the DO trust boundary is the Worker itself.
     if (request.method === 'POST' && url.pathname === '/sentinel/start') {
       const body = (await request.json()) as { sandboxId: string };
       if (!body.sandboxId) {
@@ -204,6 +229,8 @@ export class ChatSessionAgent {
       return new Response('OK', { status: 200 });
     }
 
+    // Trust model: same as /sentinel/start — internal Worker→DO route only.
+    // See comment above for full trust model explanation.
     if (request.method === 'POST' && url.pathname === '/sentinel/stop') {
       await this.stopSentinel();
       return new Response('OK', { status: 200 });
@@ -693,11 +720,13 @@ export class ChatSessionAgent {
 
     // Paginate to avoid CF's ~128KB storage.list() result size cap.
     // Each page fetches 200 entries; we loop until a page returns fewer than 200.
+    // Use generation-prefixed keys so only the current execution's lines are returned
+    // (Issue #102: stale prior-generation keys have a different prefix and are ignored).
     const allLines: string[] = [];
     let lastKey: string | undefined;
     while (true) {
       const page = await this.state.storage.list<string>({
-        prefix: 'buf:',
+        prefix: `buf:${this.bufferGen}:`,
         limit: 200,
         ...(lastKey ? { startAfter: lastKey } : {}),
       });
@@ -1209,13 +1238,16 @@ export class ChatSessionAgent {
         : `The user is running the /${name} command. Follow the instructions below:\n\n${body}`;
     }
 
-    // Write prompt to context file (auto-wakes sandbox if sleeping)
+    // Write prompt to context file (auto-wakes sandbox if sleeping).
+    // Use effectiveSessionId (not sdkSessionId) — effectiveSessionId is cleared
+    // to '' when didFullInject is true (container slept/woke), preventing
+    // claude-agent.js from trying to resume a dead SDK session.
     await sandbox.writeFile(
       '/tmp/vf-pending-query.json',
       JSON.stringify({
         prompt: sdkPrompt,
         sessionId,
-        sdkSessionId,
+        sdkSessionId: effectiveSessionId,
         timestamp: Date.now(),
       })
     );

@@ -999,6 +999,8 @@ export const mcpApi = {
       httpStatus?: number;
       tools?: string[];
       toolCount?: number;
+      toolSchemas?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>;
+      pingMs?: number;
     }>(`/mcp/${encodeURIComponent(name)}/ping`, {
       method: 'POST',
     }),

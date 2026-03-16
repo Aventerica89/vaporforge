@@ -5,6 +5,7 @@ import { Toggle, RemoveButton, PillGroup, Chevron } from './shared';
 import type { McpServerConfig } from '@/lib/types';
 import { mcpApi } from '@/lib/api';
 import { toast } from '@/hooks/useToast';
+import { useSandboxStore } from '@/hooks/useSandbox';
 
 interface McpDetailProps {
   server: McpServerConfig;
@@ -190,6 +191,7 @@ export function McpDetail({ server }: McpDetailProps) {
     removeMcp,
     loadMcpServers,
   } = useIntegrationsStore();
+  const currentSession = useSandboxStore((s) => s.currentSession);
 
   const [expandedTool, setExpandedTool] = useState<string | null>(null);
   const [isPinging, setIsPinging] = useState(false);
@@ -244,12 +246,22 @@ export function McpDetail({ server }: McpDetailProps) {
               ? { boxShadow: '0 0 4px #3fb950' }
               : status === 'error'
                 ? { boxShadow: '0 0 4px #f85149' }
-                : undefined
+                : status === 'auth-required'
+                  ? { boxShadow: '0 0 4px #e3b341' }
+                  : undefined
           }
         />
         <span className={`font-['Space_Mono'] text-[11px] font-semibold ${
-          status === 'connected' ? 'text-[#3fb950]' : status === 'error' ? 'text-[#f85149]' : 'text-[#768390]'
-        }`}>
+          status === 'connected'
+            ? 'text-[#3fb950]'
+            : status === 'error'
+              ? 'text-[#f85149]'
+              : status === 'auth-required'
+                ? 'text-[#e3b341]'
+                : 'text-[#768390]'
+        }`}
+          title={status === 'auth-required' ? 'Authentication required — configure credentials for this server' : undefined}
+        >
           {statusCfg.label}
         </span>
         {status === 'connected' && (
@@ -398,7 +410,7 @@ export function McpDetail({ server }: McpDetailProps) {
               <path d="M9.5 17.5h5" />
             </svg>
             <span className="flex-1 font-['Space_Mono'] text-[10px] text-[#cdd9e5]">
-              ~/repos/vaporforge
+              {currentSession?.gitRepo ?? '~/your-project'}
             </span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#768390" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="m6 9 6 6 6-6" />
