@@ -341,8 +341,8 @@ export function McpDetail({ server }: McpDetailProps) {
         </span>
       </div>
 
-      {/* OAuth Section (HTTP servers with OAuth requirement or auth-required status) */}
-      {server.transport === 'http' && (server.requiresOAuth || status === 'auth-required') && (
+      {/* OAuth Section (HTTP servers with OAuth requirement, auth-required status, or stored tokens) */}
+      {server.transport === 'http' && (server.requiresOAuth || status === 'auth-required' || server.oauthStatus === 'authorized' || server.oauthStatus === 'expired') && (
         <McpOAuthSection server={server} onRefresh={loadMcpServers} />
       )}
 

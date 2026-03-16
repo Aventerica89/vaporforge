@@ -228,6 +228,40 @@ export async function detectOAuthRequirement(
       if (realmMatch) {
         try { validateExternalUrl(realmMatch[1], 'realm'); return realmMatch[1]; } catch { /* invalid */ }
       }
+      // Strategy 3: bare 401 Bearer with no parseable URL — probe well-known endpoints on origin
+      // Handles Anthropic-hosted MCPs (gmail.mcp.claude.com, etc.) where the server IS the auth server
+      if (wwwAuth.toLowerCase().startsWith('bearer')) {
+        const origin = new URL(serverUrl).origin;
+        // Strategy 3a: RFC 9728 resource metadata on origin (may list authorization_servers)
+        try {
+          const oprRes = await fetch(`${origin}/.well-known/oauth-protected-resource`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (oprRes.ok) {
+            const data = (await oprRes.json()) as { authorization_servers?: string[] };
+            const raw = data.authorization_servers?.[0];
+            if (raw) {
+              try { validateExternalUrl(raw, 'authorization_server'); return raw; } catch { /* invalid */ }
+            }
+          }
+        } catch { /* continue */ }
+        // Strategy 3b: RFC 8414 authorization server metadata on origin
+        try {
+          const asRes = await fetch(`${origin}/.well-known/oauth-authorization-server`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(5000),
+          });
+          if (asRes.ok) {
+            const data = (await asRes.json()) as { authorization_endpoint?: string; token_endpoint?: string };
+            if (data.authorization_endpoint && data.token_endpoint) {
+              try { validateExternalUrl(data.authorization_endpoint, 'authorization_endpoint'); return origin; } catch { /* invalid */ }
+            }
+          }
+        } catch { /* continue */ }
+        // Last resort: return origin; fetchAuthServerMetadata will validate on next step
+        return origin;
+      }
     }
   } catch { /* not OAuth */ }
 
@@ -523,7 +557,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
         JSON.stringify(
           servers.map((s) =>
             s.name === pkceState.serverName
-              ? { ...s, oauthStatus: 'authorized' }
+              ? { ...s, oauthStatus: 'authorized', requiresOAuth: true }
               : s,
           ),
         ),
