@@ -1,6 +1,12 @@
 [
   {
     "v": "0.29.0",
+    "ts": "2026-03-16T09:40:00.000Z",
+    "msg": "fix MCP ping: add Accept header required by Streamable HTTP spec",
+    "hash": "9e244be"
+  },
+  {
+    "v": "0.29.0",
     "ts": "2026-03-16T08:11:00.000Z",
     "msg": "fix MCP ping: POST JSON-RPC instead of GET, fixes Streamable HTTP servers",
     "hash": "6fcadbd"

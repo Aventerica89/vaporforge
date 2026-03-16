@@ -569,6 +569,8 @@ mcpRoutes.post('/ping', async (c) => {
                 if (refreshed && refreshed !== storedTokens) {
                   await writeOAuthTokens(c.env.SESSIONS_KV, user.id, server.name, refreshed);
                 }
+              } catch {
+                // Refresh failed — use stored token as-is (may still be valid)
               } finally {
                 await c.env.AUTH_KV.delete(lockKey);
               }
@@ -579,8 +581,9 @@ mcpRoutes.post('/ping', async (c) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), 5000);
         const res = await fetch(server.url!, {
-          method: 'GET',
-          headers: effectiveHeaders,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', ...effectiveHeaders },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -651,6 +654,8 @@ mcpRoutes.post('/:name/ping', async (c) => {
             if (refreshed && refreshed !== storedTokens) {
               await writeOAuthTokens(c.env.SESSIONS_KV, user.id, name, refreshed);
             }
+          } catch {
+            // Refresh failed — use stored token as-is (may still be valid)
           } finally {
             await c.env.AUTH_KV.delete(lockKey);
           }
@@ -660,34 +665,45 @@ mcpRoutes.post('/:name/ping', async (c) => {
     }
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const start = Date.now();
     const res = await fetch(server.url, {
-      method: 'GET',
-      headers: effectiveHeaders,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json, text/event-stream', ...effectiveHeaders },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
       signal: controller.signal,
     });
+    const pingMs = Date.now() - start;
     clearTimeout(timer);
 
     const status = res.status === 401 || res.status === 403 ? 'auth-required' : 'online';
 
-    // Discover tools if server is reachable
+    // Parse tools from the POST response inline (avoids a second network request)
     let tools: string[] | undefined;
     let toolCount: number | undefined;
     let toolSchemas: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> | undefined;
-    let pingMs: number | undefined;
-    if (status === 'online') {
-      const discovered = await discoverTools(server.url, effectiveHeaders);
-      if (discovered) {
-        tools = discovered.tools;
-        toolCount = discovered.toolCount;
-        toolSchemas = discovered.toolSchemas;
-        pingMs = discovered.pingMs;
-        const now = new Date().toISOString();
-        // Cache tools + ping data in KV
-        const updated = servers.map((s) =>
-          s.name === name ? { ...s, tools, toolCount, toolSchemas, lastPingAt: now, lastPingMs: pingMs } : s
-        );
-        await writeServers(c.env.SESSIONS_KV, user.id, updated);
+    if (status === 'online' && res.ok) {
+      try {
+        const data = await res.json() as {
+          result?: { tools?: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }> };
+        };
+        const toolList = data?.result?.tools;
+        if (Array.isArray(toolList)) {
+          tools = toolList.map((t) => t.name).filter(Boolean);
+          toolCount = tools.length;
+          toolSchemas = toolList.map((t) => ({
+            name: t.name,
+            ...(t.description ? { description: t.description } : {}),
+            ...(t.inputSchema ? { inputSchema: t.inputSchema } : {}),
+          }));
+          const now = new Date().toISOString();
+          const updated = servers.map((s) =>
+            s.name === name ? { ...s, tools, toolCount, toolSchemas, lastPingAt: now, lastPingMs: pingMs } : s
+          );
+          await writeServers(c.env.SESSIONS_KV, user.id, updated);
+        }
+      } catch {
+        // Body parse failed — server is reachable but didn't return valid JSON-RPC
       }
     }
 
