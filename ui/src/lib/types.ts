@@ -94,6 +94,8 @@ export interface MessagePart {
     toolName: string;
     input: unknown;
     approvalId: string;
+    /** Set post-stream so static renders show resolved state */
+    responded?: 'approved' | 'denied';
   };
 
   /** Persona part data */

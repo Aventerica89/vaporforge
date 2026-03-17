@@ -749,7 +749,10 @@ export class ChatSessionAgent {
       });
     }
 
-    return new Response(fromOffset.join('\n') + '\n', {
+    // Append replay-complete sentinel so frontend knows where replay ends
+    // and live streaming begins (skip animations for replayed content)
+    const sentinel = JSON.stringify({ type: 'replay-complete' });
+    return new Response(fromOffset.join('\n') + '\n' + sentinel + '\n', {
       headers: { 'Content-Type': 'application/x-ndjson' },
     });
   }

@@ -1111,6 +1111,20 @@ const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
       }
       parts.push(...artifactParts);
 
+      // Mark confirmation parts as responded — prevents Approve/Deny buttons
+      // from reappearing when the message re-renders as static content.
+      // Determine approved vs denied: if a tool-result exists for the same tool,
+      // the confirmation was approved. Otherwise it was denied.
+      const completedToolNames = new Set(
+        parts.filter((p) => p.type === 'tool-result').map((p) => p.name)
+      );
+      for (const p of parts) {
+        if (p.type === 'confirmation' && p.confirmation && !p.confirmation.responded) {
+          const wasApproved = completedToolNames.has(p.confirmation.toolName);
+          p.confirmation = { ...p.confirmation, responded: wasApproved ? 'approved' : 'denied' };
+        }
+      }
+
       // Handle empty response (stream ended but no content)
       if (!content && parts.length === 0) {
         parts.push({

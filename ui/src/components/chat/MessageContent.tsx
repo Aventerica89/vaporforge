@@ -120,6 +120,7 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
       approvalId={conf.approvalId}
       onApprove={handleApprove}
       onDeny={handleDeny}
+      initialResponded={conf.responded}
     />
   );
 }

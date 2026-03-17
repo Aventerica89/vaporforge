@@ -599,6 +599,7 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
       },
     } : {}),
     continue: true,
+    compaction: { type: 'auto' },
     systemPrompt: {
       type: 'preset',
       preset: 'claude_code',

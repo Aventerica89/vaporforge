@@ -68,6 +68,8 @@ export type ConfirmationProps = {
   approvalId: string;
   onApprove: (id: string) => void;
   onDeny: (id: string) => void;
+  /** Pre-set response state (e.g. from persisted message parts) */
+  initialResponded?: 'approved' | 'denied' | null;
   children?: React.ReactNode;
   className?: string;
 } & Omit<React.ComponentProps<'div'>, 'children'>;
@@ -78,11 +80,12 @@ export function Confirmation({
   approvalId,
   onApprove,
   onDeny,
+  initialResponded,
   children,
   className,
   ...props
 }: ConfirmationProps) {
-  const [responded, setResponded] = useState<'approved' | 'denied' | null>(null);
+  const [responded, setResponded] = useState<'approved' | 'denied' | null>(initialResponded ?? null);
 
   const isDestructive = isDestructiveOp(toolName, input);
   const summary = getOperationSummary(toolName, input);
