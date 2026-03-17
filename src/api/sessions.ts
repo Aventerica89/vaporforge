@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { User, Session, ApiResponse } from '../types';
-import { collectProjectSecrets, collectUserSecrets } from '../sandbox';
+import { collectProjectSecrets, collectUserSecrets, collectGithubToken } from '../sandbox';
 import { isValidNpmPackageName } from '../utils/validate-npm-package';
 import { collectMcpConfig, hasRelayServers, collectCredentialFiles } from './mcp';
 import { collectPluginConfigs } from './plugins';
@@ -118,6 +118,7 @@ sessionRoutes.post('/create', async (c) => {
     const sandboxEnv: Record<string, string> = {
       CLAUDE_CODE_OAUTH_TOKEN: claudeToken,
       ...collectProjectSecrets(c.env),
+      ...await collectGithubToken(c.env.AUTH_KV, user.id, c.env),
       ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
     };
 
@@ -571,6 +572,7 @@ sessionRoutes.post('/:sessionId/exec', async (c) => {
     NODE_PATH: '/usr/local/lib/node_modules',
     CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
+    ...await collectGithubToken(c.env.AUTH_KV, user.id, c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;
@@ -634,6 +636,7 @@ sessionRoutes.post('/:sessionId/exec-stream', async (c) => {
     NODE_PATH: '/usr/local/lib/node_modules',
     CLAUDE_CONFIG_DIR: '/root/.claude',
     ...collectProjectSecrets(c.env),
+    ...await collectGithubToken(c.env.AUTH_KV, user.id, c.env),
     ...await collectUserSecrets(c.env.SESSIONS_KV, user.id),
   };
   const claudeToken = user.claudeToken;

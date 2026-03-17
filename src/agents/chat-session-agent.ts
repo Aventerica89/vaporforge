@@ -32,6 +32,7 @@ import { isValidNpmPackageName } from '../utils/validate-npm-package';
 import {
   collectProjectSecrets,
   collectUserSecrets,
+  collectGithubToken,
 } from '../sandbox';
 import { assembleSandboxConfig } from '../config-assembly';
 import type { SandboxConfig } from '../sandbox';
@@ -1173,10 +1174,11 @@ export class ChatSessionAgent {
 
     // Collect env vars + config in parallel (all KV reads)
     const projectSecrets = collectProjectSecrets(this.env);
-    const [sandboxConfig, userSecrets, userRecord] = await Promise.all([
+    const [sandboxConfig, userSecrets, userRecord, githubTokenEnv] = await Promise.all([
       assembleSandboxConfig(this.env.SESSIONS_KV, userId),
       collectUserSecrets(this.env.SESSIONS_KV, userId),
       this.env.AUTH_KV.get<{ claudeToken?: string }>(`user:${userId}`, 'json'),
+      collectGithubToken(this.env.AUTH_KV, userId, this.env),
     ]);
     const oauthToken = userRecord?.claudeToken || '';
     if (!oauthToken) {
@@ -1312,6 +1314,7 @@ export class ChatSessionAgent {
           ...(autonomy ? { VF_AUTONOMY_MODE: autonomy } : {}),
           CLAUDE_CONFIG_DIR: '/root/.claude',
           ...projectSecrets,
+          ...githubTokenEnv,
           ...userSecrets,
           ...(mcpConfigStr ? { CLAUDE_MCP_SERVERS: mcpConfigStr } : {}),
           VF_AUTO_CONTEXT: sandboxConfig.autoContext === false ? '0' : '1',

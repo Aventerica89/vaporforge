@@ -13,6 +13,7 @@ import { secretsRoutes } from './api/secrets';
 import { mcpRoutes } from './api/mcp';
 import { mcpRelayRoutes } from './api/mcp-relay';
 import { mcpOAuthPublicRoutes } from './api/mcp-oauth';
+import { githubCallback, githubAuthRedirectPublic } from './api/github';
 import { pluginsRoutes } from './api/plugins';
 import { pluginSourcesRoutes } from './api/plugin-sources';
 import { configRoutes } from './api/config';
@@ -280,6 +281,10 @@ export function createRouter(env: Env) {
 
   // MCP OAuth callback — public (auth server redirects here, no JWT)
   app.route('/api/mcp-oauth', mcpOAuthPublicRoutes);
+
+  // GitHub OAuth — public routes (browser redirects can't carry Authorization headers)
+  app.get('/api/github/auth', (c) => githubAuthRedirectPublic(c));
+  app.get('/api/github/callback', (c) => githubCallback(c));
 
   // Stripe webhook — must be public (Stripe calls this directly, no JWT)
   app.post('/api/billing/webhook', (c) =>

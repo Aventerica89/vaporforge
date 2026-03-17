@@ -1,6 +1,6 @@
 import type { Plugin } from '@/lib/types';
 
-export type ViewTab = 'plugins' | 'mcps';
+export type ViewTab = 'plugins' | 'mcps' | 'github';
 
 export type PluginTier = 'official' | 'community' | 'custom';
 

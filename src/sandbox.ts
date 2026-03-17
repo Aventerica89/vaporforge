@@ -41,6 +41,28 @@ export function collectProjectSecrets(env: Env): Record<string, string> {
   return secrets;
 }
 
+/**
+ * Get the per-user GitHub OAuth token (if connected).
+ * Falls back to the global GITHUB_TOKEN from Worker env.
+ * Returns { GITHUB_TOKEN: string } or empty object.
+ */
+export async function collectGithubToken(
+  authKv: KVNamespace,
+  userId: string,
+  env: Env
+): Promise<Record<string, string>> {
+  // Per-user OAuth token takes priority
+  const userToken = await authKv.get(`github-token:${userId}`);
+  if (userToken) {
+    return { GITHUB_TOKEN: userToken };
+  }
+  // Fallback to global PAT from Worker secrets
+  if (env.GITHUB_TOKEN) {
+    return { GITHUB_TOKEN: env.GITHUB_TOKEN };
+  }
+  return {};
+}
+
 /** Names that must never be overridden by user secrets (defense-in-depth). */
 const RESERVED_ENV_NAMES = new Set([
   'CLAUDE_CODE_OAUTH_TOKEN',

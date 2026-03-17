@@ -1167,18 +1167,41 @@ export const favoritesApi = {
 
 // GitHub API
 export const githubApi = {
-  repos: (username: string) =>
-    request<{ repos: any[]; cached: boolean }>(`/github/repos?username=${encodeURIComponent(username)}`),
+  /** Redirect to GitHub OAuth — includes JWT for auth (browser redirect can't carry headers) */
+  getAuthUrl: () => {
+    const token = localStorage.getItem('session_token');
+    return `${API_BASE}/github/auth${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+  },
 
-  sync: (username: string) =>
+  /** Check GitHub connection status */
+  getConnection: () =>
+    request<{
+      connected: boolean;
+      username?: string;
+      avatarUrl?: string;
+      connectedAt?: string;
+      legacyUsername?: string | null;
+    }>('/github/connection'),
+
+  /** Disconnect GitHub */
+  disconnect: () =>
+    request<{ success: boolean }>('/github/connection', { method: 'DELETE' }),
+
+  /** List repos (requires connected GitHub) */
+  repos: () =>
+    request<{ repos: any[]; cached: boolean }>('/github/repos'),
+
+  /** Force refresh repos */
+  sync: () =>
     request<{ repos: any[]; cached: boolean }>('/github/repos/sync', {
       method: 'POST',
-      body: JSON.stringify({ username }),
     }),
 
+  /** Legacy: get saved username */
   getUsername: () =>
     request<{ username: string }>('/github/username'),
 
+  /** Legacy: save username */
   saveUsername: (username: string) =>
     request<{ success: boolean }>('/github/username', {
       method: 'PUT',

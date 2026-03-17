@@ -2,10 +2,16 @@ import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 import { PluginDetail } from './PluginDetail';
 import { McpDetail } from './McpDetail';
 import { GroupDetail } from './GroupDetail';
+import { GitHubDetail } from './GitHubDetail';
 
 export function IntegrationsDetail() {
-  const { selectedPluginId, selectedMcpName, selectedGroupKey, selectedGroupName, selectedGroupPlugins, plugins, mcpServers } =
+  const { activeTab, selectedPluginId, selectedMcpName, selectedGroupKey, selectedGroupName, selectedGroupPlugins, plugins, mcpServers } =
     useIntegrationsStore();
+
+  // GitHub detail
+  if (activeTab === 'github') {
+    return <GitHubDetail />;
+  }
 
   // Group detail
   if (selectedGroupKey && selectedGroupName && selectedGroupPlugins) {

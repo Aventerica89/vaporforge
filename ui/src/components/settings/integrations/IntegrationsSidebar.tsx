@@ -72,10 +72,28 @@ export function IntegrationsSidebar() {
             {enabledMcps}/{mcpServers.length}
           </span>
         </button>
+        <button
+          className={`flex flex-1 items-center justify-center gap-[6px] rounded-full border px-0 py-[5px] font-['Space_Mono'] text-[11px] font-bold transition-all ${
+            activeTab === 'github'
+              ? 'border-[#f0883e47] bg-[#f0883e1a] text-[#f0883e]'
+              : 'border-[#30363d] bg-[#0d1117] text-[#8b949e] hover:text-foreground'
+          }`}
+          onClick={() => setActiveTab('github')}
+        >
+          GitHub
+        </button>
       </div>
 
       {/* Conditional list */}
-      {activeTab === 'plugins' ? <PluginSidebarList /> : <McpSidebarList />}
+      {activeTab === 'plugins' && <PluginSidebarList />}
+      {activeTab === 'mcps' && <McpSidebarList />}
+      {activeTab === 'github' && (
+        <div className="flex flex-1 items-center justify-center p-4">
+          <span className="font-['Space_Mono'] text-[10px] text-[#484f58]">
+            GitHub settings shown in detail panel
+          </span>
+        </div>
+      )}
 
       {/* Drag handle */}
       <div

@@ -32,6 +32,10 @@ declare global {
     // 1Password service account — gives sandbox access to App Dev vault
     OP_SERVICE_ACCOUNT_TOKEN?: string;
 
+    // GitHub OAuth App (for GitHub integration)
+    GITHUB_CLIENT_ID?: string;
+    GITHUB_CLIENT_SECRET?: string;
+
     // Legacy project secrets (kept as fallback, prefer 1Password SDK)
     TURSO_DATABASE_URL?: string;
     TURSO_AUTH_TOKEN?: string;

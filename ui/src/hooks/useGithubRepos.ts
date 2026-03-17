@@ -36,12 +36,12 @@ export const useGithubRepos = create<GithubReposState>()(
       isLoaded: false,
 
       loadRepos: async () => {
-        const { username, isSyncing, repos } = get();
-        if (!username.trim() || isSyncing) return;
+        const { isSyncing, repos } = get();
+        if (isSyncing) return;
 
         try {
           set({ isSyncing: true });
-          const response = await githubApi.repos(username);
+          const response = await githubApi.repos();
 
           if (response.success && response.data) {
             set({
@@ -65,12 +65,12 @@ export const useGithubRepos = create<GithubReposState>()(
       },
 
       syncRepos: async () => {
-        const { username, isSyncing } = get();
-        if (!username.trim() || isSyncing) return;
+        const { isSyncing } = get();
+        if (isSyncing) return;
 
         try {
           set({ isSyncing: true });
-          const response = await githubApi.sync(username);
+          const response = await githubApi.sync();
 
           if (response.success && response.data) {
             set({
