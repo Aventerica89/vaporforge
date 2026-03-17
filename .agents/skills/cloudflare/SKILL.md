@@ -1,6 +1,6 @@
 ---
 name: cloudflare-docs
-description: Official Cloudflare documentation. Reference when working with Cloudflare.
+description: This skill should be used when working with Cloudflare Workers, Containers, Durable Objects, KV, R2, wrangler configuration, or the Cloudflare developer platform in VaporForge.
 user-invocable: false
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: docker-docs-docs
-description: Official Docker Docs documentation. Reference when working with Docker Docs.
+description: This skill should be used when working on VaporForge's Dockerfile, container image builds, COPY instructions, sandbox-scripts packaging, Docker cache invalidation, or the cloudflare/sandbox base image.
 user-invocable: false
 ---
 

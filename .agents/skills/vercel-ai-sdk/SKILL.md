@@ -1,6 +1,6 @@
 ---
 name: vercel-ai-sdk-docs
-description: Official Vercel's AI SDK documentation. Reference when working with Vercel's AI SDK.
+description: This skill should be used when working on AI SDK streaming, text-delta events, useChat, EventSourceParserStream, QuickChat, SSE padding, or any @ai-sdk/* imports in VaporForge.
 user-invocable: false
 ---
 

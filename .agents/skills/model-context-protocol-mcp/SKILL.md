@@ -1,6 +1,6 @@
 ---
 name: model-context-protocol-mcp-docs
-description: Official Model Context Protocol (MCP) documentation. Reference when working with Model Context Protocol (MCP).
+description: This skill should be used when working on MCP server config, relay transport, tool discovery, tools/list, JSON-RPC methods, OAuth flows for MCP servers, or MCP KV token storage in VaporForge.
 user-invocable: false
 ---
 

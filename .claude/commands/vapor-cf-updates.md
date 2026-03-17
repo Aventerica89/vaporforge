@@ -327,6 +327,7 @@ Read the dashboard at `CF Updates Dashboard.md` if it exists. Rebuild the full t
 **For each item in every scan note, extract:**
 - Feature name (from H3 heading, strip the date suffix)
 - CF date (from the heading parenthetical)
+- Scanned date — the date of the scan note file being processed (from its `**Scanned:**` frontmatter line)
 - Impact (from `**Impact:**` field)
 - Type (from `**Type:**` field — `Stability`, `Feature`, `DX`, or `Infra`)
 - Status — default to `👀 Watching` for new items. Preserve existing status if dashboard already has an entry for this feature.
@@ -381,8 +382,8 @@ Write the full dashboard:
 
 ## Tracking Table
 
-| Feature | CF Date | Impact | Type | Status | Reason | VF Version | Scan Note |
-|---------|---------|--------|------|--------|--------|------------|-----------|
+| Feature | CF Date | Scanned | Impact | Type | Status | Reason | VF Version | Scan Note |
+|---------|---------|---------|--------|------|--------|--------|------------|-----------|
 {rows...}
 
 ## Changelog

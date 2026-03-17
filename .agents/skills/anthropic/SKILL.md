@@ -1,3 +1,9 @@
+---
+name: anthropic
+description: This skill should be used when working with OAuth token handling, Claude SDK integration, @anthropic-ai/sdk, API calls from a Cloudflare Worker, createClient() auth detection, or the Anthropic Messages API in VaporForge.
+user-invocable: false
+---
+
 # Claude API Reference
 
 > Anthropic — AI research company developing safe and reliable AI systems.
