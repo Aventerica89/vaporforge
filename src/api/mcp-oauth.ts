@@ -482,7 +482,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   const state = c.req.query('state');
   const error = c.req.query('error');
   const appBase = new URL(c.req.url).origin;
-  const settingsUrl = `${appBase}/app/#settings/integrations`;
+  const settingsUrl = `${appBase}/app/#settings/integrations/mcps`;
 
   if (error || !code || !state) {
     const safeError = error && OAUTH_ERROR_ALLOWLIST.has(error) ? error : 'oauth_error';
@@ -537,12 +537,17 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   // Delete PKCE state only after successful token exchange so the user can retry on failure
   await c.env.SESSIONS_KV.delete(oauthStateKey(state));
 
-  await writeOAuthTokens(
-    c.env.SESSIONS_KV,
-    pkceState.userId,
-    pkceState.serverName,
-    tokens,
-  );
+  try {
+    await writeOAuthTokens(
+      c.env.SESSIONS_KV,
+      pkceState.userId,
+      pkceState.serverName,
+      tokens,
+    );
+  } catch (err) {
+    console.error('[mcp-oauth] callback: writeOAuthTokens failed:', String(err));
+    return c.redirect(`${settingsUrl}?oauth_error=token_storage_failed`);
+  }
 
   // Update server oauthStatus to 'authorized'
   const raw = await c.env.SESSIONS_KV.get(`user-mcp:${pkceState.userId}`);
@@ -562,11 +567,13 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
           ),
         ),
       );
-    } catch {
-      /* non-critical */
+    } catch (err) {
+      console.error('[mcp-oauth] callback: failed to update oauthStatus:', String(err));
     }
+  } else {
+    console.error('[mcp-oauth] callback: user-mcp config not found for userId:', pkceState.userId);
   }
 
   const safeServerName = encodeURIComponent(pkceState.serverName);
-  return c.redirect(`${settingsUrl}?oauth_success=${safeServerName}`);
+  return c.redirect(`${settingsUrl}/${safeServerName}?oauth_success=1`);
 });

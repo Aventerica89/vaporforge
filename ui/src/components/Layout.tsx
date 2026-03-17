@@ -37,6 +37,7 @@ import { usePlayground } from '@/hooks/usePlayground';
 import { useDevChangelog } from '@/hooks/useDevChangelog';
 import { triggerCommitMessage } from '@/hooks/useCommitMessage';
 import { useLayoutStore } from '@/hooks/useLayoutStore';
+import { useIntegrationsStore } from '@/hooks/useIntegrationsStore';
 
 // Apply navigation state from a parsed hash — called on mount and hashchange.
 // Uses .getState() to always read the latest store values without React hooks.
@@ -54,11 +55,26 @@ function applyHashState(parsed: HashState) {
       if (session) selectSession(parsed.id);
       break;
     }
-    case 'settings':
+    case 'settings': {
       closeDashboard();
       closeEditor();
-      openSettings(parsed.tab as SettingsTab | undefined);
+      const tab = parsed.tab ?? '';
+      if (tab.startsWith('integrations/')) {
+        openSettings('integrations');
+        const subPath = tab.slice('integrations/'.length); // 'mcps' or 'mcps/supabase'
+        const parts = subPath.split('/');
+        const intStore = useIntegrationsStore.getState();
+        if (parts[0] === 'mcps') {
+          intStore.setActiveTab('mcps');
+          if (parts[1]) intStore.selectMcp(decodeURIComponent(parts[1]));
+        } else if (parts[0] === 'plugins') {
+          intStore.setActiveTab('plugins');
+        }
+      } else {
+        openSettings(tab as SettingsTab | undefined);
+      }
       break;
+    }
     case 'agency':
       closeSettings();
       openDashboard();
@@ -79,6 +95,8 @@ export function Layout() {
   const { isOpen: settingsOpen, activeTab: settingsTab } = useSettingsStore();
   const { dashboardOpen: agencyDashboardOpen, editorOpen: agencyEditorOpen } =
     useAgencyStore();
+  const intActiveTab = useIntegrationsStore((s) => s.activeTab);
+  const intSelectedMcp = useIntegrationsStore((s) => s.selectedMcpName);
 
   // Capture the initial URL hash before the sync effect can overwrite it on mount
   const initialHashRef = useRef(window.location.hash);
@@ -178,7 +196,15 @@ export function Layout() {
     if (agencyEditorOpen || agencyDashboardOpen) {
       hash = buildHash({ type: 'agency' });
     } else if (settingsOpen) {
-      hash = buildHash({ type: 'settings', tab: settingsTab });
+      if (settingsTab === 'integrations') {
+        let subPath = `integrations/${intActiveTab}`;
+        if (intActiveTab === 'mcps' && intSelectedMcp) {
+          subPath += `/${encodeURIComponent(intSelectedMcp)}`;
+        }
+        hash = buildHash({ type: 'settings', tab: subPath });
+      } else {
+        hash = buildHash({ type: 'settings', tab: settingsTab });
+      }
     } else if (currentSession) {
       hash = buildHash({ type: 'session', id: currentSession.id });
     } else {
@@ -188,7 +214,7 @@ export function Layout() {
     if (window.location.hash !== hash) {
       history.replaceState(null, '', hash || window.location.pathname);
     }
-  }, [currentSession, settingsOpen, settingsTab, agencyDashboardOpen, agencyEditorOpen]);
+  }, [currentSession, settingsOpen, settingsTab, agencyDashboardOpen, agencyEditorOpen, intActiveTab, intSelectedMcp]);
 
   // Handle browser back/forward button navigation via hash changes
   useEffect(() => {
