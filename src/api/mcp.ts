@@ -375,6 +375,7 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   }
 
   let authServerUrl = await detectOAuthRequirement(server.url);
+  console.error('[mcp oauth/start] detectOAuthRequirement:', server.url, '->', authServerUrl);
   if (!authServerUrl) {
     // Fallback: try server's own origin as auth server (pattern used by Anthropic-hosted MCPs)
     const origin = new URL(server.url).origin;
@@ -385,7 +386,15 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
     return c.json<ApiResponse<never>>({ success: false, error: 'Server does not require OAuth' }, 400);
   }
 
-  const metadata = await fetchAuthServerMetadata(authServerUrl);
+  console.error('[mcp oauth/start] fetching metadata for authServerUrl:', authServerUrl);
+  let metadata;
+  try {
+    metadata = await fetchAuthServerMetadata(authServerUrl);
+  } catch (err) {
+    console.error('[mcp oauth/start] fetchAuthServerMetadata threw:', authServerUrl, String(err));
+    return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
+  }
+  console.error('[mcp oauth/start] metadata result:', authServerUrl, metadata ? 'ok' : 'null');
   if (!metadata) {
     return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
   }
@@ -393,10 +402,14 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   const callbackUrl = `${new URL(c.req.url).origin}/api/mcp-oauth/callback`;
 
   let clientId: string;
+  let clientSecret: string | undefined;
   try {
-    clientId = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+    const reg = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+    clientId = reg.clientId;
+    clientSecret = reg.clientSecret;
   } catch (err) {
-    return c.json<ApiResponse<never>>({ success: false, error: `DCR failed: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    console.error('[mcp oauth/start] DCR failed:', String(err));
+    return c.json<ApiResponse<never>>({ success: false, error: err instanceof Error ? err.message : String(err) }, 502);
   }
 
   const codeVerifier = generateCodeVerifier();
@@ -405,12 +418,15 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
     Promise.resolve(generateState()),
   ]);
 
-  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify({
+  const pkcePayload: Record<string, unknown> = {
     userId: user.id, serverName, serverUrl: server.url,
     codeVerifier, redirectUri: callbackUrl, clientId,
     metadata: { token_endpoint: metadata.token_endpoint, authorization_endpoint: metadata.authorization_endpoint },
     createdAt: Date.now(),
-  }), { expirationTtl: 30 * 60 });
+  };
+  if (clientSecret) pkcePayload.clientSecret = clientSecret;
+
+  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify(pkcePayload), { expirationTtl: 30 * 60 });
 
   const authUrl = new URL(metadata.authorization_endpoint);
   authUrl.searchParams.set('response_type', 'code');

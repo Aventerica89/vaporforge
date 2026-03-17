@@ -77,6 +77,7 @@ interface OAuthPkceState {
   codeVerifier: string;
   redirectUri: string;
   clientId: string;
+  clientSecret?: string;
   metadata: {
     token_endpoint: string;
     authorization_endpoint: string;
@@ -101,6 +102,9 @@ export const oauthStateKey = (state: string) => `mcp:oauth:state:${state}`;
 
 export const oauthClientKey = (userId: string, name: string) =>
   `mcp:oauth:client:${userId}:${name}`;
+
+export const oauthClientSecretKey = (userId: string, name: string) =>
+  `mcp:oauth:client-secret:${userId}:${name}`;
 
 export async function readOAuthTokens(
   kv: KVNamespace,
@@ -276,12 +280,16 @@ export async function fetchAuthServerMetadata(
     '/.well-known/oauth-authorization-server',
     '/.well-known/openid-configuration',
   ]) {
+    const metaUrl = new URL(path, authServerUrl).toString();
     try {
-      const res = await fetch(new URL(path, authServerUrl).toString(), {
+      const res = await fetch(metaUrl, {
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(5000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.error('[mcp-oauth] fetchAuthServerMetadata: non-ok response', metaUrl, res.status);
+        continue;
+      }
       const data = (await res.json()) as Partial<AuthServerMetadata>;
       if (data.authorization_endpoint && data.token_endpoint) {
         try {
@@ -290,7 +298,8 @@ export async function fetchAuthServerMetadata(
           if (data.registration_endpoint) {
             validateExternalUrl(data.registration_endpoint, 'registration_endpoint');
           }
-        } catch {
+        } catch (err) {
+          console.error('[mcp-oauth] fetchAuthServerMetadata: endpoint validation failed', metaUrl, String(err));
           continue;
         }
         return {
@@ -299,8 +308,11 @@ export async function fetchAuthServerMetadata(
           registration_endpoint: data.registration_endpoint,
           scopes_supported: data.scopes_supported,
         };
+      } else {
+        console.error('[mcp-oauth] fetchAuthServerMetadata: missing endpoints in metadata', metaUrl);
       }
-    } catch {
+    } catch (err) {
+      console.error('[mcp-oauth] fetchAuthServerMetadata: fetch threw', metaUrl, String(err));
       continue;
     }
   }
@@ -315,10 +327,21 @@ export async function getOrRegisterClient(
   serverName: string,
   metadata: AuthServerMetadata,
   callbackUrl: string,
-): Promise<string> {
-  const existing = await kv.get(oauthClientKey(userId, serverName));
-  if (existing) return existing;
-  if (!metadata.registration_endpoint) return 'vaporforge';
+): Promise<{ clientId: string; clientSecret?: string }> {
+  const existingId = await kv.get(oauthClientKey(userId, serverName));
+  if (existingId) {
+    const existingSecret = await kv.get(oauthClientSecretKey(userId, serverName));
+    // If we have a clientId but no secret AND DCR is available, re-register to capture the secret.
+    // Some servers (e.g. Supabase) require client_secret even for PKCE — stale registrations
+    // that omitted it will always fail token exchange.
+    if (!existingSecret && metadata.registration_endpoint) {
+      await kv.delete(oauthClientKey(userId, serverName));
+      // fall through to re-register below
+    } else {
+      return { clientId: existingId, clientSecret: existingSecret ?? undefined };
+    }
+  }
+  if (!metadata.registration_endpoint) return { clientId: 'vaporforge' };
   validateExternalUrl(metadata.registration_endpoint, 'registration_endpoint');
 
   const res = await fetch(metadata.registration_endpoint, {
@@ -329,18 +352,31 @@ export async function getOrRegisterClient(
       redirect_uris: [callbackUrl],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
-      token_endpoint_auth_method: 'none',
     }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`DCR failed: ${res.status}`);
-  const data = (await res.json()) as { client_id: string };
+  if (!res.ok) {
+    const body = await res.text().catch(() => '(unreadable)');
+    console.error('[mcp-oauth] DCR failed:', res.status, body);
+    let parsed: { error?: string } = {};
+    try { parsed = JSON.parse(body) as { error?: string }; } catch { /* ignore */ }
+    if (parsed.error === 'invalid_redirect_uri') {
+      throw new Error('This server has not approved VaporForge for OAuth. Use a personal API token instead (Settings > Credentials).');
+    }
+    throw new Error(`DCR failed: ${res.status}`);
+  }
+  const data = (await res.json()) as { client_id: string; client_secret?: string };
   if (!data.client_id) throw new Error('DCR missing client_id');
 
   await kv.put(oauthClientKey(userId, serverName), data.client_id, {
     expirationTtl: 365 * 24 * 60 * 60,
   });
-  return data.client_id;
+  if (data.client_secret) {
+    await kv.put(oauthClientSecretKey(userId, serverName), data.client_secret, {
+      expirationTtl: 365 * 24 * 60 * 60,
+    });
+  }
+  return { clientId: data.client_id, clientSecret: data.client_secret };
 }
 
 // ─── Token exchange ────────────────────────────────────────────────────────
@@ -352,6 +388,7 @@ export async function exchangeCodeForTokens(
   redirectUri: string,
   tokenEndpoint: string,
   resourceUrl?: string,
+  clientSecret?: string,
 ): Promise<McpOAuthTokens> {
   validateExternalUrl(tokenEndpoint, 'tokenEndpoint');
   const bodyParams: Record<string, string> = {
@@ -361,6 +398,8 @@ export async function exchangeCodeForTokens(
     client_id: clientId,
     code_verifier: codeVerifier,
   };
+  // Some OAuth servers (e.g. Supabase) require client_secret even in PKCE flows
+  if (clientSecret) bodyParams.client_secret = clientSecret;
   // RFC 8707: include resource to bind token to this specific MCP server
   if (resourceUrl) bodyParams.resource = resourceUrl;
   const body = new URLSearchParams(bodyParams);
@@ -482,7 +521,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   const state = c.req.query('state');
   const error = c.req.query('error');
   const appBase = new URL(c.req.url).origin;
-  const settingsUrl = `${appBase}/app/#settings/integrations`;
+  const settingsUrl = `${appBase}/app/#settings/integrations/mcps`;
 
   if (error || !code || !state) {
     const safeError = error && OAUTH_ERROR_ALLOWLIST.has(error) ? error : 'oauth_error';
@@ -519,6 +558,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
       pkceState.redirectUri,
       pkceState.metadata.token_endpoint,
       pkceState.serverUrl,
+      pkceState.clientSecret,
     );
     tokens = {
       ...tokens,
@@ -537,12 +577,17 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
   // Delete PKCE state only after successful token exchange so the user can retry on failure
   await c.env.SESSIONS_KV.delete(oauthStateKey(state));
 
-  await writeOAuthTokens(
-    c.env.SESSIONS_KV,
-    pkceState.userId,
-    pkceState.serverName,
-    tokens,
-  );
+  try {
+    await writeOAuthTokens(
+      c.env.SESSIONS_KV,
+      pkceState.userId,
+      pkceState.serverName,
+      tokens,
+    );
+  } catch (err) {
+    console.error('[mcp-oauth] callback: writeOAuthTokens failed:', String(err));
+    return c.redirect(`${settingsUrl}?oauth_error=token_storage_failed`);
+  }
 
   // Update server oauthStatus to 'authorized'
   const raw = await c.env.SESSIONS_KV.get(`user-mcp:${pkceState.userId}`);
@@ -562,11 +607,13 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
           ),
         ),
       );
-    } catch {
-      /* non-critical */
+    } catch (err) {
+      console.error('[mcp-oauth] callback: failed to update oauthStatus:', String(err));
     }
+  } else {
+    console.error('[mcp-oauth] callback: user-mcp config not found for userId:', pkceState.userId);
   }
 
   const safeServerName = encodeURIComponent(pkceState.serverName);
-  return c.redirect(`${settingsUrl}?oauth_success=${safeServerName}`);
+  return c.redirect(`${settingsUrl}/${safeServerName}?oauth_success=1`);
 });

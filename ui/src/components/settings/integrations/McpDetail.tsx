@@ -109,10 +109,10 @@ function McpOAuthSection({ server, onRefresh }: McpOAuthSectionProps) {
       if (res.success && res.data?.authUrl) {
         window.open(res.data.authUrl, '_blank');
       } else {
-        toast('Failed to start OAuth', 'error');
+        toast(res.error ?? 'Failed to start OAuth', 'error');
       }
     } catch (err) {
-      toast('Failed to start OAuth', 'error');
+      toast(err instanceof Error ? err.message : 'Failed to start OAuth', 'error');
     } finally {
       setIsConnecting(false);
     }
