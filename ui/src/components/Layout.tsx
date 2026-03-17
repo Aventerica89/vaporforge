@@ -13,6 +13,7 @@ import { WelcomeScreen } from './WelcomeScreen';
 import { SessionBootScreen } from './SessionBootScreen';
 import { SettingsPage } from './SettingsPage';
 import { DebugPanel } from './DebugPanel';
+import { useDebugLog } from '@/hooks/useDebugLog';
 
 import { IssueTracker } from './IssueTracker';
 import { DevChangelog } from './DevChangelog';
@@ -243,6 +244,21 @@ export function Layout() {
           settings.closeSettings();
         } else {
           settings.openSettings('integrations');
+        }
+        return;
+      }
+
+      // Cmd+Shift+B — toggle debug panel
+      if (e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault();
+        // Only toggle if debug overlay is enabled
+        if (localStorage.getItem('vf_debug') === '1') {
+          useDebugLog.getState().toggle();
+        } else {
+          // Auto-enable debug overlay and open panel
+          localStorage.setItem('vf_debug', '1');
+          window.dispatchEvent(new Event('storage'));
+          setTimeout(() => useDebugLog.getState().toggle(), 50);
         }
         return;
       }
