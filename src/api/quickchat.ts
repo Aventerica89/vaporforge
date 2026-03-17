@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText, tool, stepCountIs, convertToModelMessages } from 'ai';
+import { streamText, smoothStream, tool, stepCountIs, convertToModelMessages } from 'ai';
 import type { User, ApiResponse } from '../types';
 import type { SandboxManager } from '../sandbox';
 import {
@@ -614,6 +614,7 @@ quickchatRoutes.post('/stream', async (c) => {
     system: systemParts.join(' '),
     messages: modelMessages,
     maxOutputTokens: 16384,
+    experimental_transform: smoothStream({ chunking: 'word', delayInMs: 10 }),
     ...(tools ? { tools, stopWhen: stepCountIs(10) } : {}),
   });
 

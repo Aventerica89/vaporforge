@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText } from 'ai';
+import { streamText, smoothStream } from 'ai';
 import type { SandboxManager } from '../sandbox';
 import type { User } from '../types';
 import { collectProjectSecrets } from '../sandbox';
@@ -607,6 +607,7 @@ agencyRoutes.post('/sites/:id/debug', async (c) => {
         model: aiModel,
         system: systemPrompt,
         messages: [{ role: 'user', content: userContent }],
+        experimental_transform: smoothStream({ chunking: 'line', delayInMs: 10 }),
       });
       for await (const chunk of result.textStream) {
         await write({ type: 'text', text: chunk });
@@ -702,6 +703,7 @@ agencyRoutes.post('/sites/:id/inline-ai', async (c) => {
         model: aiModel,
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
+        experimental_transform: smoothStream({ chunking: 'line', delayInMs: 10 }),
       });
       for await (const chunk of result.textStream) {
         await write({ type: 'text', text: chunk });

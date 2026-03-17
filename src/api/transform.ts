@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { streamText } from 'ai';
+import { streamText, smoothStream } from 'ai';
 import type { User, ApiResponse } from '../types';
 import {
   createModel,
@@ -124,6 +124,7 @@ transformRoutes.post('/stream', async (c) => {
         system: systemPrompt,
         messages: [{ role: 'user', content: userMessage }],
         maxOutputTokens: 8192,
+        experimental_transform: smoothStream({ chunking: 'line', delayInMs: 10 }),
       });
 
       let fullText = '';
