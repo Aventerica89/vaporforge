@@ -259,9 +259,10 @@ export function WelcomeScreen() {
         {ghUsername ? (
           <div className="space-y-3 animate-fade-up stagger-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
-                My Repos
-                <span className="ml-2 text-primary/60">{ghRepos.length}</span>
+              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <span>My Repos</span>
+                <span className="text-primary/60">{ghRepos.length}</span>
+                <span className="text-[10px] font-mono normal-case tracking-normal text-[#238636]/70">@{ghUsername}</span>
               </h3>
               <div className="flex items-center gap-2">
                 {lastSynced && (

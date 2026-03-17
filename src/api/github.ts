@@ -166,9 +166,9 @@ export async function githubCallback(c: Context<any>) {
   // Also update legacy username key for backward compat
   await c.env.AUTH_KV.put(ghUsernameKey(userId), username);
 
-  // Redirect back to app integrations page with success flag
+  // Redirect back to home screen — repos will auto-load now that GitHub is connected
   const baseUrl = c.env.WORKER_BASE_URL || 'https://vaporforge.dev';
-  return c.redirect(`${baseUrl}/app/#settings/integrations?github_success=1`);
+  return c.redirect(`${baseUrl}/app/?github_connected=1`);
 }
 
 // ── Connection management ───────────────────────────────────────────────
