@@ -12,7 +12,20 @@
       "class_name": "Sandbox",
       "image": "./Dockerfile",
       "instance_type": "standard-3",
-      "max_instances": 10
+      "max_instances": 10,
+      // SSH access for zero-redeploy debugging (CF changelog 2026-03-12)
+      // Usage: npx wrangler containers instances list
+      //        npx wrangler containers ssh <instance_id> -- ps aux
+      // Note: workers-sdk#12895 (open 2026-03-14) reports SSH may fail on fresh containers — config is safe to leave in place
+      "wrangler_ssh": {
+        "enabled": true
+      },
+      "authorized_keys": [
+        {
+          "name": "jb-macbook",
+          "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKB3ZHjD5HkPukpaMko/sP8xO9TcrXc56XC8poL9HiX/ jb@macbook"
+        }
+      ]
     }
   ],
 
