@@ -4,6 +4,7 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore } from '@/hooks/useFavorites';
 import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
 import { useQuickChat } from '@/hooks/useQuickChat';
+import { githubApi } from '@/lib/api';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
@@ -71,12 +72,9 @@ export function WelcomeScreen() {
     lastSynced,
     isSyncing: ghSyncing,
     syncRepos,
-    setUsername: setGhUsername,
-    loadRepos: loadGhRepos,
   } = useGithubRepos();
   const [cloningFavUrl, setCloningFavUrl] = useState<string | null>(null);
   const [cloningGhUrl, setCloningGhUrl] = useState<string | null>(null);
-  const [ghUsernameInput, setGhUsernameInput] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -144,13 +142,6 @@ export function WelcomeScreen() {
     } finally {
       setCloningGhUrl(null);
     }
-  };
-
-  const handleSetGhUsername = async () => {
-    const trimmed = ghUsernameInput.trim();
-    if (!trimmed) return;
-    await setGhUsername(trimmed);
-    await loadGhRepos();
   };
 
   const activeSessions = sessions.filter((s) => s.status !== 'pending-delete');
@@ -352,30 +343,25 @@ export function WelcomeScreen() {
             <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
               My Repos
             </h3>
-            <div className="glass-card min-w-0 p-4 space-y-3">
-              <p className="text-xs text-muted-foreground">
-                Enter your GitHub username to sync your repositories
-              </p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={ghUsernameInput}
-                  onChange={(e) => setGhUsernameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSetGhUsername();
-                  }}
-                  placeholder="GitHub username"
-                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2 font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary transition-colors"
-                />
-                <button
-                  onClick={handleSetGhUsername}
-                  disabled={!ghUsernameInput.trim()}
-                  className="btn-primary px-4 text-sm disabled:opacity-50"
-                >
-                  Save
-                </button>
+            <button
+              onClick={() => { window.location.href = githubApi.getAuthUrl(); }}
+              className="glass-card w-full flex items-center gap-4 p-5 transition-all duration-300 hover:border-[#238636] hover:shadow-[0_0_20px_rgba(35,134,54,0.2)] active:scale-[0.98] group text-left"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#238636]/10 transition-all duration-300 group-hover:bg-[#238636]/20 group-hover:scale-110">
+                <GithubLogo className="h-5 w-5 text-[#e6edf3] transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(35,134,54,0.8)]" />
               </div>
-            </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-display text-sm font-bold uppercase tracking-wide">
+                  Connect GitHub
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Import your repos for one-click sessions
+                </p>
+              </div>
+              <svg className="h-4 w-4 text-muted-foreground/50 group-hover:text-[#238636] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         )}
 

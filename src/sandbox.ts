@@ -13,6 +13,23 @@ const READY_MAX_ATTEMPTS = 5;
 const CONFIG_STAMP_PATH = '/root/.claude/.vf-config-stamp';
 const INJECTED_CLAUDE_MD_PATH = '/root/.claude/.vf-injected-claude-md';
 
+/**
+ * Inject a GitHub token into an HTTPS git URL for private repo cloning.
+ * Returns the original URL unchanged if no token or non-GitHub URL.
+ */
+function authenticateGitUrl(repoUrl: string, githubToken?: string): string {
+  if (!githubToken) return repoUrl;
+  try {
+    const url = new URL(repoUrl);
+    if (url.hostname !== 'github.com') return repoUrl;
+    url.username = 'oauth2';
+    url.password = githubToken;
+    return url.toString();
+  } catch {
+    return repoUrl;
+  }
+}
+
 function isSandboxNotReady(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return msg.includes('not ready')
@@ -227,10 +244,23 @@ export class SandboxManager {
       // Clone git repo using SDK's gitCheckout
       if (config?.gitRepo) {
         step = 'gitCheckout';
-        await sandbox.gitCheckout(config.gitRepo, {
+        const cloneUrl = authenticateGitUrl(config.gitRepo, config.env?.GITHUB_TOKEN);
+        await sandbox.gitCheckout(cloneUrl, {
           targetDir: WORKSPACE_PATH,
           branch: config.branch,
         });
+        // Strip credentials from .git/config — gitCheckout may persist the
+        // authenticated URL as the remote origin. This is sandbox.exec (CF SDK),
+        // not child_process.exec — all args are hardcoded, no injection risk.
+        if (cloneUrl !== config.gitRepo) {
+          try {
+            await sandbox.exec(`git remote set-url origin ${config.gitRepo}`, {
+              cwd: WORKSPACE_PATH,
+            });
+          } catch {
+            // Non-fatal — credential cleanup is best-effort
+          }
+        }
       } else {
         // Just create workspace directory
         step = 'mkdir';
