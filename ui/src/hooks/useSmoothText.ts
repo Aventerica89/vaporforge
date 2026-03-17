@@ -83,7 +83,10 @@ export function useSmoothText(
             ? Math.max(cpf, Math.ceil(behind / 180))
             : Math.max(cpf, Math.ceil(Math.sqrt(behind) * 1.5))
           : cpf;
-        cursorRef.current = Math.min(cursorRef.current + speed, target);
+        let next = Math.min(cursorRef.current + speed, target);
+        // Snap forward to next word boundary to avoid splitting mid-word
+        while (next < target && text[next] !== ' ' && text[next] !== '\n') next++;
+        cursorRef.current = Math.min(next, target);
         setDisplayed(text.slice(0, cursorRef.current));
         rafRef.current = requestAnimationFrame(tick);
       } else if (streaming) {
