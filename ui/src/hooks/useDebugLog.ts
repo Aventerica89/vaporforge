@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 
+export type DebugCategory = 'api' | 'stream' | 'sandbox' | 'error' | 'info' | 'mcp' | 'auth' | 'system';
+
 export interface DebugEntry {
   id: string;
   timestamp: string;
-  category: 'api' | 'stream' | 'sandbox' | 'error' | 'info';
+  category: DebugCategory;
   level: 'error' | 'warn' | 'info';
   summary: string;
   detail?: string;
@@ -14,6 +16,11 @@ interface DebugLogState {
   unreadErrors: number;
   isOpen: boolean;
 
+  // Filtering
+  searchQuery: string;
+  categoryFilter: Set<DebugCategory> | null;
+  bookmarkedIds: Set<string>;
+
   addEntry: (
     entry: Omit<DebugEntry, 'id' | 'timestamp'>
   ) => void;
@@ -21,14 +28,23 @@ interface DebugLogState {
   markRead: () => void;
   toggle: () => void;
   close: () => void;
+
+  // New actions
+  setSearchQuery: (q: string) => void;
+  setCategoryFilter: (cats: Set<DebugCategory> | null) => void;
+  toggleBookmark: (id: string) => void;
+  exportEntries: () => string;
 }
 
 const MAX_ENTRIES = 200;
 
-export const useDebugLog = create<DebugLogState>((set) => ({
+export const useDebugLog = create<DebugLogState>((set, get) => ({
   entries: [],
   unreadErrors: 0,
   isOpen: false,
+  searchQuery: '',
+  categoryFilter: null,
+  bookmarkedIds: new Set<string>(),
 
   addEntry: (partial) => {
     const entry: DebugEntry = {
@@ -58,6 +74,20 @@ export const useDebugLog = create<DebugLogState>((set) => ({
     })),
 
   close: () => set({ isOpen: false }),
+
+  setSearchQuery: (q) => set({ searchQuery: q }),
+
+  setCategoryFilter: (cats) => set({ categoryFilter: cats }),
+
+  toggleBookmark: (id) =>
+    set((state) => {
+      const next = new Set(state.bookmarkedIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { bookmarkedIds: next };
+    }),
+
+  exportEntries: () => JSON.stringify(get().entries, null, 2),
 }));
 
 // Capture unhandled errors globally
