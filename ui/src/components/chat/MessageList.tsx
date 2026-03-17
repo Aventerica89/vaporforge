@@ -180,7 +180,7 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
 
   // Linger briefly after streaming ends so useSmoothText can animate the final
   // content batch. Without this, StreamingMessage unmounts immediately when
-  // isStreaming→false (e.g. due to TCP Nagle delivering all events at once),
+  // isStreaming->false (e.g. due to TCP Nagle delivering all events at once),
   // and the completed message pops in with no animation.
   const [linger, setLinger] = useState(false);
   useEffect(() => {

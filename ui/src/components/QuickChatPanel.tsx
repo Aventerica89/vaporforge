@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useSmoothText } from '@/hooks/useSmoothText';
+import { MessageResponse } from './ai-elements/message';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
@@ -32,7 +33,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
-import { MessageResponse } from './ai-elements/message';
 import { ChatMarkdown } from './chat/ChatMarkdown';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { MessageActions } from './chat/MessageActions';
@@ -874,8 +874,6 @@ function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
  */
 function StreamingTextPart({ text, isStreaming }: { text: string; isStreaming: boolean }) {
   const smooth = useSmoothText(text, isStreaming);
-  // Keep streaming mode while animation is still catching up so Streamdown
-  // renders incrementally rather than jumping to the final static render.
   const animating = smooth.length < text.length;
   return (
     <MessageResponse mode={isStreaming || animating ? 'streaming' : 'static'}>
