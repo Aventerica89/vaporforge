@@ -175,6 +175,9 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 ### Debugging
 
+- **Container SSH** (CF changelog 2026-03-12): `npx wrangler containers instances list` → get instance ID → `npx wrangler containers ssh <instance_id> -- <cmd>`. Useful: `ps aux`, `cat /tmp/vf-pending-query.json`. Config in `wrangler.jsonc` containers block (`wrangler_ssh.enabled`, `authorized_keys`). Known issue: workers-sdk#12895 — SSH may fail on fresh containers; config is harmless.
+- **SSRF validation** (`src/utils/validate-url.ts`): loopback (`localhost`, `127.x`, `::1`, `0.0.0.0`) is **intentionally allowed over HTTP** for in-container MCP servers. Non-loopback requires HTTPS. RFC 1918 / link-local / `.local` / `.internal` remain blocked. Do not revert this.
+
 - **`wrangler tail` for live Worker errors**: `npx wrangler tail --format=pretty > /tmp/vf-tail.log 2>&1 &` — captures `console.error()` from catch blocks; essential for diagnosing 4xx/5xx errors in deployed Workers.
 - **`wrangler kv key` requires `--remote`**: Without `--remote`, reads/writes hit LOCAL dev KV, not production. Omitting this flag shows empty results even when production has data.
 - **KV `put` with `--remote` is destructive**: Always read existing KV data before writing. Running `wrangler kv key put` overwrites the entire value — partial writes to user data (e.g., MCP server lists) silently delete unincluded keys.
