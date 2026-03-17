@@ -393,8 +393,11 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   const callbackUrl = `${new URL(c.req.url).origin}/api/mcp-oauth/callback`;
 
   let clientId: string;
+  let clientSecret: string | undefined;
   try {
-    clientId = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+    const reg = await getOrRegisterClient(c.env.SESSIONS_KV, user.id, serverName, metadata, callbackUrl);
+    clientId = reg.clientId;
+    clientSecret = reg.clientSecret;
   } catch (err) {
     return c.json<ApiResponse<never>>({ success: false, error: `DCR failed: ${err instanceof Error ? err.message : String(err)}` }, 502);
   }
@@ -405,12 +408,15 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
     Promise.resolve(generateState()),
   ]);
 
-  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify({
+  const pkcePayload: Record<string, unknown> = {
     userId: user.id, serverName, serverUrl: server.url,
     codeVerifier, redirectUri: callbackUrl, clientId,
     metadata: { token_endpoint: metadata.token_endpoint, authorization_endpoint: metadata.authorization_endpoint },
     createdAt: Date.now(),
-  }), { expirationTtl: 30 * 60 });
+  };
+  if (clientSecret) pkcePayload.clientSecret = clientSecret;
+
+  await c.env.SESSIONS_KV.put(oauthStateKey(state), JSON.stringify(pkcePayload), { expirationTtl: 30 * 60 });
 
   const authUrl = new URL(metadata.authorization_endpoint);
   authUrl.searchParams.set('response_type', 'code');

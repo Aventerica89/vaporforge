@@ -77,6 +77,7 @@ interface OAuthPkceState {
   codeVerifier: string;
   redirectUri: string;
   clientId: string;
+  clientSecret?: string;
   metadata: {
     token_endpoint: string;
     authorization_endpoint: string;
@@ -101,6 +102,9 @@ export const oauthStateKey = (state: string) => `mcp:oauth:state:${state}`;
 
 export const oauthClientKey = (userId: string, name: string) =>
   `mcp:oauth:client:${userId}:${name}`;
+
+export const oauthClientSecretKey = (userId: string, name: string) =>
+  `mcp:oauth:client-secret:${userId}:${name}`;
 
 export async function readOAuthTokens(
   kv: KVNamespace,
@@ -315,10 +319,21 @@ export async function getOrRegisterClient(
   serverName: string,
   metadata: AuthServerMetadata,
   callbackUrl: string,
-): Promise<string> {
-  const existing = await kv.get(oauthClientKey(userId, serverName));
-  if (existing) return existing;
-  if (!metadata.registration_endpoint) return 'vaporforge';
+): Promise<{ clientId: string; clientSecret?: string }> {
+  const existingId = await kv.get(oauthClientKey(userId, serverName));
+  if (existingId) {
+    const existingSecret = await kv.get(oauthClientSecretKey(userId, serverName));
+    // If we have a clientId but no secret AND DCR is available, re-register to capture the secret.
+    // Some servers (e.g. Supabase) require client_secret even for PKCE — stale registrations
+    // that omitted it will always fail token exchange.
+    if (!existingSecret && metadata.registration_endpoint) {
+      await kv.delete(oauthClientKey(userId, serverName));
+      // fall through to re-register below
+    } else {
+      return { clientId: existingId, clientSecret: existingSecret ?? undefined };
+    }
+  }
+  if (!metadata.registration_endpoint) return { clientId: 'vaporforge' };
   validateExternalUrl(metadata.registration_endpoint, 'registration_endpoint');
 
   const res = await fetch(metadata.registration_endpoint, {
@@ -329,18 +344,22 @@ export async function getOrRegisterClient(
       redirect_uris: [callbackUrl],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
-      token_endpoint_auth_method: 'none',
     }),
     signal: AbortSignal.timeout(10000),
   });
   if (!res.ok) throw new Error(`DCR failed: ${res.status}`);
-  const data = (await res.json()) as { client_id: string };
+  const data = (await res.json()) as { client_id: string; client_secret?: string };
   if (!data.client_id) throw new Error('DCR missing client_id');
 
   await kv.put(oauthClientKey(userId, serverName), data.client_id, {
     expirationTtl: 365 * 24 * 60 * 60,
   });
-  return data.client_id;
+  if (data.client_secret) {
+    await kv.put(oauthClientSecretKey(userId, serverName), data.client_secret, {
+      expirationTtl: 365 * 24 * 60 * 60,
+    });
+  }
+  return { clientId: data.client_id, clientSecret: data.client_secret };
 }
 
 // ─── Token exchange ────────────────────────────────────────────────────────
@@ -352,6 +371,7 @@ export async function exchangeCodeForTokens(
   redirectUri: string,
   tokenEndpoint: string,
   resourceUrl?: string,
+  clientSecret?: string,
 ): Promise<McpOAuthTokens> {
   validateExternalUrl(tokenEndpoint, 'tokenEndpoint');
   const bodyParams: Record<string, string> = {
@@ -361,6 +381,8 @@ export async function exchangeCodeForTokens(
     client_id: clientId,
     code_verifier: codeVerifier,
   };
+  // Some OAuth servers (e.g. Supabase) require client_secret even in PKCE flows
+  if (clientSecret) bodyParams.client_secret = clientSecret;
   // RFC 8707: include resource to bind token to this specific MCP server
   if (resourceUrl) bodyParams.resource = resourceUrl;
   const body = new URLSearchParams(bodyParams);
@@ -519,6 +541,7 @@ mcpOAuthPublicRoutes.get('/callback', async (c) => {
       pkceState.redirectUri,
       pkceState.metadata.token_endpoint,
       pkceState.serverUrl,
+      pkceState.clientSecret,
     );
     tokens = {
       ...tokens,
