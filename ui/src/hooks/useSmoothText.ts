@@ -71,17 +71,22 @@ export function useSmoothText(
       if (cursorRef.current < target) {
         const behind = target - cursorRef.current;
         const isMidAnimation = cursorRef.current > 0;
-        // Three cases when behind > 100:
-        // 1. Mid-animation post-stream: 3x fast catch-up (finishing a real-time stream)
-        // 2. All-at-once post-stream (cursor=0): ~3s budget so animation is clearly
-        //    visible — behind/180 ≈ 9 chars/frame for 1500 chars → ~2.8s
-        // 3. Still streaming: moderate 1.5x catch-up to stay close to incoming text
+        // Speed tiers:
+        // A. behind > 100, post-stream mid-animation: 3x fast catch-up
+        // B. behind > 100, post-stream from start: ~3s budget reveal
+        // C. behind > 100, still streaming: moderate 1.5x catch-up
+        // D. behind <= 100, still streaming: proportional deceleration —
+        //    cursor slows as it approaches available text, preventing the
+        //    catch-up/stall/catch-up spiky pattern
+        // E. behind <= 100, post-stream: base speed to finish cleanly
         const speed = behind > 100
           ? isMidAnimation && !streaming
             ? Math.max(cpf, Math.ceil(Math.sqrt(behind) * 3.0))
             : !isMidAnimation && !streaming
             ? Math.max(cpf, Math.ceil(behind / 180))
             : Math.max(cpf, Math.ceil(Math.sqrt(behind) * 1.5))
+          : streaming
+          ? Math.max(2, Math.ceil(behind * 0.2))
           : cpf;
         let next = Math.min(cursorRef.current + speed, target);
         // Snap forward to next word boundary to avoid splitting mid-word
