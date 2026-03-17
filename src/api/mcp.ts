@@ -375,6 +375,7 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
   }
 
   let authServerUrl = await detectOAuthRequirement(server.url);
+  console.error('[mcp oauth/start] detectOAuthRequirement:', server.url, '->', authServerUrl);
   if (!authServerUrl) {
     // Fallback: try server's own origin as auth server (pattern used by Anthropic-hosted MCPs)
     const origin = new URL(server.url).origin;
@@ -385,7 +386,15 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
     return c.json<ApiResponse<never>>({ success: false, error: 'Server does not require OAuth' }, 400);
   }
 
-  const metadata = await fetchAuthServerMetadata(authServerUrl);
+  console.error('[mcp oauth/start] fetching metadata for authServerUrl:', authServerUrl);
+  let metadata;
+  try {
+    metadata = await fetchAuthServerMetadata(authServerUrl);
+  } catch (err) {
+    console.error('[mcp oauth/start] fetchAuthServerMetadata threw:', authServerUrl, String(err));
+    return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
+  }
+  console.error('[mcp oauth/start] metadata result:', authServerUrl, metadata ? 'ok' : 'null');
   if (!metadata) {
     return c.json<ApiResponse<never>>({ success: false, error: 'Could not fetch OAuth server metadata' }, 502);
   }
@@ -399,7 +408,8 @@ mcpRoutes.get('/:name/oauth/start', async (c) => {
     clientId = reg.clientId;
     clientSecret = reg.clientSecret;
   } catch (err) {
-    return c.json<ApiResponse<never>>({ success: false, error: `DCR failed: ${err instanceof Error ? err.message : String(err)}` }, 502);
+    console.error('[mcp oauth/start] DCR failed:', String(err));
+    return c.json<ApiResponse<never>>({ success: false, error: err instanceof Error ? err.message : String(err) }, 502);
   }
 
   const codeVerifier = generateCodeVerifier();

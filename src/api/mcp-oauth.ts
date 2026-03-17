@@ -280,12 +280,16 @@ export async function fetchAuthServerMetadata(
     '/.well-known/oauth-authorization-server',
     '/.well-known/openid-configuration',
   ]) {
+    const metaUrl = new URL(path, authServerUrl).toString();
     try {
-      const res = await fetch(new URL(path, authServerUrl).toString(), {
+      const res = await fetch(metaUrl, {
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(5000),
       });
-      if (!res.ok) continue;
+      if (!res.ok) {
+        console.error('[mcp-oauth] fetchAuthServerMetadata: non-ok response', metaUrl, res.status);
+        continue;
+      }
       const data = (await res.json()) as Partial<AuthServerMetadata>;
       if (data.authorization_endpoint && data.token_endpoint) {
         try {
@@ -294,7 +298,8 @@ export async function fetchAuthServerMetadata(
           if (data.registration_endpoint) {
             validateExternalUrl(data.registration_endpoint, 'registration_endpoint');
           }
-        } catch {
+        } catch (err) {
+          console.error('[mcp-oauth] fetchAuthServerMetadata: endpoint validation failed', metaUrl, String(err));
           continue;
         }
         return {
@@ -303,8 +308,11 @@ export async function fetchAuthServerMetadata(
           registration_endpoint: data.registration_endpoint,
           scopes_supported: data.scopes_supported,
         };
+      } else {
+        console.error('[mcp-oauth] fetchAuthServerMetadata: missing endpoints in metadata', metaUrl);
       }
-    } catch {
+    } catch (err) {
+      console.error('[mcp-oauth] fetchAuthServerMetadata: fetch threw', metaUrl, String(err));
       continue;
     }
   }
@@ -347,7 +355,16 @@ export async function getOrRegisterClient(
     }),
     signal: AbortSignal.timeout(10000),
   });
-  if (!res.ok) throw new Error(`DCR failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '(unreadable)');
+    console.error('[mcp-oauth] DCR failed:', res.status, body);
+    let parsed: { error?: string } = {};
+    try { parsed = JSON.parse(body) as { error?: string }; } catch { /* ignore */ }
+    if (parsed.error === 'invalid_redirect_uri') {
+      throw new Error('This server has not approved VaporForge for OAuth. Use a personal API token instead (Settings > Credentials).');
+    }
+    throw new Error(`DCR failed: ${res.status}`);
+  }
   const data = (await res.json()) as { client_id: string; client_secret?: string };
   if (!data.client_id) throw new Error('DCR missing client_id');
 
