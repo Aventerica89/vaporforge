@@ -45,7 +45,7 @@ const SHORTCUT_GROUPS: Array<{
   {
     label: 'Navigation',
     shortcuts: [
-      { action: 'Plugin Marketplace', keys: ['\u2318', 'Shift', 'P'] },
+      { action: 'Integrations', keys: ['\u2318', 'Shift', 'P'] },
       { action: 'Debug Panel', keys: ['\u2318', 'Shift', 'B'] },
       { action: 'Dev Playground', keys: ['\u2318', 'Shift', 'D'] },
       { action: 'Dev Changelog', keys: ['\u2318', 'Shift', 'L'] },
