@@ -289,7 +289,7 @@ export function McpDetail({ server }: McpDetailProps) {
               ? { boxShadow: '0 0 4px #3fb950' }
               : status === 'error'
                 ? { boxShadow: '0 0 4px #f85149' }
-                : status === 'auth-required'
+                : status === 'auth-required' || status === 'auth-expired'
                   ? { boxShadow: '0 0 4px #e3b341' }
                   : undefined
           }
@@ -299,11 +299,15 @@ export function McpDetail({ server }: McpDetailProps) {
             ? 'text-[#3fb950]'
             : status === 'error'
               ? 'text-[#f85149]'
-              : status === 'auth-required'
+              : status === 'auth-required' || status === 'auth-expired'
                 ? 'text-[#e3b341]'
                 : 'text-[#768390]'
         }`}
-          title={status === 'auth-required' ? 'Authentication required — configure credentials for this server' : undefined}
+          title={
+            status === 'auth-required' ? 'Authentication required — configure credentials for this server'
+            : status === 'auth-expired' ? 'Token expired — click Connect to re-authenticate'
+            : undefined
+          }
         >
           {statusCfg.label}
         </span>
@@ -342,7 +346,7 @@ export function McpDetail({ server }: McpDetailProps) {
       </div>
 
       {/* OAuth Section (HTTP servers with OAuth requirement, auth-required status, or stored tokens) */}
-      {server.transport === 'http' && (server.requiresOAuth || status === 'auth-required' || server.oauthStatus === 'authorized' || server.oauthStatus === 'expired') && (
+      {server.transport === 'http' && (server.requiresOAuth || status === 'auth-required' || status === 'auth-expired' || server.oauthStatus === 'authorized' || server.oauthStatus === 'expired') && (
         <McpOAuthSection server={server} onRefresh={loadMcpServers} />
       )}
 

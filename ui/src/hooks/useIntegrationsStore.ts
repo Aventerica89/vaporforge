@@ -228,6 +228,8 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         for (const [name, info] of Object.entries(result.data)) {
           if (info.status === 'online') {
             statuses[name] = 'connected';
+          } else if (info.status === 'auth-expired') {
+            statuses[name] = 'auth-expired';
           } else if (info.status === 'auth-required') {
             statuses[name] = 'auth-required';
           } else {
@@ -256,9 +258,11 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         const newStatus: McpStatus =
           rawStatus === 'online'
             ? 'connected'
-            : rawStatus === 'auth-required'
-              ? 'auth-required'
-              : 'error';
+            : rawStatus === 'auth-expired'
+              ? 'auth-expired'
+              : rawStatus === 'auth-required'
+                ? 'auth-required'
+                : 'error';
         set((state) => ({
           mcpStatuses: { ...state.mcpStatuses, [name]: newStatus },
           mcpServers: state.mcpServers.map((s) =>
@@ -276,10 +280,12 @@ export const useIntegrationsStore = create<IntegrationsState>((set, get) => ({
         const msg =
           newStatus === 'connected'
             ? `${name}: connected${toolCount > 0 ? ` — ${toolCount} tools` : ''}`
-            : newStatus === 'auth-required'
-              ? `${name}: authentication required`
-              : `${name}: connection failed`;
-        const toastVariant = newStatus === 'connected' ? 'success' : newStatus === 'auth-required' ? 'warning' : 'error';
+            : newStatus === 'auth-expired'
+              ? `${name}: token expired — reconnect required`
+              : newStatus === 'auth-required'
+                ? `${name}: authentication required`
+                : `${name}: connection failed`;
+        const toastVariant = newStatus === 'connected' ? 'success' : newStatus === 'auth-expired' || newStatus === 'auth-required' ? 'warning' : 'error';
         toast(msg, toastVariant);
       }
     } catch {

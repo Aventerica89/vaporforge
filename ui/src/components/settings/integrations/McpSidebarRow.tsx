@@ -13,6 +13,7 @@ const DOT_STYLES: Record<McpStatus, string> = {
   connected: 'bg-[#3fb950] shadow-[0_0_4px_#3fb950]',
   error: 'bg-[#f85149] shadow-[0_0_4px_#f85149]',
   'auth-required': 'bg-[#e3b341] shadow-[0_0_4px_#e3b341]',
+  'auth-expired': 'bg-[#e3b341] shadow-[0_0_4px_#e3b341]',
   disabled: 'bg-[#768390]',
 };
 

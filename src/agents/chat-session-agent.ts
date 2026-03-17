@@ -38,7 +38,7 @@ import type { SandboxConfig } from '../sandbox';
 import { getSandbox } from '@cloudflare/sandbox';
 import type { Process, Sandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
-import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens } from '../api/mcp-oauth';
+import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens, markServerExpired } from '../api/mcp-oauth';
 
 /** Resolve frontend model IDs to CLI aliases (e.g. sonnet1m -> sonnet[1m]) */
 const MODEL_ALIASES: Record<string, string> = {
@@ -1190,20 +1190,20 @@ export class ChatSessionAgent {
     try {
       const allTokens = await readAllOAuthTokens(this.env.SESSIONS_KV, userId);
       if (allTokens.length > 0) {
-        const refreshed = await Promise.all(
+        await Promise.all(
           allTokens.map(async (t) => {
             const updated = await refreshTokenIfExpired(t);
-            if (updated && updated !== t) {
-              await writeOAuthTokens(this.env.SESSIONS_KV, userId, t.serverName, updated);
-              return { ...updated, serverName: t.serverName };
+            if (updated === null) {
+              await markServerExpired(this.env.SESSIONS_KV, userId, t.serverName);
+              return;
             }
-            return updated ? { ...updated, serverName: t.serverName } : t;
+            if (updated !== t) {
+              await writeOAuthTokens(this.env.SESSIONS_KV, userId, t.serverName, updated);
+            }
+            oauthTokensByName.set(t.serverName, updated.accessToken);
           })
         );
-        for (const t of refreshed) {
-          oauthTokensByName.set(t.serverName, t.accessToken);
-        }
-        console.log(`[ChatSessionAgent] ${sid}: loaded ${refreshed.length} MCP OAuth token(s) for header injection`);
+        console.log(`[ChatSessionAgent] ${sid}: loaded ${oauthTokensByName.size} MCP OAuth token(s) for header injection`);
       }
     } catch (err) {
       console.error(`[ChatSessionAgent] ${sid}: MCP OAuth token load failed: ${err instanceof Error ? err.message : String(err)}`);

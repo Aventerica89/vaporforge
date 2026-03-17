@@ -475,6 +475,91 @@ export async function refreshTokenIfExpired(
   }
 }
 
+// ─── Token injection helper ────────────────────────────────────────────────
+
+/**
+ * Mark a server's oauthStatus as 'expired' in the user's MCP server config.
+ * Called when token refresh fails and the stored token can no longer be used.
+ */
+export async function markServerExpired(
+  kv: KVNamespace,
+  userId: string,
+  serverName: string,
+): Promise<void> {
+  const raw = await kv.get(`user-mcp:${userId}`);
+  if (!raw) return;
+  try {
+    const servers = JSON.parse(raw) as Array<{ name: string; oauthStatus?: string }>;
+    await kv.put(
+      `user-mcp:${userId}`,
+      JSON.stringify(
+        servers.map((s) =>
+          s.name === serverName ? { ...s, oauthStatus: 'expired' } : s,
+        ),
+      ),
+    );
+  } catch (err) {
+    console.error('[mcp-oauth] markServerExpired: failed to update oauthStatus:', String(err));
+  }
+}
+
+async function acquireLock(kv: KVNamespace, key: string): Promise<boolean> {
+  const existing = await kv.get(key);
+  if (existing !== null) return false;
+  await kv.put(key, '1', { expirationTtl: 60 });
+  return true;
+}
+
+/**
+ * Read, optionally refresh, and return an MCP OAuth access token.
+ *
+ * If `options.lockKv` is provided, acquires a best-effort KV lock to prevent
+ * concurrent refresh races (lock-free fallback returns current token).
+ * If `options.markExpired` is true and refresh returns null (no refresh token
+ * or 4xx response), writes oauthStatus:'expired' to the server's KV config.
+ */
+export async function injectOAuthToken(
+  kv: KVNamespace,
+  userId: string,
+  serverName: string,
+  options?: {
+    lockKv?: KVNamespace;
+    markExpired?: boolean;
+  },
+): Promise<{ accessToken: string | null; refreshed: boolean; expired: boolean }> {
+  const tokens = await readOAuthTokens(kv, userId, serverName);
+  if (!tokens) return { accessToken: null, refreshed: false, expired: false };
+
+  const lockKey = `mcp-refresh-lock:${userId}:${serverName}`;
+  let hasLock = false;
+  try {
+    if (options?.lockKv) {
+      hasLock = await acquireLock(options.lockKv, lockKey);
+      // Lock not acquired — another request is refreshing; use current token as-is
+      if (!hasLock) {
+        return { accessToken: tokens.accessToken, refreshed: false, expired: false };
+      }
+    }
+
+    const refreshed = await refreshTokenIfExpired(tokens);
+    if (refreshed === null) {
+      if (options?.markExpired) {
+        await markServerExpired(kv, userId, serverName);
+      }
+      return { accessToken: null, refreshed: false, expired: true };
+    }
+    if (refreshed !== tokens) {
+      await writeOAuthTokens(kv, userId, serverName, refreshed);
+      return { accessToken: refreshed.accessToken, refreshed: true, expired: false };
+    }
+    return { accessToken: tokens.accessToken, refreshed: false, expired: false };
+  } finally {
+    if (options?.lockKv && hasLock) {
+      await options.lockKv.delete(lockKey);
+    }
+  }
+}
+
 // ─── Credentials file builder ──────────────────────────────────────────────
 
 /**
