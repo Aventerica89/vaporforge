@@ -69,7 +69,7 @@ export function SessionBootScreen() {
       {/* Progress bar */}
       <div className="w-64 h-1 rounded-full bg-muted/30 overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all duration-700 ease-out"
+          className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-violet-500 transition-all duration-300 ease-out"
           style={{
             width: `${Math.min(((stepIndex + 1) / BOOT_STEPS.length) * 100, 95)}%`,
           }}

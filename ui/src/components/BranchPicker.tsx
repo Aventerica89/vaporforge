@@ -62,7 +62,7 @@ export function BranchPicker({ repoFullName, onBranchSelect }: BranchPickerProps
               <button
                 key={branch.name}
                 onClick={() => handleSelect(branch)}
-                className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-left transition-colors ${
+                className={`flex items-center justify-between rounded-lg px-3 py-2.5 text-left transition-all duration-150 ease-out active:scale-[0.98] ${
                   isSelected
                     ? 'bg-[#1DD3E608]'
                     : 'hover:bg-[#1DD3E608]'
@@ -125,7 +125,7 @@ export function BranchPill({
         e.stopPropagation();
         onClick();
       }}
-      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium transition-all ${
+      className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium transition-all duration-150 ease-out active:scale-[0.95] ${
         isExpanded
           ? 'bg-[#1DD3E612] text-[#1DD3E6] shadow-[0_0_8px_rgba(29,211,230,0.15)]'
           : 'bg-[#1DD3E60a] text-[#1DD3E6] hover:bg-[#1DD3E612]'

@@ -175,7 +175,7 @@ export function WelcomeScreen() {
             onClick={handleNewSession}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-primary hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] active:scale-[0.97] group"
           >
-            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-primary/10 transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110">
+            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-primary/10 transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] group-hover:bg-primary/20 group-hover:scale-110">
               <svg
                 className="h-6 w-6 md:h-7 md:w-7 text-primary transition-all duration-300 group-hover:drop-shadow-[0_0_8px_hsl(var(--primary)/0.8)]"
                 fill="none"
@@ -204,7 +204,7 @@ export function WelcomeScreen() {
             onClick={() => setShowCloneModal(true)}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-secondary hover:shadow-[0_0_20px_hsl(var(--secondary)/0.3)] active:scale-[0.97] group"
           >
-            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-secondary/10 transition-all duration-300 group-hover:bg-secondary/20 group-hover:scale-110">
+            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-secondary/10 transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] group-hover:bg-secondary/20 group-hover:scale-110">
               <svg
                 className="h-6 w-6 md:h-7 md:w-7 text-secondary transition-all duration-300 group-hover:drop-shadow-[0_0_8px_hsl(var(--secondary)/0.8)]"
                 fill="none"
@@ -233,7 +233,7 @@ export function WelcomeScreen() {
             onClick={() => useQuickChat.getState().openQuickChat()}
             className="glass-card flex flex-col items-center gap-4 p-6 md:p-8 text-center transition-all duration-300 hover:border-blue-500 hover:shadow-[0_0_20px_hsl(210_100%_50%/0.3)] active:scale-[0.97] group"
           >
-            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-blue-500/10 transition-all duration-300 group-hover:bg-blue-500/20 group-hover:scale-110">
+            <div className="flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-lg bg-blue-500/10 transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] group-hover:bg-blue-500/20 group-hover:scale-110">
               <MessageSquare className="h-6 w-6 md:h-7 md:w-7 text-blue-500 transition-all duration-300 group-hover:drop-shadow-[0_0_8px_hsl(210_100%_50%/0.8)]" />
             </div>
             <div className="space-y-2">
@@ -442,7 +442,7 @@ export function WelcomeScreen() {
               onClick={() => { window.location.href = githubApi.getAuthUrl(); }}
               className="glass-card w-full flex items-center gap-4 p-5 transition-all duration-300 hover:border-[#238636] hover:shadow-[0_0_20px_rgba(35,134,54,0.2)] active:scale-[0.98] group text-left"
             >
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#238636]/10 transition-all duration-300 group-hover:bg-[#238636]/20 group-hover:scale-110">
+              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#238636]/10 transition-all duration-200 ease-[cubic-bezier(0.68,-0.55,0.265,1.55)] group-hover:bg-[#238636]/20 group-hover:scale-110">
                 <GithubLogo className="h-5 w-5 text-[#e6edf3] transition-all duration-300 group-hover:drop-shadow-[0_0_8px_rgba(35,134,54,0.8)]" />
               </div>
               <div className="flex-1 min-w-0">
