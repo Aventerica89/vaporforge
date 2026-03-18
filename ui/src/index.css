@@ -59,6 +59,8 @@
     --duration-slow: 400ms;
     --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
 
     /* Layout */
     --sidebar-width: 280px;
@@ -391,6 +393,16 @@
 .stagger-3 { animation-delay: 150ms; }
 .stagger-4 { animation-delay: 200ms; }
 .stagger-5 { animation-delay: 250ms; }
+
+/* Cursor blink — step-end for instant on/off, 600ms for realistic rate */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.animate-cursor-blink {
+  animation: cursor-blink 600ms step-end infinite;
+}
 
 /* Loading Skeleton */
 @keyframes shimmer {

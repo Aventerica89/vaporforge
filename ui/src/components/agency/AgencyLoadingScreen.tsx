@@ -178,7 +178,7 @@ export function AgencyLoadingScreen({ statusMessage }: Props) {
 
                 {/* Label */}
                 <span
-                  className={`font-mono text-[15px] transition-all duration-500 ${
+                  className={`font-mono text-[15px] transition-all duration-200 ease-out ${
                     isDone
                       ? 'text-zinc-500'
                       : isActive

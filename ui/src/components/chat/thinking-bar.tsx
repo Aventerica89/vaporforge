@@ -23,7 +23,7 @@ export function ThinkingBar({
         <button
           type="button"
           onClick={onClick}
-          className="flex items-center gap-1 text-sm transition-opacity hover:opacity-80"
+          className="flex items-center gap-1 text-sm transition-all duration-150 ease-out hover:opacity-80 active:scale-[0.98]"
         >
           <Shimmer className="font-medium">{text}</Shimmer>
           <ChevronRight className="text-muted-foreground size-4" />
@@ -35,7 +35,7 @@ export function ThinkingBar({
         <button
           onClick={onStop}
           type="button"
-          className="text-muted-foreground hover:text-foreground border-muted-foreground/50 hover:border-foreground border-b border-dotted text-sm transition-colors"
+          className="text-muted-foreground hover:text-foreground border-muted-foreground/50 hover:border-foreground border-b border-dotted text-sm transition-all duration-150 ease-out active:scale-[0.98]"
         >
           {stopLabel}
         </button>
