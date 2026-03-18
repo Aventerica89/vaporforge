@@ -23,6 +23,10 @@ One file per idea — use `git blame` to see when each was added.
 | P1 | 2026-03-18 | [R2 FUSE Mount in Containers — Persistent Workspace](r2-fuse-mount-containers.md) | Infrastructure / Storage | Idea |
 | P0 | 2026-03-18 | [Dynamic Container Swarm — Screenshots, MCP, Multi-Agent](dynamic-container-swarm.md) | Architecture / Vision | Idea |
 | P3 | 2026-03-18 | [CF Secret Store — Dedicated Credential Management](cf-secret-store.md) | Infrastructure / Security | Idea |
+| P2 | 2026-03-18 | [CF Workers Best Practices Audit](cf-workers-best-practices-audit.md) | Security / Performance | Idea |
+| P1 | 2026-03-18 | [CF MCP on Workers — Replace Custom OAuth, Deploy MCP as Workers](cf-mcp-on-workers.md) | MCP / Architecture | Idea |
+| P1 | 2026-03-18 | [CF Agents Framework Migration — Agent class, useAgent, @callable](cf-agents-framework-migration.md) | Architecture / Framework | Idea |
+| P1 | 2026-03-18 | [Streaming Smoothness — Token Animation Research](streaming-smoothness.md) | UX / Streaming | Active Research |
 
 ---
 
