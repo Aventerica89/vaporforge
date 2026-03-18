@@ -432,17 +432,17 @@ export function QuickChatPanel() {
         {/* Header + help popover wrapper */}
         <div className="relative">
           <div className="flex items-center justify-between border-b border-border px-4 py-3 safe-area-header">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2">
               {showHistory && (
                 <button
                   onClick={() => setShowHistory(false)}
-                  className="rounded p-1 hover:bg-primary/10"
+                  className="shrink-0 rounded p-1 hover:bg-primary/10"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="size-4" />
                 </button>
               )}
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <h2 className="font-display text-sm font-bold uppercase tracking-wider">
+              <MessageSquare className="size-4 shrink-0 text-primary" />
+              <h2 className="truncate font-display text-sm font-bold uppercase tracking-wider">
                 {showHistory ? 'Chat History' : 'Quick Chat'}
               </h2>
               {!showHistory && activeSessionId && (

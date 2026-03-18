@@ -160,7 +160,7 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
       )}
 
       {/* ─── Mobile/subview: horizontal tab bar (44pt touch targets per HIG) ─── */}
-      {(isMobile || inMobileSubView) && (
+      {isMobile && !inMobileSubView && (
         <div className="flex shrink-0 overflow-x-auto border-b border-border/60 scrollbar-none">
           {ALL_TABS.map((tab) => (
             <button
