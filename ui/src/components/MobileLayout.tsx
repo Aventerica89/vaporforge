@@ -4,8 +4,10 @@ import { useKeyboard } from '@/hooks/useKeyboard';
 import { useAutoReconnect } from '@/hooks/useAutoReconnect';
 import { useMobileNav, getSubViewTitle } from '@/hooks/useMobileNav';
 import { useSwipeTabs } from '@/hooks/useSwipeTabs';
+import { useSafariToolbar } from '@/hooks/useSafariToolbar';
 import { MobileTabBar } from './mobile/MobileTabBar';
 import { MobileNavBar } from './mobile/MobileNavBar';
+import { SafeAreaDebug } from './mobile/SafeAreaDebug';
 import { MoreMenu } from './mobile/MoreMenu';
 import { ChatPanel } from './ChatPanel';
 import { FileTree } from './FileTree';
@@ -20,6 +22,7 @@ export function MobileLayout() {
   const { currentSession, isCreatingSession, selectSession, deselectSession } =
     useSandboxStore();
   useAutoReconnect();
+  useSafariToolbar();
   const { isVisible: keyboardOpen } = useKeyboard();
   const {
     activeTab,
@@ -29,6 +32,9 @@ export function MobileLayout() {
     goBack,
     onSessionChange,
   } = useMobileNav();
+  const isStandalone = typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+     (window.navigator as { standalone?: boolean }).standalone === true);
   const hasSession = !!currentSession;
   const { contentRef, ...swipeHandlers } = useSwipeTabs({
     activeTab,
@@ -151,7 +157,7 @@ export function MobileLayout() {
 
   return (
     <div
-      className="flex flex-col h-full overflow-hidden"
+      className="flex flex-col h-dvh overflow-hidden"
       onTouchStart={onEdgeTouchStart}
       onTouchEnd={onEdgeTouchEnd}
     >
@@ -167,12 +173,19 @@ export function MobileLayout() {
       <div
         ref={subView ? undefined : contentRef}
         className="flex flex-1 flex-col min-h-0 overflow-hidden"
+        style={{
+          paddingBottom: keyboardOpen
+            ? '0px'
+            : isStandalone
+              ? 'var(--tab-bar-h, 49px)'
+              : 'calc(var(--tab-bar-h, 49px) + env(safe-area-inset-bottom, 0px))',
+        }}
         {...(subView ? {} : swipeHandlers)}
       >
         {renderTabContent()}
       </div>
 
-      {/* HIG Tab bar */}
+      {/* HIG Tab bar (fixed positioned) */}
       <MobileTabBar
         activeTab={
           hasSession
@@ -185,6 +198,9 @@ export function MobileLayout() {
         hasSession={hasSession}
         keyboardOpen={keyboardOpen}
       />
+
+      {/* Debug widget — temporary, remove after iOS tuning */}
+      <SafeAreaDebug />
 
       {/* Clone repo modal */}
       <CloneRepoModal

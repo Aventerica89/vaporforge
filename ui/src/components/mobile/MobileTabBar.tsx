@@ -55,10 +55,13 @@ export const MobileTabBar = memo(function MobileTabBar({
     <nav
       role="tablist"
       className={cn(
-        'flex flex-col glass-bar border-t border-border/50',
-        'transition-transform duration-300 ease-out',
+        'fixed left-0 right-0 z-40 flex flex-col glass-bar border-t border-border/50',
+        'transition-[transform,bottom] duration-300 ease-out',
         keyboardOpen && 'translate-y-full',
       )}
+      style={{
+        bottom: 'calc(var(--safari-toolbar-h, 0px) + var(--pwa-nav-nudge, 0px))',
+      }}
     >
       {/* Button row — 49pt content height (HIG spec) */}
       <div className="flex h-[49px] items-stretch justify-around">
@@ -87,8 +90,8 @@ export const MobileTabBar = memo(function MobileTabBar({
           );
         })}
       </div>
-      {/* Safe area spacer — background extends behind home indicator */}
-      <div style={{ height: 'max(env(safe-area-inset-bottom), 20px)' }} />
+      {/* Safe area spacer — env(safe-area-inset-bottom) in browser, 0 in PWA */}
+      <div className="safe-area-spacer" />
     </nav>
   );
 });

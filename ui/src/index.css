@@ -78,6 +78,16 @@
     --z-dropdown: 20;
     --z-overlay: 40;
     --z-modal: 50;
+
+    /* iOS tab bar positioning (set by useSafariToolbar hook) */
+    --tab-bar-h: 49px;
+    --safari-toolbar-h: 0px;
+    --pwa-nav-nudge: 0px;
+  }
+
+  /* PWA standalone: no Safari toolbar offset needed */
+  html[data-standalone] {
+    --pwa-nav-nudge: 0px;
   }
 
   :root:not(.dark) {
@@ -117,20 +127,19 @@
     @apply border-border;
   }
 
-  html, body {
-    width: 100%;
-    height: 100dvh;
+  html {
     overflow: hidden;
-    overscroll-behavior: none;
   }
 
-  #root {
-    height: 100%;
+  html, body {
+    width: 100%;
+    overscroll-behavior: none;
   }
 
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+    background-color: hsl(var(--background));
   }
 
   body {
@@ -144,6 +153,13 @@
   code, pre, .terminal-text {
     font-family: var(--font-mono);
     font-variant-ligatures: none;
+  }
+}
+
+/* PWA standalone: paint the iOS-managed zone behind the home indicator */
+@media (display-mode: standalone) {
+  html {
+    background-color: hsl(var(--background));
   }
 }
 
@@ -520,6 +536,16 @@
   .safe-area-header {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* Tab bar bottom spacer — extends tab bar into home indicator area */
+  .safe-area-spacer {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* PWA standalone: zero spacer — iOS constrains viewport above home indicator */
+html[data-standalone] .safe-area-spacer {
+  height: 0px;
 }
 
 /* Focus Visible for Accessibility */
