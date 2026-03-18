@@ -21,6 +21,17 @@ Load these instead of re-reading source files for orientation.
 
 **For technology docs**, use the `/cli` skill to access local llms.txt files (Cloudflare, Vercel AI SDK, Docker, Anthropic Agent SDK). These are faster and don't require network fetches. Claude.com does not publish llms.txt — use `docs.claude.com` or `platform.claude.com` via Context7 for Anthropic-specific docs.
 
+**Research-first workflow (MANDATORY for infrastructure changes):** Before modifying anything, find and read the official docs. Use brainstorming to drive the research before writing code. Only hack when docs confirm no solution exists.
+
+| Area | Docs source |
+|------|-------------|
+| CF Workers, DOs, Sandbox, Containers | `https://developers.cloudflare.com/llms.txt` → drill into section `llms.txt` (e.g., `/durable-objects/llms.txt`, `/sandbox/llms.txt`) |
+| AI SDK streaming, useChat, tools | `https://sdk.vercel.ai/llms.txt` or Context7 with ID `/vercel/ai` |
+| MCP protocol, transports, OAuth | `https://modelcontextprotocol.io/llms.txt` AND CF MCP docs (`/agents/guides/`) |
+| Anthropic SDK, Claude API, Agent SDK | Context7 with ID `/websites/platform_claude_en_agent-sdk` |
+
+This process caught the execStream fix (2026-03-18) that eliminated ~500 lines of WS bridge workaround. CF had fixed the buffering — we just hadn't checked.
+
 ## MANDATORY RULES
 
 1. **NEVER use Anthropic API keys for authentication.** Auth uses setup-token flow (OAuth tokens `sk-ant-oat01-*`), not API keys.
