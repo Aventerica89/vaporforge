@@ -192,10 +192,12 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Build pipeline**: `build:info` (git hash) -> `build:landing` (Astro) -> `build:ui` (Vite) -> `build:merge` (combine into dist/)
 - **Wrangler deploys from `dist/`** — never from `ui/dist/` directly
 - **`npx wrangler deploy`** preferred over `wrangler deploy` (avoids hangs)
+- **vite-plugin-pwa** handles SW generation and manifest — no manual `CACHE_VERSION` bumping. SW source is `ui/src/sw.ts` (InjectManifest mode). Manifest config lives in `ui/vite.config.ts`, not a separate JSON file. Output is `manifest.webmanifest` (not `manifest.json`).
 
 ### Mobile (iOS)
 
-- Root CSS: `html, body { height: 100dvh; overflow: hidden; overscroll-behavior: none }`
+- Root CSS: `html { overflow: hidden }` + `html, body { overscroll-behavior: none }` — NO height on html/body (causes dark bar in iOS PWA). `h-dvh` goes on MobileLayout wrapper div instead.
+- In PWA standalone mode, iOS constrains viewport ABOVE the home indicator. `env(safe-area-inset-bottom)` returns 34px but adding it as padding double-counts. Zero it via `html[data-standalone] .safe-area-spacer { height: 0px }`.
 - NO `position: fixed` on html/body — blocks browser keyboard handling
 - Use flexbox for layout (`h-full`, `flex-1 overflow-y-auto`) — let the browser handle keyboard
 - `useKeyboard()` hook only for detecting keyboard state (tab bar hiding), NOT for layout sizing
