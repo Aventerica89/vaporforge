@@ -578,6 +578,7 @@ export class ChatSessionAgent {
       mode?: string;
       model?: string;
       autonomy?: string;
+      nativeStream?: boolean;
     };
 
     // Guard: reject double-dispatch if a container execution is already in-flight.
@@ -688,7 +689,8 @@ export class ChatSessionAgent {
       userId,
       body.mode,
       body.model,
-      body.autonomy
+      body.autonomy,
+      body.nativeStream === true,
     ).catch((err) => {
       const line =
         JSON.stringify({ type: 'error', error: String(err) }) + '\n';
@@ -928,7 +930,8 @@ export class ChatSessionAgent {
         meta.userId,
         data.mode as string | undefined,
         data.model as string | undefined,
-        data.autonomy as string | undefined
+        data.autonomy as string | undefined,
+        data.nativeStream === true,
       );
     } catch (err) {
       ws.send('3:' + JSON.stringify(String(err instanceof Error ? err.message : err)) + '\n');
@@ -1176,7 +1179,8 @@ export class ChatSessionAgent {
     userId: string,
     mode?: string,
     model?: string,
-    autonomy?: string
+    autonomy?: string,
+    nativeStream?: boolean,
   ): Promise<void> {
     const sid = sessionId.slice(0, 8);
     console.log(`[ChatSessionAgent] dispatchContainer: sid=${sid} exec=${executionId.slice(0, 8)}`);
@@ -1357,7 +1361,8 @@ export class ChatSessionAgent {
           // VF runtime
           IS_SANDBOX: '1',
           CLAUDE_CODE_OAUTH_TOKEN: oauthToken,
-          VF_WS_CALLBACK_URL: wsCallbackUrlStr,
+          // Native stream: skip WS callback, use stdout → streamProcessLogs SSE
+          ...(nativeStream ? { VF_NATIVE_STREAM: '1' } : { VF_WS_CALLBACK_URL: wsCallbackUrlStr }),
           VF_STREAM_JWT: token, // kept for approval polling (HTTP)
           VF_SDK_SESSION_ID: effectiveSessionId,
           VF_STORED_BUILD: storedBuild,
@@ -1376,11 +1381,15 @@ export class ChatSessionAgent {
       }
     );
 
-    // Monitor process for crashes. waitForExit() streams process logs via SSE
-    // and resolves when the process emits an exit event. If the process crashes
-    // (non-zero exit or SSE stream error) before the bridge resolves, we close
-    // the bridge immediately rather than waiting for the 5-min bridge timeout.
-    this.watchProcessCrash(executionId, process);
+    if (nativeStream) {
+      // Native path: consume process logs via SSE (fire-and-forget).
+      // The async loop keeps the DO awake for the duration of the stream.
+      this.consumeProcessLogs(executionId, process.id, sandbox);
+    } else {
+      // Legacy path: wait for container to connect back via WS.
+      // watchProcessCrash catches non-zero exits if the bridge times out.
+      this.watchProcessCrash(executionId, process);
+    }
 
     // Update lastActiveAt in KV (non-blocking)
     const updated: Session = {
