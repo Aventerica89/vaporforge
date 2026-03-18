@@ -181,6 +181,10 @@ export function SessionTabBar() {
                   <input
                     ref={nameInputRef}
                     type="text"
+                    name="session-name"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-label="Session name"
                     value={nameInput}
                     onChange={(e) => setNameInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -189,6 +193,7 @@ export function SessionTabBar() {
                     onBlur={confirmRename}
                     className="w-[120px] rounded border border-primary/50 bg-background px-1.5 py-0.5 text-xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
                     maxLength={60}
+                    placeholder="Session name\u2026"
                   />
                 </form>
               ) : (
@@ -212,9 +217,9 @@ export function SessionTabBar() {
                   aria-label="Close session"
                 >
                   {deletingId === session.id ? (
-                    <span className="block h-3 w-3 animate-spin rounded-full border border-red-500 border-t-transparent" />
+                    <span className="block size-3 animate-spin rounded-full border border-red-500 border-t-transparent" />
                   ) : (
-                    <X className="h-3 w-3" />
+                    <X className="size-3" />
                   )}
                 </button>
               )}
@@ -226,17 +231,17 @@ export function SessionTabBar() {
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-0.5 px-1">
         {/* Deploy badge — updates every build */}
-        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-mono tabular-nums text-cyan-400/90">
+        <span className="hidden lg:inline-flex items-center gap-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 text-[10px] font-mono tabular-nums text-cyan-400/90">
           v{APP_VERSION} · {deployedAgo(BUILD_TIMESTAMP)}
         </span>
         {/* Dev version badge */}
-        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono tabular-nums text-amber-400/80">
+        <span className="hidden xl:inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 text-[10px] font-mono tabular-nums text-amber-400/80">
           #{BUILD_HASH}
         </span>
         {/* Git branch + AI commit button */}
         {currentSession && gitStatus && (
           <div className="hidden md:flex items-center gap-1 text-[10px] text-muted-foreground px-1.5">
-            <GitBranch className="h-3 w-3" />
+            <GitBranch className="size-3" />
             <span>{gitStatus.branch}</span>
             {(gitStatus.ahead > 0 || gitStatus.behind > 0) && (
               <span className="text-[10px]">
@@ -252,8 +257,9 @@ export function SessionTabBar() {
                 onClick={triggerCommitMessage}
                 className="ml-1 flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
                 title="Generate AI commit message (Cmd+Shift+G)"
+                aria-label="Generate AI commit message"
               >
-                <GitCommitHorizontal className="h-3 w-3" />
+                <GitCommitHorizontal className="size-3" />
                 <span className="hidden lg:inline">AI Commit</span>
               </button>
             )}
@@ -279,7 +285,7 @@ export function SessionTabBar() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title={isDark ? 'Light mode' : 'Dark mode'}
           aria-label="Toggle theme"
         >
@@ -293,7 +299,7 @@ export function SessionTabBar() {
         {/* Agency */}
         <button
           onClick={() => useAgencyStore.getState().openDashboard()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Agency Sites"
           aria-label="Agency Sites"
         >
@@ -303,7 +309,7 @@ export function SessionTabBar() {
         {/* Quick Chat */}
         <button
           onClick={() => useQuickChat.getState().toggleQuickChat()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Quick Chat (Cmd+Shift+Q)"
           aria-label="Quick Chat"
         >
@@ -320,7 +326,7 @@ export function SessionTabBar() {
               dc.openChangelog();
             }
           }}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Dev Changelog (Cmd+Shift+L)"
           aria-label="Dev Changelog"
         >
@@ -330,7 +336,7 @@ export function SessionTabBar() {
         {/* Issue Tracker */}
         <button
           onClick={() => useIssueTracker.getState().openTracker()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Issue Tracker"
           aria-label="Issue Tracker"
         >
@@ -348,6 +354,8 @@ export function SessionTabBar() {
                 <img
                   src={ghAvatarUrl}
                   alt={ghUsername || 'User avatar'}
+                  width={32}
+                  height={32}
                   className="size-8 rounded-full"
                 />
               ) : (
