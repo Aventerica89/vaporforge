@@ -9,7 +9,6 @@ import {
   Sun,
   Settings,
   LogOut,
-
   Bug,
   MessageSquare,
   Globe,
@@ -18,6 +17,15 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/hooks/useSettings';
+import { useGithubRepos } from '@/hooks/useGithubRepos';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { useAgencyStore } from '@/hooks/useAgencyStore';
@@ -56,23 +64,8 @@ export function SessionTabBar() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameInput, setNameInput] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
-
-  // Close user menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target as Node)
-      ) {
-        setShowUserMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  const { username: ghUsername, avatarUrl: ghAvatarUrl } = useGithubRepos();
 
   // Focus input when editing starts
   useEffect(() => {
@@ -344,41 +337,46 @@ export function SessionTabBar() {
           <Bug className="size-3.5" />
         </button>
 
-        {/* Settings */}
-        <button
-          onClick={() => openSettings()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          title="Settings"
-          aria-label="Settings"
-        >
-          <Settings className="size-3.5" />
-        </button>
-
-        {/* User avatar / menu — H1: minimum 44×44 */}
-        <div className="relative" ref={userMenuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex size-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-            aria-label="User menu"
-          >
-            U
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-md border border-border bg-card py-1 shadow-lg">
-              <button
-                onClick={() => {
-                  logout();
-                  setShowUserMenu(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-accent"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </button>
-            </div>
-          )}
-        </div>
+        {/* User avatar / menu — Radix DropdownMenu for a11y */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex size-11 items-center justify-center rounded-full overflow-hidden transition-[transform,opacity,box-shadow] duration-150 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              aria-label="User menu"
+            >
+              {ghAvatarUrl ? (
+                <img
+                  src={ghAvatarUrl}
+                  alt={ghUsername || 'User avatar'}
+                  className="size-8 rounded-full"
+                />
+              ) : (
+                <span className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                  {ghUsername ? ghUsername[0].toUpperCase() : 'U'}
+                </span>
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {ghUsername && (
+              <>
+                <DropdownMenuLabel className="font-mono text-xs text-muted-foreground">
+                  @{ghUsername}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuItem onClick={() => openSettings()}>
+              <Settings className="mr-2 size-4" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => logout()} className="text-red-500 focus:text-red-500">
+              <LogOut className="mr-2 size-4" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

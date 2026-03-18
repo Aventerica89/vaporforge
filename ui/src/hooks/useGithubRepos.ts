@@ -28,6 +28,7 @@ interface BranchState {
 interface GithubReposState {
   repos: GitHubRepo[];
   username: string;
+  avatarUrl: string;
   lastSynced: string | null;
   isSyncing: boolean;
   isLoaded: boolean;
@@ -51,6 +52,7 @@ export const useGithubRepos = create<GithubReposState>()(
     (set, get) => ({
       repos: [],
       username: '',
+      avatarUrl: '',
       lastSynced: null,
       isSyncing: false,
       isLoaded: false,
@@ -118,6 +120,16 @@ export const useGithubRepos = create<GithubReposState>()(
 
       loadUsername: async () => {
         try {
+          // Use connection endpoint to get both username and avatarUrl
+          const connResponse = await githubApi.getConnection();
+          if (connResponse.success && connResponse.data?.connected && connResponse.data.username) {
+            set({
+              username: connResponse.data.username,
+              avatarUrl: connResponse.data.avatarUrl || '',
+            });
+            return;
+          }
+          // Fallback to legacy username endpoint
           const response = await githubApi.getUsername();
           if (response.success && response.data?.username) {
             set({ username: response.data.username });
@@ -187,6 +199,7 @@ export const useGithubRepos = create<GithubReposState>()(
       partialize: (state) => ({
         repos: state.repos,
         username: state.username,
+        avatarUrl: state.avatarUrl,
         lastSynced: state.lastSynced,
         selectedBranch: state.selectedBranch,
       }),
