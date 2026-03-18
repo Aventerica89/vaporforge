@@ -31,6 +31,7 @@ import { agencyRoutes, handleAgencyEditWs, handleAgencyEditPreflight } from './a
 import { userComponentsRoutes } from './api/user-components';
 import { checkpointsRoutes } from './api/checkpoints';
 import { billingRoutes, handleBillingWebhook } from './api/billing';
+import { testStreamRoutes } from './api/test-stream';
 import { FileService } from './services/files';
 import { DEV_BUILD } from './dev-version';
 import { BUILD_HASH, BUILD_DATE, BUILD_TIMESTAMP } from './generated/build-info';
@@ -291,6 +292,8 @@ export function createRouter(env: Env) {
     handleBillingWebhook({ req: c.req.raw, env: c.env })
   );
 
+  // TEMPORARY: execStream buffering test — removed from here, added to protectedRoutes with auth bypass
+
   // Public file download endpoint (no auth required)
   app.get('/files/:key', async (c) => {
     const key = c.req.param('key');
@@ -433,6 +436,7 @@ export function createRouter(env: Env) {
   protectedRoutes.route('/user-components', userComponentsRoutes);
   protectedRoutes.route('/checkpoints', checkpointsRoutes);
   protectedRoutes.route('/billing', billingRoutes);
+  protectedRoutes.route('/test-stream', testStreamRoutes);
 
   app.route('/api', protectedRoutes);
 

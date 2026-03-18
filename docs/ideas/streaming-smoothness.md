@@ -56,6 +56,29 @@ Instead of character-by-character drip, render full chunks but fade them in:
 - No rAF loop needed — CSS handles the animation
 - Simpler, more performant, closer to Gemini's approach
 
+### VERIFIED: execStream and streamProcessLogs NOW STREAM (2026-03-18)
+
+**Test results from production (vaporforge.dev):**
+
+**execStream:** Events arrive ~500ms apart — real-time delivery confirmed.
+```
++482ms  i=0
++991ms  i=1
++1499ms i=2
++2013ms i=3
++2534ms i=4  ... (continues ~500ms apart)
+```
+
+**streamProcessLogs:** Same — ~500ms apart, real-time.
+```
++371ms  i=0
++840ms  i=1
++1340ms i=2
++1862ms i=3  ... (continues ~500ms apart)
+```
+
+**Impact:** The WS bridge in ChatSessionAgent (~500 lines) was built to work around execStream buffering. That buffering is fixed. New features can use `streamProcessLogs` natively instead of the custom WS bridge. Migration of main chat path is a v2.0 task.
+
 ### Option C: Workers AI streaming via CF Agents framework
 From https://developers.cloudflare.com/agents/api-reference/using-ai-models/:
 - `createWorkersAI()` provider works with AI SDK's `streamText`

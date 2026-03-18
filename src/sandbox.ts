@@ -164,6 +164,11 @@ export class SandboxManager {
     });
   }
 
+  // TEMPORARY: Public accessor for execStream buffering test (test/execstream-buffering branch)
+  getRawSandbox(sessionId: string): Sandbox {
+    return this.getSandboxInstance(sessionId);
+  }
+
   // Verify the sandbox shell is alive with a simple exec
   async healthCheck(sessionId: string): Promise<boolean> {
     const sandbox = this.getSandboxInstance(sessionId);

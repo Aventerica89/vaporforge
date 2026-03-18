@@ -386,13 +386,13 @@ export function Layout() {
   // Desktop-only: Full-page settings view
   if (settingsOpen) {
     return (
-      <>
+      <div className="h-dvh flex flex-col overflow-hidden">
         <SettingsPage />
         <QuickChatPanel />
         <IssueTracker />
         <DevChangelog />
         <DebugPanel />
-      </>
+      </div>
     );
   }
 

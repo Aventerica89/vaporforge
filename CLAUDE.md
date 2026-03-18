@@ -123,7 +123,7 @@ Visual website editor — click components in a live Astro preview, describe edi
 - **Container image "skipping push" trap** — if `wrangler deploy` says "Image already exists remotely, skipping push" but you changed the Dockerfile, Docker cached layers produced the same hash. Fix: `docker image prune -a -f && docker builder prune -a -f` then redeploy.
 - **Container scripts MUST stay in sync** — `src/sandbox-scripts/*.js` is the source of truth. After editing ANY sandbox script: (1) update the file in `src/sandbox-scripts/`, (2) bump `VF_CONTAINER_BUILD` env in Dockerfile, (3) the `COPY` instructions in the Dockerfile will pick up the changes automatically.
 - **AI SDK v6 stream events** — `text-delta` has `.text` property (not `.textDelta`). Same for `reasoning-delta`.
-- **CF Sandbox `execStream()` is UNFIXABLE for streaming** — internal RPC buffering holds output until process exits. Use `sandbox.wsConnect(request, port)` for real-time WebSocket tunnel instead.
+- **CF Sandbox `execStream()` NOW STREAMS (verified 2026-03-18)** — events arrive ~500ms apart, not buffered. `streamProcessLogs()` also works real-time. The old "UNFIXABLE" gotcha is outdated. WS bridge (`wsConnect`) is still used for V1.5 main chat but `execStream`/`streamProcessLogs` are viable alternatives for new features. See `docs/ideas/streaming-smoothness.md` for test results.
 
 ### Streaming: Legacy WS Path (v0.20.0–v1.4)
 

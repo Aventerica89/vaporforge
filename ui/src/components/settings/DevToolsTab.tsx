@@ -194,6 +194,14 @@ export function DevToolsTab() {
         >
           <WikiTab />
         </CollapsibleWidget>
+
+        <CollapsibleWidget
+          icon={<Activity className="h-3.5 w-3.5 text-amber-400" />}
+          title="execStream Buffering Test"
+          description="Test if CF fixed RPC buffering"
+        >
+          <ExecStreamTest />
+        </CollapsibleWidget>
       </div>
 
       {/* Quick actions */}
@@ -505,5 +513,89 @@ function DevButton({
     >
       {label}
     </button>
+  );
+}
+
+/** TEMPORARY: Tests whether CF Sandbox execStream delivers output incrementally or buffered. */
+function ExecStreamTest() {
+  const currentSession = useSandboxStore((s) => s.currentSession);
+  const [log, setLog] = useState<string[]>([]);
+  const [running, setRunning] = useState(false);
+
+  const runTest = useCallback(async (endpoint: string) => {
+    if (!currentSession?.id) {
+      setLog(['No active session']);
+      return;
+    }
+    setLog(['Connecting...']);
+    setRunning(true);
+    const t0 = Date.now();
+    const token = localStorage.getItem('session_token') || '';
+
+    try {
+      const resp = await fetch(
+        `/api/test-stream/${endpoint}?sessionId=${currentSession.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setLog((prev) => [...prev, `Stream opened at +${Date.now() - t0}ms`]);
+
+      const reader = resp.body?.getReader();
+      if (!reader) { setLog((prev) => [...prev, 'No reader']); return; }
+      const dec = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          setLog((prev) => [...prev, `[+${Date.now() - t0}ms] ${line.slice(0, 150)}`]);
+        }
+      }
+      setLog((prev) => [...prev, `Done at +${Date.now() - t0}ms`]);
+    } catch (err) {
+      setLog((prev) => [...prev, `ERROR: ${err instanceof Error ? err.message : String(err)}`]);
+    } finally {
+      setRunning(false);
+    }
+  }, [currentSession?.id]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2">
+        <button
+          disabled={running}
+          onClick={() => runTest('exec')}
+          className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1 text-xs text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+        >
+          execStream
+        </button>
+        <button
+          disabled={running}
+          onClick={() => runTest('process')}
+          className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1 text-xs text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+        >
+          streamProcessLogs
+        </button>
+        <button
+          disabled={running}
+          onClick={() => runTest('ndjson')}
+          className="rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-1 text-xs text-amber-400 hover:bg-amber-500/10 disabled:opacity-50"
+        >
+          NDJSON
+        </button>
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        If streaming works, timestamps increment ~500ms apart. If buffered, they all appear at once.
+      </p>
+      {log.length > 0 && (
+        <pre className="max-h-48 overflow-y-auto rounded-md bg-black/30 p-2 text-[10px] font-mono text-muted-foreground">
+          {log.join('\n')}
+        </pre>
+      )}
+    </div>
   );
 }
