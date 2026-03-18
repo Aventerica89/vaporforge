@@ -35,8 +35,11 @@ const WsClient = require('ws');
 const CALLBACK_URL = process.env.VF_CALLBACK_URL || '';
 const WS_CALLBACK_URL = process.env.VF_WS_CALLBACK_URL || '';
 const CALLBACK_JWT = process.env.VF_STREAM_JWT || '';
-const IS_WS_CALLBACK_MODE = !!(WS_CALLBACK_URL && CALLBACK_JWT);
-const IS_CALLBACK_MODE = IS_WS_CALLBACK_MODE || !!(CALLBACK_URL && CALLBACK_JWT);
+// Native stream mode: DO reads stdout via streamProcessLogs() SSE.
+// No WS/HTTP callback needed — emit() writes directly to stdout (fd 1).
+const NATIVE_STREAM = process.env.VF_NATIVE_STREAM === '1';
+const IS_WS_CALLBACK_MODE = !NATIVE_STREAM && !!(WS_CALLBACK_URL && CALLBACK_JWT);
+const IS_CALLBACK_MODE = IS_WS_CALLBACK_MODE || (!NATIVE_STREAM && !!(CALLBACK_URL && CALLBACK_JWT));
 
 const WS_CONNECT_TIMEOUT_MS = 10000;
 const WS_QUEUE_MAX = 500;
@@ -137,9 +140,10 @@ async function waitForApproval(approvalId) {
 }
 
 // Emit an event object as NDJSON.
+// Native stream mode: write to stdout (fd 1) — DO reads via streamProcessLogs SSE.
 // WS mode: send each line as a WebSocket frame (real-time, no CF buffering).
 // HTTP mode (legacy): write to chunked POST body (CF-buffered).
-// V1.0: synchronous write to stdout (fd 1).
+// Fallback: synchronous write to stdout (fd 1).
 function emit(obj) {
   const line = JSON.stringify(obj) + '\n';
   if (IS_WS_CALLBACK_MODE) {

@@ -38,7 +38,7 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
 
 # Increase command timeout for AI responses (5 min)
 ENV COMMAND_TIMEOUT_MS=300000
-ENV VF_CONTAINER_BUILD=20260317-stability
+ENV VF_CONTAINER_BUILD=20260318-native-stream
 
 # Create workspace directory
 RUN mkdir -p /workspace
