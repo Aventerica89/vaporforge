@@ -247,6 +247,133 @@ export function WelcomeScreen() {
           </button>
         </div>
 
+        {/* Active Sessions — above repos for quick resume */}
+        {activeSessions.length > 0 && (
+          <div className="space-y-3 md:space-y-4 animate-fade-up stagger-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
+                Sessions
+                <span className="ml-2 text-primary/60">{activeSessions.length}</span>
+              </h3>
+              {activeSessions.length > 8 && (
+                <button
+                  onClick={() => setShowAll(!showAll)}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {showAll ? 'Show less' : `Show all (${activeSessions.length})`}
+                </button>
+              )}
+            </div>
+            {isLoadingSessions ? (
+              <div className="flex justify-center py-8">
+                <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {visibleSessions.map((session) => {
+                  const statusColor = session.status === 'active'
+                    ? 'bg-gradient-to-b from-emerald-500 to-emerald-600'
+                    : session.status === 'sleeping'
+                      ? 'bg-gradient-to-b from-yellow-500 to-amber-600'
+                      : 'bg-[#2d333b]';
+
+                  return editingId === session.id ? (
+                    <div
+                      key={session.id}
+                      className="flex overflow-hidden rounded-[10px] bg-[#111820] shadow-[0_2px_16px_rgba(0,0,0,0.2)]"
+                    >
+                      <div className="w-[3px] flex-shrink-0 bg-primary" />
+                      <form
+                        onSubmit={(e) => { e.preventDefault(); confirmRename(); }}
+                        className="flex flex-1 items-center gap-2 px-4 py-3"
+                      >
+                        <input
+                          ref={editInputRef}
+                          type="text"
+                          name="session-name"
+                          autoComplete="off"
+                          spellCheck={false}
+                          aria-label="Session name"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Escape') cancelRename(); }}
+                          onBlur={confirmRename}
+                          className="flex-1 rounded border border-primary/50 bg-background px-2 py-1 text-xs font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+                          maxLength={60}
+                          placeholder="Session name\u2026"
+                        />
+                        <button type="submit" className="size-8 flex items-center justify-center rounded text-success hover:bg-success/10" title="Save">
+                          <Check className="size-3.5" />
+                        </button>
+                        <button type="button" onClick={cancelRename} className="size-8 flex items-center justify-center rounded text-muted-foreground hover:bg-primary/10" title="Cancel">
+                          <X className="size-3.5" />
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <div
+                      key={session.id}
+                      className="group flex overflow-hidden rounded-[10px] bg-[#111820] shadow-[0_2px_16px_rgba(0,0,0,0.2)] hover:shadow-[0_2px_16px_rgba(0,0,0,0.3)] transition-[box-shadow] duration-150"
+                    >
+                      <div className={`w-[3px] flex-shrink-0 ${statusColor}`} />
+                      <div className="flex-1 min-w-0 flex flex-col px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <button
+                            onClick={() => selectSession(session.id)}
+                            className="text-left min-w-0 flex-1"
+                          >
+                            <span className="text-sm font-semibold text-[#cdd9e5] truncate block">
+                              {getSessionLabel(session)}
+                            </span>
+                          </button>
+                          <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <span className={`size-1.5 rounded-full ${
+                              session.status === 'active' ? 'bg-emerald-500' : session.status === 'sleeping' ? 'bg-yellow-500' : 'bg-gray-500'
+                            }`} />
+                            <span className="text-[11px] text-[#768390] font-mono tabular-nums">
+                              {timeAgo(session.lastActiveAt)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-1">
+                          <span className="text-[11px] text-[#768390] truncate">
+                            {session.gitRepo
+                              ? session.gitRepo.replace(/^https?:\/\/(github\.com\/)?/, '')
+                              : 'Empty workspace'}
+                          </span>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); startRename(session.id, getSessionName(session) || getSessionLabel(session)); }}
+                              className="rounded p-1.5 hover:bg-primary/10 hover:text-primary"
+                              title="Rename"
+                              aria-label="Rename session"
+                            >
+                              <Pencil className="size-3" />
+                            </button>
+                            <button
+                              onClick={async (e) => { e.stopPropagation(); setDeletingId(session.id); await terminateSession(session.id); setDeletingId(null); }}
+                              disabled={deletingId === session.id}
+                              className="rounded p-1.5 hover:bg-red-500/10 hover:text-red-500"
+                              title="Delete"
+                              aria-label="Delete session"
+                            >
+                              {deletingId === session.id ? (
+                                <span className="size-3 block animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
+                              ) : (
+                                <Trash2 className="size-3" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* My Repos (GitHub) */}
         {ghUsername ? (
           <div className="space-y-3 animate-fade-up stagger-2">
@@ -464,157 +591,6 @@ export function WelcomeScreen() {
         {createError && (
           <div className="rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-error animate-fade-up">
             {createError}
-          </div>
-        )}
-
-        {/* Recent Sessions */}
-        {activeSessions.length > 0 && (
-          <div className="space-y-3 md:space-y-4 animate-fade-up stagger-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
-                Sessions
-                <span className="ml-2 text-primary/60">{activeSessions.length}</span>
-              </h3>
-              {activeSessions.length > 8 && (
-                <button
-                  onClick={() => setShowAll(!showAll)}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
-                >
-                  {showAll ? 'Show less' : `Show all (${activeSessions.length})`}
-                </button>
-              )}
-            </div>
-            {isLoadingSessions ? (
-              <div className="flex justify-center py-8">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {visibleSessions.map((session, index) => (
-                  <div
-                    key={session.id}
-                    className="glass-card group flex w-full min-w-0 items-center justify-between p-4 md:p-5 transition-all duration-300 hover:border-primary hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)] active:scale-[0.98] animate-fade-up"
-                    style={{ animationDelay: `${(index + 1) * 50}ms` }}
-                  >
-                    {editingId === session.id ? (
-                      /* Inline rename form */
-                      <form
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          confirmRename();
-                        }}
-                        className="flex flex-1 items-center gap-2 min-w-0"
-                      >
-                        <input
-                          ref={editInputRef}
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') cancelRename();
-                          }}
-                          onBlur={confirmRename}
-                          className="flex-1 rounded border border-primary/50 bg-background px-2 py-1 text-sm font-mono focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                          placeholder="Session name..."
-                          maxLength={60}
-                        />
-                        <button
-                          type="submit"
-                          className="flex h-11 w-11 items-center justify-center rounded text-success hover:bg-success/10"
-                          title="Save"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelRename}
-                          className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-primary/10"
-                          title="Cancel"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </form>
-                    ) : (
-                      /* Normal session row */
-                      <>
-                        <button
-                          onClick={() => selectSession(session.id)}
-                          className="text-left flex-1 min-w-0"
-                        >
-                          <p className="font-mono text-sm md:text-base font-semibold truncate">
-                            {getSessionLabel(session)}
-                          </p>
-                          <p className="text-xs md:text-sm text-muted-foreground truncate">
-                            {session.gitRepo
-                              ? session.gitRepo.replace(/^https?:\/\/(github\.com\/)?/, '')
-                              : 'Empty workspace'}
-                          </p>
-                        </button>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <div
-                            className={`flex items-center gap-1.5 text-xs ${
-                              session.status === 'active'
-                                ? 'text-success'
-                                : session.status === 'sleeping'
-                                  ? 'text-warning'
-                                  : 'text-muted-foreground'
-                            }`}
-                          >
-                            <span
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                session.status === 'active'
-                                  ? 'bg-green-500'
-                                  : session.status === 'sleeping'
-                                    ? 'bg-yellow-500'
-                                    : 'bg-gray-500'
-                              }`}
-                            />
-                            <span className="hidden sm:inline font-mono uppercase">
-                              {session.status}
-                            </span>
-                          </div>
-                          <span
-                            className="text-[11px] text-muted-foreground font-mono"
-                            title={new Date(session.lastActiveAt).toLocaleString()}
-                          >
-                            {timeAgo(session.lastActiveAt)}
-                          </span>
-                          {/* Rename button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              startRename(session.id, getSessionName(session) || getSessionLabel(session));
-                            }}
-                            className="rounded p-2.5 opacity-0 group-hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-opacity"
-                            title="Rename session"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          {/* Delete button */}
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              setDeletingId(session.id);
-                              await terminateSession(session.id);
-                              setDeletingId(null);
-                            }}
-                            disabled={deletingId === session.id}
-                            className="rounded p-2.5 opacity-0 group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-500 transition-opacity"
-                            title="Delete session"
-                          >
-                            {deletingId === session.id ? (
-                              <span className="h-3.5 w-3.5 block animate-spin rounded-full border-2 border-red-500 border-t-transparent" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
