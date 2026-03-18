@@ -131,23 +131,23 @@ export function SessionTabBar() {
         {/* Home button — H1: 44×44 touch target */}
         <button
           onClick={() => deselectSession()}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center transition-all duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+          className={`flex size-11 shrink-0 items-center justify-center transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
             !currentSession ? 'text-foreground bg-background' : 'text-muted-foreground'
           }`}
           title="Home"
           aria-label="Home"
         >
-          <Home className="h-3.5 w-3.5" />
+          <Home className="size-3.5" />
         </button>
 
         {/* New session button — H1: 44×44 touch target */}
         <button
           onClick={() => createSession()}
-          className="flex h-11 w-11 shrink-0 items-center justify-center text-muted-foreground transition-all duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 shrink-0 items-center justify-center text-muted-foreground transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="New session"
           aria-label="New session"
         >
-          <Plus className="h-3.5 w-3.5" />
+          <Plus className="size-3.5" />
         </button>
 
         {/* Session tabs */}
@@ -158,7 +158,7 @@ export function SessionTabBar() {
           return (
             <div
               key={session.id}
-              className={`group relative flex min-h-[44px] shrink-0 items-center gap-1.5 border-r border-border/50 px-3 text-sm transition-all duration-150 ease-out ${
+              className={`group relative flex min-h-[44px] shrink-0 items-center gap-1.5 border-r border-border/50 px-3 text-sm transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out ${
                 isActive
                   ? 'bg-background text-foreground'
                   : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground active:scale-[0.98]'
@@ -171,7 +171,7 @@ export function SessionTabBar() {
 
               {/* Status dot */}
               <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${getStatusColor(
+                className={`size-1.5 shrink-0 rounded-full ${getStatusColor(
                   session.status
                 )}`}
               />
@@ -233,11 +233,11 @@ export function SessionTabBar() {
       {/* Right: status controls */}
       <div className="flex shrink-0 items-center gap-0.5 px-1">
         {/* Deploy badge — updates every build */}
-        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-mono text-cyan-400/90">
+        <span className="hidden lg:inline-flex items-center gap-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 px-2 py-0.5 text-[10px] font-mono tabular-nums text-cyan-400/90">
           v{APP_VERSION} · {deployedAgo(BUILD_TIMESTAMP)}
         </span>
         {/* Dev version badge */}
-        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-400/80">
+        <span className="hidden xl:inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-mono tabular-nums text-amber-400/80">
           #{BUILD_HASH}
         </span>
         {/* Git branch + AI commit button */}
@@ -271,7 +271,7 @@ export function SessionTabBar() {
         {currentSession && (
           <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground px-1.5">
             <span
-              className={`h-1.5 w-1.5 rounded-full ${getStatusColor(
+              className={`size-1.5 rounded-full ${getStatusColor(
                 currentSession.status
               )}`}
             />
@@ -286,35 +286,35 @@ export function SessionTabBar() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title={isDark ? 'Light mode' : 'Dark mode'}
           aria-label="Toggle theme"
         >
           {isDark ? (
-            <Sun className="h-3.5 w-3.5" />
+            <Sun className="size-3.5" />
           ) : (
-            <Moon className="h-3.5 w-3.5" />
+            <Moon className="size-3.5" />
           )}
         </button>
 
         {/* Agency */}
         <button
           onClick={() => useAgencyStore.getState().openDashboard()}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Agency Sites"
           aria-label="Agency Sites"
         >
-          <Globe className="h-3.5 w-3.5" />
+          <Globe className="size-3.5" />
         </button>
 
         {/* Quick Chat */}
         <button
           onClick={() => useQuickChat.getState().toggleQuickChat()}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Quick Chat (Cmd+Shift+Q)"
           aria-label="Quick Chat"
         >
-          <MessageSquare className="h-3.5 w-3.5" />
+          <MessageSquare className="size-3.5" />
         </button>
 
         {/* Dev Changelog */}
@@ -327,38 +327,38 @@ export function SessionTabBar() {
               dc.openChangelog();
             }
           }}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Dev Changelog (Cmd+Shift+L)"
           aria-label="Dev Changelog"
         >
-          <GitCommitHorizontal className="h-3.5 w-3.5" />
+          <GitCommitHorizontal className="size-3.5" />
         </button>
 
         {/* Issue Tracker */}
         <button
           onClick={() => useIssueTracker.getState().openTracker()}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Issue Tracker"
           aria-label="Issue Tracker"
         >
-          <Bug className="h-3.5 w-3.5" />
+          <Bug className="size-3.5" />
         </button>
 
         {/* Settings */}
         <button
           onClick={() => openSettings()}
-          className="flex h-11 w-11 items-center justify-center rounded-md transition-all duration-150 ease-out hover:bg-accent active:scale-[0.92] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-accent active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Settings"
           aria-label="Settings"
         >
-          <Settings className="h-3.5 w-3.5" />
+          <Settings className="size-3.5" />
         </button>
 
         {/* User avatar / menu — H1: minimum 44×44 */}
         <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="flex size-11 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="User menu"
           >
             U
