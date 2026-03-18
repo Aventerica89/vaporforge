@@ -61,7 +61,7 @@ export const MobileTabBar = memo(function MobileTabBar({
       role="tablist"
       className={[
         'flex flex-col',
-        'transition-transform duration-200',
+        'transition-transform duration-300 ease-out',
         keyboardOpen ? 'translate-y-full' : '',
       ].filter(Boolean).join(' ')}
       style={{
@@ -87,7 +87,7 @@ export const MobileTabBar = memo(function MobileTabBar({
               aria-selected={isActive}
               aria-label={tab.label}
               title={tab.label}
-              className="flex flex-1 flex-col items-center justify-center gap-0.5"
+              className="flex flex-1 flex-col items-center justify-center gap-0.5 transition-[color,transform] duration-150 ease-out active:scale-90"
               style={{
                 minHeight: '44px',
                 minWidth: '44px',
