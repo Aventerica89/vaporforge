@@ -641,6 +641,7 @@ export const sdkApi = {
         mode: mode || 'agent',
         ...(model && model !== 'auto' ? { model } : {}),
         ...(autonomy ? { autonomy } : {}),
+        ...(localStorage.getItem('vf_native_stream') === '1' ? { nativeStream: true } : {}),
       }),
       signal,
     });

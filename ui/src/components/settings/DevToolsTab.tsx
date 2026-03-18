@@ -204,6 +204,14 @@ export function DevToolsTab() {
         </CollapsibleWidget>
       </div>
 
+      {/* Streaming transport */}
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3">
+          Streaming Transport
+        </h3>
+        <NativeStreamToggle />
+      </div>
+
       {/* Quick actions */}
       <div className="rounded-lg border border-border p-4">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
@@ -597,5 +605,46 @@ function ExecStreamTest() {
         </pre>
       )}
     </div>
+  );
+}
+
+/** Toggle for native stream transport (streamProcessLogs SSE vs WS bridge). */
+function NativeStreamToggle() {
+  const [enabled, setEnabled] = useState(
+    () => localStorage.getItem('vf_native_stream') === '1'
+  );
+
+  const toggle = useCallback(() => {
+    const next = !enabled;
+    localStorage.setItem('vf_native_stream', next ? '1' : '0');
+    setEnabled(next);
+  }, [enabled]);
+
+  return (
+    <label className="flex items-center justify-between cursor-pointer">
+      <div className="space-y-0.5">
+        <span className="text-sm text-foreground">Native Stream (streamProcessLogs)</span>
+        <p className="text-[10px] text-muted-foreground">
+          {enabled
+            ? 'Using CF native SSE — container writes to stdout, DO reads via streamProcessLogs'
+            : 'Using WS bridge — container opens outbound WS to DO (legacy)'}
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={toggle}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          enabled ? 'bg-amber-500' : 'bg-muted-foreground/30'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+            enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
+        />
+      </button>
+    </label>
   );
 }
