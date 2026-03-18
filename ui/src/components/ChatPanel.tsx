@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '@/lib/utils';
 import {
   Trash2, Paperclip, X,
-  Flame, Eye, Zap, Bookmark, MoreHorizontal,
+  Flame, Eye, Zap, Bookmark,
 } from 'lucide-react';
 import { useSandboxStore, useMessageCount } from '@/hooks/useSandbox';
 import { filesApi } from '@/lib/api';
@@ -11,8 +11,6 @@ import { useKeyboard } from '@/hooks/useKeyboard';
 import { useDebugLog } from '@/hooks/useDebugLog';
 import { toast } from '@/hooks/useToast';
 
-import { PromptMoreDrawer } from '@/components/mobile/PromptMoreDrawer';
-import type { SubView } from '@/hooks/useMobileNav';
 import { BorderTrail } from '@/components/motion-primitives/border-trail';
 import { SandboxIsland } from '@/components/chat/SandboxIsland';
 import { useReforge } from '@/hooks/useReforge';
@@ -74,13 +72,11 @@ import { useQuickChat } from '@/hooks/useQuickChat';
 interface ChatPanelProps {
   compact?: boolean;
   primary?: boolean;
-  onMobileNavigate?: (view: SubView) => void;
 }
 
 export function ChatPanel({
   compact = false,
   primary = false,
-  onMobileNavigate,
 }: ChatPanelProps) {
   const messageCount = useMessageCount();
   const sendMessage = useSandboxStore((s) => s.sendMessage);
@@ -107,7 +103,6 @@ export function ChatPanel({
 
   const [input, setInput] = useState('');
   const [confirmingClear, setConfirmingClear] = useState(false);
-  const [moreDrawerOpen, setMoreDrawerOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   useKeyboard();
 
@@ -300,13 +295,6 @@ export function ChatPanel({
               )}
             >
               <Bookmark className="size-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMoreDrawerOpen(true)}
-              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground active:scale-95 transition-colors"
-            >
-              <MoreHorizontal className="size-5" />
             </button>
           </PromptInputTools>
           <div className="pr-2">
@@ -533,14 +521,6 @@ export function ChatPanel({
             </div>
           </div>
         </>
-      )}
-
-      {compact && onMobileNavigate && (
-        <PromptMoreDrawer
-          isOpen={moreDrawerOpen}
-          onClose={() => setMoreDrawerOpen(false)}
-          onNavigate={onMobileNavigate}
-        />
       )}
 
       <ReforgeModal onInsert={(text) => setInput((prev) => prev ? `${prev}\n\n${text}` : text)} />

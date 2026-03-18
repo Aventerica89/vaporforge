@@ -121,7 +121,6 @@ export function MobileLayout() {
           <ChatPanel
             compact
 
-            onMobileNavigate={setSubView}
           />
         );
       case 'files':
@@ -145,7 +144,6 @@ export function MobileLayout() {
           <ChatPanel
             compact
 
-            onMobileNavigate={setSubView}
           />
         );
     }

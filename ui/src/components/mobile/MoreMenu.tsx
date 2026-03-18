@@ -1,17 +1,34 @@
 import {
   Plus,
   GitBranch,
-  Settings,
   Bug,
   Hammer,
   LogOut,
   Zap,
+  Palette,
+  Keyboard,
+  FileCode,
+  Terminal,
+  ScrollText,
+  Bot,
+  Puzzle,
+  Key,
+  Sparkles,
+  Shield,
+  HardDrive,
+  User,
+  CreditCard,
+  BookOpen,
+  Info,
+  ChevronRight,
 } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useAuthStore } from '@/hooks/useAuth';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useIssueTracker } from '@/hooks/useIssueTracker';
 import { usePlayground } from '@/hooks/usePlayground';
+import { useSettingsStore } from '@/hooks/useSettings';
+import type { SettingsTab } from '@/hooks/useSettings';
 import { haptics } from '@/lib/haptics';
 import type { SubView } from '@/hooks/useMobileNav';
 
@@ -26,11 +43,13 @@ function MenuItem({
   label,
   onClick,
   variant,
+  showChevron,
 }: {
   readonly icon: React.ReactNode;
   readonly label: string;
   readonly onClick: () => void;
   readonly variant?: 'danger';
+  readonly showChevron?: boolean;
 }) {
   const colorClass =
     variant === 'danger'
@@ -50,7 +69,10 @@ function MenuItem({
       ].join(' ')}
     >
       {icon}
-      {label}
+      <span className="flex-1 text-left">{label}</span>
+      {showChevron && (
+        <ChevronRight className="size-4 text-muted-foreground/40" />
+      )}
     </button>
   );
 }
@@ -62,6 +84,75 @@ function SectionHeader({ children }: { readonly children: string }) {
     </h4>
   );
 }
+
+/** Settings items mapped to their icons (matches SettingsPage TAB_GROUPS) */
+const SETTINGS_ICONS: Record<SettingsTab, React.ReactNode> = {
+  appearance: <Palette className="size-4" />,
+  shortcuts: <Keyboard className="size-4" />,
+  'claude-md': <FileCode className="size-4" />,
+  rules: <ScrollText className="size-4" />,
+  commands: <Terminal className="size-4" />,
+  agents: <Bot className="size-4" />,
+  integrations: <Puzzle className="size-4" />,
+  secrets: <Key className="size-4" />,
+  'ai-providers': <Sparkles className="size-4" />,
+  'command-center': <Shield className="size-4" />,
+  files: <HardDrive className="size-4" />,
+  account: <User className="size-4" />,
+  billing: <CreditCard className="size-4" />,
+  'dev-tools': <Hammer className="size-4" />,
+  guide: <BookOpen className="size-4" />,
+  about: <Info className="size-4" />,
+};
+
+interface SettingsGroup {
+  readonly label: string;
+  readonly tabs: readonly { readonly id: SettingsTab; readonly label: string }[];
+}
+
+const SETTINGS_GROUPS: readonly SettingsGroup[] = [
+  {
+    label: 'General',
+    tabs: [
+      { id: 'appearance', label: 'Appearance' },
+      { id: 'shortcuts', label: 'Shortcuts' },
+    ],
+  },
+  {
+    label: 'Workspace',
+    tabs: [
+      { id: 'claude-md', label: 'CLAUDE.md' },
+      { id: 'rules', label: 'Rules' },
+      { id: 'commands', label: 'Commands' },
+      { id: 'agents', label: 'Agents' },
+      { id: 'integrations', label: 'Integrations' },
+      { id: 'secrets', label: 'Secrets' },
+      { id: 'ai-providers', label: 'AI Providers' },
+      { id: 'command-center', label: 'Command Center' },
+      { id: 'files', label: 'Files' },
+    ],
+  },
+  {
+    label: 'Account',
+    tabs: [
+      { id: 'account', label: 'Account' },
+      { id: 'billing', label: 'Billing' },
+    ],
+  },
+  {
+    label: 'Developer',
+    tabs: [
+      { id: 'dev-tools', label: 'Dev Tools' },
+    ],
+  },
+  {
+    label: 'Help',
+    tabs: [
+      { id: 'guide', label: 'Guide' },
+      { id: 'about', label: 'About' },
+    ],
+  },
+];
 
 export function MoreMenu({
   onOpenCloneModal,
@@ -78,18 +169,23 @@ export function MoreMenu({
     await createSession();
   };
 
+  const navigateToSettings = (tabId: SettingsTab) => {
+    useSettingsStore.getState().setActiveTab(tabId);
+    onNavigate('settings');
+  };
+
   return (
-    <div className="flex flex-col overflow-y-auto">
+    <div className="flex flex-col overflow-y-auto pb-safe">
       {/* Actions */}
       <div className="p-3 space-y-0.5">
         <SectionHeader>Actions</SectionHeader>
         <MenuItem
-          icon={<Plus className="h-4.5 w-4.5 text-primary" />}
+          icon={<Plus className="size-4 text-primary" />}
           label="New Session"
           onClick={handleNewSession}
         />
         <MenuItem
-          icon={<GitBranch className="h-4.5 w-4.5 text-secondary" />}
+          icon={<GitBranch className="size-4 text-secondary" />}
           label="Clone Repo"
           onClick={onOpenCloneModal}
         />
@@ -127,10 +223,9 @@ export function MoreMenu({
                 ].join(' ')}
               >
                 <span
-                  className={[
-                    'h-2 w-2 shrink-0 rounded-full',
-                    dotColor,
-                  ].join(' ')}
+                  className={['size-2 shrink-0 rounded-full', dotColor].join(
+                    ' ',
+                  )}
                 />
                 <span className="truncate">{name}</span>
                 {isActive && (
@@ -148,35 +243,48 @@ export function MoreMenu({
       <div className="p-3 space-y-0.5">
         <SectionHeader>Tools</SectionHeader>
         <MenuItem
-          icon={<Zap className="h-4.5 w-4.5 text-primary" />}
+          icon={<Zap className="size-4 text-primary" />}
           label="Quick Chat"
           onClick={() => useQuickChat.getState().openQuickChat()}
         />
         <MenuItem
-          icon={<Bug className="h-4.5 w-4.5 text-orange-500" />}
+          icon={<Bug className="size-4 text-orange-500" />}
           label="Bug Tracker"
           onClick={() => useIssueTracker.getState().openTracker()}
         />
         <MenuItem
-          icon={<Hammer className="h-4.5 w-4.5 text-amber-500" />}
+          icon={<Hammer className="size-4 text-amber-500" />}
           label="Dev Playground"
           onClick={() => usePlayground.getState().openPlayground()}
         />
-        <MenuItem
-          icon={<Settings className="h-4.5 w-4.5 text-muted-foreground" />}
-          label="Settings"
-          onClick={() => onNavigate('settings')}
-        />
       </div>
 
+      {/* Settings groups */}
+      {SETTINGS_GROUPS.map((group) => (
+        <div key={group.label} className="p-3 space-y-0.5">
+          <SectionHeader>{group.label}</SectionHeader>
+          {group.tabs.map((tab) => (
+            <MenuItem
+              key={tab.id}
+              icon={SETTINGS_ICONS[tab.id]}
+              label={tab.label}
+              onClick={() => navigateToSettings(tab.id)}
+              showChevron
+            />
+          ))}
+        </div>
+      ))}
+
       {/* Sign Out */}
-      <div className="p-3 mt-auto">
-        <MenuItem
-          icon={<LogOut className="h-4.5 w-4.5" />}
-          label="Sign Out"
-          onClick={() => logout()}
-          variant="danger"
-        />
+      <div className="p-3">
+        <div className="border-t border-border/40 pt-3">
+          <MenuItem
+            icon={<LogOut className="size-4" />}
+            label="Sign Out"
+            onClick={() => logout()}
+            variant="danger"
+          />
+        </div>
       </div>
     </div>
   );
