@@ -1197,6 +1197,12 @@ export const githubApi = {
       method: 'POST',
     }),
 
+  /** List branches for a repo */
+  branches: (owner: string, repo: string) =>
+    request<{ branches: Array<{ name: string; isDefault: boolean; isProtected: boolean }>; defaultBranch: string }>(
+      `/github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`
+    ),
+
   /** Legacy: get saved username */
   getUsername: () =>
     request<{ username: string }>('/github/username'),

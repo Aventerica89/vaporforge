@@ -13,6 +13,18 @@ export interface GitHubRepo {
   fork: boolean;
 }
 
+export interface GitHubBranch {
+  name: string;
+  isDefault: boolean;
+  isProtected: boolean;
+}
+
+interface BranchState {
+  branches: GitHubBranch[];
+  defaultBranch: string;
+  loading: boolean;
+}
+
 interface GithubReposState {
   repos: GitHubRepo[];
   username: string;
@@ -20,10 +32,18 @@ interface GithubReposState {
   isSyncing: boolean;
   isLoaded: boolean;
 
+  // Branch picker state
+  branchesFor: Record<string, BranchState>;
+  selectedBranch: Record<string, string>;
+  expandedRepo: string | null;
+
   loadRepos: () => Promise<void>;
   syncRepos: () => Promise<void>;
   setUsername: (username: string) => Promise<void>;
   loadUsername: () => Promise<void>;
+  loadBranches: (owner: string, repo: string) => Promise<void>;
+  selectBranch: (repoFullName: string, branchName: string) => void;
+  setExpandedRepo: (repoFullName: string | null) => void;
 }
 
 export const useGithubRepos = create<GithubReposState>()(
@@ -34,6 +54,9 @@ export const useGithubRepos = create<GithubReposState>()(
       lastSynced: null,
       isSyncing: false,
       isLoaded: false,
+      branchesFor: {},
+      selectedBranch: {},
+      expandedRepo: null,
 
       loadRepos: async () => {
         const { isSyncing, repos } = get();
@@ -50,12 +73,10 @@ export const useGithubRepos = create<GithubReposState>()(
               isLoaded: true,
             });
           } else if (repos.length > 0) {
-            // API failed (e.g. rate limit) but we have stale localStorage data
             set({ isLoaded: true });
           }
         } catch (error) {
           console.error('[GitHub Repos] Failed to load:', error);
-          // Use stale localStorage data if available
           if (repos.length > 0) {
             set({ isLoaded: true });
           }
@@ -105,6 +126,61 @@ export const useGithubRepos = create<GithubReposState>()(
           console.error('[GitHub Repos] Failed to load username:', error);
         }
       },
+
+      loadBranches: async (owner: string, repo: string) => {
+        const key = `${owner}/${repo}`;
+        const existing = get().branchesFor[key];
+        if (existing?.loading) return;
+
+        set((state) => ({
+          branchesFor: {
+            ...state.branchesFor,
+            [key]: { branches: existing?.branches ?? [], defaultBranch: existing?.defaultBranch ?? 'main', loading: true },
+          },
+        }));
+
+        try {
+          const response = await githubApi.branches(owner, repo);
+          if (response.success && response.data) {
+            set((state) => ({
+              branchesFor: {
+                ...state.branchesFor,
+                [key]: {
+                  branches: response.data!.branches,
+                  defaultBranch: response.data!.defaultBranch,
+                  loading: false,
+                },
+              },
+            }));
+          }
+        } catch (error) {
+          console.error(`[GitHub Repos] Failed to load branches for ${key}:`, error);
+          set((state) => ({
+            branchesFor: {
+              ...state.branchesFor,
+              [key]: { ...state.branchesFor[key], loading: false },
+            },
+          }));
+        }
+      },
+
+      selectBranch: (repoFullName: string, branchName: string) => {
+        set((state) => ({
+          selectedBranch: { ...state.selectedBranch, [repoFullName]: branchName },
+          expandedRepo: null,
+        }));
+      },
+
+      setExpandedRepo: (repoFullName: string | null) => {
+        set({ expandedRepo: repoFullName });
+        // Auto-load branches when expanding
+        if (repoFullName) {
+          const [owner, repo] = repoFullName.split('/');
+          if (owner && repo) {
+            get().loadBranches(owner, repo);
+          }
+        }
+      },
     }),
     {
       name: 'vf-github-repos',
@@ -112,6 +188,7 @@ export const useGithubRepos = create<GithubReposState>()(
         repos: state.repos,
         username: state.username,
         lastSynced: state.lastSynced,
+        selectedBranch: state.selectedBranch,
       }),
     }
   )
@@ -119,7 +196,6 @@ export const useGithubRepos = create<GithubReposState>()(
 
 // Auto-load on app start
 if (typeof window !== 'undefined') {
-  // Load username from backend, then load repos if username exists
   useGithubRepos.getState().loadUsername().then(() => {
     const { username } = useGithubRepos.getState();
     if (username) {

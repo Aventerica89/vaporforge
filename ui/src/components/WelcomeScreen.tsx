@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Trash2, Check, X, Undo2, Star, RefreshCw, MessageSquare } from 'lucide-react';
+import { Pencil, Trash2, Check, X, Undo2, Star, RefreshCw, MessageSquare, Search } from 'lucide-react';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { useFavoritesStore } from '@/hooks/useFavorites';
 import { useGithubRepos, type GitHubRepo } from '@/hooks/useGithubRepos';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { githubApi } from '@/lib/api';
+import { BranchPicker, BranchPill } from './BranchPicker';
 import { Changelog } from './Changelog';
 import { CloneRepoModal } from './CloneRepoModal';
 import { BUILD_HASH, BUILD_DATE } from '@/lib/generated/build-info';
@@ -65,16 +66,20 @@ export function WelcomeScreen() {
   const [editName, setEditName] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
-  const { favorites, removeFavorite } = useFavoritesStore();
+  const { favorites, toggleFavorite, isFavorite } = useFavoritesStore();
   const {
     repos: ghRepos,
     username: ghUsername,
     lastSynced,
     isSyncing: ghSyncing,
     syncRepos,
+    expandedRepo,
+    setExpandedRepo,
+    selectedBranch,
+    branchesFor,
   } = useGithubRepos();
-  const [cloningFavUrl, setCloningFavUrl] = useState<string | null>(null);
   const [cloningGhUrl, setCloningGhUrl] = useState<string | null>(null);
+  const [repoSearch, setRepoSearch] = useState('');
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
@@ -116,24 +121,11 @@ export function WelcomeScreen() {
     setEditName('');
   };
 
-  const handleCloneFavorite = async (url: string) => {
-    setCloningFavUrl(url);
-    try {
-      const session = await createSession(undefined, url);
-      if (session) {
-        await selectSession(session.id);
-      }
-    } catch {
-      // Error handled by createSession
-    } finally {
-      setCloningFavUrl(null);
-    }
-  };
-
   const handleCloneGhRepo = async (repo: GitHubRepo) => {
     setCloningGhUrl(repo.html_url);
     try {
-      const session = await createSession(undefined, repo.html_url);
+      const branch = selectedBranch[repo.full_name] || branchesFor[repo.full_name]?.defaultBranch;
+      const session = await createSession(undefined, repo.html_url, branch);
       if (session) {
         await selectSession(session.id);
       }
@@ -262,7 +254,7 @@ export function WelcomeScreen() {
               <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <span>My Repos</span>
                 <span className="text-primary/60">{ghRepos.length}</span>
-                <span className="text-[10px] font-mono normal-case tracking-normal text-[#238636]/70">@{ghUsername}</span>
+                <span className="text-[10px] font-mono normal-case tracking-normal text-primary/70">@{ghUsername}</span>
               </h3>
               <div className="flex items-center gap-2">
                 {lastSynced && (
@@ -281,47 +273,157 @@ export function WelcomeScreen() {
                 </button>
               </div>
             </div>
-            {ghRepos.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {ghRepos.slice(0, 6).map((repo) => (
-                  <div
-                    key={repo.full_name}
-                    className="glass-card group flex min-w-0 items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
-                  >
-                    <button
-                      onClick={() => handleCloneGhRepo(repo)}
-                      disabled={cloningGhUrl !== null}
-                      className="flex-1 min-w-0 text-left"
-                    >
-                      <p className="font-mono text-sm font-semibold truncate">
-                        {repo.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {repo.language && (
-                          <span className="text-[10px] text-muted-foreground/60">
-                            {repo.language}
-                          </span>
-                        )}
-                        {repo.description && (
-                          <span className="text-[10px] text-muted-foreground/40 truncate">
-                            {repo.description}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                    <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                      {cloningGhUrl === repo.html_url ? (
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      ) : (
-                        <span className="text-[10px] text-muted-foreground/40 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-                          clone
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+
+            {/* Repo search */}
+            {ghRepos.length > 6 && (
+              <div className="flex items-center gap-2 rounded-lg bg-[#0a0e14] border border-[#1DD3E6]/10 focus-within:border-[#1DD3E6]/40 transition-colors px-3 py-2">
+                <Search className="h-3.5 w-3.5 text-[#4b535d] flex-shrink-0" />
+                <input
+                  type="text"
+                  value={repoSearch}
+                  onChange={(e) => setRepoSearch(e.target.value)}
+                  placeholder="Filter repos..."
+                  className="flex-1 bg-transparent text-xs text-[#cdd9e5] placeholder-[#4b535d] outline-none ring-0 border-0 focus:outline-none focus:ring-0"
+                />
+                {repoSearch && (
+                  <button onClick={() => setRepoSearch('')} className="text-[#4b535d] hover:text-[#768390]">
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </div>
-            ) : ghSyncing ? (
+            )}
+
+            {ghRepos.length > 0 ? (() => {
+              // Sort: pinned first, then by updated_at
+              const pinnedUrls = new Set(favorites.map((f) => f.url));
+              const filtered = repoSearch
+                ? ghRepos.filter((r) => r.name.toLowerCase().includes(repoSearch.toLowerCase()) || r.full_name.toLowerCase().includes(repoSearch.toLowerCase()))
+                : ghRepos;
+              const sorted = [...filtered].sort((a, b) => {
+                const aPinned = pinnedUrls.has(a.html_url);
+                const bPinned = pinnedUrls.has(b.html_url);
+                if (aPinned && !bPinned) return -1;
+                if (!aPinned && bPinned) return 1;
+                return 0;
+              });
+
+              return (
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {sorted.map((repo) => {
+                    const isExpanded = expandedRepo === repo.full_name;
+                    const isCloning = cloningGhUrl === repo.html_url;
+                    const branch = selectedBranch[repo.full_name] || branchesFor[repo.full_name]?.defaultBranch || 'main';
+                    const isPinned = isFavorite(repo.html_url);
+
+                    return (
+                      <div
+                        key={repo.full_name}
+                        className={`group flex overflow-hidden rounded-[10px] transition-all duration-200 ${
+                          isCloning
+                            ? 'bg-[#111820] shadow-[0_2px_20px_rgba(29,211,230,0.08)]'
+                            : isExpanded
+                              ? 'bg-[#111820] shadow-[0_4px_24px_rgba(0,0,0,0.25)]'
+                              : 'bg-[#111820] shadow-[0_2px_16px_rgba(0,0,0,0.2)] hover:shadow-[0_2px_16px_rgba(0,0,0,0.3)]'
+                        }`}
+                      >
+                        {/* Accent bar */}
+                        <div
+                          className={`w-[3px] flex-shrink-0 ${
+                            isCloning
+                              ? 'bg-gradient-to-b from-[#1DD3E6] to-[#1DD3E680]'
+                              : isPinned
+                                ? 'bg-gradient-to-b from-yellow-500 to-[#a371f7]'
+                                : 'bg-gradient-to-b from-[#1DD3E6] to-[#a371f7]'
+                          }`}
+                        />
+                        <div className="flex-1 min-w-0 flex flex-col">
+                          {/* Card body */}
+                          <div className="flex flex-col gap-2 px-4 py-3">
+                            {/* Top row: pin + name + branch pill */}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleFavorite({
+                                      url: repo.html_url,
+                                      name: repo.name,
+                                      owner: repo.full_name.split('/')[0],
+                                      description: repo.description || undefined,
+                                    });
+                                  }}
+                                  className={`flex-shrink-0 rounded p-1 transition-colors ${
+                                    isPinned
+                                      ? 'text-yellow-500 hover:bg-yellow-500/10'
+                                      : 'text-[#2d333b] opacity-0 group-hover:opacity-100 hover:text-yellow-500/60 hover:bg-yellow-500/5'
+                                  }`}
+                                  title={isPinned ? 'Unpin repo' : 'Pin repo'}
+                                >
+                                  <Star className={`h-3 w-3 ${isPinned ? 'fill-current' : ''}`} />
+                                </button>
+                                <button
+                                  onClick={() => handleCloneGhRepo(repo)}
+                                  disabled={cloningGhUrl !== null}
+                                  className="text-left min-w-0 flex-1"
+                                >
+                                  <span className="text-sm font-semibold text-[#cdd9e5] truncate block">
+                                    {repo.name}
+                                  </span>
+                                </button>
+                              </div>
+                              <BranchPill
+                                repoFullName={repo.full_name}
+                                onClick={() => setExpandedRepo(isExpanded ? null : repo.full_name)}
+                                isExpanded={isExpanded}
+                              />
+                            </div>
+
+                            {/* Meta / status row */}
+                            {isCloning ? (
+                              <div className="flex items-center gap-2">
+                                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#1DD3E6] border-t-transparent" />
+                                <span className="text-[11px] text-[#1DD3E6]">
+                                  Cloning {branch}...
+                                </span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {repo.language && (
+                                  <span className="text-[11px] text-[#768390]">{repo.language}</span>
+                                )}
+                                {repo.language && repo.updated_at && (
+                                  <span className="text-[11px] text-[#768390]">·</span>
+                                )}
+                                {repo.updated_at && (
+                                  <span className="text-[11px] text-[#768390]">Updated {timeAgo(repo.updated_at)}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Cloning progress bar */}
+                          {isCloning && (
+                            <div className="h-[3px] w-full bg-[#1DD3E610] overflow-hidden">
+                              <div className="h-full bg-gradient-to-r from-[#1DD3E6] to-[#1DD3E680] animate-progress-indeterminate" />
+                            </div>
+                          )}
+
+                          {/* Expanded branch picker */}
+                          {isExpanded && !isCloning && (
+                            <>
+                              <div className="h-px w-full bg-gradient-to-r from-[#1DD3E600] via-[#1DD3E630] to-[#a371f700]" />
+                              <div className="px-4 py-3">
+                                <BranchPicker repoFullName={repo.full_name} />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })() : ghSyncing ? (
               <div className="flex justify-center py-4">
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
@@ -329,14 +431,6 @@ export function WelcomeScreen() {
               <p className="text-xs text-muted-foreground/50 text-center py-3">
                 No repos found. Click Sync to fetch.
               </p>
-            )}
-            {ghRepos.length > 6 && (
-              <button
-                onClick={() => setShowCloneModal(true)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                View all repos ({ghRepos.length})
-              </button>
             )}
           </div>
         ) : (
@@ -363,61 +457,6 @@ export function WelcomeScreen() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </button>
-          </div>
-        )}
-
-        {/* Favorites Quick Clone */}
-        {favorites.length > 0 && (
-          <div className="space-y-3 animate-fade-up stagger-2">
-            <h3 className="text-xs md:text-sm font-display font-bold uppercase tracking-wider text-muted-foreground">
-              Favorites
-              <span className="ml-2 text-yellow-500/60">{favorites.length}</span>
-            </h3>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {favorites.slice(0, 6).map((repo) => (
-                <div
-                  key={repo.url}
-                  className="glass-card group flex min-w-0 items-center justify-between p-3 transition-all duration-200 hover:border-primary/50"
-                >
-                  <button
-                    onClick={() => handleCloneFavorite(repo.url)}
-                    disabled={cloningFavUrl !== null}
-                    className="flex-1 min-w-0 text-left"
-                  >
-                    <p className="font-mono text-sm font-semibold truncate">
-                      <span className="text-muted-foreground">{repo.owner}/</span>
-                      {repo.name}
-                    </p>
-                    {repo.description && (
-                      <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
-                        {repo.description}
-                      </p>
-                    )}
-                  </button>
-                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                    {cloningFavUrl === repo.url ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); removeFavorite(repo.url); }}
-                        className="rounded p-1.5 text-yellow-500 hover:bg-yellow-500/10 transition-colors"
-                        title="Remove from favorites"
-                      >
-                        <Star className="h-3.5 w-3.5 fill-current" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-            {favorites.length > 6 && (
-              <button
-                onClick={() => setShowCloneModal(true)}
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                View all favorites ({favorites.length})
-              </button>
-            )}
           </div>
         )}
 

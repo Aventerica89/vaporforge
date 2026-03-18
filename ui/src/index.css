@@ -722,3 +722,13 @@
   50% { background-position: 100% center; }
   100% { transform: translateX(350%); background-position: 0% center; }
 }
+
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); width: 40%; }
+  50% { width: 60%; }
+  100% { transform: translateX(250%); width: 40%; }
+}
+
+.animate-progress-indeterminate {
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}

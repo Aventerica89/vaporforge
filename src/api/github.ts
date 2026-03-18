@@ -282,6 +282,74 @@ export async function saveGithubUsername(c: GHCtx) {
   return c.json({ success: true });
 }
 
+/** GET /api/github/repos/:owner/:repo/branches — list branches for a repo */
+export async function getGithubBranches(c: GHCtx) {
+  const user = c.get('user');
+  if (!user) return c.json({ error: 'Unauthorized' }, 401);
+
+  const owner = c.req.param('owner');
+  const repo = c.req.param('repo');
+  if (!owner || !repo) {
+    return c.json({ error: 'Missing owner or repo parameter' }, 400);
+  }
+
+  const token = await c.env.AUTH_KV.get(ghTokenKey(user.id));
+  if (!token) {
+    return c.json({ error: 'GitHub not connected' }, 403);
+  }
+
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'VaporForge/1.0',
+  };
+
+  // Fetch branches and repo info in parallel
+  const [branchesRes, repoRes] = await Promise.all([
+    fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches?per_page=100&sort=updated`, { headers }),
+    fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`, { headers }),
+  ]);
+
+  if (branchesRes.status === 401 || repoRes.status === 401) {
+    return c.json({ error: 'GitHub token expired. Please reconnect.' }, 401);
+  }
+
+  if (branchesRes.status === 404 || repoRes.status === 404) {
+    return c.json({ error: 'Repository not found or no access' }, 404);
+  }
+
+  if (!branchesRes.ok) {
+    return c.json({ error: `Failed to fetch branches (${branchesRes.status})` }, 502);
+  }
+
+  const rawBranches = await branchesRes.json() as Array<{
+    name: string;
+    commit: { sha: string; url: string };
+    protected: boolean;
+  }>;
+
+  let defaultBranch = 'main';
+  if (repoRes.ok) {
+    const repoData = await repoRes.json() as { default_branch: string };
+    defaultBranch = repoData.default_branch;
+  }
+
+  const branches = rawBranches.map((b) => ({
+    name: b.name,
+    isDefault: b.name === defaultBranch,
+    isProtected: b.protected,
+  }));
+
+  // Sort: default branch first, then alphabetical
+  branches.sort((a, b) => {
+    if (a.isDefault && !b.isDefault) return -1;
+    if (!a.isDefault && b.isDefault) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return c.json({ success: true, data: { branches, defaultBranch } });
+}
+
 /** Get the raw GitHub token for container injection */
 export async function getGithubToken(kv: KVNamespace, userId: string): Promise<string | null> {
   return kv.get(ghTokenKey(userId));

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import {
   getGithubRepos,
   syncGithubRepos,
+  getGithubBranches,
   getGithubUsername,
   saveGithubUsername,
   getGithubConnection,
@@ -33,6 +34,9 @@ githubRoutes.get('/repos', getGithubRepos);
 
 // POST /api/github/repos/sync — force refresh
 githubRoutes.post('/repos/sync', syncGithubRepos);
+
+// GET /api/github/repos/:owner/:repo/branches — list branches
+githubRoutes.get('/repos/:owner/:repo/branches', getGithubBranches);
 
 // ── Legacy (backward compat) ────────────────────────────────────────────
 // GET /api/github/username
