@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { useSmoothText } from '@/hooks/useSmoothText';
+import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
 import { MessageResponse } from './ai-elements/message';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
@@ -873,11 +874,14 @@ function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
  * even if all tokens arrive in one render cycle, the rAF loop drips them out.
  */
 function StreamingTextPart({ text, isStreaming }: { text: string; isStreaming: boolean }) {
-  const smooth = useSmoothText(text, isStreaming);
-  const animating = smooth.length < text.length;
+  const [smoothPref] = useSmoothStreaming();
+  const smoothed = useSmoothText(text, isStreaming, { disabled: !smoothPref });
+  const animating = smoothPref
+    ? smoothed.length < text.length
+    : false;
   return (
     <MessageResponse mode={isStreaming || animating ? 'streaming' : 'static'}>
-      {smooth}
+      {smoothPref ? smoothed : text}
     </MessageResponse>
   );
 }

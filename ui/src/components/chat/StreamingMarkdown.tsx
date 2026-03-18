@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { MessageResponse } from '@/components/ai-elements/message';
 import { useSmoothText } from '@/hooks/useSmoothText';
+import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
 import type { Components } from 'streamdown';
 
 const vfComponents: Components = {
@@ -34,19 +35,24 @@ interface StreamingMarkdownProps {
 /**
  * Unified markdown renderer for streaming and static content.
  *
- * During streaming: useSmoothText buffers bursty network tokens into steady
- * character flow, then feeds smoothed text to Streamdown in streaming mode
- * (which activates remend for markdown healing).
+ * When smoothStreaming is off (default): tokens render directly via Streamdown
+ * in streaming mode (which activates remend for markdown healing).
+ *
+ * When smoothStreaming is on: useSmoothText buffers tokens into steady
+ * character flow before feeding to Streamdown.
  *
  * On completion: same Streamdown instance switches to static mode.
- * Same DOM tree = no reflow flash (the original bug).
+ * Same DOM tree = no reflow flash.
  */
 export const StreamingMarkdown = memo(function StreamingMarkdown({
   content,
   isStreaming,
 }: StreamingMarkdownProps) {
-  const smoothed = useSmoothText(content, isStreaming);
-  const animating = isStreaming || smoothed.length < content.length;
+  const [smooth] = useSmoothStreaming();
+  const smoothed = useSmoothText(content, isStreaming, { disabled: !smooth });
+  const animating = smooth
+    ? (isStreaming || smoothed.length < content.length)
+    : isStreaming;
 
   return (
     <div className="prose-chat text-sm leading-relaxed break-words">
@@ -56,7 +62,7 @@ export const StreamingMarkdown = memo(function StreamingMarkdown({
         components={vfComponents}
         controls={true}
       >
-        {animating ? smoothed : content}
+        {smooth ? smoothed : content}
       </MessageResponse>
     </div>
   );
