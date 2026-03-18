@@ -19,6 +19,10 @@ One file per idea — use `git blame` to see when each was added.
 | P3 | 2026-03-18 | [PWA Background Sync](pwa-background-sync.md) | PWA / Infrastructure | Idea |
 | P3 | 2026-03-18 | [PWA Push Notifications](pwa-push-notifications.md) | PWA / Infrastructure | Idea |
 | P2 | 2026-03-18 | [CF Workers Vite Plugin — Unified Dev Server](cf-workers-vite-plugin.md) | Infrastructure / DX | Idea |
+| P2 | 2026-03-18 | [CF Browser Rendering — Screenshots, Previews, Scraping](cf-browser-rendering.md) | Infrastructure / Features | Idea |
+| P1 | 2026-03-18 | [R2 FUSE Mount in Containers — Persistent Workspace](r2-fuse-mount-containers.md) | Infrastructure / Storage | Idea |
+| P0 | 2026-03-18 | [Dynamic Container Swarm — Screenshots, MCP, Multi-Agent](dynamic-container-swarm.md) | Architecture / Vision | Idea |
+| P3 | 2026-03-18 | [CF Secret Store — Dedicated Credential Management](cf-secret-store.md) | Infrastructure / Security | Idea |
 
 ---
 
