@@ -27,6 +27,7 @@ One file per idea — use `git blame` to see when each was added.
 | P1 | 2026-03-18 | [CF MCP on Workers — Replace Custom OAuth, Deploy MCP as Workers](cf-mcp-on-workers.md) | MCP / Architecture | Idea |
 | P1 | 2026-03-18 | [CF Agents Framework Migration — Agent class, useAgent, @callable](cf-agents-framework-migration.md) | Architecture / Framework | Idea |
 | P1 | 2026-03-18 | [Streaming Smoothness — Token Animation Research](streaming-smoothness.md) | UX / Streaming | Active Research |
+| P0 | 2026-03-18 | [CF Zero Trust Auth — Real Identity Layer](cf-zero-trust-auth.md) | Auth / Infrastructure | Idea |
 
 ---
 
