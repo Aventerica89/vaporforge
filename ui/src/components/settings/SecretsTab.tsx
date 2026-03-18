@@ -89,7 +89,7 @@ export function SecretsTab() {
         </h3>
         <button
           onClick={() => { setShowAdd(!showAdd); setError(''); }}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-primary/10 transition-colors"
         >
           {showAdd ? (
             <X className="h-3.5 w-3.5" />
@@ -161,7 +161,7 @@ export function SecretsTab() {
             <button
               type="button"
               onClick={() => setShowValue(!showValue)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-accent transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-primary/10 transition-colors"
             >
               {showValue ? (
                 <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
@@ -197,7 +197,7 @@ export function SecretsTab() {
           {secrets.map((secret) => (
             <div
               key={secret.name}
-              className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors"
+              className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-primary/10 transition-colors"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

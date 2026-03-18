@@ -54,7 +54,7 @@ export const SandboxHeader = ({
   return (
     <CollapsibleTrigger
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/30',
+        'flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-primary/10/30',
         className,
       )}
     >

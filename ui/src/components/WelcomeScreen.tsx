@@ -528,7 +528,7 @@ export function WelcomeScreen() {
                         <button
                           type="button"
                           onClick={cancelRename}
-                          className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-accent"
+                          className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-primary/10"
                           title="Cancel"
                         >
                           <X className="h-4 w-4" />

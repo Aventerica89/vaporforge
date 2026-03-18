@@ -168,7 +168,7 @@ export function VaporFilesTab() {
         <div className="flex items-center gap-2">
           <button
             onClick={loadFiles}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
             title="Refresh"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -176,7 +176,7 @@ export function VaporFilesTab() {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-primary/10 transition-colors"
           >
             {isUploading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -301,7 +301,7 @@ export function VaporFilesTab() {
               return (
                 <div
                   key={file.id}
-                  className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors"
+                  className="group flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-primary/10 transition-colors"
                 >
                   <FileIcon className="h-4 w-4 shrink-0 text-primary" />
                   <div className="min-w-0 flex-1">
@@ -313,7 +313,7 @@ export function VaporFilesTab() {
                   <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={() => handleCopyUrl(file)}
-                      className="rounded p-1 hover:bg-accent transition-colors"
+                      className="rounded p-1 hover:bg-primary/10 transition-colors"
                       title="Copy URL"
                     >
                       {copiedId === file.id ? (
@@ -326,7 +326,7 @@ export function VaporFilesTab() {
                       href={file.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="rounded p-1 hover:bg-accent transition-colors"
+                      className="rounded p-1 hover:bg-primary/10 transition-colors"
                       title="Open"
                     >
                       <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />

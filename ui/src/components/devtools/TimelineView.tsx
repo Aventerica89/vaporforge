@@ -60,7 +60,7 @@ function TimelineRow({ event, deltaMs }: { event: TimelineEvent; deltaMs: number
   const bgClass = CATEGORY_BG[event.category] || 'bg-muted/10';
 
   return (
-    <div className="flex gap-1.5 px-2 py-0.5 text-[10px] font-mono hover:bg-muted/20">
+    <div className="flex gap-1.5 px-2 py-0.5 text-[10px] font-mono hover:bg-primary/10/20">
       <span className="w-12 flex-shrink-0 text-right tabular-nums text-muted-foreground/40">
         {deltaMs > 0 ? formatDelta(deltaMs) : ''}
       </span>

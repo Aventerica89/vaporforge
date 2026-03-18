@@ -273,7 +273,7 @@ function DebugPanelCore() {
         className={`fixed z-50 p-3 rounded-full shadow-lg transition-all duration-300 hover:scale-105 ${
           (errorCount > 0 || warningCount > 0) && !isOpen
             ? 'bg-red-500 text-white animate-pulse'
-            : 'bg-card text-muted-foreground border border-border hover:bg-muted'
+            : 'bg-card text-muted-foreground border border-border hover:bg-primary/10'
         }`}
         style={{
           bottom: 'max(env(safe-area-inset-bottom, 0px) + 1.5rem, 1.5rem)',
@@ -338,7 +338,7 @@ function DebugPanelCore() {
             <button
               onClick={downloadDump}
               disabled={isGeneratingDump}
-              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded border border-border text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors"
               title="Download debug dump"
             >
               <Download className="w-3 h-3" />
@@ -346,20 +346,20 @@ function DebugPanelCore() {
             </button>
             <button
               onClick={() => setIsMaximized(!isMaximized)}
-              className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"
+              className="text-muted-foreground hover:text-foreground p-1 hover:bg-primary/10 rounded transition-colors"
               title={isMaximized ? 'Minimize panel' : 'Maximize panel'}
             >
               {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
             <button
               onClick={useDebugLog.getState().clearEntries}
-              className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 hover:bg-muted rounded transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 hover:bg-primary/10 rounded transition-colors"
             >
               Clear
             </button>
             <button
               onClick={close}
-              className="text-muted-foreground hover:text-foreground p-1 hover:bg-muted rounded transition-colors"
+              className="text-muted-foreground hover:text-foreground p-1 hover:bg-primary/10 rounded transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -390,7 +390,7 @@ function DebugPanelCore() {
                 className={`px-3 py-1 text-xs rounded-full transition-all ${
                   filter === key
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border'
+                    : 'bg-muted text-muted-foreground hover:bg-primary/10/80 border border-border'
                 }`}
               >
                 {label} ({count})

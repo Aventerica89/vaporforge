@@ -142,13 +142,13 @@ export function SessionRemote({ sessionId, onSetPrompt, iconOnly = false }: Sess
                 'flex h-10 w-10 items-center justify-center rounded-lg transition-colors active:scale-95',
                 open
                   ? 'bg-purple-500/20 text-purple-400'
-                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+                  : 'text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground',
               ].join(' ')
             : [
                 'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
                 open
                   ? 'bg-purple-500/20 text-purple-400'
-                  : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+                  : 'bg-muted/50 text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground',
               ].join(' ')
         }
       >

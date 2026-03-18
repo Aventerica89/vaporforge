@@ -173,7 +173,7 @@ function SiteCard({
             href={site.pagesUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center justify-center gap-1.5 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground"
           >
             <ExternalLink className="h-3 w-3" />
             View
@@ -193,7 +193,7 @@ function SiteCard({
             </button>
             <button
               onClick={() => setConfirmDelete(false)}
-              className="rounded-md px-2 py-1.5 text-[10px] text-muted-foreground hover:bg-muted"
+              className="rounded-md px-2 py-1.5 text-[10px] text-muted-foreground hover:bg-primary/10"
             >
               Cancel
             </button>
@@ -361,7 +361,7 @@ function NewSiteModal({
           <h2 className="text-base font-semibold">New Agency Site</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-md p-1 text-muted-foreground hover:bg-primary/10 hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -449,7 +449,7 @@ function NewSiteModal({
                   onClick={() => loadRepos(githubUsername, true)}
                   disabled={reposLoading}
                   title="Refresh repos"
-                  className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+                  className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-foreground disabled:opacity-50"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${reposLoading ? 'animate-spin' : ''}`} />
                 </button>
@@ -502,7 +502,7 @@ function NewSiteModal({
             </div>
 
             <div className="mt-3 flex shrink-0 justify-end border-t border-border pt-3">
-              <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-muted-foreground hover:bg-muted">
+              <button onClick={onClose} className="rounded-md px-4 py-2 text-sm text-muted-foreground hover:bg-primary/10">
                 Cancel
               </button>
             </div>
@@ -569,7 +569,7 @@ function NewSiteModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-md px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+                className="rounded-md px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-primary/10"
               >
                 Cancel
               </button>

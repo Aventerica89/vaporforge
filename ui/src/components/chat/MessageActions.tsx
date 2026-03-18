@@ -70,7 +70,7 @@ export function MessageActions({
     <div className={`flex items-center gap-0.5 transition-opacity ${isTouch ? 'opacity-100' : 'opacity-0 group-hover/message:opacity-100'}`}>
       <button
         onClick={handleCopy}
-        className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground active:scale-95 transition-all"
+        className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground/50 hover:bg-primary/10/30 hover:text-foreground active:scale-95 transition-all"
         title="Copy message"
         aria-label="Copy message"
       >
@@ -84,7 +84,7 @@ export function MessageActions({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground active:scale-95 transition-all"
+          className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground/50 hover:bg-primary/10/30 hover:text-foreground active:scale-95 transition-all"
           title="Retry"
           aria-label="Retry message"
         >
@@ -97,7 +97,7 @@ export function MessageActions({
         className={`flex h-8 w-8 items-center justify-center rounded active:scale-95 transition-all ${
           feedback === 'up'
             ? 'text-success'
-            : 'text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground'
+            : 'text-muted-foreground/50 hover:bg-primary/10/30 hover:text-foreground'
         }`}
         title="Good response"
         aria-label="Good response"
@@ -110,7 +110,7 @@ export function MessageActions({
         className={`flex h-8 w-8 items-center justify-center rounded active:scale-95 transition-all ${
           feedback === 'down'
             ? 'text-error'
-            : 'text-muted-foreground/50 hover:bg-muted/30 hover:text-foreground'
+            : 'text-muted-foreground/50 hover:bg-primary/10/30 hover:text-foreground'
         }`}
         title="Bad response"
         aria-label="Bad response"

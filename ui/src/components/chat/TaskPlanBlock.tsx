@@ -212,7 +212,7 @@ export function TaskPlanBlock({ plan, isStreaming = false }: TaskPlanBlockProps)
   return (
     <div className="my-2">
       <Collapsible defaultOpen>
-        <CollapsibleTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-muted/30">
+        <CollapsibleTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-xs transition-colors hover:bg-primary/10/30">
           <ChevronRight className="h-3 w-3 text-muted-foreground transition-transform duration-200 [[data-state=open]>*>&]:rotate-90" />
 
           {isStreaming ? (

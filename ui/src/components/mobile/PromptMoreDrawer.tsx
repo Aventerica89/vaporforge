@@ -76,7 +76,7 @@ export function PromptMoreDrawer({ isOpen, onClose, onNavigate }: PromptMoreDraw
             key={key}
             type="button"
             onClick={onPress}
-            className="flex flex-col items-center gap-2 rounded-xl p-4 min-h-[80px] transition-colors active:scale-[0.96] hover:bg-accent active:bg-accent"
+            className="flex flex-col items-center gap-2 rounded-xl p-4 min-h-[80px] transition-colors active:scale-[0.96] hover:bg-primary/10 active:bg-accent"
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <Icon className={`size-6 ${iconColor}`} strokeWidth={1.5} />

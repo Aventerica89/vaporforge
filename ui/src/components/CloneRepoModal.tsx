@@ -185,7 +185,7 @@ export function CloneRepoModal({ isOpen, onClose }: CloneRepoModalProps) {
           </h2>
           <button
             onClick={handleClose}
-            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-accent hover:text-foreground transition-colors text-muted-foreground"
+            className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full hover:bg-primary/10 hover:text-foreground transition-colors text-muted-foreground"
             aria-label="Close" title="Close"
           >
             <X className="h-5 w-5" />
@@ -361,7 +361,7 @@ function UrlTab({
                 key={repo.url}
                 onClick={() => onCloneRecent(repo)}
                 disabled={isCloning}
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-left hover:bg-accent transition-colors disabled:opacity-50"
+                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-left hover:bg-primary/10 transition-colors disabled:opacity-50"
               >
                 <span className="font-mono text-muted-foreground">{repo.owner}/</span>
                 <span className="font-mono font-semibold truncate">{repo.name}</span>
@@ -408,7 +408,7 @@ function FavoritesTab({
         {favorites.map((repo) => (
           <div
             key={repo.url}
-            className="group flex items-center justify-between rounded-lg px-3 py-3 hover:bg-accent/50 transition-colors"
+            className="group flex items-center justify-between rounded-lg px-3 py-3 hover:bg-primary/10 transition-colors"
           >
             <div className="flex-1 min-w-0">
               <p className="font-mono text-sm font-semibold truncate">
@@ -515,7 +515,7 @@ function GitHubTab({
             return (
               <div
                 key={repo.full_name}
-                className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors"
+                className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-primary/10 transition-colors"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">

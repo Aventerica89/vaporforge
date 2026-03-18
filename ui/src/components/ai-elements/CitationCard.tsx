@@ -52,7 +52,7 @@ export function CitationCard({ url, content, className }: CitationCardProps) {
       rel="noopener noreferrer"
       className={cn(
         'group flex flex-col gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-3 py-2.5',
-        'no-underline transition-colors hover:border-primary/30 hover:bg-muted/30',
+        'no-underline transition-colors hover:border-primary/30 hover:bg-primary/10/30',
         className,
       )}
     >

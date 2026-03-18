@@ -105,7 +105,7 @@ export function Header() {
           onClick={currentSession ? deselectSession : undefined}
           className={`flex items-center gap-1.5 rounded-md px-2 py-1 ${
             currentSession
-              ? 'hover:bg-accent cursor-pointer'
+              ? 'hover:bg-primary/10 cursor-pointer'
               : 'cursor-default'
           }`}
           title={currentSession ? 'Back to home' : 'VaporForge'}
@@ -160,7 +160,7 @@ export function Header() {
               <button
                 type="button"
                 onClick={cancelEditName}
-                className="rounded p-1 text-muted-foreground hover:bg-accent"
+                className="rounded p-1 text-muted-foreground hover:bg-primary/10"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -169,7 +169,7 @@ export function Header() {
             <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setShowSessionMenu(!showSessionMenu)}
-                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-accent"
+                className="flex items-center gap-1.5 rounded-md px-2 py-1 text-sm hover:bg-primary/10"
               >
                 <span className="max-w-[120px] truncate sm:max-w-[180px]">
                   {currentSession
@@ -182,7 +182,7 @@ export function Header() {
               {currentSession && (
                 <button
                   onClick={startEditName}
-                  className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-primary transition-colors"
+                  className="rounded p-1 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
                   title="Rename session"
                 >
                   <Pencil className="h-3 w-3" />
@@ -198,7 +198,7 @@ export function Header() {
                   await createSession();
                   setShowSessionMenu(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-primary/10"
               >
                 <Plus className="h-4 w-4 text-primary" />
                 New Session
@@ -211,7 +211,7 @@ export function Header() {
                     {sessions.filter((s) => s.status !== 'pending-delete').map((session) => (
                       <div
                         key={session.id}
-                        className={`group flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-accent ${
+                        className={`group flex w-full items-center justify-between px-3 py-2 text-sm hover:bg-primary/10 ${
                           currentSession?.id === session.id
                             ? 'bg-accent/50'
                             : ''
@@ -304,7 +304,7 @@ export function Header() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="rounded-md p-1.5 hover:bg-primary/10"
           title={isDark ? 'Light mode' : 'Dark mode'}
         >
           {isDark ? (
@@ -317,7 +317,7 @@ export function Header() {
         {/* Settings */}
         <button
           onClick={() => openSettings()}
-          className="rounded-md p-1.5 hover:bg-accent"
+          className="rounded-md p-1.5 hover:bg-primary/10"
           title="Settings & Help"
         >
           <Settings className="h-4 w-4" />
@@ -339,7 +339,7 @@ export function Header() {
                   logout();
                   setShowUserMenu(false);
                 }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-accent"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-primary/10"
               >
                 <LogOut className="h-4 w-4" />
                 Sign Out

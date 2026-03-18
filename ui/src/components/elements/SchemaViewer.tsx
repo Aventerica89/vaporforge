@@ -112,7 +112,7 @@ export function SchemaNode({
       <div
         className={cn(
           'flex min-h-[22px] items-start gap-1.5 rounded py-0.5',
-          isExpandable && 'cursor-pointer hover:bg-muted/20',
+          isExpandable && 'cursor-pointer hover:bg-primary/10/20',
         )}
         onClick={isExpandable ? () => setOpen((prev) => !prev) : undefined}
       >

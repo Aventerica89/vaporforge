@@ -436,7 +436,7 @@ export function QuickChatPanel() {
               {showHistory && (
                 <button
                   onClick={() => setShowHistory(false)}
-                  className="rounded p-1 hover:bg-accent"
+                  className="rounded p-1 hover:bg-primary/10"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -463,7 +463,7 @@ export function QuickChatPanel() {
                     className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${
                       showHelp
                         ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                        : 'text-muted-foreground hover:bg-primary/10 hover:text-foreground'
                     }`}
                     title="What is Quick Chat?"
                   >
@@ -471,14 +471,14 @@ export function QuickChatPanel() {
                   </button>
                   <button
                     onClick={() => setShowHistory(true)}
-                    className="rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                    className="rounded px-2 py-1 text-[10px] text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
                     title="Chat history"
                   >
                     History
                   </button>
                   <button
                     onClick={handleNewChat}
-                    className="rounded p-1 hover:bg-accent"
+                    className="rounded p-1 hover:bg-primary/10"
                     title="New chat"
                   >
                     <Plus className="h-4 w-4" />
@@ -487,7 +487,7 @@ export function QuickChatPanel() {
               )}
               <button
                 onClick={closeQuickChat}
-                className="rounded p-1 hover:bg-accent"
+                className="rounded p-1 hover:bg-primary/10"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -739,7 +739,7 @@ export function QuickChatPanel() {
                         className={`flex w-full items-center gap-3 px-4 py-2 text-left text-xs transition-colors ${
                           i === commandMenuIndex
                             ? 'bg-accent text-foreground'
-                            : 'text-muted-foreground hover:bg-accent/50'
+                            : 'text-muted-foreground hover:bg-primary/10'
                         }`}
                       >
                         <Icon className="h-3.5 w-3.5 shrink-0 text-primary" />
@@ -830,7 +830,7 @@ function ProviderToggle({
           ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
           : selected
             ? 'bg-primary/10 text-primary border border-primary/30'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+            : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-transparent'
       }`}
     >
       {icon}
@@ -1224,7 +1224,7 @@ function EmbeddingStatusBadge({ sessionId }: { sessionId: string }) {
       type="button"
       onClick={handleReindex}
       title="Index workspace for semantic search"
-      className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted/80 transition-colors"
+      className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-primary/10/80 transition-colors"
     >
       <RefreshCw className="h-2.5 w-2.5" />
       Index
@@ -1262,7 +1262,7 @@ function QCSpeechButton({ onTranscript }: { onTranscript: (text: string) => void
       onClick={toggle}
       className={cn(
         'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
-        listening ? 'text-red-400 bg-red-500/10' : 'text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+        listening ? 'text-red-400 bg-red-500/10' : 'text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground',
       )}
       title={listening ? 'Stop listening' : 'Voice input'}
     >

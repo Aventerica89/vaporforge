@@ -63,7 +63,7 @@ export function AutonomySelectorPopup({ selected, onSelect }: AutonomySelectorPo
           'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
           open
             ? 'bg-amber-500/20 text-amber-400'
-            : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+            : 'bg-muted/50 text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground',
         )}
       >
         <SelectedIcon className="size-3 shrink-0" />

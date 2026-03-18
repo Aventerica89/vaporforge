@@ -917,7 +917,7 @@ function KeySection({
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-accent transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 hover:bg-primary/10 transition-colors"
             >
               {showKey ? (
                 <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />

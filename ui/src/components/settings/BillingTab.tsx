@@ -208,7 +208,7 @@ export function BillingTab() {
               <button
                 onClick={handlePortal}
                 disabled={actionLoading === 'portal'}
-                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {actionLoading === 'portal' ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -225,7 +225,7 @@ export function BillingTab() {
             <button
               onClick={handlePortal}
               disabled={actionLoading === 'portal'}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {actionLoading === 'portal' ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />

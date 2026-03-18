@@ -22,7 +22,7 @@ function EventRow({ event }: { event: StreamEvent }) {
   const colorClass = TYPE_COLORS[event.type] || 'text-foreground';
 
   return (
-    <div className="flex gap-2 px-2 py-0.5 text-[10px] font-mono hover:bg-muted/20">
+    <div className="flex gap-2 px-2 py-0.5 text-[10px] font-mono hover:bg-primary/10/20">
       <span className="flex-shrink-0 text-muted-foreground/50 tabular-nums">
         {time}
       </span>

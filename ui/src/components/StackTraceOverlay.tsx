@@ -50,7 +50,7 @@ export function StackTraceOverlay() {
           </div>
           <button
             onClick={dismiss}
-            className="rounded p-1.5 hover:bg-accent transition-colors"
+            className="rounded p-1.5 hover:bg-primary/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -118,7 +118,7 @@ function FrameRow({
       className={`flex w-full items-center gap-2 rounded px-3 py-2 text-left transition-colors ${
         dimmed
           ? 'opacity-40 hover:opacity-60'
-          : 'hover:bg-muted/30 cursor-pointer'
+          : 'hover:bg-primary/10/30 cursor-pointer'
       }`}
     >
       <div className="flex-1 min-w-0">

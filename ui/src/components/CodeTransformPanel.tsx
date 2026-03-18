@@ -118,7 +118,7 @@ export function CodeTransformPanel() {
           </div>
           <button
             onClick={rejectTransform}
-            className="rounded p-1.5 hover:bg-accent transition-colors"
+            className="rounded p-1.5 hover:bg-primary/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -248,7 +248,7 @@ export function CodeTransformPanel() {
           <div className="flex-shrink-0 flex items-center justify-end gap-3 pt-2 border-t border-border">
             <button
               onClick={rejectTransform}
-              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
             >
               <XCircle className="h-4 w-4" />
               Reject
@@ -293,7 +293,7 @@ function ProviderToggle({
           ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
           : selected
             ? 'bg-primary/10 text-primary border border-primary/30'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+            : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-transparent'
       }`}
     >
       {icon}

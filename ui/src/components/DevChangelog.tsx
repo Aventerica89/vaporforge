@@ -218,7 +218,7 @@ export function DevChangelog() {
             {/* Copy log */}
             <button
               onClick={handleCopyLog}
-              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
+              className="flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-2.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors sm:min-h-0 sm:px-2.5 sm:py-1.5"
               title="Copy commit log"
             >
               {copied ? (
@@ -234,7 +234,7 @@ export function DevChangelog() {
             {/* Close */}
             <button
               onClick={closeChangelog}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:h-8 sm:w-8"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors sm:h-8 sm:w-8"
               aria-label="Close" title="Close"
             >
               <X className="h-5 w-5 sm:h-4 sm:w-4" />
@@ -338,7 +338,7 @@ export function DevChangelog() {
                           className={`rounded-lg border transition-colors ${
                             isExpanded
                               ? 'border-amber-500/20 bg-amber-500/5'
-                              : 'border-transparent hover:bg-accent/50'
+                              : 'border-transparent hover:bg-primary/10'
                           }`}
                         >
                           {/* Collapsed row */}

@@ -294,7 +294,7 @@ export function TabletLayout() {
                     'text-sm transition-colors',
                     isActive
                       ? 'bg-primary/15 text-primary'
-                      : 'text-muted-foreground hover:bg-accent/50',
+                      : 'text-muted-foreground hover:bg-primary/10',
                   ].join(' ')}
                   style={{ minHeight: '44px' }}
                 >
@@ -365,7 +365,7 @@ export function TabletLayout() {
             </span>
             <button
               onClick={() => setOverlayView(null)}
-              className="flex items-center justify-center rounded-full text-muted-foreground hover:bg-accent/50 transition-colors"
+              className="flex items-center justify-center rounded-full text-muted-foreground hover:bg-primary/10 transition-colors"
               style={{ minWidth: '44px', minHeight: '44px' }}
               aria-label="Close" title="Close"
             >
@@ -412,7 +412,7 @@ function SidebarItem({
       ? 'text-red-400 hover:bg-red-500/10'
       : active
         ? 'bg-primary/15 text-primary'
-        : 'text-muted-foreground hover:bg-accent/50';
+        : 'text-muted-foreground hover:bg-primary/10';
 
   return (
     <button

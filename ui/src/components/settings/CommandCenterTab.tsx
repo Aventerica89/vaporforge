@@ -183,7 +183,7 @@ export function CommandCenterTab() {
               <button
                 onClick={handleReset}
                 disabled={isSaving}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-accent transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium hover:bg-primary/10 transition-colors disabled:opacity-50"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset

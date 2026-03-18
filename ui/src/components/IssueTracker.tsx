@@ -268,7 +268,7 @@ export function IssueTracker() {
               className={`hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
                 selectedIds.size > 0
                   ? 'text-primary hover:bg-primary/10'
-                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                  : 'text-muted-foreground hover:bg-primary/10 hover:text-foreground'
               }`}
               title={selectedIds.size > 0 ? `Copy ${selectedIds.size} selected as Markdown` : 'Copy all as Markdown'}
             >
@@ -279,7 +279,7 @@ export function IssueTracker() {
             {/* Export JSON — hidden on mobile */}
             <button
               onClick={handleExportJSON}
-              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
               title="Export as JSON"
             >
               <Download className="h-3.5 w-3.5" />
@@ -289,7 +289,7 @@ export function IssueTracker() {
             {/* Import JSON — hidden on mobile */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              className="hidden sm:flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
               title="Import from JSON"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -315,7 +315,7 @@ export function IssueTracker() {
             {/* Close */}
             <button
               onClick={closeTracker}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors sm:h-8 sm:w-8"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors sm:h-8 sm:w-8"
               aria-label="Close" title="Close"
             >
               <X className="h-5 w-5 sm:h-4 sm:w-4" />

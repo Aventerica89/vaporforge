@@ -202,7 +202,7 @@ export function Editor() {
               className={`group flex items-center gap-2 border-r border-border px-3 py-2 text-sm ${
                 index === activeFileIndex
                   ? 'bg-background text-foreground'
-                  : 'text-muted-foreground hover:bg-accent'
+                  : 'text-muted-foreground hover:bg-primary/10'
               }`}
             >
               {file.isDirty && (
@@ -216,7 +216,7 @@ export function Editor() {
                   e.stopPropagation();
                   closeFile(index);
                 }}
-                className="rounded p-0.5 opacity-0 hover:bg-muted group-hover:opacity-100"
+                className="rounded p-0.5 opacity-0 hover:bg-primary/10 group-hover:opacity-100"
               >
                 <X className="h-3 w-3" />
               </button>

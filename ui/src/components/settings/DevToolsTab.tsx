@@ -467,7 +467,7 @@ function CollapsibleWidget({
     <div className="rounded-lg border border-border overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors"
+        className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-primary/10/30 transition-colors"
       >
         {icon}
         <div className="flex-1 text-left">

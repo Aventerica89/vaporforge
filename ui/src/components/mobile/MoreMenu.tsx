@@ -35,7 +35,7 @@ function MenuItem({
   const colorClass =
     variant === 'danger'
       ? 'text-red-400 hover:bg-red-500/10'
-      : 'hover:bg-accent';
+      : 'hover:bg-primary/10';
 
   return (
     <button
@@ -123,7 +123,7 @@ export function MoreMenu({
                   'transition-colors active:scale-[0.98]',
                   isActive
                     ? 'bg-primary/10 text-primary'
-                    : 'hover:bg-accent',
+                    : 'hover:bg-primary/10',
                 ].join(' ')}
               >
                 <span

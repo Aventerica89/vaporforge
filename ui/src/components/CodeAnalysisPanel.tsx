@@ -92,7 +92,7 @@ export function CodeAnalysisPanel() {
           </div>
           <button
             onClick={closeAnalysis}
-            className="rounded p-1.5 hover:bg-accent transition-colors"
+            className="rounded p-1.5 hover:bg-primary/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -379,7 +379,7 @@ function ProviderToggle({
           ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
           : selected
             ? 'bg-primary/10 text-primary border border-primary/30'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+            : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-transparent'
       }`}
     >
       {icon}

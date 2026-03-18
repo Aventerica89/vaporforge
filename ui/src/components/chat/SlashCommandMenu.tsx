@@ -56,7 +56,7 @@ export function SlashCommandMenu({
               ? isAgentMode
                 ? 'bg-secondary/10 text-foreground'
                 : 'bg-primary/10 text-foreground'
-              : 'text-foreground/80 hover:bg-muted/50'
+              : 'text-foreground/80 hover:bg-primary/10/50'
           }`}
           onMouseDown={(e) => {
             e.preventDefault(); // Keep textarea focus

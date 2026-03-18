@@ -75,7 +75,7 @@ export function CommitMessageCard() {
           </div>
           <button
             onClick={dismiss}
-            className="rounded p-1.5 hover:bg-accent transition-colors"
+            className="rounded p-1.5 hover:bg-primary/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -238,7 +238,7 @@ export function CommitMessageCard() {
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
               <button
                 onClick={dismiss}
-                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors"
               >
                 Dismiss
               </button>
@@ -290,7 +290,7 @@ function ProviderToggle({
           ? 'text-muted-foreground/40 border border-transparent cursor-not-allowed'
           : selected
             ? 'bg-primary/10 text-primary border border-primary/30'
-            : 'text-muted-foreground hover:text-foreground hover:bg-accent border border-transparent'
+            : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 border border-transparent'
       }`}
     >
       {icon}

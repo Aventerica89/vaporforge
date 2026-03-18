@@ -135,7 +135,7 @@ function CollapsibleSection({ section }: { section: WikiSection }) {
     <div className="rounded-lg border border-border overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+        className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10/50"
       >
         <span className="text-primary">{section.icon}</span>
         <div className="flex-1 min-w-0">

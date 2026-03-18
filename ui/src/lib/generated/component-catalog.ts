@@ -351,7 +351,7 @@ export function IssueTracker() {
             <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono text-muted-foreground">{openCount} open / {resolvedCount} done</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleCopyMarkdown} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+            <button onClick={handleCopyMarkdown} className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors">
               <ClipboardCopy className="h-3.5 w-3.5" />
               {copied ? 'Copied!' : 'Copy MD'}
             </button>
@@ -359,7 +359,7 @@ export function IssueTracker() {
               <Plus className="h-3.5 w-3.5" />
               Add
             </button>
-            <button onClick={closeTracker} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground transition-colors">
+            <button onClick={closeTracker} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-primary/10 hover:text-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -428,8 +428,8 @@ export const componentCatalog: ComponentEntry[] = [
   const base = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50';
   const variants = {
     default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    outline: 'border border-input bg-background hover:bg-primary/10 hover:text-accent-foreground',
+    ghost: 'hover:bg-primary/10 hover:text-accent-foreground',
     destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
   };
   const sizes = {
@@ -663,7 +663,7 @@ export const componentCatalog: ComponentEntry[] = [
         </thead>
         <tbody className="[&_tr:last-child]:border-0">
           {data.map((row, i) => (
-            <tr key={i} className="border-b border-border transition-colors hover:bg-muted/50">
+            <tr key={i} className="border-b border-border transition-colors hover:bg-primary/10/50">
               {columns.map((col) => (
                 <td key={col.key} className="p-4 align-middle">{row[col.key]}</td>
               ))}
@@ -689,7 +689,7 @@ function TableDemo() {
   return <Table columns={columns} data={data} />;
 }`,
     dependencies: [],
-    tailwindClasses: ['border-b', 'border-border', 'hover:bg-muted/50'],
+    tailwindClasses: ['border-b', 'border-border', 'hover:bg-primary/10/50'],
   },
   {
     id: 'skeleton',

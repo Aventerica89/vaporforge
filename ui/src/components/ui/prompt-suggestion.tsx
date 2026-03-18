@@ -39,7 +39,7 @@ function PromptSuggestion({
       <Button
         variant={variant || "ghost"}
         size={size || "sm"}
-        className={cn("w-full justify-start rounded-xl py-2 hover:bg-accent", className)}
+        className={cn("w-full justify-start rounded-xl py-2 hover:bg-primary/10", className)}
         {...props}
       >
         {children}
@@ -56,7 +56,7 @@ function PromptSuggestion({
     <Button
       variant={variant || "ghost"}
       size={size || "sm"}
-      className={cn("w-full justify-start gap-0 rounded-xl py-2 hover:bg-accent", className)}
+      className={cn("w-full justify-start gap-0 rounded-xl py-2 hover:bg-primary/10", className)}
       {...props}
     >
       {index === -1 ? (

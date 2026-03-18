@@ -275,7 +275,7 @@ export function AttachmentRemove({ onRemove }: AttachmentRemoveProps) {
       <button
         type="button"
         onClick={onRemove}
-        className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/50"
+        className="ml-auto shrink-0 rounded-md p-1 text-muted-foreground hover:bg-primary/10/50"
         title="Remove"
       >
         <X className="h-3.5 w-3.5" />

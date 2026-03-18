@@ -265,7 +265,7 @@ export function ChatPanel({
             <button
               type="button"
               onClick={() => useReforge.getState().open()}
-              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground active:scale-95 transition-colors"
             >
               <Flame className="size-5 text-primary/70" />
             </button>
@@ -276,7 +276,7 @@ export function ChatPanel({
                 'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
                 sdkMode === 'plan'
                   ? 'text-primary bg-primary/10'
-                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+                  : 'text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground',
               )}
             >
               {sdkMode === 'plan' ? <Eye className="size-5" /> : <Zap className="size-5" />}
@@ -285,7 +285,7 @@ export function ChatPanel({
               type="button"
               aria-label="Attach file"
               title="Attach file"
-              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground active:scale-95 transition-colors"
             >
               <Paperclip className="size-5" />
             </button>
@@ -296,7 +296,7 @@ export function ChatPanel({
                 'flex size-10 items-center justify-center rounded-lg transition-colors active:scale-95',
                 sessionOpen
                   ? 'text-purple-400 bg-purple-500/10'
-                  : 'text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground',
+                  : 'text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground',
               )}
             >
               <Bookmark className="size-5" />
@@ -304,7 +304,7 @@ export function ChatPanel({
             <button
               type="button"
               onClick={() => setMoreDrawerOpen(true)}
-              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-accent hover:text-muted-foreground active:scale-95 transition-colors"
+              className="flex size-10 items-center justify-center rounded-lg text-muted-foreground/70 hover:bg-primary/10 hover:text-muted-foreground active:scale-95 transition-colors"
             >
               <MoreHorizontal className="size-5" />
             </button>
@@ -466,7 +466,7 @@ export function ChatPanel({
               </button>
               <button
                 onClick={() => setConfirmingClear(false)}
-                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-accent transition-colors"
+                className="flex h-11 w-11 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 transition-colors"
                 title="Cancel"
               >
                 <X className="h-3.5 w-3.5" />

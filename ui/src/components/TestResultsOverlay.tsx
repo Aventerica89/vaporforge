@@ -57,7 +57,7 @@ export function TestResultsOverlay() {
           </div>
           <button
             onClick={dismiss}
-            className="rounded p-1.5 hover:bg-accent transition-colors"
+            className="rounded p-1.5 hover:bg-primary/10 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -157,7 +157,7 @@ function ResultRow({ result }: { result: TestResult }) {
   };
 
   return (
-    <div className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/30 transition-colors">
+    <div className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-primary/10/30 transition-colors">
       {icons[result.status]}
       <span className="text-xs text-foreground truncate flex-1 font-mono">
         {result.name}

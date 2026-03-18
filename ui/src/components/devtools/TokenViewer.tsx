@@ -83,7 +83,7 @@ export function TokenViewer() {
             </thead>
             <tbody>
               {messageRows.map((row) => (
-                <tr key={row.id} className="hover:bg-muted/10">
+                <tr key={row.id} className="hover:bg-primary/10/10">
                   <td className="px-2 py-0.5">
                     <span className={`rounded px-1 py-0.5 ${
                       row.role === 'user'

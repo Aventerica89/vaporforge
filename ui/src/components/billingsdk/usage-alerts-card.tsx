@@ -105,7 +105,7 @@ function CreateForm({ budgetUsd, onSave, onCancel, saving }: CreateFormProps) {
         <button
           onClick={onCancel}
           disabled={saving}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted"
+          className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-primary/10"
         >
           Cancel
         </button>
@@ -294,7 +294,7 @@ export function UsageAlertsCard() {
         {!showCreate && (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/30 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-primary/10"
           >
             <Plus className="h-3.5 w-3.5" />
             Create Alert

@@ -115,7 +115,7 @@ export function PillsRow({ sessionOpen, onSessionToggle }: PillsRowProps) {
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
             sessionOpen
               ? 'bg-purple-500/20 text-purple-400'
-              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+              : 'bg-muted/50 text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground',
           )}
         >
           <Bookmark className="h-3 w-3" />
@@ -132,7 +132,7 @@ export function PillsRow({ sessionOpen, onSessionToggle }: PillsRowProps) {
             'flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium transition-colors',
             agentOpen
               ? 'bg-primary/15 text-primary'
-              : 'bg-muted/50 text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground',
+              : 'bg-muted/50 text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground',
           )}
         >
           <Zap className="h-3 w-3" />
@@ -170,7 +170,7 @@ export function PillsRow({ sessionOpen, onSessionToggle }: PillsRowProps) {
                         'flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition-colors',
                         selectedModel === agent.id
                           ? 'bg-primary/10 text-primary'
-                          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+                          : 'text-muted-foreground hover:bg-primary/10/50 hover:text-foreground',
                       )}
                     >
                       <div className="flex flex-col min-w-0">
@@ -197,7 +197,7 @@ export function PillsRow({ sessionOpen, onSessionToggle }: PillsRowProps) {
 
       <div className="ml-auto">
         <Context usedTokens={estimatedTokens} maxTokens={200000}>
-          <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-muted hover:text-muted-foreground" />
+          <ContextTrigger className="h-auto rounded-full bg-muted/50 px-2.5 py-1 text-[10px] font-medium text-muted-foreground/60 hover:bg-primary/10 hover:text-muted-foreground" />
           <ContextContent
             side="top"
             align="start"

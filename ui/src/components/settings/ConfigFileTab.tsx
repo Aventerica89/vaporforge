@@ -173,7 +173,7 @@ export function ConfigFileTab({
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setEditing(null); setIsNew(false); }}
-            className="rounded p-1 hover:bg-accent"
+            className="rounded p-1 hover:bg-primary/10"
           >
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
@@ -235,7 +235,7 @@ export function ConfigFileTab({
         <div className="flex shrink-0 items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-primary/10 transition-colors"
             style={{ height: '44px' }}
             title="Upload .md files"
           >
@@ -252,7 +252,7 @@ export function ConfigFileTab({
           />
           <button
             onClick={handleNew}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 text-xs font-medium text-foreground hover:bg-primary/10 transition-colors"
             style={{ height: '44px' }}
           >
             <Plus className="h-4 w-4 text-primary" />
@@ -301,7 +301,7 @@ export function ConfigFileTab({
               {filteredFiles.map((file) => (
                 <div
                   key={file.filename}
-                  className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors"
+                  className="group flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-primary/10 transition-colors"
                 >
                   <button
                     onClick={() => handleEdit(file)}
@@ -340,7 +340,7 @@ export function ConfigFileTab({
                         </button>
                         <button
                           onClick={() => setConfirmingFilename(null)}
-                          className="rounded p-2.5 text-muted-foreground hover:bg-accent transition-colors"
+                          className="rounded p-2.5 text-muted-foreground hover:bg-primary/10 transition-colors"
                           title="Cancel"
                         >
                           <X className="h-3.5 w-3.5" />

@@ -200,7 +200,7 @@ function ToolGroup({ items, allParts }: { items: Array<{ part: MessagePart; inde
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/30"
+        className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-primary/10/30"
       >
         <ChevronRight
           className={cn(
