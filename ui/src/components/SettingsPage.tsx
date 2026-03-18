@@ -58,42 +58,42 @@ const TAB_GROUPS: TabGroup[] = [
   {
     label: 'General',
     tabs: [
-      { id: 'appearance', label: 'Appearance', icon: <Palette className="h-4.5 w-4.5" /> },
-      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="h-4.5 w-4.5" /> },
+      { id: 'appearance', label: 'Appearance', icon: <Palette className="size-[18px]" /> },
+      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="size-[18px]" /> },
     ],
   },
   {
     label: 'Workspace',
     tabs: [
-      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="h-4.5 w-4.5" /> },
-      { id: 'rules', label: 'Rules', icon: <ScrollText className="h-4.5 w-4.5" /> },
-      { id: 'commands', label: 'Commands', icon: <Terminal className="h-4.5 w-4.5" /> },
-      { id: 'agents', label: 'Agents', icon: <Bot className="h-4.5 w-4.5" /> },
-      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="h-4.5 w-4.5" /> },
-      { id: 'secrets', label: 'Secrets', icon: <Key className="h-4.5 w-4.5" /> },
-      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="h-4.5 w-4.5" /> },
-      { id: 'command-center', label: 'Command Center', icon: <Shield className="h-4.5 w-4.5" /> },
-      { id: 'files', label: 'Files', icon: <HardDrive className="h-4.5 w-4.5" /> },
+      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="size-[18px]" /> },
+      { id: 'rules', label: 'Rules', icon: <ScrollText className="size-[18px]" /> },
+      { id: 'commands', label: 'Commands', icon: <Terminal className="size-[18px]" /> },
+      { id: 'agents', label: 'Agents', icon: <Bot className="size-[18px]" /> },
+      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="size-[18px]" /> },
+      { id: 'secrets', label: 'Secrets', icon: <Key className="size-[18px]" /> },
+      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="size-[18px]" /> },
+      { id: 'command-center', label: 'Command Center', icon: <Shield className="size-[18px]" /> },
+      { id: 'files', label: 'Files', icon: <HardDrive className="size-[18px]" /> },
     ],
   },
   {
     label: 'Account',
     tabs: [
-      { id: 'account', label: 'Account', icon: <User className="h-4.5 w-4.5" /> },
-      { id: 'billing', label: 'Billing', icon: <CreditCard className="h-4.5 w-4.5" /> },
+      { id: 'account', label: 'Account', icon: <User className="size-[18px]" /> },
+      { id: 'billing', label: 'Billing', icon: <CreditCard className="size-[18px]" /> },
     ],
   },
   {
     label: 'Developer',
     tabs: [
-      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="h-4.5 w-4.5" /> },
+      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="size-[18px]" /> },
     ],
   },
   {
     label: 'Help',
     tabs: [
-      { id: 'guide', label: 'Guide', icon: <BookOpen className="h-4.5 w-4.5" /> },
-      { id: 'about', label: 'About', icon: <Info className="h-4.5 w-4.5" /> },
+      { id: 'guide', label: 'Guide', icon: <BookOpen className="size-[18px]" /> },
+      { id: 'about', label: 'About', icon: <Info className="size-[18px]" /> },
     ],
   },
 ];
@@ -151,11 +151,10 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
           </div>
           <button
             onClick={closeSettings}
-            className="flex items-center justify-center p-3 text-muted-foreground transition-colors hover:text-foreground"
-            style={{ minHeight: '44px', minWidth: '44px' }}
+            className="flex min-h-11 min-w-11 items-center justify-center p-3 text-muted-foreground transition-[transform,color] duration-150 ease-out hover:text-foreground active:scale-95"
             aria-label="Close settings" title="Close settings"
           >
-            <X className="h-5 w-5" />
+            <X className="size-5" />
           </button>
         </div>
       )}
@@ -203,14 +202,14 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-all text-left ${
+                    className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-[background-color,color,border-color] duration-150 ease-out text-left active:scale-[0.98] ${
                       devActive
-                        ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500 -ml-px shadow-[0_0_10px_-3px_rgba(245,158,11,0.3)]'
+                        ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-500 -ml-px'
                         : devInactive
-                          ? 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/5 border-l-2 border-transparent -ml-px'
+                          ? 'text-muted-foreground hover:text-amber-400 hover:bg-amber-500/10 border-l-2 border-transparent -ml-px'
                           : isActive
-                            ? 'bg-primary/10 text-primary border-l-2 border-primary -ml-px shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3)]'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-primary/5 border-l-2 border-transparent -ml-px'
+                            ? 'bg-primary/15 text-primary border-l-2 border-primary -ml-px'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-primary/10 border-l-2 border-transparent -ml-px'
                     }`}
                   >
                     {tab.icon}
