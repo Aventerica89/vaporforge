@@ -36,7 +36,7 @@ import {
 } from '../sandbox';
 import { assembleSandboxConfig } from '../config-assembly';
 import type { SandboxConfig } from '../sandbox';
-import { getSandbox } from '@cloudflare/sandbox';
+import { getSandbox, parseSSEStream } from '@cloudflare/sandbox';
 import type { Process, Sandbox } from '@cloudflare/sandbox';
 import type { Session } from '../types';
 import { readAllOAuthTokens, refreshTokenIfExpired, writeOAuthTokens, markServerExpired } from '../api/mcp-oauth';
@@ -1083,6 +1083,59 @@ export class ChatSessionAgent {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.emitBridgeError(executionId, `Container error: ${msg}`);
+    }
+  }
+
+  /**
+   * Consume process logs via native SSE stream (replaces WS bridge when flag is on).
+   * Reads streamProcessLogs() and feeds each stdout line to handleContainerWsMessage
+   * which stores to replay buffer, translates to UIMessageStream, and forwards to browser WS.
+   *
+   * Fire-and-forget — called after startProcess, runs for the lifetime of the process.
+   * The async consumption keeps the DO awake (prevents hibernation during streaming).
+   */
+  private async consumeProcessLogs(
+    executionId: string,
+    processId: string,
+    sandbox: Sandbox
+  ): Promise<void> {
+    try {
+      const logStream = await sandbox.streamProcessLogs(processId);
+
+      for await (const event of parseSSEStream<{
+        type: string;
+        data?: string;
+        exitCode?: number;
+        processId?: string;
+      }>(logStream)) {
+        if (event.type === 'stdout' && event.data) {
+          const lines = event.data.split('\n');
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            this.handleContainerWsMessage(executionId, line);
+          }
+        } else if (event.type === 'stderr' && event.data) {
+          console.error(`[ChatSessionAgent] native-stream stderr: ${event.data.slice(0, 200)}`);
+        } else if (event.type === 'exit') {
+          const browserWs = this.wsBridges.get(executionId)
+            ?? this.state.getWebSockets(`exec:${executionId}`)[0];
+          if (browserWs) {
+            try { browserWs.close(1000, 'done'); } catch { /* may already be closed */ }
+          }
+          this.wsBridges.delete(executionId);
+          this.state.storage.delete(`exec:${executionId}`).catch(() => {});
+          this.state.storage.delete(`ws-meta:${executionId}`).catch(() => {});
+
+          if (event.exitCode !== 0) {
+            console.error(`[ChatSessionAgent] native-stream process exited code ${event.exitCode}`);
+          }
+          return;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[ChatSessionAgent] native-stream error: ${msg}`);
+      this.emitBridgeError(executionId, `Native stream error: ${msg}`);
     }
   }
 
