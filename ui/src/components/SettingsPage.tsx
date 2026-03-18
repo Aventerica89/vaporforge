@@ -58,42 +58,42 @@ const TAB_GROUPS: TabGroup[] = [
   {
     label: 'General',
     tabs: [
-      { id: 'appearance', label: 'Appearance', icon: <Palette className="size-[18px]" /> },
-      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="size-[18px]" /> },
+      { id: 'appearance', label: 'Appearance', icon: <Palette className="size-4" /> },
+      { id: 'shortcuts', label: 'Shortcuts', icon: <Keyboard className="size-4" /> },
     ],
   },
   {
     label: 'Workspace',
     tabs: [
-      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="size-[18px]" /> },
-      { id: 'rules', label: 'Rules', icon: <ScrollText className="size-[18px]" /> },
-      { id: 'commands', label: 'Commands', icon: <Terminal className="size-[18px]" /> },
-      { id: 'agents', label: 'Agents', icon: <Bot className="size-[18px]" /> },
-      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="size-[18px]" /> },
-      { id: 'secrets', label: 'Secrets', icon: <Key className="size-[18px]" /> },
-      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="size-[18px]" /> },
-      { id: 'command-center', label: 'Command Center', icon: <Shield className="size-[18px]" /> },
-      { id: 'files', label: 'Files', icon: <HardDrive className="size-[18px]" /> },
+      { id: 'claude-md', label: 'CLAUDE.md', icon: <FileCode className="size-4" /> },
+      { id: 'rules', label: 'Rules', icon: <ScrollText className="size-4" /> },
+      { id: 'commands', label: 'Commands', icon: <Terminal className="size-4" /> },
+      { id: 'agents', label: 'Agents', icon: <Bot className="size-4" /> },
+      { id: 'integrations', label: 'Integrations', icon: <Puzzle className="size-4" /> },
+      { id: 'secrets', label: 'Secrets', icon: <Key className="size-4" /> },
+      { id: 'ai-providers', label: 'AI Providers', icon: <Sparkles className="size-4" /> },
+      { id: 'command-center', label: 'Command Center', icon: <Shield className="size-4" /> },
+      { id: 'files', label: 'Files', icon: <HardDrive className="size-4" /> },
     ],
   },
   {
     label: 'Account',
     tabs: [
-      { id: 'account', label: 'Account', icon: <User className="size-[18px]" /> },
-      { id: 'billing', label: 'Billing', icon: <CreditCard className="size-[18px]" /> },
+      { id: 'account', label: 'Account', icon: <User className="size-4" /> },
+      { id: 'billing', label: 'Billing', icon: <CreditCard className="size-4" /> },
     ],
   },
   {
     label: 'Developer',
     tabs: [
-      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="size-[18px]" /> },
+      { id: 'dev-tools', label: 'Dev Tools', icon: <Hammer className="size-4" /> },
     ],
   },
   {
     label: 'Help',
     tabs: [
-      { id: 'guide', label: 'Guide', icon: <BookOpen className="size-[18px]" /> },
-      { id: 'about', label: 'About', icon: <Info className="size-[18px]" /> },
+      { id: 'guide', label: 'Guide', icon: <BookOpen className="size-4" /> },
+      { id: 'about', label: 'About', icon: <Info className="size-4" /> },
     ],
   },
 ];
