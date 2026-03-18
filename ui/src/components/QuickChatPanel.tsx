@@ -431,7 +431,7 @@ export function QuickChatPanel() {
       <div ref={panelRef} className="relative flex h-full w-full max-w-lg flex-col bg-background border-l border-border shadow-2xl animate-slide-in-right">
         {/* Header + help popover wrapper */}
         <div className="relative">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3 safe-area-header">
+          <div className="flex items-center justify-between border-b border-border px-4 pt-4 pb-3 safe-area-header">
             <div className="flex min-w-0 items-center gap-2">
               {showHistory && (
                 <button
