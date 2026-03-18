@@ -23,19 +23,8 @@ export const MobileNavBar = memo(function MobileNavBar({
   rightAction,
 }: MobileNavBarProps) {
   return (
-    <div
-      className="shrink-0 safe-area-header"
-      style={{
-        background: 'hsl(var(--card) / 0.94)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '0.5px solid hsl(var(--border))',
-      }}
-    >
-      <div
-        className="flex items-center px-4"
-        style={{ height: '44px' }}
-      >
+    <div className="shrink-0 safe-area-header glass-bar border-b border-border/50">
+      <div className="flex h-11 items-center px-4">
         {/* Left: back button or logo */}
         <div className="flex w-16 items-center">
           {showBack ? (
@@ -44,16 +33,10 @@ export const MobileNavBar = memo(function MobileNavBar({
                 haptics.light();
                 onBack?.();
               }}
-              className="flex items-center gap-0.5 -ml-2 px-2 py-1"
-              style={{
-                color: 'hsl(var(--primary))',
-                minHeight: '44px',
-                minWidth: '44px',
-                WebkitTapHighlightColor: 'transparent',
-              }}
+              className="flex min-h-11 min-w-11 items-center gap-0.5 -ml-2 px-2 py-1 text-primary transition-[transform,color] duration-150 ease-out active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:rounded"
               aria-label="Go back" title="Go back"
             >
-              <ChevronLeft size={22} strokeWidth={2.5} />
+              <ChevronLeft className="size-5" strokeWidth={2.5} />
               <span className="text-sm font-medium">Back</span>
             </button>
           ) : (
@@ -62,6 +45,7 @@ export const MobileNavBar = memo(function MobileNavBar({
               height="20"
               viewBox="0 0 512 512"
               className="shrink-0"
+              aria-hidden="true"
             >
               <rect width="512" height="512" rx="96" fill="#0f1419" />
               <path
@@ -87,9 +71,9 @@ export const MobileNavBar = memo(function MobileNavBar({
         {/* Center: title */}
         <div className="flex flex-1 items-center justify-center gap-2">
           {statusDot && (
-            <span className={`h-2 w-2 shrink-0 rounded-full ${statusDot}`} />
+            <span className={`size-2 shrink-0 rounded-full ${statusDot}`} />
           )}
-          <span className="truncate font-semibold text-foreground" style={{ fontSize: '15px' }}>
+          <span className="truncate text-[15px] font-semibold text-foreground">
             {title}
           </span>
         </div>

@@ -497,6 +497,15 @@
   .show-desktop { display: block !important; }
 }
 
+/* Frosted glass bar — shared by MobileTabBar + MobileNavBar */
+.glass-bar {
+  background: hsl(var(--card) / 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* Safe Area Insets for Notched Devices */
 @supports (padding: env(safe-area-inset-bottom)) {
   .safe-bottom {
