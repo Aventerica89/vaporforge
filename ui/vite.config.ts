@@ -1,11 +1,92 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 
 export default defineConfig({
   base: '/app/',
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      registerType: 'autoUpdate',
+      injectRegister: false,
+      manifest: {
+        name: 'VaporForge',
+        short_name: 'VaporForge',
+        description: 'Web-based Claude Code IDE on Cloudflare Sandboxes',
+        start_url: '/app',
+        display: 'standalone',
+        background_color: '#0f1419',
+        theme_color: '#1dd3e6',
+        orientation: 'any',
+        scope: '/',
+        icons: [
+          {
+            src: '/icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+          {
+            src: '/icon-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+          {
+            src: '/icon-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
+        categories: ['developer', 'productivity', 'utilities'],
+        shortcuts: [
+          {
+            name: 'New Session',
+            short_name: 'New',
+            description: 'Start a new development session',
+            url: '/app?action=new',
+            icons: [{ src: '/icon.svg', sizes: 'any' }],
+          },
+        ],
+        share_target: {
+          action: '/share',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+          },
+        },
+        screenshots: [
+          {
+            src: '/screenshots/desktop.png',
+            sizes: '1280x720',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'VaporForge desktop IDE with editor, terminal, and chat',
+          },
+          {
+            src: '/screenshots/mobile.png',
+            sizes: '390x844',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'VaporForge mobile chat interface',
+          },
+        ],
+      },
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB — main bundle is ~3.5MB
+      },
+      devOptions: { enabled: true },
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

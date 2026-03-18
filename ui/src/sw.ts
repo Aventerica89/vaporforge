@@ -1,56 +1,14 @@
-// VaporForge Service Worker
-// Offline-first PWA support with intelligent caching
+/// <reference lib="webworker" />
+declare const self: ServiceWorkerGlobalScope;
 
-const CACHE_VERSION = 'vaporforge-v36';
-const STATIC_CACHE = `${CACHE_VERSION}-static`;
-const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
+import { precacheAndRoute } from 'workbox-precaching';
+
+// Let Workbox handle precaching of build assets (auto-generated manifest)
+precacheAndRoute(self.__WB_MANIFEST);
+
+// Dynamic cache for runtime requests
+const DYNAMIC_CACHE = 'vaporforge-dynamic';
 const MAX_DYNAMIC_ITEMS = 50;
-
-// Static assets to cache immediately
-const STATIC_ASSETS = [
-  '/app',
-  '/app/index.html',
-  '/app/manifest.json',
-  '/app/icon.svg',
-  '/app/icon-192.png',
-  '/app/icon-512.png',
-];
-
-// Install event - cache static assets
-self.addEventListener('install', (event) => {
-  console.log('[SW] Installing service worker...');
-
-  event.waitUntil(
-    caches
-      .open(STATIC_CACHE)
-      .then((cache) => {
-        console.log('[SW] Caching static assets');
-        return cache.addAll(STATIC_ASSETS);
-      })
-      .then(() => self.skipWaiting()) // Activate immediately
-  );
-});
-
-// Activate event - clean old caches
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating service worker...');
-
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => {
-        return Promise.all(
-          keys
-            .filter((key) => key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
-            .map((key) => {
-              console.log('[SW] Removing old cache:', key);
-              return caches.delete(key);
-            })
-        );
-      })
-      .then(() => self.clients.claim()) // Take control immediately
-  );
-});
 
 // Fetch event - serve from cache with network fallback
 self.addEventListener('fetch', (event) => {
@@ -78,16 +36,19 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((networkResponse) => {
           const responseToCache = networkResponse.clone();
-          caches.open(STATIC_CACHE).then((cache) => cache.put(request, responseToCache));
+          caches.open(DYNAMIC_CACHE).then((cache) => cache.put(request, responseToCache));
           return networkResponse;
         })
-        .catch(() => caches.match('/app') || caches.match(request))
+        .catch(async () => {
+          const cached = await caches.match('/app') ?? await caches.match(request);
+          return cached ?? new Response('Offline', { status: 503 });
+        })
     );
     return;
   }
 
-  // Hashed assets (Vite fingerprinted): cache-first (immutable by hash)
   // All other requests: cache-first with network fallback
+  // (Workbox precache handles hashed build assets; this covers runtime requests)
   event.respondWith(
     caches.match(request).then((cacheResponse) => {
       if (cacheResponse) {
@@ -111,7 +72,7 @@ self.addEventListener('fetch', (event) => {
         .catch(() => {
           return new Response('Network error', {
             status: 408,
-            statusText: 'Request Timeout'
+            statusText: 'Request Timeout',
           });
         });
     })
@@ -119,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // Helper: Limit cache size (batch delete for efficiency)
-function limitCacheSize(cacheName, maxItems) {
+function limitCacheSize(cacheName: string, maxItems: number) {
   caches.open(cacheName).then((cache) => {
     cache.keys().then((keys) => {
       if (keys.length > maxItems) {

@@ -24,7 +24,7 @@ if (existsSync(join(UI_DIST, 'assets'))) {
 // 3. Copy shared public assets from ui/dist/ to dist/ root AND dist/app/
 const sharedAssets = [
   'icon.svg', 'icon-192.png', 'icon-512.png',
-  'manifest.json', 'sw.js', 'favicon.svg',
+  'manifest.webmanifest', 'sw.js', 'sw.js.map', 'favicon.svg',
 ];
 for (const file of sharedAssets) {
   const src = join(UI_DIST, file);
@@ -45,7 +45,7 @@ console.log('Build merge complete. dist/ structure:');
 // List key files
 const expected = [
   'index.html', 'pricing/index.html', 'login/index.html',
-  'app/index.html', 'manifest.json', 'sw.js', 'icon.svg',
+  'app/index.html', 'manifest.webmanifest', 'sw.js', 'icon.svg',
 ];
 for (const f of expected) {
   const exists = existsSync(join(DIST, f));
