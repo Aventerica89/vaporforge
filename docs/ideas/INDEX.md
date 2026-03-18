@@ -13,6 +13,12 @@ One file per idea — use `git blame` to see when each was added.
 | P2 | 2026-03-13 | [GitHub Auth — Private Repo Access](github-auth-private-repos.md) | Integrations | Idea |
 | P1 | 2026-03-13 | [MCP OAuth — Worker as OAuth Client](mcp-oauth-worker-as-client.md) | MCP / Auth | Idea |
 | P1 | 2026-03-13 | [Login with Claude — OAuth Onboarding](login-with-claude-oauth.md) | Auth / Onboarding | Idea |
+| P1 | 2026-03-18 | [PWA Update Toast](pwa-update-toast.md) | PWA / UX | Idea |
+| P2 | 2026-03-18 | [PWA Offline Fallback Page](pwa-offline-fallback.md) | PWA / UX | Idea |
+| P2 | 2026-03-18 | [PWA iOS Splash Screens](pwa-ios-splash-screens.md) | PWA / Polish | Idea |
+| P3 | 2026-03-18 | [PWA Background Sync](pwa-background-sync.md) | PWA / Infrastructure | Idea |
+| P3 | 2026-03-18 | [PWA Push Notifications](pwa-push-notifications.md) | PWA / Infrastructure | Idea |
+| P2 | 2026-03-18 | [CF Workers Vite Plugin — Unified Dev Server](cf-workers-vite-plugin.md) | Infrastructure / DX | Idea |
 
 ---
 
