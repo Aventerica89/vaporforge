@@ -124,7 +124,7 @@ export function SessionTabBar() {
         {/* Home button — H1: 44×44 touch target */}
         <button
           onClick={() => deselectSession()}
-          className={`flex size-11 shrink-0 items-center justify-center transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
+          className={`flex size-11 shrink-0 items-center justify-center transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
             !currentSession ? 'text-foreground bg-background' : 'text-muted-foreground'
           }`}
           title="Home"
@@ -136,7 +136,7 @@ export function SessionTabBar() {
         {/* New session button — H1: 44×44 touch target */}
         <button
           onClick={() => createSession()}
-          className="flex size-11 shrink-0 items-center justify-center text-muted-foreground transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 shrink-0 items-center justify-center text-muted-foreground transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="New session"
           aria-label="New session"
         >
@@ -154,7 +154,7 @@ export function SessionTabBar() {
               className={`group relative flex min-h-[44px] shrink-0 items-center gap-1.5 border-r border-border/50 px-3 text-sm transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out ${
                 isActive
                   ? 'bg-background text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]'
+                  : 'text-muted-foreground hover:bg-primary/10 hover:text-foreground active:scale-[0.98]'
               }`}
             >
               {/* Active indicator — bottom border accent */}
@@ -285,7 +285,7 @@ export function SessionTabBar() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title={isDark ? 'Light mode' : 'Dark mode'}
           aria-label="Toggle theme"
         >
@@ -299,7 +299,7 @@ export function SessionTabBar() {
         {/* Agency */}
         <button
           onClick={() => useAgencyStore.getState().openDashboard()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Agency Sites"
           aria-label="Agency Sites"
         >
@@ -309,8 +309,8 @@ export function SessionTabBar() {
         {/* Quick Chat */}
         <button
           onClick={() => useQuickChat.getState().toggleQuickChat()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          title="Quick Chat (Cmd+Shift+Q)"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          title="Quick Chat (Cmd+Shift+C)"
           aria-label="Quick Chat"
         >
           <MessageSquare className="size-3.5" />
@@ -326,7 +326,7 @@ export function SessionTabBar() {
               dc.openChangelog();
             }
           }}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Dev Changelog (Cmd+Shift+L)"
           aria-label="Dev Changelog"
         >
@@ -336,7 +336,7 @@ export function SessionTabBar() {
         {/* Issue Tracker */}
         <button
           onClick={() => useIssueTracker.getState().openTracker()}
-          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-muted hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="flex size-11 items-center justify-center rounded-md transition-[transform,background-color,color,opacity,box-shadow] duration-150 ease-out hover:bg-primary/10 hover:text-foreground active:scale-95 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           title="Issue Tracker"
           aria-label="Issue Tracker"
         >

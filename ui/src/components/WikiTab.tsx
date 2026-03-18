@@ -52,7 +52,7 @@ const WIKI_SECTIONS: WikiSection[] = [
       'Up to 10 tool calls per message for multi-step tasks',
       'Chat history persisted in KV (7-day TTL)',
     ],
-    shortcuts: 'Cmd+Shift+Q',
+    shortcuts: 'Cmd+Shift+C',
     note: 'Uses direct API keys (not OAuth). Configure in Settings > AI Providers.',
   },
   {

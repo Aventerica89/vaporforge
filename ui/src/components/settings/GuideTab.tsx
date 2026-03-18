@@ -104,7 +104,7 @@ export function GuideTab() {
 
             <Section icon={<Keyboard className="h-4 w-4 text-primary" />} title="Key Shortcuts">
               <div className="space-y-1.5">
-                <Shortcut keys="Cmd+Shift+Q" label="Quick Chat" />
+                <Shortcut keys="Cmd+Shift+C" label="Quick Chat" />
                 <Shortcut keys="Cmd+Shift+T" label="Code Transform" />
                 <Shortcut keys="Cmd+Shift+A" label="Code Analysis" />
                 <Shortcut keys="Cmd+Shift+M" label="Smart Commit" />
@@ -172,7 +172,7 @@ export function GuideTab() {
             <Section icon={<Sparkles className="h-4 w-4 text-primary" />} title="Quick Chat">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 A fast AI slide-out panel. No session needed for instant answers — open it from anywhere
-                with <code className="text-primary">Cmd+Shift+Q</code>.
+                with <code className="text-primary">Cmd+Shift+C</code>.
               </p>
               <div className="space-y-1.5 text-sm text-muted-foreground">
                 <p className="font-medium text-foreground text-xs">Two modes:</p>

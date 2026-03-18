@@ -611,7 +611,7 @@ export const CHANGELOG: readonly ChangelogEntry[] = [
     tag: 'feature',
     title: 'AI SDK Integration — Quick Chat + Code Transform',
     items: [
-      'Quick Chat: instant AI chat without starting a sandbox (Cmd+Shift+Q)',
+      'Quick Chat: instant AI chat without starting a sandbox (Cmd+Shift+C)',
       'Multi-provider support: switch between Claude and Gemini models on the fly',
       'Code Transform: select code in editor, describe a change, get a diff view (Cmd+Shift+T)',
       'Provider availability guard: auto-selects configured provider, disables unavailable ones',

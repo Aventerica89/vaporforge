@@ -236,10 +236,10 @@ export function QuickChatPanel() {
     setThinkingSeconds(0);
   }, [status]);
 
-  // Cmd+Shift+Q shortcut
+  // Cmd+Shift+C shortcut (was Q, but macOS Cmd+Shift+Q = Log Out)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'q') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'c') {
         e.preventDefault();
         useQuickChat.getState().toggleQuickChat();
       }
@@ -512,7 +512,7 @@ export function QuickChatPanel() {
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary shrink-0">-</span>
-                  <span><kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono text-[10px]">Cmd+Shift+Q</kbd> — Open/close from anywhere</span>
+                  <span><kbd className="rounded border border-border bg-muted/50 px-1 py-px font-mono text-[10px]">Cmd+Shift+C</kbd> — Open/close from anywhere</span>
                 </li>
                 <li className="flex gap-2">
                   <span className="text-primary shrink-0">-</span>

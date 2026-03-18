@@ -21,7 +21,7 @@ const SHORTCUT_GROUPS: Array<{
   {
     label: 'AI Tools',
     shortcuts: [
-      { action: 'Quick Chat', keys: ['\u2318', 'Shift', 'Q'] },
+      { action: 'Quick Chat', keys: ['\u2318', 'Shift', 'C'] },
       { action: 'Code Transform', keys: ['\u2318', 'Shift', 'T'] },
       { action: 'Code Analysis', keys: ['\u2318', 'Shift', 'A'] },
       { action: 'Commit Message', keys: ['\u2318', 'Shift', 'G'] },
