@@ -93,7 +93,7 @@ export default {
       url.pathname === '/api/v15/chat'
     ) {
       const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
-      const user = await extractAuth(request, authService);
+      const user = await extractAuth(request, authService, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
       if (!user) {
         return new Response('Unauthorized', { status: 401 });
       }
@@ -159,7 +159,7 @@ export default {
       url.pathname === '/api/v15/approve'
     ) {
       const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
-      const user = await extractAuth(request, authService);
+      const user = await extractAuth(request, authService, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
       if (!user) {
         return new Response('Unauthorized', { status: 401 });
       }
@@ -193,7 +193,7 @@ export default {
       url.pathname === '/api/v15/ws-ticket'
     ) {
       const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
-      const ticketUser = await extractAuth(request, authService);
+      const ticketUser = await extractAuth(request, authService, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
       if (!ticketUser) {
         return new Response('Unauthorized', { status: 401 });
       }
@@ -259,7 +259,7 @@ export default {
       url.pathname === '/api/v15/resume'
     ) {
       const authService = new AuthService(env.AUTH_KV, env.JWT_SECRET);
-      const user = await extractAuth(request, authService);
+      const user = await extractAuth(request, authService, env.CF_ACCESS_TEAM_DOMAIN, env.CF_ACCESS_AUD);
       if (!user) {
         return new Response('Unauthorized', { status: 401 });
       }

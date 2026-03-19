@@ -146,6 +146,25 @@ export class AuthService {
     return user;
   }
 
+  // Look up or create a user from CF Access identity (Zero Trust).
+  // Returns a user with claudeToken if they've linked one, or a partial
+  // user (claudeToken=null) if they're authenticated but haven't linked yet.
+  async getUserByCfIdentity(cfSub: string, email: string): Promise<User> {
+    const cfKey = `user:cf:${cfSub}`;
+    const existing = await this.kv.get<User>(cfKey, 'json');
+    if (existing) return existing;
+
+    // New CF user — return partial user so middleware knows they're
+    // authenticated but need to link their Claude token.
+    return {
+      id: `cf:${cfSub}`,
+      email,
+      claudeToken: '',
+      role: 'user',
+      createdAt: new Date().toISOString(),
+    } as User;
+  }
+
   // Create session token for user
   async createSessionToken(user: User): Promise<string> {
     const payload: AuthTokenPayloadType = {
@@ -288,12 +307,24 @@ export async function requireAdmin(c: Context, next: Next) {
   await next();
 }
 
-// Middleware helper to extract and validate auth
+// Middleware helper to extract and validate auth.
+// Tries CF Access JWT first (Zero Trust), falls back to old Bearer token.
 export async function extractAuth(
   request: Request,
-  authService: AuthService
+  authService: AuthService,
+  cfAccessTeamDomain?: string,
+  cfAccessAud?: string,
 ): Promise<User | null> {
-  // Check Authorization header
+  // 1. Try CF Access JWT (new Zero Trust path)
+  if (cfAccessTeamDomain && cfAccessAud) {
+    const { validateCfAccessJwt } = await import('./cf-access');
+    const cfIdentity = await validateCfAccessJwt(request, cfAccessTeamDomain, cfAccessAud);
+    if (cfIdentity) {
+      return authService.getUserByCfIdentity(cfIdentity.sub, cfIdentity.email);
+    }
+  }
+
+  // 2. Fall back to old Bearer token JWT (backward compat during migration)
   const authHeader = request.headers.get('Authorization');
   if (authHeader) {
     if (authHeader.startsWith('Bearer ')) {

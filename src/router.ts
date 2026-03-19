@@ -145,7 +145,7 @@ export function createRouter(env: Env) {
     // Only trust previousUserId if the caller has a valid session JWT proving
     // they are that user. This prevents an attacker from claiming any userId.
     let previousUserId: string | undefined;
-    const existingUser = await extractAuth(c.req.raw, authService);
+    const existingUser = await extractAuth(c.req.raw, authService, c.env.CF_ACCESS_TEAM_DOMAIN, c.env.CF_ACCESS_AUD);
     if (existingUser) {
       previousUserId = existingUser.id;
     }
@@ -230,7 +230,7 @@ export function createRouter(env: Env) {
   // then migrate KV data to the current user.
   app.post('/api/auth/recover-by-token', authRateLimit, async (c) => {
     const authService = c.get('authService');
-    const user = await extractAuth(c.req.raw, authService);
+    const user = await extractAuth(c.req.raw, authService, c.env.CF_ACCESS_TEAM_DOMAIN, c.env.CF_ACCESS_AUD);
     if (!user) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
     }
@@ -396,7 +396,7 @@ export function createRouter(env: Env) {
 
   protectedRoutes.use('*', async (c, next) => {
     const authService = c.get('authService');
-    const user = await extractAuth(c.req.raw, authService);
+    const user = await extractAuth(c.req.raw, authService, c.env.CF_ACCESS_TEAM_DOMAIN, c.env.CF_ACCESS_AUD);
 
     if (!user) {
       return c.json({ success: false, error: 'Unauthorized' }, 401);
