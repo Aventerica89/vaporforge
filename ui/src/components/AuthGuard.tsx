@@ -44,13 +44,6 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return <>{children}</>;
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (token.trim()) {
-      await login(token.trim());
-    }
-  };
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-4 safe-top safe-bottom">
       <div className="w-full max-w-sm space-y-8">
