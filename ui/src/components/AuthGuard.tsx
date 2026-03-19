@@ -21,16 +21,16 @@ function CommandSnippet({ command }: { command: string }) {
     <button
       type="button"
       onClick={copy}
-      className="group mt-2 flex w-full items-center justify-between rounded-lg border border-border bg-background px-4 py-3 text-left font-mono text-sm transition-colors hover:bg-muted"
+      className="group flex w-full items-center justify-between rounded-lg border border-border/50 bg-black/40 px-4 py-3 text-left font-mono text-sm transition-all hover:border-border hover:bg-black/60"
     >
       <span>
-        <span className="text-muted-foreground">$ </span>
+        <span className="text-muted-foreground/60">$ </span>
         <span className="text-foreground">{command}</span>
       </span>
       {copied ? (
         <Check className="h-4 w-4 flex-shrink-0 text-emerald-400" />
       ) : (
-        <Copy className="h-4 w-4 flex-shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+        <Copy className="h-4 w-4 flex-shrink-0 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground" />
       )}
     </button>
   );
@@ -53,68 +53,54 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-4 safe-top safe-bottom">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-sm space-y-8">
+        {/* Header */}
         <div className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <Terminal className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="mt-4 text-2xl font-semibold">Link your Claude account</h1>
-          <p className="mt-2 text-muted-foreground">
-            Connect your Claude Pro or Max subscription to start coding
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight">Link your Claude account</h1>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Connect your Claude Pro or Max subscription
           </p>
         </div>
 
-        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">1</span>
-            <div className="text-sm">
-              <p className="font-medium">Run this in your terminal</p>
-              <CommandSnippet command="claude setup-token" />
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">2</span>
-            <p className="text-sm font-medium">Copy the token and paste it below</p>
-          </div>
+        {/* Steps */}
+        <div className="space-y-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Step 1 — Run in your terminal</p>
+          <CommandSnippet command="claude setup-token" />
+
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground/70">Step 2 — Paste your token</p>
+          <input
+            type="password"
+            id="token"
+            value={token}
+            onChange={(e) => {
+              setToken(e.target.value);
+              clearError();
+            }}
+            placeholder="sk-ant-oat01-..."
+            className="block w-full rounded-lg border border-border/50 bg-black/40 px-4 py-3 font-mono text-sm placeholder:text-muted-foreground/30 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+            style={{ fontSize: '16px' }}
+            autoComplete="off"
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label
-              htmlFor="token"
-              className="block text-sm font-medium text-foreground"
-            >
-              Claude Token
-            </label>
-            <input
-              type="password"
-              id="token"
-              value={token}
-              onChange={(e) => {
-                setToken(e.target.value);
-                clearError();
-              }}
-              placeholder="sk-ant-oat01-..."
-              className="mt-1 block w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-mono placeholder:text-muted-foreground focus-visible:border-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-              style={{ fontSize: '16px' }}
-              autoComplete="off"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading || !token.trim()}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ minHeight: '44px' }}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <LogIn className="h-4 w-4" />
-            )}
-            Link Account
-          </button>
-        </form>
+        {/* Submit */}
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); if (token.trim()) login(token.trim()); }}
+          disabled={isLoading || !token.trim()}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ minHeight: '44px' }}
+        >
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LogIn className="h-4 w-4" />
+          )}
+          Link Account
+        </button>
 
         {error && (
           <div className="flex items-center gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-500">
