@@ -1102,8 +1102,10 @@ export class ChatSessionAgent {
     processId: string,
     sandbox: Sandbox
   ): Promise<void> {
+    console.error(`[native-stream] START: executionId=${executionId.slice(0, 8)} processId=${processId}`);
     try {
       const logStream = await sandbox.streamProcessLogs(processId);
+      console.error(`[native-stream] got logStream for processId=${processId}`);
 
       for await (const event of parseSSEStream<{
         type: string;
@@ -1381,6 +1383,7 @@ export class ChatSessionAgent {
       }
     );
 
+    console.error(`[dispatchContainer] nativeStream=${nativeStream} process.id=${process.id} process.status=${process.status}`);
     if (nativeStream) {
       // Native path: consume process logs via SSE (fire-and-forget).
       // The async loop keeps the DO awake for the duration of the stream.

@@ -133,7 +133,7 @@ export function SettingsPage({ inMobileSubView = false }: { inMobileSubView?: bo
   return (
     <div
       ref={focusTrapRef as React.RefObject<HTMLDivElement>}
-      className="flex flex-col bg-background overflow-hidden h-full"
+      className="flex flex-col bg-background overflow-hidden h-dvh"
     >
       {/* ─── Top bar (hidden on phone or when inside mobile subview) ─── */}
       {!isMobile && !inMobileSubView && (
