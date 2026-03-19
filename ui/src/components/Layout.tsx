@@ -91,6 +91,11 @@ function applyHashState(parsed: HashState) {
 export function Layout() {
   const { loadSessions, currentSession, openFiles, isCreatingSession, isLoadingSessions } =
     useSandboxStore();
+  // Suppress WelcomeScreen flash: if localStorage has a cached session ID,
+  // hold an empty view until loadSessions resolves and sets currentSession.
+  // Cleared once loading finishes so WelcomeScreen shows correctly for new users.
+  const pendingRestoreRef = useRef(!!localStorage.getItem('vf_active_session'));
+  if (!isLoadingSessions) pendingRestoreRef.current = false;
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
   const { isOpen: settingsOpen, activeTab: settingsTab } = useSettingsStore();
@@ -504,7 +509,7 @@ export function Layout() {
             </PanelGroup>
           </Panel>
         </PanelGroup>
-      ) : isLoadingSessions ? (
+      ) : pendingRestoreRef.current ? (
         <div className="flex-1" />
       ) : (
         <WelcomeScreen />
