@@ -51,6 +51,10 @@ declare global {
     // Environment variables
     ENVIRONMENT: string;
     WORKER_BASE_URL: string;
+
+    // CF Access (Zero Trust) — set in wrangler.jsonc vars
+    CF_ACCESS_TEAM_DOMAIN: string;
+    CF_ACCESS_AUD: string;
   }
 }
 

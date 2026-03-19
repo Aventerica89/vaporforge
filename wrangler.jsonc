@@ -98,7 +98,9 @@
   //                 wrangler secret put STRIPE_PRO_PRICE_ID
   "vars": {
     "ENVIRONMENT": "production",
-    "WORKER_BASE_URL": "https://vaporforge.dev"
+    "WORKER_BASE_URL": "https://vaporforge.dev",
+    "CF_ACCESS_TEAM_DOMAIN": "https://jbmdcreations.cloudflareaccess.com",
+    "CF_ACCESS_AUD": "REPLACE_WITH_AUD_TAG"
   },
 
   // Static assets for UI
