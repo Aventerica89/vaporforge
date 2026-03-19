@@ -451,6 +451,35 @@ iOS PWA standalone mode should send same-origin cookies, but this is untested wi
 Preview URLs use `*.vaporforge.dev` subdomains (e.g., `8080-sandbox123.vaporforge.dev`). If CF Access is set on `*.vaporforge.dev`, these get blocked.
 **Fix:** CF Access app should target specific paths (`/app/*`, `/api/*`), NOT wildcard subdomain. Preview URLs use different subdomains and won't match.
 
+### 11. JWKS Caching Required (PERFORMANCE)
+`createRemoteJWKSet()` from `jose` fetches keys on every verification. Worker isolates are short-lived so the cache resets frequently. Adds 50-200ms latency per request.
+**Fix:** Cache JWKS response in KV with 1-6 hour TTL. On verification failure, refetch keys (might be rotation). Keys rotate every 6 weeks with 7-day overlap period.
+
+### 12. manifest.webmanifest Behind Access (PWA)
+If Access session expires, manifest fetch fails silently → PWA install/update breaks.
+**Fix:** Serve manifest from `/manifest.webmanifest` (landing page path, not `/app/`). Since we only protect `/app/*` and `/api/*`, the manifest at root is unprotected.
+
+### 13. Service Worker Cache-First Defeats Access
+SW serves cached app shell after session expires → user sees app but API calls fail with redirects.
+**Fix:** Add periodic `/api/auth/me` health check in the SPA. On 401 response, show "session expired" and redirect to re-auth. Check on visibility change (tab focus) and before sending chat messages.
+
+### 14. SameSite Cookie Default
+Default is `SameSite=None` which is correct for SPAs. Do NOT change to `Strict` — causes redirect loops when following links from email or external sites.
+
+### 15. Login Page Customization is FREE
+Confirmed: logo, colors, background, header/footer text customization has no plan restriction. App Launcher customization (different feature) is paid-only. We only need login page customization.
+
+### 16. Access Audit Logs — 24h Retention on Free
+Authentication logs exist but only 24-hour retention on free tier. Acceptable for alpha. Upgrade to Pay-as-you-go ($7/user/month) for 30-day retention when needed.
+
+### 17. User 51 Blocked (Undocumented Behavior)
+When 50-seat cap is hit, new users are likely blocked at authentication. Exact error page is undocumented.
+**Fix:** Enable seat expiration (30-day inactivity auto-removal) in CF One > Settings > Admin controls. Monitor seat count during alpha.
+
+### 18. WS Session Outlives Access Session
+Access only gates the WS upgrade (HTTP 101). If session expires mid-chat, the WS stays open indefinitely. Good for long chat sessions, but means a revoked user keeps their active WS.
+**Fix:** For alpha, acceptable. For production, add periodic JWT re-validation on the DO side (e.g., every 30 min check if the user's CF session is still valid).
+
 ---
 
 ## Testing Checklist
@@ -473,3 +502,9 @@ Preview URLs use `*.vaporforge.dev` subdomains (e.g., `8080-sandbox123.vaporforg
 - [ ] Logout button at `vaporforge.dev/cdn-cgi/access/logout` clears session
 - [ ] Mobile PWA (iOS) sends CF cookies correctly in standalone mode
 - [ ] Mobile PWA (Android) sends CF cookies correctly
+- [ ] manifest.webmanifest loads without auth (served from public path)
+- [ ] SW registration/update works after Access session expires and renews
+- [ ] JWKS cached properly (second request doesn't add 200ms latency)
+- [ ] Session expiry mid-SPA shows "session expired" not redirect loop
+- [ ] Links from email to `/app/` don't cause redirect loops (SameSite=None/Lax)
+- [ ] Seat count stays under 50 with auto-expiration enabled
