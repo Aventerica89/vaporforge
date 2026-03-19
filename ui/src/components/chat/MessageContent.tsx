@@ -3,9 +3,8 @@ import { approveToolUse } from '@/lib/api';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ChatMarkdown } from './ChatMarkdown';
-import { useSmoothText } from '@/hooks/useSmoothText';
-import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
-import { MessageResponse } from '@/components/ai-elements/message';
+import { MemoizedChatMarkdown } from './MemoizedChatMarkdown';
+// useSmoothText + MessageResponse removed — MemoizedChatMarkdown replaces them
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
@@ -220,7 +219,7 @@ function ToolGroup({ items, allParts }: { items: Array<{ part: MessagePart; inde
       </button>
       {expanded && (
         <div className="border-t border-border/30 px-1 py-1">
-          {items.map((item) => renderPart(item.part, item.index, false, allParts))}
+          {items.map((item) => renderPart(item.part, item.index, false, allParts, 'tool-group'))}
         </div>
       )}
     </div>
@@ -232,14 +231,21 @@ function renderPart(
   index: number,
   isStreaming = false,
   allParts?: MessagePart[],
+  messageId = 'msg',
 ) {
   switch (part.type) {
     case 'text':
       if (!part.content) return null;
-      return isStreaming ? (
-        <SmoothText key="streaming-text" content={part.content} />
-      ) : (
-        <ChatMarkdown key={index} content={part.content} />
+      // Single component for both streaming and completed — eliminates reflow flash.
+      // MemoizedChatMarkdown splits into blocks and only re-renders the last block
+      // as new tokens arrive. No more SmoothText→ChatMarkdown DOM swap.
+      return (
+        <MemoizedChatMarkdown
+          key={`text-${index}`}
+          content={part.content}
+          id={`${messageId}-${index}`}
+          isStreaming={isStreaming}
+        />
       );
 
     case 'reasoning':
@@ -438,7 +444,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
           item.kind === 'tool-group' ? (
             <ToolGroup key={`tg-${gi}`} items={item.parts} allParts={message.parts!} />
           ) : (
-            renderPart(item.part, item.index, false, message.parts)
+            renderPart(item.part, item.index, false, message.parts, message.id)
           ),
         )}
       </div>
@@ -466,20 +472,8 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
   );
 });
 
-/** Renders a streaming text part — respects smoothStreaming preference. */
-function SmoothText({ content }: { content: string }) {
-  const isStreaming = useSandboxStore((s) => s.isStreaming);
-  const [smoothPref] = useSmoothStreaming();
-  const smoothed = useSmoothText(content, isStreaming, { disabled: !smoothPref });
-  const animating = smoothPref
-    ? (isStreaming || smoothed.length < content.length)
-    : isStreaming;
-  return (
-    <MessageResponse mode={animating ? 'streaming' : 'static'}>
-      {smoothPref ? smoothed : content}
-    </MessageResponse>
-  );
-}
+// SmoothText removed — MemoizedChatMarkdown handles both streaming and completed
+// rendering with the same DOM structure, eliminating the reflow flash.
 
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
   const streamingPlan = useMemo(() => parseTaskPlan(parts), [parts]);
@@ -499,14 +493,14 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
               (part.type === 'tool-start' ||
                 part.type === 'reasoning' ||
                 part.type === 'chain-of-thought'));
-          return renderPart(part, i, isStreamingPart, parts);
+          return renderPart(part, i, isStreamingPart, parts, 'streaming');
         })}
       </div>
     );
   }
 
   if (fallbackContent) {
-    return <SmoothText content={fallbackContent} />;
+    return <MemoizedChatMarkdown content={fallbackContent} id="streaming-fallback" isStreaming />;
   }
 
   return null;
