@@ -100,7 +100,7 @@
     "ENVIRONMENT": "production",
     "WORKER_BASE_URL": "https://vaporforge.dev",
     "CF_ACCESS_TEAM_DOMAIN": "https://jbmdcreations.cloudflareaccess.com",
-    "CF_ACCESS_AUD": "REPLACE_WITH_AUD_TAG"
+    "CF_ACCESS_AUD": "d91a2a6a144c86d724ac28b4d25f77889a7fac813c6bcb93dda476b098c04d72"
   },
 
   // Static assets for UI
