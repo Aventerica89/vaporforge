@@ -210,6 +210,7 @@ export function DevToolsTab() {
           Streaming Transport
         </h3>
         <NativeStreamToggle />
+        <DebugStreamToggle />
       </div>
 
       {/* Quick actions */}
@@ -637,6 +638,47 @@ function NativeStreamToggle() {
         onClick={toggle}
         className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
           enabled ? 'bg-amber-500' : 'bg-muted-foreground/30'
+        }`}
+      >
+        <span
+          className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+            enabled ? 'translate-x-6' : 'translate-x-1'
+          }`}
+        />
+      </button>
+    </label>
+  );
+}
+
+/** Toggle for debug stream frames — shows raw SSE events, stderr, and lifecycle in chat. */
+function DebugStreamToggle() {
+  const [enabled, setEnabled] = useState(
+    () => localStorage.getItem('vf_debug_stream') === '1'
+  );
+
+  const toggle = useCallback(() => {
+    const next = !enabled;
+    localStorage.setItem('vf_debug_stream', next ? '1' : '0');
+    setEnabled(next);
+  }, [enabled]);
+
+  return (
+    <label className="flex items-center justify-between cursor-pointer mt-3">
+      <div className="space-y-0.5">
+        <span className="text-sm text-foreground">Debug Stream Frames</span>
+        <p className="text-[10px] text-muted-foreground">
+          {enabled
+            ? 'Showing raw SSE events, stderr, and lifecycle in chat'
+            : 'Debug frames hidden (production mode)'}
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={toggle}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+          enabled ? 'bg-red-500' : 'bg-muted-foreground/30'
         }`}
       >
         <span

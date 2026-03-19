@@ -579,6 +579,7 @@ export class ChatSessionAgent {
       model?: string;
       autonomy?: string;
       nativeStream?: boolean;
+      debugStream?: boolean;
     };
 
     // Guard: reject double-dispatch if a container execution is already in-flight.
@@ -691,6 +692,7 @@ export class ChatSessionAgent {
       body.model,
       body.autonomy,
       body.nativeStream === true,
+      body.debugStream === true,
     ).catch((err) => {
       const line =
         JSON.stringify({ type: 'error', error: String(err) }) + '\n';
@@ -932,6 +934,7 @@ export class ChatSessionAgent {
         data.model as string | undefined,
         data.autonomy as string | undefined,
         data.nativeStream === true,
+        data.debugStream === true,
       );
     } catch (err) {
       ws.send('3:' + JSON.stringify(String(err instanceof Error ? err.message : err)) + '\n');
@@ -1100,23 +1103,25 @@ export class ChatSessionAgent {
   private async consumeProcessLogs(
     executionId: string,
     processId: string,
-    sandbox: Sandbox
+    sandbox: Sandbox,
+    debugStream = false,
   ): Promise<void> {
     console.error(`[native-stream] START: executionId=${executionId.slice(0, 8)} processId=${processId}`);
+    // Debug WS: send diagnostic frames to browser when debugStream is on
+    const debugWs = debugStream
+      ? (this.wsBridges.get(executionId) ?? this.state.getWebSockets(`exec:${executionId}`)[0])
+      : null;
     try {
-      // Debug: send a test frame to browser WS to verify forwarding works
-      const testWs = this.wsBridges.get(executionId)
-        ?? this.state.getWebSockets(`exec:${executionId}`)[0];
-      if (testWs) {
-        testWs.send('0:"[native-stream] connected, waiting for process logs..."\n');
+      if (debugWs) {
+        debugWs.send('0:"[native-stream] connected, waiting for process logs..."\n');
       }
 
       const logStream = await sandbox.streamProcessLogs(processId);
       console.error(`[native-stream] got logStream for processId=${processId}`);
 
       // Debug: send confirmation that streamProcessLogs connected
-      if (testWs) {
-        testWs.send('0:"[native-stream] streamProcessLogs connected, consuming..."\n');
+      if (debugWs) {
+        debugWs.send('0:"[native-stream] streamProcessLogs connected, consuming..."\n');
       }
 
       let eventCount = 0;
@@ -1128,8 +1133,8 @@ export class ChatSessionAgent {
       }>(logStream)) {
         eventCount++;
         // Debug: send event info to browser
-        if (testWs && eventCount <= 5) {
-          try { testWs.send(`0:"[native-stream] event #${eventCount}: type=${event.type} hasData=${!!event.data}"\n`); } catch {}
+        if (debugWs && eventCount <= 5) {
+          try { debugWs.send(`0:"[native-stream] event #${eventCount}: type=${event.type} hasData=${!!event.data}"\n`); } catch {}
         }
         if (event.type === 'stdout' && event.data) {
           const lines = event.data.split('\n');
@@ -1140,8 +1145,8 @@ export class ChatSessionAgent {
         } else if (event.type === 'stderr' && event.data) {
           console.error(`[ChatSessionAgent] native-stream stderr: ${event.data.slice(0, 200)}`);
           // Debug: forward stderr to browser so we can see crash messages
-          if (testWs) {
-            try { testWs.send(`0:"[stderr] ${event.data.slice(0, 150).replace(/"/g, '\\"')}"\n`); } catch {}
+          if (debugWs) {
+            try { debugWs.send(`0:"[stderr] ${event.data.slice(0, 150).replace(/"/g, '\\"')}"\n`); } catch {}
           }
         } else if (event.type === 'exit') {
           const browserWs = this.wsBridges.get(executionId)
@@ -1160,15 +1165,15 @@ export class ChatSessionAgent {
         }
       }
       // Debug: loop exited normally (no exit event — stream just ended)
-      if (testWs) {
-        try { testWs.send(`0:"[native-stream] loop ended after ${eventCount} events (no exit event)"\n`); } catch {}
+      if (debugWs) {
+        try { debugWs.send(`0:"[native-stream] loop ended after ${eventCount} events (no exit event)"\n`); } catch {}
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`[ChatSessionAgent] native-stream error: ${msg}`);
       // Debug: send error to browser
-      if (testWs) {
-        try { testWs.send(`0:"[native-stream] ERROR: ${msg.slice(0, 100)}"\n`); } catch {}
+      if (debugWs) {
+        try { debugWs.send(`0:"[native-stream] ERROR: ${msg.slice(0, 100)}"\n`); } catch {}
       }
       this.emitBridgeError(executionId, `Native stream error: ${msg}`);
     }
@@ -1213,6 +1218,7 @@ export class ChatSessionAgent {
     model?: string,
     autonomy?: string,
     nativeStream?: boolean,
+    debugStream?: boolean,
   ): Promise<void> {
     const sid = sessionId.slice(0, 8);
     console.log(`[ChatSessionAgent] dispatchContainer: sid=${sid} exec=${executionId.slice(0, 8)}`);
@@ -1421,7 +1427,7 @@ export class ChatSessionAgent {
       // ctx.waitUntil keeps the DO alive while the async stream consumption runs.
       // Without this, the DO may hibernate after webSocketMessage returns,
       // killing the unawaited promise before streamProcessLogs connects.
-      this.state.waitUntil(this.consumeProcessLogs(executionId, process.id, sandbox));
+      this.state.waitUntil(this.consumeProcessLogs(executionId, process.id, sandbox, debugStream));
     } else {
       // Legacy path: wait for container to connect back via WS.
       // watchProcessCrash catches non-zero exits if the bridge times out.
