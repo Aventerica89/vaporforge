@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect } from 'react';
 import { BrainCircuit } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds } from '@/hooks/useSandbox';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
@@ -158,30 +158,10 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
   const streamingContent = useSandboxStore((s) => s.streamingContent);
   const streamingParts = useSandboxStore((s) => s.streamingParts);
 
-  // Keep last-seen content so we can show it during the linger period.
-  const lastPartsRef = useRef(streamingParts);
-  const lastContentRef = useRef(streamingContent);
-  // Subscribe directly to the Zustand store to capture text-populated parts
-  // before React 18 batching clears them. The completion path sets
-  // streamingParts: [] and isStreaming: false in the same atomic set() call —
-  // by the time React re-renders, streamingParts is already []. The Zustand
-  // subscribe callback runs synchronously at set()-time, outside React's
-  // render cycle, so we always see the final non-empty snapshot.
-  useEffect(() => {
-    return useSandboxStore.subscribe((state) => {
-      const parts = state.streamingParts;
-      const content = state.streamingContent;
-      if (parts.length > 0 || content) {
-        lastPartsRef.current = parts;
-        lastContentRef.current = content;
-      }
-    });
-  }, []);
-
   if (!isStreaming) return null;
 
-  const parts = isStreaming ? streamingParts : lastPartsRef.current;
-  const content = isStreaming ? streamingContent : lastContentRef.current;
+  const parts = streamingParts;
+  const content = streamingContent;
   const hasContent = !!(content || parts.length > 0);
 
   if (compact) {

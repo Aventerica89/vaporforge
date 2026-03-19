@@ -2,7 +2,7 @@ import { memo, useMemo, useState, useCallback } from 'react';
 import { approveToolUse } from '@/lib/api';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { MemoizedMarkdown } from './MemoizedMarkdown';
+import { MessageResponse } from '@/components/ai-elements/message';
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
@@ -229,17 +229,15 @@ function renderPart(
   index: number,
   isStreaming = false,
   allParts?: MessagePart[],
-  messageId?: string,
+  _messageId?: string,
 ) {
   switch (part.type) {
     case 'text':
       if (!part.content) return null;
       return (
-        <MemoizedMarkdown
-          key={`text-${index}`}
-          id={messageId || `msg-${index}`}
-          content={part.content}
-        />
+        <div key={`text-${index}`} className="text-sm leading-relaxed break-words">
+          <MessageResponse>{part.content}</MessageResponse>
+        </div>
       );
 
     case 'reasoning':
@@ -447,7 +445,9 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
 
   return (
     <>
-      <MemoizedMarkdown id={message.id} content={message.content} />
+      <div className="text-sm leading-relaxed break-words">
+        <MessageResponse>{message.content}</MessageResponse>
+      </div>
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
@@ -488,7 +488,11 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   }
 
   if (fallbackContent) {
-    return <MemoizedMarkdown id="streaming-fallback" content={fallbackContent} />;
+    return (
+      <div className="text-sm leading-relaxed break-words">
+        <MessageResponse>{fallbackContent}</MessageResponse>
+      </div>
+    );
   }
 
   return null;

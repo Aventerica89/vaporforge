@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { MemoizedMarkdown } from './chat/MemoizedMarkdown';
+import { MessageResponse } from './ai-elements/message';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
@@ -866,7 +866,11 @@ function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
 }
 
 function StreamingTextPart({ text }: { text: string; isStreaming: boolean }) {
-  return <MemoizedMarkdown id="quickchat" content={text} />;
+  return (
+    <div className="text-sm leading-relaxed break-words">
+      <MessageResponse>{text}</MessageResponse>
+    </div>
+  );
 }
 
 function QuickChatMessage({
@@ -890,7 +894,7 @@ function QuickChatMessage({
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3 py-2 text-sm text-foreground">
-          <MemoizedMarkdown id={msg.id} content={getMessageText(msg)} />
+          <MessageResponse>{getMessageText(msg)}</MessageResponse>
         </div>
       </div>
     );

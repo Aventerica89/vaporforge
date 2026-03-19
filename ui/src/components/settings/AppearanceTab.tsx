@@ -1,10 +1,8 @@
-import { Sun, Moon, Palette, Zap } from 'lucide-react';
+import { Sun, Moon, Palette } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
-import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
 
 export function AppearanceTab() {
   const { theme, toggleTheme } = useTheme();
-  const [smoothStreaming, setSmoothStreaming] = useSmoothStreaming();
 
   return (
     <div className="space-y-6">
@@ -62,36 +60,6 @@ export function AppearanceTab() {
         </div>
       </div>
 
-      {/* Streaming */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-foreground flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          Streaming
-        </h4>
-        <label className="flex items-center justify-between rounded-lg border border-border bg-muted/50 p-4 cursor-pointer">
-          <div className="space-y-0.5">
-            <span className="text-sm text-foreground">Smooth text animation</span>
-            <p className="text-xs text-muted-foreground">
-              Animates text character-by-character instead of rendering tokens as they arrive.
-            </p>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={smoothStreaming}
-            onClick={() => setSmoothStreaming(!smoothStreaming)}
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-              smoothStreaming ? 'bg-primary' : 'bg-muted-foreground/30'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                smoothStreaming ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-        </label>
-      </div>
     </div>
   );
 }
