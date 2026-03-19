@@ -105,11 +105,12 @@ if (IS_WS_CALLBACK_MODE) {
 }
 
 // Derive base URL for non-streaming DO requests (approval polling, HTTP).
+// Native stream mode: use WORKER_BASE_URL since there's no callback URL to derive from.
 const CALLBACK_BASE_URL = IS_WS_CALLBACK_MODE
   ? (() => { const u = new URL(WS_CALLBACK_URL); return `https://${u.host}`; })()
   : IS_CALLBACK_MODE
     ? (() => { const u = new URL(CALLBACK_URL); return `${u.protocol}//${u.host}`; })()
-    : '';
+    : (process.env.WORKER_BASE_URL || '');
 
 /**
  * Poll the DO for tool approval result (Standard/conservative mode).
@@ -576,7 +577,7 @@ function buildOptions(prompt, sessionId, cwd, useResume, modelOverride, agents) 
     // route. Users on V1.0 WS mode with standard/conservative autonomy will have tools
     // execute without waiting for approval — upgrade to V1.5 for full approval support.
     // The startup warning below is emitted when this limitation is active.
-    ...((isPlan || (IS_CALLBACK_MODE && (autonomy === 'standard' || autonomy === 'conservative'))) ? {
+    ...((isPlan || ((IS_CALLBACK_MODE || NATIVE_STREAM) && (autonomy === 'standard' || autonomy === 'conservative'))) ? {
       canUseTool: async (toolName, input) => {
         // Plan mode: block destructive tools
         if (isPlan) {
@@ -663,7 +664,7 @@ async function runStream(prompt, sessionId, cwd, useResume, modelOverride) {
   // Emit ping before query starts — resets frontend 5-min abort timer after container wake.
   // The DO already emits 'connected' on request receipt; this second ping fires after
   // CLI pre-flight, giving the timer a fresh 5 min before the SDK query begins.
-  if (IS_CALLBACK_MODE) {
+  if (IS_CALLBACK_MODE || NATIVE_STREAM) {
     emit({ type: 'ping' });
   }
 
@@ -1030,7 +1031,7 @@ if (args.length >= 1) {
       'Switch to V1.5 (WebSocket streaming) for full approval support.'
     );
   }
-} else if (IS_CALLBACK_MODE && fs.existsSync(CONTEXT_FILE)) {
+} else if ((IS_CALLBACK_MODE || NATIVE_STREAM) && fs.existsSync(CONTEXT_FILE)) {
   // V1.5 mode: read from context file written by ChatSessionAgent.dispatchContainer
   try {
     const ctx = JSON.parse(fs.readFileSync(CONTEXT_FILE, 'utf8'));
