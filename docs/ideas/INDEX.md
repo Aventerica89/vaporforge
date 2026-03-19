@@ -13,7 +13,7 @@ One file per idea — use `git blame` to see when each was added.
 | P2 | 2026-03-13 | [GitHub Auth — Private Repo Access](github-auth-private-repos.md) | Integrations | Idea |
 | P1 | 2026-03-13 | [MCP OAuth — Worker as OAuth Client](mcp-oauth-worker-as-client.md) | MCP / Auth | Idea |
 | P1 | 2026-03-13 | [Login with Claude — OAuth Onboarding](login-with-claude-oauth.md) | Auth / Onboarding | Idea |
-| P1 | 2026-03-18 | [PWA Update Toast](pwa-update-toast.md) | PWA / UX | Idea |
+| P1 | 2026-03-18 | [PWA Update Toast](pwa-update-toast.md) | PWA / UX | Done |
 | P2 | 2026-03-18 | [PWA Offline Fallback Page](pwa-offline-fallback.md) | PWA / UX | Idea |
 | P2 | 2026-03-18 | [PWA iOS Splash Screens](pwa-ios-splash-screens.md) | PWA / Polish | Idea |
 | P3 | 2026-03-18 | [PWA Background Sync](pwa-background-sync.md) | PWA / Infrastructure | Idea |
@@ -25,11 +25,14 @@ One file per idea — use `git blame` to see when each was added.
 | P3 | 2026-03-18 | [CF Secret Store — Dedicated Credential Management](cf-secret-store.md) | Infrastructure / Security | Idea |
 | P2 | 2026-03-18 | [CF Workers Best Practices Audit](cf-workers-best-practices-audit.md) | Security / Performance | Idea |
 | P1 | 2026-03-18 | [CF MCP on Workers — Replace Custom OAuth, Deploy MCP as Workers](cf-mcp-on-workers.md) | MCP / Architecture | Idea |
-| P1 | 2026-03-18 | [CF Agents Framework Migration — Agent class, useAgent, @callable](cf-agents-framework-migration.md) | Architecture / Framework | Idea |
-| P1 | 2026-03-18 | [Streaming Smoothness — Token Animation Research](streaming-smoothness.md) | UX / Streaming | Active Research |
+| P1 | 2026-03-18 | [CF Agents Framework Migration — Agent class, useAgent, @callable](cf-agents-framework-migration.md) | Architecture / Framework | Research |
+| P1 | 2026-03-18 | [Streaming Smoothness — Toggle, Native Stream, execStream](streaming-smoothness.md) | UX / Streaming | In Progress |
 | P0 | 2026-03-18 | [CF Zero Trust Auth — Real Identity Layer](cf-zero-trust-auth.md) | Auth / Infrastructure | Idea |
 | P0 | 2026-03-18 | [Alpha Launch Marketing — Positioning and Checklist](alpha-launch-marketing.md) | Marketing / Positioning | Idea |
 | P2 | 2026-03-18 | [CF Docker-in-Docker — Run User Apps in Sandbox](cf-docker-in-docker.md) | Infrastructure / Sandbox | Idea |
+| P3 | 2026-03-11 | [Relay Streaming Prompt](relay-streaming-prompt.md) | Infrastructure | Idea |
+| P3 | 2026-03-11 | [Relay Slash Command](relay-slash-command.md) | Infrastructure | Idea |
+| P3 | 2026-03-11 | [VaporForge as MCP Server](vaporforge-as-mcp-server.md) | Architecture / MCP | Idea |
 
 ---
 
