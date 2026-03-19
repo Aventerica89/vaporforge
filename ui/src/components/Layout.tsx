@@ -89,7 +89,7 @@ function applyHashState(parsed: HashState) {
 }
 
 export function Layout() {
-  const { loadSessions, currentSession, openFiles, isCreatingSession } =
+  const { loadSessions, currentSession, openFiles, isCreatingSession, isLoadingSessions } =
     useSandboxStore();
   useAutoReconnect();
   const { layoutTier } = useDeviceInfo();
@@ -504,6 +504,8 @@ export function Layout() {
             </PanelGroup>
           </Panel>
         </PanelGroup>
+      ) : isLoadingSessions ? (
+        <div className="flex-1" />
       ) : (
         <WelcomeScreen />
       )}

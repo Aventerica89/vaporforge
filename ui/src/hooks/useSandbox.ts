@@ -140,7 +140,7 @@ const CODE_EXTS: Record<string, string> = {
 const createSandboxStore: StateCreator<SandboxState> = (set, get) => ({
   currentSession: null,
   sessions: [],
-  isLoadingSessions: false,
+  isLoadingSessions: true,
   isCreatingSession: false,
 
   files: [],
