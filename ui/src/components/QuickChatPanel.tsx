@@ -1,8 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useFocusTrap } from '@/hooks/useFocusTrap';
-import { useSmoothText } from '@/hooks/useSmoothText';
-import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
-import { MessageResponse } from './ai-elements/message';
+import { MemoizedMarkdown } from './chat/MemoizedMarkdown';
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses, type UIMessage, type DynamicToolUIPart } from 'ai';
 import {
@@ -34,7 +32,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
-import { ChatMarkdown } from './chat/ChatMarkdown';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
@@ -868,22 +865,8 @@ function extractSourcesFromParts(parts: UIMessage['parts']): SourceFile[] {
   return sources;
 }
 
-/**
- * Wrapper that feeds Streamdown progressively via useSmoothText.
- * Prevents React 18 batching and Chrome Fetch buffering from causing pop-in:
- * even if all tokens arrive in one render cycle, the rAF loop drips them out.
- */
-function StreamingTextPart({ text, isStreaming }: { text: string; isStreaming: boolean }) {
-  const [smoothPref] = useSmoothStreaming();
-  const smoothed = useSmoothText(text, isStreaming, { disabled: !smoothPref });
-  const animating = smoothPref
-    ? smoothed.length < text.length
-    : false;
-  return (
-    <MessageResponse mode={isStreaming || animating ? 'streaming' : 'static'}>
-      {smoothPref ? smoothed : text}
-    </MessageResponse>
-  );
+function StreamingTextPart({ text }: { text: string; isStreaming: boolean }) {
+  return <MemoizedMarkdown id="quickchat" content={text} />;
 }
 
 function QuickChatMessage({
@@ -907,7 +890,7 @@ function QuickChatMessage({
     return (
       <div className="flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/10 px-3 py-2 text-sm text-foreground">
-          <ChatMarkdown content={getMessageText(msg)} />
+          <MemoizedMarkdown id={msg.id} content={getMessageText(msg)} />
         </div>
       </div>
     );

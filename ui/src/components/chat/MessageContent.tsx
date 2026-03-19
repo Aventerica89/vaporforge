@@ -2,10 +2,7 @@ import { memo, useMemo, useState, useCallback } from 'react';
 import { approveToolUse } from '@/lib/api';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { ChatMarkdown } from './ChatMarkdown';
-import { useSmoothText } from '@/hooks/useSmoothText';
-import { useSmoothStreaming } from '@/hooks/useSmoothStreaming';
-import { MessageResponse } from '@/components/ai-elements/message';
+import { MemoizedMarkdown } from './MemoizedMarkdown';
 import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
@@ -188,7 +185,7 @@ function groupPartsForRender(parts: MessagePart[]): GroupedItem[] {
   return result;
 }
 
-function ToolGroup({ items, allParts }: { items: Array<{ part: MessagePart; index: number }>; allParts: MessagePart[] }) {
+function ToolGroup({ items, allParts, messageId }: { items: Array<{ part: MessagePart; index: number }>; allParts: MessagePart[]; messageId?: string }) {
   const [expanded, setExpanded] = useState(false);
   const names = items.map((t) => t.part.name).filter(Boolean);
   const uniqueNames = [...new Set(names)];
@@ -220,7 +217,7 @@ function ToolGroup({ items, allParts }: { items: Array<{ part: MessagePart; inde
       </button>
       {expanded && (
         <div className="border-t border-border/30 px-1 py-1">
-          {items.map((item) => renderPart(item.part, item.index, false, allParts))}
+          {items.map((item) => renderPart(item.part, item.index, false, allParts, messageId))}
         </div>
       )}
     </div>
@@ -232,14 +229,17 @@ function renderPart(
   index: number,
   isStreaming = false,
   allParts?: MessagePart[],
+  messageId?: string,
 ) {
   switch (part.type) {
     case 'text':
       if (!part.content) return null;
-      return isStreaming ? (
-        <SmoothText key="streaming-text" content={part.content} />
-      ) : (
-        <ChatMarkdown key={index} content={part.content} />
+      return (
+        <MemoizedMarkdown
+          key={`text-${index}`}
+          id={messageId || `msg-${index}`}
+          content={part.content}
+        />
       );
 
     case 'reasoning':
@@ -436,9 +436,9 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
         <HandoffChain parts={message.parts} />
         {grouped.map((item, gi) =>
           item.kind === 'tool-group' ? (
-            <ToolGroup key={`tg-${gi}`} items={item.parts} allParts={message.parts!} />
+            <ToolGroup key={`tg-${gi}`} items={item.parts} allParts={message.parts!} messageId={message.id} />
           ) : (
-            renderPart(item.part, item.index, false, message.parts)
+            renderPart(item.part, item.index, false, message.parts, message.id)
           ),
         )}
       </div>
@@ -447,7 +447,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
 
   return (
     <>
-      <ChatMarkdown content={message.content} />
+      <MemoizedMarkdown id={message.id} content={message.content} />
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
@@ -466,21 +466,6 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
   );
 });
 
-/** Renders a streaming text part — respects smoothStreaming preference. */
-function SmoothText({ content }: { content: string }) {
-  const isStreaming = useSandboxStore((s) => s.isStreaming);
-  const [smoothPref] = useSmoothStreaming();
-  const smoothed = useSmoothText(content, isStreaming, { disabled: !smoothPref });
-  const animating = smoothPref
-    ? (isStreaming || smoothed.length < content.length)
-    : isStreaming;
-  return (
-    <MessageResponse mode={animating ? 'streaming' : 'static'}>
-      {smoothPref ? smoothed : content}
-    </MessageResponse>
-  );
-}
-
 export function StreamingContent({ parts, fallbackContent }: StreamingContentProps) {
   const streamingPlan = useMemo(() => parseTaskPlan(parts), [parts]);
 
@@ -490,23 +475,20 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
         {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
-          // Text parts always use SmoothTextPart during streaming to avoid
-          // a visual pop when a tool-start arrives after text (which would
-          // switch from SmoothTextPart to ChatMarkdown mid-animation).
           const isStreamingPart =
             part.type === 'text' ||
             (isLast &&
               (part.type === 'tool-start' ||
                 part.type === 'reasoning' ||
                 part.type === 'chain-of-thought'));
-          return renderPart(part, i, isStreamingPart, parts);
+          return renderPart(part, i, isStreamingPart, parts, `streaming`);
         })}
       </div>
     );
   }
 
   if (fallbackContent) {
-    return <SmoothText content={fallbackContent} />;
+    return <MemoizedMarkdown id="streaming-fallback" content={fallbackContent} />;
   }
 
   return null;
