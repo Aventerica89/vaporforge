@@ -1385,9 +1385,11 @@ export class ChatSessionAgent {
 
     console.error(`[dispatchContainer] nativeStream=${nativeStream} process.id=${process.id} process.status=${process.status}`);
     if (nativeStream) {
-      // Native path: consume process logs via SSE (fire-and-forget).
-      // The async loop keeps the DO awake for the duration of the stream.
-      this.consumeProcessLogs(executionId, process.id, sandbox);
+      // Native path: consume process logs via SSE.
+      // ctx.waitUntil keeps the DO alive while the async stream consumption runs.
+      // Without this, the DO may hibernate after webSocketMessage returns,
+      // killing the unawaited promise before streamProcessLogs connects.
+      this.state.waitUntil(this.consumeProcessLogs(executionId, process.id, sandbox));
     } else {
       // Legacy path: wait for container to connect back via WS.
       // watchProcessCrash catches non-zero exits if the bridge times out.
