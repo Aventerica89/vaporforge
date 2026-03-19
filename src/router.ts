@@ -94,7 +94,7 @@ export function createRouter(env: Env) {
     c.header('X-Content-Type-Options', 'nosniff');
     c.header('X-Frame-Options', 'SAMEORIGIN');
     c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
-    c.header('Content-Security-Policy', "default-src 'none'; frame-src *.vaporforge.dev https://vaporforge.dev");
+    c.header('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com wss://*.vaporforge.dev; img-src 'self' data: https:; font-src 'self'; frame-src *.vaporforge.dev https://vaporforge.dev; frame-ancestors 'self'; object-src 'none'; base-uri 'self'");
   });
 
   // Initialize services

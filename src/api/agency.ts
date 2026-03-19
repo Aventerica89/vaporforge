@@ -15,7 +15,10 @@ type Variables = {
 // Schema for agency site records (KV-persisted)
 const CreateSiteSchema = z.object({
   name: z.string().min(1).max(100),
-  repoUrl: z.string().url(),
+  repoUrl: z.string().url().refine(
+    (u) => { try { return new URL(u).hostname === 'github.com'; } catch { return false; } },
+    'Only GitHub repositories are supported'
+  ),
   pagesUrl: z.string().url().optional(),
   domain: z.string().max(253).optional(),
 });
@@ -373,7 +376,7 @@ agencyRoutes.post('/sites/:id/commit', async (c) => {
   try {
     // Fixed command strings — no user input in commands
     await sm.execInSandbox(sessionId, 'git add -A', { cwd: '/workspace' });
-    await sm.execInSandbox(sessionId, `git commit -m '${message.replace(/'/g, "'\\''")}'`, {
+    await sm.execInSandbox(sessionId, ['git', 'commit', '-m', message], {
       cwd: '/workspace',
     });
 

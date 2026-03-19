@@ -19,6 +19,10 @@ interface RateLimitConfig {
  * prevention layer only. For hard enforcement, configure a Cloudflare rate
  * limit rule at the edge (Security > WAF > Rate limiting rules in the dashboard).
  *
+ * TODO(#135): Configure CF WAF rate-limit rule in the dashboard to close the
+ * race window. KV read-then-write is inherently non-atomic; a WAF rule at the
+ * edge enforces limits before requests reach the Worker.
+ *
  * Uses KV TTL for automatic expiry. Each key stores a counter that resets
  * when the TTL expires.
  */
