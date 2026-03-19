@@ -476,6 +476,10 @@ Authentication logs exist but only 24-hour retention on free tier. Acceptable fo
 When 50-seat cap is hit, new users are likely blocked at authentication. Exact error page is undocumented.
 **Fix:** Enable seat expiration (30-day inactivity auto-removal) in CF One > Settings > Admin controls. Monitor seat count during alpha.
 
+### 19. External OAuth Callbacks Blocked by /api/* Access Gate (HIT IN PRODUCTION)
+CF Access on `/api/*` blocks GitHub OAuth callbacks (`/api/github/callback`) because the redirect from github.com has no CF cookie. MCP OAuth callbacks would have the same problem.
+**Fix:** Only protect `/app` and `/app/*` with CF Access. Leave `/api/*` unprotected by Access — the Worker's own auth middleware handles API auth. This was discovered and fixed during initial deployment.
+
 ### 18. WS Session Outlives Access Session
 Access only gates the WS upgrade (HTTP 101). If session expires mid-chat, the WS stays open indefinitely. Good for long chat sessions, but means a revoked user keeps their active WS.
 **Fix:** For alpha, acceptable. For production, add periodic JWT re-validation on the DO side (e.g., every 30 min check if the user's CF session is still valid).
