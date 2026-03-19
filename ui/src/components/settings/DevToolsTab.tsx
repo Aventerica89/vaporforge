@@ -612,7 +612,7 @@ function ExecStreamTest() {
 /** Toggle for native stream transport (streamProcessLogs SSE vs WS bridge). */
 function NativeStreamToggle() {
   const [enabled, setEnabled] = useState(
-    () => localStorage.getItem('vf_native_stream') === '1'
+    () => localStorage.getItem('vf_native_stream') !== '0'
   );
 
   const toggle = useCallback(() => {

@@ -166,7 +166,7 @@ export async function* streamVfChatWs(
         ...(mode ? { mode } : {}),
         ...(model && model !== 'auto' ? { model } : {}),
         ...(autonomy ? { autonomy } : {}),
-        ...(localStorage.getItem('vf_native_stream') === '1' ? { nativeStream: true } : {}),
+        ...(localStorage.getItem('vf_native_stream') !== '0' ? { nativeStream: true } : {}),
         ...(localStorage.getItem('vf_debug_stream') === '1' ? { debugStream: true } : {}),
       })
     );
