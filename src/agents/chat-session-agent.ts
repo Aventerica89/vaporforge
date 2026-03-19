@@ -906,6 +906,20 @@ export class ChatSessionAgent {
     const prompt = String(data.prompt || '');
     if (!prompt) return;
 
+    // Persist user message to KV so chat history survives refresh
+    const userMsgId = crypto.randomUUID();
+    this.env.SESSIONS_KV.put(
+      `message:${meta.sessionId}:${userMsgId}`,
+      JSON.stringify({
+        id: userMsgId,
+        sessionId: meta.sessionId,
+        role: 'user',
+        content: prompt,
+        timestamp: new Date().toISOString(),
+      }),
+      { expirationTtl: 7 * 24 * 60 * 60 }
+    ).catch(() => {});
+
     // Guard: reject double-dispatch if a container execution is already in-flight.
     // wsBridges holds an entry for the duration of an active WS execution.
     if (this.wsBridges.has(executionId)) {

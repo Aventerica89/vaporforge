@@ -117,6 +117,20 @@ export default {
         return new Response('Forbidden', { status: 403 });
       }
 
+      // Persist user message to KV so chat history survives refresh
+      const userMsgId = crypto.randomUUID();
+      ctx.waitUntil(env.SESSIONS_KV.put(
+        `message:${body.sessionId}:${userMsgId}`,
+        JSON.stringify({
+          id: userMsgId,
+          sessionId: body.sessionId,
+          role: 'user',
+          content: body.prompt,
+          timestamp: new Date().toISOString(),
+        }),
+        { expirationTtl: 7 * 24 * 60 * 60 }
+      ));
+
       try {
         const doId = env.CHAT_SESSIONS.idFromName(body.sessionId);
         const stub = env.CHAT_SESSIONS.get(doId);
