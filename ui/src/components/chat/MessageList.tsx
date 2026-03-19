@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { BrainCircuit } from 'lucide-react';
 import { useSandboxStore, useMessage, useMessageIds } from '@/hooks/useSandbox';
 import { MessageContent, StreamingContent } from '@/components/chat/MessageContent';
@@ -178,25 +178,7 @@ function StreamingMessage({ compact }: { compact?: boolean }) {
     });
   }, []);
 
-  // Linger briefly after streaming ends so useSmoothText can animate the final
-  // content batch. Without this, StreamingMessage unmounts immediately when
-  // isStreaming->false (e.g. due to TCP Nagle delivering all events at once),
-  // and the completed message pops in with no animation.
-  const [linger, setLinger] = useState(false);
-  useEffect(() => {
-    if (!isStreaming && (lastPartsRef.current.length > 0 || lastContentRef.current)) {
-      setLinger(true);
-      // Dynamic linger: scales with sqrt of accumulated chars so useSmoothText
-      // can finish animating long responses. Formula: max(700, ceil(sqrt(N)*15))
-      // gives ~849ms at 3200 chars, ~1061ms at 5000, ~1500ms at 10000.
-      const chars = lastContentRef.current?.length ?? 0;
-      const lingerMs = Math.max(700, Math.ceil(Math.sqrt(chars) * 15));
-      const timer = setTimeout(() => setLinger(false), lingerMs);
-      return () => clearTimeout(timer);
-    }
-  }, [isStreaming]);
-
-  if (!isStreaming && !linger) return null;
+  if (!isStreaming) return null;
 
   const parts = isStreaming ? streamingParts : lastPartsRef.current;
   const content = isStreaming ? streamingContent : lastContentRef.current;
