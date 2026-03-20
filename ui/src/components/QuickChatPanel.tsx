@@ -21,8 +21,6 @@ import {
   Loader2,
   RefreshCw,
   Bot,
-  ArrowUp,
-  Square,
   Mic,
   Github,
   FileText,
@@ -48,7 +46,10 @@ import { extractRepoName } from '@/lib/session-names';
 import {
   PromptInput,
   PromptInputBody,
+  PromptInputFooter,
+  PromptInputSubmit,
   PromptInputTextarea,
+  PromptInputTools,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input';
 import type { ProviderName } from '@/lib/quickchat-api';
@@ -755,46 +756,29 @@ export function QuickChatPanel() {
               className="border-t border-border px-4 py-3"
             >
               <PromptInputBody>
-                <div className="flex items-end gap-2">
-                  <PromptInputTextarea
-                    value={input}
-                    onChange={handleInputChange}
-                    onKeyDown={handleInputKeyDown}
-                    placeholder={
-                      hasAnyProvider
-                        ? 'Ask anything...'
-                        : 'Configure a provider in Settings first'
-                    }
-                    disabled={isStreaming || !hasAnyProvider}
-                    className="flex-1 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm"
-                  />
-                  <QCSpeechButton onTranscript={(t) => setInput((prev) => prev ? `${prev} ${t}` : t)} />
-                  {isStreaming ? (
-                    <button
-                      type="button"
-                      onClick={stop}
-                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-error/20 hover:text-error"
-                      title="Stop generating"
-                    >
-                      <Square className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={!input.trim() || !hasAnyProvider}
-                      className={cn(
-                        'flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-all',
-                        input.trim()
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted/50 text-muted-foreground/40',
-                      )}
-                      title="Send message"
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                <PromptInputTextarea
+                  value={input}
+                  onChange={handleInputChange}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder={
+                    hasAnyProvider
+                      ? 'Ask anything...'
+                      : 'Configure a provider in Settings first'
+                  }
+                  disabled={isStreaming || !hasAnyProvider}
+                  className="flex-1 rounded-lg border border-border bg-muted px-3 py-2.5 text-sm"
+                />
               </PromptInputBody>
+              <PromptInputFooter>
+                <PromptInputTools>
+                  <QCSpeechButton onTranscript={(t) => setInput((prev) => prev ? `${prev} ${t}` : t)} />
+                </PromptInputTools>
+                <PromptInputSubmit
+                  status={status}
+                  onStop={stop}
+                  disabled={!isStreaming && (!input.trim() || !hasAnyProvider)}
+                />
+              </PromptInputFooter>
             </PromptInput>
             </div>
           </>
