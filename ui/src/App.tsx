@@ -4,8 +4,12 @@ import { AuthGuard } from './components/AuthGuard';
 import { McpRelayProvider } from './components/McpRelayProvider';
 import { UpdateToast } from './components/UpdateToast';
 import { ToastContainer } from './components/ToastContainer';
+import { Showcase } from './components/Showcase';
 import { useAuthStore } from './hooks/useAuth';
 import { toast } from './hooks/useToast';
+
+const isShowcasePath = window.location.pathname === '/showcase';
+
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
 
@@ -35,6 +39,15 @@ export default function App() {
           </p>
         </div>
       </div>
+    );
+  }
+
+  if (isShowcasePath) {
+    return (
+      <>
+        <Showcase />
+        <ToastContainer />
+      </>
     );
   }
 
