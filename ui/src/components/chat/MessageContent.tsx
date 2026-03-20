@@ -119,8 +119,16 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
 
   if (!conf) return null;
 
-  const state = conf.responded ? 'approval-responded' as const : 'approval-requested' as const;
-  const approval = { id: conf.approvalId, ...(conf.responded ? { approved: true as const } : {}) };
+  const state = conf.responded === 'approved'
+    ? 'approval-responded' as const
+    : conf.responded === 'denied'
+      ? 'output-denied' as const
+      : 'approval-requested' as const;
+  const approval = {
+    id: conf.approvalId,
+    ...(conf.responded === 'approved' ? { approved: true as const } : {}),
+    ...(conf.responded === 'denied' ? { approved: false as const } : {}),
+  };
 
   return (
     <Confirmation state={state} approval={approval}>
