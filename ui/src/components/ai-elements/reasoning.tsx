@@ -1,5 +1,4 @@
-
-import type { ComponentProps, ReactNode } from "react";
+"use client";
 
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import {
@@ -13,6 +12,7 @@ import { code } from "@streamdown/code";
 import { math } from "@streamdown/math";
 import { mermaid } from "@streamdown/mermaid";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
 import {
   createContext,
   memo,
@@ -25,7 +25,7 @@ import {
 } from "react";
 import { Streamdown } from "streamdown";
 
-import { Shimmer } from "./Shimmer";
+import { Shimmer } from "./shimmer";
 
 interface ReasoningContextValue {
   isStreaming: boolean;
@@ -216,9 +216,7 @@ export const ReasoningContent = memo(
       )}
       {...props}
     >
-      <Streamdown plugins={streamdownPlugins}>
-        {children}
-      </Streamdown>
+      <Streamdown plugins={streamdownPlugins}>{children}</Streamdown>
     </CollapsibleContent>
   )
 );

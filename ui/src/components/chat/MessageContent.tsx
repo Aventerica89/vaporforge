@@ -3,7 +3,7 @@ import { approveToolUse } from '@/lib/api';
 import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MessageResponse } from '@/components/ai-elements/message';
-import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from '@/components/ai-elements/tool';
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { PlanCard } from '@/components/ai-elements/plan';
@@ -15,7 +15,7 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-e
 import { CodeBlock, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename, CodeBlockActions, CodeBlockCopyButton } from '@/components/ai-elements/code-block';
 import type { BundledLanguage } from 'shiki';
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from '@/components/ai-elements/chain-of-thought';
-import { Shimmer } from '@/components/ai-elements/Shimmer';
+import { Shimmer } from '@/components/ai-elements/shimmer';
 import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/chat/commit';
 import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/chat/test-results';
 import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
@@ -265,8 +265,8 @@ function renderPart(
       // Hide tool-start in completed messages — tool-result renders the full state
       if (!isStreaming) return null;
       return (
-        <Tool key={index} name={part.name || 'Tool'} state="input-streaming" input={part.input} startedAt={part.startedAt}>
-          <ToolHeader />
+        <Tool key={index}>
+          <ToolHeader type="dynamic-tool" state="input-streaming" toolName={part.name || 'Tool'} />
         </Tool>
       );
     }
@@ -281,13 +281,13 @@ function renderPart(
           p.type === 'tool-start' &&
           (part.toolId ? p.toolId === part.toolId : p.name === part.name),
       );
+      const toolInput = matchingStart?.input ?? part.input;
       return (
-        <Tool key={index} name={part.name || 'Tool'} state="output-available" input={matchingStart?.input ?? part.input}>
-          <ToolHeader duration={part.duration} />
-          <ToolCitation output={part.output} />
+        <Tool key={index}>
+          <ToolHeader type="dynamic-tool" state="output-available" toolName={part.name || 'Tool'} />
           <ToolContent>
-            <ToolSchemaInput />
-            <ToolOutput output={part.output} />
+            {toolInput && <ToolInput input={toolInput} />}
+            <ToolOutput output={part.output} errorText={undefined} />
           </ToolContent>
         </Tool>
       );
@@ -451,12 +451,11 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
-            <Tool key={tool.id} name={tool.name} state="output-available" input={tool.input}>
-              <ToolHeader />
-              <ToolCitation output={tool.output} />
+            <Tool key={tool.id}>
+              <ToolHeader type="dynamic-tool" state="output-available" toolName={tool.name} />
               <ToolContent>
-                <ToolSchemaInput />
-                <ToolOutput output={tool.output} />
+                {tool.input && <ToolInput input={tool.input} />}
+                <ToolOutput output={tool.output} errorText={undefined} />
               </ToolContent>
             </Tool>
           ))}

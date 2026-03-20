@@ -1,4 +1,4 @@
-import { Shimmer } from '@/components/ai-elements/Shimmer';
+import { Shimmer } from '@/components/ai-elements/shimmer';
 import { cn } from '@/lib/utils';
 import { ChevronRight } from 'lucide-react';
 

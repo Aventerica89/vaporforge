@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { ChevronRightIcon, ClipboardListIcon } from 'lucide-react';
 import { createContext, memo, useContext, useMemo } from 'react';
 
-import { Shimmer } from '@/components/ai-elements/Shimmer';
+import { Shimmer } from '@/components/ai-elements/shimmer';
 
 // ---------------------------------------------------------------------------
 // Types

@@ -35,8 +35,8 @@ import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
-import { Shimmer } from './ai-elements/Shimmer';
-import { Tool, ToolHeader, ToolContent, ToolSchemaInput, ToolOutput, ToolCitation } from './ai-elements/tool';
+import { Shimmer } from './ai-elements/shimmer';
+import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './ai-elements/tool';
 import { Confirmation } from './ai-elements/Confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { PlanCard } from './ai-elements/plan';
@@ -1033,17 +1033,14 @@ function QuickChatMessage({
             const toolOutput = typeof rawOutput === 'string' ? rawOutput : undefined;
             const toolError = typeof rawError === 'string' ? rawError : undefined;
             return (
-              <Tool
-                key={toolPart.toolCallId}
-                name={toolPart.toolName}
-                state={toolPart.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
-                input={toolPart.input as Record<string, unknown>}
-                compact
-              >
-                <ToolHeader />
-                <ToolCitation output={toolOutput} />
+              <Tool key={toolPart.toolCallId}>
+                <ToolHeader
+                  type="dynamic-tool"
+                  state={toolPart.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
+                  toolName={toolPart.toolName}
+                />
                 <ToolContent>
-                  <ToolSchemaInput />
+                  {toolPart.input != null ? <ToolInput input={toolPart.input} /> : null}
                   <ToolOutput output={toolOutput} errorText={toolError} />
                 </ToolContent>
               </Tool>
@@ -1078,16 +1075,14 @@ function QuickChatMessage({
           const spOutput = typeof sp.output === 'string' ? sp.output : undefined;
           const spError = typeof sp.errorText === 'string' ? sp.errorText : undefined;
           return (
-            <Tool
-              key={sp.toolCallId}
-              name={toolName}
-              state={sp.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
-              input={sp.input as Record<string, unknown>}
-              compact
-            >
-              <ToolHeader />
+            <Tool key={sp.toolCallId}>
+              <ToolHeader
+                type="dynamic-tool"
+                state={sp.state as 'input-streaming' | 'input-available' | 'output-available' | 'output-error' | 'output-denied' | 'approval-responded'}
+                toolName={toolName}
+              />
               <ToolContent>
-                <ToolSchemaInput />
+                {sp.input != null ? <ToolInput input={sp.input} /> : null}
                 <ToolOutput output={spOutput} errorText={spError} />
               </ToolContent>
             </Tool>

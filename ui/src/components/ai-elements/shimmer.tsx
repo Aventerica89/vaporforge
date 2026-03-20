@@ -1,10 +1,9 @@
 "use client";
 
-import type { MotionProps } from "motion/react";
-import type { CSSProperties, ElementType, JSX } from "react";
-
 import { cn } from "@/lib/utils";
+import type { MotionProps } from "motion/react";
 import { motion } from "motion/react";
+import type { CSSProperties, ElementType, JSX } from "react";
 import { memo, useMemo } from "react";
 
 type MotionHTMLProps = MotionProps & Record<string, unknown>;
@@ -24,13 +23,13 @@ const getMotionComponent = (element: keyof JSX.IntrinsicElements) => {
   return component;
 };
 
-export type TextShimmerProps = {
+export interface TextShimmerProps {
   children: string;
   as?: ElementType;
   className?: string;
   duration?: number;
   spread?: number;
-};
+}
 
 const ShimmerComponent = ({
   children,
