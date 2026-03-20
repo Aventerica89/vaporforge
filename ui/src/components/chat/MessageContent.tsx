@@ -118,34 +118,40 @@ function AskQuestionsBlock({ part }: { part: MessagePart }) {
 function ConfirmationBlock({ part }: { part: MessagePart }) {
   const sessionId = useSandboxStore((s) => s.currentSession?.id ?? '');
   const conf = part.confirmation;
+  const [localResponse, setLocalResponse] = useState<'approved' | 'denied' | null>(null);
 
   const handleApprove = useCallback(() => {
     if (conf?.approvalId) {
+      setLocalResponse('approved');
+      if (conf) conf.responded = 'approved';
       void approveToolUse(sessionId, conf.approvalId, true).catch(console.error);
     }
   }, [sessionId, conf?.approvalId]);
 
   const handleDeny = useCallback(() => {
     if (conf?.approvalId) {
+      setLocalResponse('denied');
+      if (conf) conf.responded = 'denied';
       void approveToolUse(sessionId, conf.approvalId, false).catch(console.error);
     }
   }, [sessionId, conf?.approvalId]);
 
   if (!conf) return null;
 
-  const state = conf.responded === 'approved'
+  const responded = localResponse ?? conf.responded;
+  const state = responded === 'approved'
     ? 'approval-responded' as const
-    : conf.responded === 'denied'
+    : responded === 'denied'
       ? 'output-denied' as const
       : 'approval-requested' as const;
   const approval = {
     id: conf.approvalId,
-    ...(conf.responded === 'approved' ? { approved: true as const } : {}),
-    ...(conf.responded === 'denied' ? { approved: false as const } : {}),
+    ...(responded === 'approved' ? { approved: true as const } : {}),
+    ...(responded === 'denied' ? { approved: false as const } : {}),
   };
 
   return (
-    <Confirmation state={state} approval={approval}>
+    <Confirmation state={state} approval={approval} className="min-h-[72px]">
       <ConfirmationTitle>
         <ConfirmationRequest>
           Allow <strong>{conf.toolName}</strong>?
@@ -350,8 +356,12 @@ function renderPart(
       if (part.name === 'ask_user_questions') {
         return <AskQuestionsBlock key={index} part={part} />;
       }
-      // Hide tool-start in completed messages — tool-result renders the full state
-      if (!isStreaming) return null;
+      // Skip tool-start if a matching tool-result already exists in this message
+      const hasMatchingResult = allParts?.some(
+        (p) => p.type === 'tool-result' &&
+          (part.toolId ? p.toolId === part.toolId : p.name === part.name),
+      );
+      if (hasMatchingResult) return null;
       return (
         <Tool key={index} defaultOpen>
           <ToolHeader type="dynamic-tool" state="input-streaming" toolName={part.name || 'Tool'} />

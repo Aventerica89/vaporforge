@@ -239,7 +239,7 @@ export function MessageList({ compact }: MessageListProps) {
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       <div className={GRID_OVERLAY} />
-      <Conversation className="relative" resize="instant">
+      <Conversation className="relative" resize="smooth">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-8 bg-gradient-to-b from-background to-transparent" />
         <ConversationContent
           scrollClassName="scrollbar-none"
