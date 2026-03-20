@@ -732,7 +732,7 @@ CheckpointSection.displayName = 'CheckpointSection';
 
 export const Showcase = memo(() => (
   <TooltipProvider>
-  <div className="min-h-screen bg-background text-foreground">
+  <div className="fixed inset-0 overflow-y-auto bg-background text-foreground">
     <div className="max-w-3xl mx-auto p-8 space-y-12">
       <header>
         <h1 className="text-2xl font-bold text-foreground">AI Elements Showcase</h1>
