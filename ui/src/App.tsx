@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from './components/Layout';
 import { AuthGuard } from './components/AuthGuard';
 import { McpRelayProvider } from './components/McpRelayProvider';
@@ -8,7 +8,15 @@ import { Showcase } from './components/Showcase';
 import { useAuthStore } from './hooks/useAuth';
 import { toast } from './hooks/useToast';
 
-const isShowcasePath = window.location.hash === '#/showcase';
+function useIsShowcase() {
+  const [isShowcase, setIsShowcase] = useState(window.location.hash === '#/showcase');
+  useEffect(() => {
+    const handler = () => setIsShowcase(window.location.hash === '#/showcase');
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+  return isShowcase;
+}
 
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
@@ -42,7 +50,9 @@ export default function App() {
     );
   }
 
-  if (isShowcasePath) {
+  const isShowcase = useIsShowcase();
+
+  if (isShowcase) {
     return (
       <>
         <Showcase />

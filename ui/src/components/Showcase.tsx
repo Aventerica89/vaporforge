@@ -184,6 +184,15 @@ import {
   InlineCitationText,
 } from './ai-elements/inline-citation';
 import { Image as AiImage } from './ai-elements/image';
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputTextarea,
+  PromptInputFooter,
+  PromptInputTools,
+  PromptInputButton,
+  PromptInputSubmit,
+} from './ai-elements/prompt-input';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -1061,6 +1070,27 @@ const ImageShowcaseSection = memo(() => (
 ImageShowcaseSection.displayName = 'ImageShowcaseSection';
 
 // ---------------------------------------------------------------------------
+// Prompt Input section
+// ---------------------------------------------------------------------------
+
+const PromptInputShowcaseSection = memo(() => (
+  <PromptInput onSubmit={() => undefined} className="rounded-lg border bg-background">
+    <PromptInputBody>
+      <PromptInputTextarea placeholder="Ask anything..." />
+    </PromptInputBody>
+    <PromptInputFooter>
+      <PromptInputTools>
+        <PromptInputButton tooltip="Attach file">
+          <FileIcon className="size-4" />
+        </PromptInputButton>
+      </PromptInputTools>
+      <PromptInputSubmit />
+    </PromptInputFooter>
+  </PromptInput>
+));
+PromptInputShowcaseSection.displayName = 'PromptInputShowcaseSection';
+
+// ---------------------------------------------------------------------------
 // Main Showcase page
 // ---------------------------------------------------------------------------
 
@@ -1157,6 +1187,10 @@ export const Showcase = memo(() => (
 
       <Section title="Image">
         <ImageShowcaseSection />
+      </Section>
+
+      <Section title="Prompt Input">
+        <PromptInputShowcaseSection />
       </Section>
     </div>
   </div>
