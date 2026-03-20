@@ -24,7 +24,7 @@ import {
 import { TestResults, TestResultsHeader, TestResultsSummary, TestResultsContent, Test, TestError, TestErrorMessage } from '@/components/ai-elements/test-results';
 import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
 import { Persona } from '@/components/chat/persona';
-import { AlertCircle, ChevronRight, RotateCw } from 'lucide-react';
+import { AlertCircle, CheckIcon, ChevronRight, RotateCw, XIcon } from 'lucide-react';
 
 interface MessageContentProps {
   message: Message;
@@ -136,8 +136,8 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
         <ConfirmationRequest>
           Allow <strong>{conf.toolName}</strong>?
         </ConfirmationRequest>
-        <ConfirmationAccepted>Approved</ConfirmationAccepted>
-        <ConfirmationRejected>Denied</ConfirmationRejected>
+        <ConfirmationAccepted><CheckIcon className="size-4 text-green-600 dark:text-green-400" /> Approved</ConfirmationAccepted>
+        <ConfirmationRejected><XIcon className="size-4 text-destructive" /> Denied</ConfirmationRejected>
       </ConfirmationTitle>
       <ConfirmationActions>
         <ConfirmationAction variant="outline" onClick={handleDeny}>Deny</ConfirmationAction>
@@ -351,7 +351,7 @@ function renderPart(
           <ChainOfThoughtHeader>
             {isActive ? (
               <Shimmer
-                className="text-sm [--color-muted-foreground:#a1a1aa] [--color-background:#71717a]"
+                className="text-sm"
               >
                 {triggerLabel}
               </Shimmer>
