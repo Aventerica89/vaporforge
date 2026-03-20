@@ -1,5 +1,4 @@
-
-import type { ComponentProps } from "react";
+"use client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -7,6 +6,7 @@ import {
   ScrollBar,
 } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { ComponentProps } from "react";
 import { useCallback } from "react";
 
 export type SuggestionsProps = ComponentProps<typeof ScrollArea>;

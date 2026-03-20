@@ -1,5 +1,5 @@
 import { Bot, Code, Bug, TestTube, Lightbulb } from 'lucide-react';
-import { Suggestions, Suggestion } from '../ai-elements/Suggestion';
+import { Suggestions, Suggestion } from '../ai-elements/suggestion';
 
 interface EmptyStateProps {
   onSuggestion: (text: string) => void;

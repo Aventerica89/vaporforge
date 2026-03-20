@@ -34,13 +34,15 @@ import { useQuickChat } from '@/hooks/useQuickChat';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from './ai-elements/reasoning';
 import { MessageActions } from './chat/MessageActions';
-import { Suggestions, Suggestion } from './ai-elements/Suggestion';
+import { Suggestions, Suggestion } from './ai-elements/suggestion';
 import { Shimmer } from './ai-elements/shimmer';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './ai-elements/tool';
 import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from './ai-elements/confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from './ai-elements/plan';
-import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-elements/Sources';
+import { Sources, SourcesTrigger, SourcesContent } from './ai-elements/sources';
+
+type SourceFile = { path: string; score: number };
 import { embeddingsApi } from '@/lib/api';
 import { extractRepoName } from '@/lib/session-names';
 import {
