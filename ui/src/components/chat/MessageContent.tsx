@@ -16,8 +16,11 @@ import { CodeBlock, CodeBlockHeader, CodeBlockTitle, CodeBlockFilename, CodeBloc
 import type { BundledLanguage } from 'shiki';
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from '@/components/ai-elements/chain-of-thought';
 import { Shimmer } from '@/components/ai-elements/shimmer';
-import { Commit, CommitFiles, CommitFile, CommitAuthorAvatar, CommitTimestamp } from '@/components/chat/commit';
-import { TestResults, TestResultsHeader, TestResultsBody, TestCase } from '@/components/chat/test-results';
+import {
+  Commit, CommitHeader, CommitHash, CommitMessage as CommitMsg, CommitMetadata, CommitAuthor, CommitAuthorAvatar, CommitTimestamp,
+  CommitContent, CommitFiles, CommitFile, CommitFileInfo, CommitFileStatus, CommitFileIcon, CommitFilePath, CommitFileChanges, CommitFileAdditions, CommitFileDeletions,
+} from '@/components/ai-elements/commit';
+import { TestResults, TestResultsHeader, TestResultsSummary, TestResultsContent, Test, TestError, TestErrorMessage } from '@/components/ai-elements/test-results';
 import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
 import { Persona } from '@/components/chat/persona';
 import { AlertCircle, ChevronRight, RotateCw } from 'lucide-react';
@@ -358,27 +361,39 @@ function renderPart(
       const c = part.commit;
       if (!c) return null;
       return (
-        <Commit key={index} hash={c.hash} message={c.message}>
-          {c.author && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CommitAuthorAvatar name={c.author} />
-              <span>{c.author}</span>
-              {c.date && <CommitTimestamp date={c.date} />}
-            </div>
-          )}
-          {c.files && c.files.length > 0 && (
-            <CommitFiles label={`${c.files.length} changed file${c.files.length === 1 ? '' : 's'}`}>
-              {c.files.map((f) => (
-                <CommitFile
-                  key={f.path}
-                  path={f.path}
-                  status={f.status}
-                  additions={f.additions}
-                  deletions={f.deletions}
-                />
-              ))}
-            </CommitFiles>
-          )}
+        <Commit key={index}>
+          <CommitHeader>
+            <CommitMetadata>
+              <CommitHash>{c.hash?.slice(0, 7)}</CommitHash>
+              <CommitMsg>{c.message}</CommitMsg>
+            </CommitMetadata>
+          </CommitHeader>
+          <CommitContent>
+            {c.author && (
+              <CommitAuthor>
+                <CommitAuthorAvatar initials={c.author.slice(0, 2).toUpperCase()} />
+                <span>{c.author}</span>
+                {c.date && <CommitTimestamp date={new Date(c.date)} />}
+              </CommitAuthor>
+            )}
+            {c.files && c.files.length > 0 && (
+              <CommitFiles>
+                {c.files.map((f) => (
+                  <CommitFile key={f.path}>
+                    <CommitFileInfo>
+                      <CommitFileStatus status={f.status as 'added' | 'modified' | 'deleted' | 'renamed'} />
+                      <CommitFileIcon />
+                      <CommitFilePath>{f.path}</CommitFilePath>
+                    </CommitFileInfo>
+                    <CommitFileChanges>
+                      {f.additions != null && <CommitFileAdditions count={f.additions} />}
+                      {f.deletions != null && <CommitFileDeletions count={f.deletions} />}
+                    </CommitFileChanges>
+                  </CommitFile>
+                ))}
+              </CommitFiles>
+            )}
+          </CommitContent>
         </Commit>
       );
     }
@@ -386,21 +401,39 @@ function renderPart(
     case 'test-results': {
       const tr = part.testResults;
       if (!tr) return null;
+      const statusMap: Record<string, 'passed' | 'failed' | 'skipped' | 'running'> = {
+        pass: 'passed', fail: 'failed', skip: 'skipped', running: 'running',
+      };
       return (
-        <TestResults key={index} status={tr.status} suiteName={tr.suiteName}>
-          <TestResultsHeader passed={tr.passed} failed={tr.failed} skipped={tr.skipped} />
+        <TestResults
+          key={index}
+          summary={{
+            passed: tr.passed ?? 0,
+            failed: tr.failed ?? 0,
+            skipped: tr.skipped ?? 0,
+            total: (tr.passed ?? 0) + (tr.failed ?? 0) + (tr.skipped ?? 0),
+          }}
+        >
+          <TestResultsHeader>
+            <TestResultsSummary />
+          </TestResultsHeader>
           {tr.cases && tr.cases.length > 0 && (
-            <TestResultsBody defaultOpen={tr.status === 'fail'}>
+            <TestResultsContent>
               {tr.cases.map((tc) => (
-                <TestCase
+                <Test
                   key={tc.name}
                   name={tc.name}
-                  status={tc.status}
+                  status={statusMap[tc.status] ?? 'passed'}
                   duration={tc.duration}
-                  error={tc.error}
-                />
+                >
+                  {tc.error && (
+                    <TestError>
+                      <TestErrorMessage>{tc.error}</TestErrorMessage>
+                    </TestError>
+                  )}
+                </Test>
               ))}
-            </TestResultsBody>
+            </TestResultsContent>
           )}
         </TestResults>
       );
