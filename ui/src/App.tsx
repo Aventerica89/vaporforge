@@ -8,7 +8,7 @@ import { Showcase } from './components/Showcase';
 import { useAuthStore } from './hooks/useAuth';
 import { toast } from './hooks/useToast';
 
-const isShowcasePath = window.location.pathname === '/showcase';
+const isShowcasePath = window.location.pathname === '/app/showcase';
 
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
