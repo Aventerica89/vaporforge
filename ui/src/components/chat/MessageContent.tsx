@@ -6,9 +6,9 @@ import { MessageResponse } from '@/components/ai-elements/message';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from '@/components/ai-elements/tool';
 import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
-import { PlanCard } from '@/components/ai-elements/plan';
+import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from '@/components/ai-elements/plan';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
-import { Confirmation } from '@/components/ai-elements/Confirmation';
+import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from '@/components/ai-elements/confirmation';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
@@ -101,25 +101,35 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
   const sessionId = useSandboxStore((s) => s.currentSession?.id ?? '');
   const conf = part.confirmation;
 
-  const handleApprove = useCallback((approvalId: string) => {
-    void approveToolUse(sessionId, approvalId, true).catch(console.error);
-  }, [sessionId]);
+  const handleApprove = useCallback(() => {
+    if (conf?.approvalId) {
+      void approveToolUse(sessionId, conf.approvalId, true).catch(console.error);
+    }
+  }, [sessionId, conf?.approvalId]);
 
-  const handleDeny = useCallback((approvalId: string) => {
-    void approveToolUse(sessionId, approvalId, false).catch(console.error);
-  }, [sessionId]);
+  const handleDeny = useCallback(() => {
+    if (conf?.approvalId) {
+      void approveToolUse(sessionId, conf.approvalId, false).catch(console.error);
+    }
+  }, [sessionId, conf?.approvalId]);
 
   if (!conf) return null;
 
+  const state = conf.responded ? 'approval-responded' as const : 'approval-requested' as const;
+  const approval = { id: conf.approvalId, ...(conf.responded ? { approved: true as const } : {}) };
+
   return (
-    <Confirmation
-      toolName={conf.toolName}
-      input={conf.input}
-      approvalId={conf.approvalId}
-      onApprove={handleApprove}
-      onDeny={handleDeny}
-      initialResponded={conf.responded}
-    />
+    <Confirmation state={state} approval={approval}>
+      <ConfirmationTitle>
+        Allow <strong>{conf.toolName}</strong>?
+      </ConfirmationTitle>
+      <ConfirmationRequest>
+        <ConfirmationActions>
+          <ConfirmationAction onClick={handleApprove}>Approve</ConfirmationAction>
+          <ConfirmationAction variant="outline" onClick={handleDeny}>Deny</ConfirmationAction>
+        </ConfirmationActions>
+      </ConfirmationRequest>
+    </Confirmation>
   );
 }
 
@@ -256,7 +266,19 @@ function renderPart(
           estimatedSteps?: number;
         };
         return (
-          <PlanCard key={index} title={pi.title} steps={pi.steps ?? []} estimatedSteps={pi.estimatedSteps} />
+          <Plan key={index} defaultOpen>
+            <PlanHeader>
+              <PlanTitle>{pi.title}</PlanTitle>
+              <PlanTrigger />
+            </PlanHeader>
+            <PlanContent>
+              <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                {(pi.steps ?? []).map((step) => (
+                  <li key={step.id}>{step.label}</li>
+                ))}
+              </ol>
+            </PlanContent>
+          </Plan>
         );
       }
       if (part.name === 'ask_user_questions') {

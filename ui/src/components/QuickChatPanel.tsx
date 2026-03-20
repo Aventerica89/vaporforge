@@ -37,9 +37,9 @@ import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/Suggestion';
 import { Shimmer } from './ai-elements/shimmer';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './ai-elements/tool';
-import { Confirmation } from './ai-elements/Confirmation';
+import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from './ai-elements/confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
-import { PlanCard } from './ai-elements/plan';
+import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent, type SourceFile } from './ai-elements/Sources';
 import { embeddingsApi } from '@/lib/api';
 import { extractRepoName } from '@/lib/session-names';
@@ -972,14 +972,15 @@ function QuickChatMessage({
 
           if (toolPart.state === 'approval-requested') {
             return (
-              <Confirmation
-                key={toolPart.toolCallId}
-                toolName={toolPart.toolName}
-                input={toolPart.input}
-                approvalId={toolPart.approval.id}
-                onApprove={onApprove}
-                onDeny={onDeny}
-              />
+              <Confirmation key={toolPart.toolCallId} state="approval-requested" approval={toolPart.approval}>
+                <ConfirmationTitle>Allow <strong>{toolPart.toolName}</strong>?</ConfirmationTitle>
+                <ConfirmationRequest>
+                  <ConfirmationActions>
+                    <ConfirmationAction onClick={() => onApprove(toolPart.approval.id)}>Approve</ConfirmationAction>
+                    <ConfirmationAction variant="outline" onClick={() => onDeny(toolPart.approval.id)}>Deny</ConfirmationAction>
+                  </ConfirmationActions>
+                </ConfirmationRequest>
+              </Confirmation>
             );
           }
 
@@ -993,12 +994,19 @@ function QuickChatMessage({
               estimatedSteps?: number;
             };
             return (
-              <PlanCard
-                key={toolPart.toolCallId}
-                title={planInput.title}
-                steps={planInput.steps}
-                estimatedSteps={planInput.estimatedSteps}
-              />
+              <Plan key={toolPart.toolCallId} defaultOpen>
+                <PlanHeader>
+                  <PlanTitle>{planInput.title}</PlanTitle>
+                  <PlanTrigger />
+                </PlanHeader>
+                <PlanContent>
+                  <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+                    {(planInput.steps ?? []).map((step) => (
+                      <li key={step.id}>{step.label}</li>
+                    ))}
+                  </ol>
+                </PlanContent>
+              </Plan>
             );
           }
 
@@ -1062,14 +1070,15 @@ function QuickChatMessage({
           };
           if (sp.state === 'approval-requested' && sp.approval) {
             return (
-              <Confirmation
-                key={sp.toolCallId}
-                toolName={toolName}
-                input={sp.input as Record<string, unknown>}
-                approvalId={sp.approval.id}
-                onApprove={onApprove}
-                onDeny={onDeny}
-              />
+              <Confirmation key={sp.toolCallId} state="approval-requested" approval={sp.approval}>
+                <ConfirmationTitle>Allow <strong>{toolName}</strong>?</ConfirmationTitle>
+                <ConfirmationRequest>
+                  <ConfirmationActions>
+                    <ConfirmationAction onClick={() => onApprove(sp.approval!.id)}>Approve</ConfirmationAction>
+                    <ConfirmationAction variant="outline" onClick={() => onDeny(sp.approval!.id)}>Deny</ConfirmationAction>
+                  </ConfirmationActions>
+                </ConfirmationRequest>
+              </Confirmation>
             );
           }
           const spOutput = typeof sp.output === 'string' ? sp.output : undefined;
