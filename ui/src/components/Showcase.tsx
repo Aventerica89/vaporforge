@@ -131,6 +131,60 @@ import {
   CheckpointIcon,
   CheckpointTrigger,
 } from './ai-elements/checkpoint';
+import {
+  Queue,
+  QueueItem,
+  QueueItemContent,
+  QueueItemDescription,
+  QueueItemIndicator,
+  QueueList,
+  QueueSection,
+  QueueSectionContent,
+  QueueSectionLabel,
+  QueueSectionTrigger,
+} from './ai-elements/queue';
+import {
+  Attachment,
+  AttachmentPreview,
+  AttachmentRemove,
+  Attachments,
+} from './ai-elements/attachments';
+import {
+  Agent,
+  AgentContent,
+  AgentHeader,
+  AgentInstructions,
+  AgentOutput,
+  AgentTool,
+  AgentTools,
+} from './ai-elements/agent';
+import {
+  Sandbox,
+  SandboxContent,
+  SandboxHeader,
+  SandboxTabContent,
+  SandboxTabs,
+  SandboxTabsBar,
+  SandboxTabsList,
+  SandboxTabsTrigger,
+} from './ai-elements/sandbox';
+import {
+  InlineCitation,
+  InlineCitationCard,
+  InlineCitationCardBody,
+  InlineCitationCardTrigger,
+  InlineCitationCarousel,
+  InlineCitationCarouselContent,
+  InlineCitationCarouselHeader,
+  InlineCitationCarouselIndex,
+  InlineCitationCarouselItem,
+  InlineCitationCarouselNext,
+  InlineCitationCarouselPrev,
+  InlineCitationSource,
+  InlineCitationText,
+} from './ai-elements/inline-citation';
+import { Image as AiImage } from './ai-elements/image';
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Section wrapper
@@ -727,6 +781,286 @@ const CheckpointSection = memo(() => (
 CheckpointSection.displayName = 'CheckpointSection';
 
 // ---------------------------------------------------------------------------
+// Queue section
+// ---------------------------------------------------------------------------
+
+const pendingItems = [
+  { id: 'q1', title: 'Refactor auth module', description: 'Split OAuth into its own service' },
+  { id: 'q2', title: 'Update dependencies', description: undefined },
+  { id: 'q3', title: 'Write integration tests', description: 'Cover all API routes' },
+];
+
+const completedItems = [
+  { id: 'q4', title: 'Set up CI pipeline', description: 'GitHub Actions with Vitest' },
+  { id: 'q5', title: 'Deploy to staging', description: undefined },
+];
+
+const QueueShowcaseSection = memo(() => (
+  <Queue>
+    <QueueSection defaultOpen>
+      <QueueSectionTrigger>
+        <QueueSectionLabel count={pendingItems.length} label="Pending" />
+      </QueueSectionTrigger>
+      <QueueSectionContent>
+        <QueueList>
+          {pendingItems.map((item) => (
+            <QueueItem key={item.id}>
+              <div className="flex items-center gap-2">
+                <QueueItemIndicator completed={false} />
+                <QueueItemContent completed={false}>{item.title}</QueueItemContent>
+              </div>
+              {item.description && (
+                <QueueItemDescription completed={false}>{item.description}</QueueItemDescription>
+              )}
+            </QueueItem>
+          ))}
+        </QueueList>
+      </QueueSectionContent>
+    </QueueSection>
+    <QueueSection defaultOpen>
+      <QueueSectionTrigger>
+        <QueueSectionLabel count={completedItems.length} label="Completed" />
+      </QueueSectionTrigger>
+      <QueueSectionContent>
+        <QueueList>
+          {completedItems.map((item) => (
+            <QueueItem key={item.id}>
+              <div className="flex items-center gap-2">
+                <QueueItemIndicator completed={true} />
+                <QueueItemContent completed={true}>{item.title}</QueueItemContent>
+              </div>
+            </QueueItem>
+          ))}
+        </QueueList>
+      </QueueSectionContent>
+    </QueueSection>
+  </Queue>
+));
+QueueShowcaseSection.displayName = 'QueueShowcaseSection';
+
+// ---------------------------------------------------------------------------
+// Attachments section
+// ---------------------------------------------------------------------------
+
+const showcaseAttachments = [
+  {
+    filename: 'screenshot.png',
+    id: 'att-1',
+    mediaType: 'image/png',
+    type: 'file' as const,
+    url: 'https://placehold.co/200x200/1a1a2e/ffffff?text=Image+1',
+  },
+  {
+    filename: 'diagram.jpg',
+    id: 'att-2',
+    mediaType: 'image/jpeg',
+    type: 'file' as const,
+    url: 'https://placehold.co/200x200/0f3460/ffffff?text=Image+2',
+  },
+  {
+    filename: 'report.pdf',
+    id: 'att-3',
+    mediaType: 'application/pdf',
+    type: 'file' as const,
+    url: '',
+  },
+];
+
+const AttachmentsShowcaseSection = memo(() => (
+  <Attachments variant="grid">
+    {showcaseAttachments.map((attachment) => (
+      <Attachment data={attachment} key={attachment.id} onRemove={() => undefined}>
+        <AttachmentPreview />
+        <AttachmentRemove />
+      </Attachment>
+    ))}
+  </Attachments>
+));
+AttachmentsShowcaseSection.displayName = 'AttachmentsShowcaseSection';
+
+// ---------------------------------------------------------------------------
+// Agent section
+// ---------------------------------------------------------------------------
+
+const readFileTool = {
+  description: 'Read the contents of a file at the given path',
+  inputSchema: z.object({
+    path: z.string().describe('File path to read'),
+  }),
+};
+
+const writeFileTool = {
+  description: 'Write content to a file at the given path',
+  inputSchema: z.object({
+    content: z.string().describe('Content to write'),
+    path: z.string().describe('File path to write'),
+  }),
+};
+
+const agentOutputSchema = `z.object({
+  issues: z.array(z.object({
+    line: z.number(),
+    message: z.string(),
+    severity: z.enum(['error', 'warning', 'info']),
+  })),
+  summary: z.string(),
+})`;
+
+const AgentShowcaseSection = memo(() => (
+  <Agent>
+    <AgentHeader model="claude-sonnet-4-6" name="Code Review Agent" />
+    <AgentContent>
+      <AgentInstructions>
+        You are an expert code reviewer. Analyze the provided code for bugs,
+        security issues, and style violations. Provide actionable feedback with
+        line numbers and severity ratings.
+      </AgentInstructions>
+      <AgentTools type="multiple">
+        <AgentTool tool={readFileTool} value="read_file" />
+        <AgentTool tool={writeFileTool} value="write_file" />
+      </AgentTools>
+      <AgentOutput schema={agentOutputSchema} />
+    </AgentContent>
+  </Agent>
+));
+AgentShowcaseSection.displayName = 'AgentShowcaseSection';
+
+// ---------------------------------------------------------------------------
+// Sandbox section
+// ---------------------------------------------------------------------------
+
+const sandboxCode = `def fibonacci(n):
+    """Return nth Fibonacci number."""
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+result = fibonacci(10)
+print(f"fibonacci(10) = {result}")`;
+
+const sandboxOutput = `fibonacci(10) = 55`;
+
+const SandboxShowcaseSection = memo(() => (
+  <Sandbox>
+    <SandboxHeader state="output-available" title="main.py" />
+    <SandboxContent>
+      <SandboxTabs defaultValue="code">
+        <SandboxTabsBar>
+          <SandboxTabsList>
+            <SandboxTabsTrigger value="code">main.py</SandboxTabsTrigger>
+            <SandboxTabsTrigger value="output">output</SandboxTabsTrigger>
+          </SandboxTabsList>
+        </SandboxTabsBar>
+        <SandboxTabContent value="code">
+          <CodeBlock className="border-0" code={sandboxCode} language="python">
+            <CodeBlockHeader>
+              <CodeBlockTitle>
+                <CodeBlockFilename>main.py</CodeBlockFilename>
+              </CodeBlockTitle>
+              <CodeBlockActions>
+                <CodeBlockCopyButton size="sm" />
+              </CodeBlockActions>
+            </CodeBlockHeader>
+          </CodeBlock>
+        </SandboxTabContent>
+        <SandboxTabContent value="output">
+          <CodeBlock className="border-0" code={sandboxOutput} language="log">
+            <CodeBlockHeader>
+              <CodeBlockActions>
+                <CodeBlockCopyButton size="sm" />
+              </CodeBlockActions>
+            </CodeBlockHeader>
+          </CodeBlock>
+        </SandboxTabContent>
+      </SandboxTabs>
+    </SandboxContent>
+  </Sandbox>
+));
+SandboxShowcaseSection.displayName = 'SandboxShowcaseSection';
+
+// ---------------------------------------------------------------------------
+// Inline Citation section
+// ---------------------------------------------------------------------------
+
+const citationSources = [
+  {
+    description: 'How transformer architectures enable context-aware language understanding.',
+    title: 'Attention Is All You Need',
+    url: 'https://arxiv.org/abs/1706.03762',
+  },
+  {
+    description: 'Scaling laws for language model performance as a function of compute.',
+    title: 'Scaling Laws for Neural Language Models',
+    url: 'https://arxiv.org/abs/2001.08361',
+  },
+];
+
+const InlineCitationShowcaseSection = memo(() => (
+  <p className="text-sm leading-relaxed">
+    Large language models have transformed natural language processing over the
+    past several years.{' '}
+    <InlineCitation>
+      <InlineCitationText>
+        Recent breakthroughs in model architecture and training scale have led
+        to significant gains in reasoning and instruction-following ability
+      </InlineCitationText>
+      <InlineCitationCard>
+        <InlineCitationCardTrigger
+          sources={citationSources.map((s) => s.url)}
+        />
+        <InlineCitationCardBody>
+          <InlineCitationCarousel>
+            <InlineCitationCarouselHeader>
+              <InlineCitationCarouselPrev />
+              <InlineCitationCarouselNext />
+              <InlineCitationCarouselIndex />
+            </InlineCitationCarouselHeader>
+            <InlineCitationCarouselContent>
+              {citationSources.map((source) => (
+                <InlineCitationCarouselItem key={source.url}>
+                  <InlineCitationSource
+                    description={source.description}
+                    title={source.title}
+                    url={source.url}
+                  />
+                </InlineCitationCarouselItem>
+              ))}
+            </InlineCitationCarouselContent>
+          </InlineCitationCarousel>
+        </InlineCitationCardBody>
+      </InlineCitationCard>
+    </InlineCitation>
+    . These advances continue to open new possibilities for AI-assisted
+    development.
+  </p>
+));
+InlineCitationShowcaseSection.displayName = 'InlineCitationShowcaseSection';
+
+// ---------------------------------------------------------------------------
+// Image section
+// ---------------------------------------------------------------------------
+
+const PLACEHOLDER_BASE64 =
+  'iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFklEQVR42mNk+A9QTwMJAAIBAQAA//8C' +
+  'TAAIoAAAAABJRU5ErkJggg==';
+
+const ImageShowcaseSection = memo(() => (
+  <div className="space-y-4">
+    <p className="text-sm text-muted-foreground">
+      AI-generated image rendered from base64 data
+    </p>
+    <AiImage
+      alt="AI generated placeholder"
+      base64={PLACEHOLDER_BASE64}
+      className="h-32 w-32 rounded-md border"
+      mediaType="image/png"
+      uint8Array={new Uint8Array()}
+    />
+  </div>
+));
+ImageShowcaseSection.displayName = 'ImageShowcaseSection';
+
+// ---------------------------------------------------------------------------
 // Main Showcase page
 // ---------------------------------------------------------------------------
 
@@ -799,6 +1133,30 @@ export const Showcase = memo(() => (
 
       <Section title="Checkpoint">
         <CheckpointSection />
+      </Section>
+
+      <Section title="Queue">
+        <QueueShowcaseSection />
+      </Section>
+
+      <Section title="Attachments">
+        <AttachmentsShowcaseSection />
+      </Section>
+
+      <Section title="Agent">
+        <AgentShowcaseSection />
+      </Section>
+
+      <Section title="Sandbox">
+        <SandboxShowcaseSection />
+      </Section>
+
+      <Section title="Inline Citation">
+        <InlineCitationShowcaseSection />
+      </Section>
+
+      <Section title="Image">
+        <ImageShowcaseSection />
       </Section>
     </div>
   </div>
