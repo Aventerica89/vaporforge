@@ -309,7 +309,12 @@ export default {
     // If router returned 404, delegate to static assets (SPA)
     // With run_worker_first: true, we must explicitly serve assets
     if (routerResponse.status === 404 && env.ASSETS) {
-      return env.ASSETS.fetch(request);
+      const assetResponse = await env.ASSETS.fetch(request);
+      // For /app/* sub-paths that 404 (SPA client routes), serve /app/index.html
+      if (assetResponse.status === 404 && url.pathname.startsWith('/app/')) {
+        return env.ASSETS.fetch(new Request(new URL('/app/index.html', url.origin), request));
+      }
+      return assetResponse;
     }
 
     return routerResponse;
