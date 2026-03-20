@@ -4,7 +4,7 @@ import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MessageResponse } from '@/components/ai-elements/message';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from '@/components/ai-elements/tool';
-import { TaskPlanBlock } from './TaskPlanBlock';
+import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from '@/components/ai-elements/task';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from '@/components/ai-elements/plan';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
@@ -497,7 +497,27 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
     const grouped = groupPartsForRender(message.parts);
     return (
       <div className="flex flex-col gap-3">
-        {taskPlan && <TaskPlanBlock plan={taskPlan} />}
+        {taskPlan && (
+          <Task defaultOpen>
+            <TaskTrigger
+              title={`Completed ${taskPlan.steps.length} steps`}
+            />
+            <TaskContent>
+              {taskPlan.steps.map((step) => (
+                <TaskItem key={step.id}>
+                  <span className="inline-flex items-center gap-2 flex-wrap">
+                    {step.label}
+                    {step.filePaths.map((fp, i) => (
+                      <TaskItemFile key={i}>
+                        <span>{fp}</span>
+                      </TaskItemFile>
+                    ))}
+                  </span>
+                </TaskItem>
+              ))}
+            </TaskContent>
+          </Task>
+        )}
         <HandoffChain parts={message.parts} />
         {grouped.map((item, gi) =>
           item.kind === 'tool-group' ? (
@@ -538,7 +558,27 @@ export function StreamingContent({ parts, fallbackContent }: StreamingContentPro
   if (parts.length > 0) {
     return (
       <div className="flex flex-col gap-3">
-        {streamingPlan && <TaskPlanBlock plan={streamingPlan} isStreaming />}
+        {streamingPlan && (
+          <Task defaultOpen>
+            <TaskTrigger
+              title={`Working... ${streamingPlan.steps.filter((s) => s.status === 'complete').length}/${streamingPlan.steps.length} steps`}
+            />
+            <TaskContent>
+              {streamingPlan.steps.map((step) => (
+                <TaskItem key={step.id}>
+                  <span className="inline-flex items-center gap-2 flex-wrap">
+                    {step.label}
+                    {step.filePaths.map((fp, i) => (
+                      <TaskItemFile key={i}>
+                        <span>{fp}</span>
+                      </TaskItemFile>
+                    ))}
+                  </span>
+                </TaskItem>
+              ))}
+            </TaskContent>
+          </Task>
+        )}
         {parts.map((part, i) => {
           const isLast = i === parts.length - 1;
           const isStreamingPart =
