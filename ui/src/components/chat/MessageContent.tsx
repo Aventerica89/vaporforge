@@ -4,6 +4,15 @@ import type { Message, MessagePart } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MessageResponse } from '@/components/ai-elements/message';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from '@/components/ai-elements/tool';
+import {
+  Terminal,
+  TerminalActions,
+  TerminalContent,
+  TerminalCopyButton,
+  TerminalHeader as TerminalHdr,
+  TerminalStatus,
+  TerminalTitle,
+} from '@/components/ai-elements/terminal';
 import { Task, TaskTrigger, TaskContent, TaskItem, TaskItemFile } from '@/components/ai-elements/task';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from '@/components/ai-elements/plan';
@@ -21,7 +30,12 @@ import {
   CommitContent, CommitFiles, CommitFile, CommitFileInfo, CommitFileStatus, CommitFileIcon, CommitFilePath, CommitFileChanges, CommitFileAdditions, CommitFileDeletions,
   CommitActions, CommitCopyButton,
 } from '@/components/ai-elements/commit';
-import { TestResults, TestResultsHeader, TestResultsSummary, TestResultsContent, Test, TestError, TestErrorMessage } from '@/components/ai-elements/test-results';
+import {
+  TestResults, TestResultsHeader, TestResultsSummary, TestResultsDuration,
+  TestResultsProgress, TestResultsContent,
+  TestSuite, TestSuiteName, TestSuiteContent, TestSuiteStats,
+  Test, TestError, TestErrorMessage, TestErrorStack,
+} from '@/components/ai-elements/test-results';
 import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
 import { Persona } from '@/components/chat/persona';
 import { AlertCircle, CheckIcon, ChevronRight, RotateCw, XIcon } from 'lucide-react';
@@ -424,35 +438,60 @@ function renderPart(
       const statusMap: Record<string, 'passed' | 'failed' | 'skipped' | 'running'> = {
         pass: 'passed', fail: 'failed', skip: 'skipped', running: 'running',
       };
+      const suiteStatus = statusMap[tr.status] ?? 'passed';
+      const passed = tr.passed ?? 0;
+      const failed = tr.failed ?? 0;
+      const skipped = tr.skipped ?? 0;
       return (
         <TestResults
           key={index}
           summary={{
-            passed: tr.passed ?? 0,
-            failed: tr.failed ?? 0,
-            skipped: tr.skipped ?? 0,
-            total: (tr.passed ?? 0) + (tr.failed ?? 0) + (tr.skipped ?? 0),
+            passed,
+            failed,
+            skipped,
+            total: passed + failed + skipped,
           }}
         >
           <TestResultsHeader>
             <TestResultsSummary />
+            <TestResultsDuration />
           </TestResultsHeader>
+          <div className="border-b px-4 py-3">
+            <TestResultsProgress />
+          </div>
           {tr.cases && tr.cases.length > 0 && (
             <TestResultsContent>
-              {tr.cases.map((tc) => (
-                <Test
-                  key={tc.name}
-                  name={tc.name}
-                  status={statusMap[tc.status] ?? 'passed'}
-                  duration={tc.duration}
-                >
-                  {tc.error && (
-                    <TestError>
-                      <TestErrorMessage>{tc.error}</TestErrorMessage>
-                    </TestError>
-                  )}
-                </Test>
-              ))}
+              <TestSuite
+                defaultOpen={suiteStatus === 'failed'}
+                name={tr.suiteName ?? 'Tests'}
+                status={suiteStatus}
+              >
+                <TestSuiteName />
+                <TestSuiteStats passed={passed} failed={failed} skipped={skipped} />
+                <TestSuiteContent>
+                  {tr.cases.map((tc) => {
+                    const tcStatus = statusMap[tc.status] ?? 'passed';
+                    const hasStack = tc.error && tc.error.includes('\n');
+                    const errorMsg = tc.error ? tc.error.split('\n')[0] : undefined;
+                    const errorStack = hasStack ? tc.error!.split('\n').slice(1).join('\n') : undefined;
+                    return (
+                      <Test
+                        key={tc.name}
+                        name={tc.name}
+                        status={tcStatus}
+                        duration={tc.duration}
+                      >
+                        {tc.error && (
+                          <TestError>
+                            <TestErrorMessage>{errorMsg}</TestErrorMessage>
+                            {errorStack && <TestErrorStack>{errorStack}</TestErrorStack>}
+                          </TestError>
+                        )}
+                      </Test>
+                    );
+                  })}
+                </TestSuiteContent>
+              </TestSuite>
             </TestResultsContent>
           )}
         </TestResults>
