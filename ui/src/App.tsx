@@ -20,6 +20,7 @@ function useIsShowcase() {
 
 export default function App() {
   const { checkAuth, isLoading } = useAuthStore();
+  const isShowcase = useIsShowcase();
 
   useEffect(() => {
     checkAuth();
@@ -34,7 +35,7 @@ export default function App() {
     return () => window.removeEventListener('vf:config-restored', handler);
   }, []);
 
-  if (isLoading) {
+  if (isLoading && !isShowcase) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 animate-fade-up">
@@ -49,8 +50,6 @@ export default function App() {
       </div>
     );
   }
-
-  const isShowcase = useIsShowcase();
 
   if (isShowcase) {
     return (
