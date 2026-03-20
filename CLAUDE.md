@@ -218,6 +218,11 @@ Visual website editor — click components in a live Astro preview, describe edi
 
 `PromptInput`'s form element has no base visual styles — it renders as `relative` only. All visual styling (border, background, rounded corners, shadow, blur) is owned by the `className` prop passed by the parent (`ChatPanel`, `QuickChatPanel`, etc.). Never add base styles back to `PromptInput.tsx`; put them in the consumer.
 
+### Scroll Behavior
+- **`Conversation resize="smooth"` (NOT "instant")** — spring-animated scroll via `use-stick-to-bottom`. `instant` causes visible snap-up-then-back when content height changes (tool cards, code blocks). `smooth` masks intermediate positions with spring physics. Proven pattern from Zola (zola.chat) and prompt-kit.
+- **Tool-start hiding is result-based, not stream-based** — `renderPart()` in `MessageContent.tsx` skips `tool-start` only when a matching `tool-result` exists in `allParts` (by `toolId` or `name`). Do NOT use `!isStreaming` to bulk-hide all tool-starts — that causes a simultaneous height drop for every tool card when the stream completes.
+- **Scroll anchor (`min-h-scroll-anchor`) exists but is not wired** — CSS utility in `index.css` for Zola-style viewport-filling last message. Needs gating on content presence before applying — empty containers with min-height cause scroll-past-prompt. Research at `Obsidian/VaporForge/Research/2026-03-20-scroll-jump-research.md`.
+
 ### MessageContent prompt-kit Components
 
 `MessageContent.tsx` `renderPart()` uses prompt-kit components for rich stream rendering:
