@@ -167,13 +167,13 @@ const getHighlighter = (
 // Create raw tokens for immediate display while highlighting loads
 const createRawTokens = (code: string): TokenizedCode => ({
   bg: "transparent",
-  fg: "inherit",
+  fg: "#e6edf3",
   tokens: code.split("\n").map((line) =>
     line === ""
       ? []
       : [
           {
-            color: "inherit",
+            color: "#e6edf3",
             content: line,
           } as ThemedToken,
         ]
