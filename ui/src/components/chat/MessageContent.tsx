@@ -193,6 +193,45 @@ type GroupedItem =
 
 const CUSTOM_TOOLS = new Set(['create_plan', 'ask_user_questions']);
 
+/** Tool names that produce terminal/command output — rendered with Terminal instead of CodeBlock */
+const BASH_TOOLS = new Set([
+  'Bash', 'bash', 'execute', 'Execute', 'run_command', 'RunCommand', 'shell', 'Shell',
+]);
+
+function isTerminalOutput(output: unknown): boolean {
+  if (typeof output !== 'string') return false;
+  if (output.length === 0) return false;
+  // Contains ANSI escape sequences
+  if (/\x1b\[/.test(output)) return true;
+  // Multi-line content typical of command output
+  if (output.includes('\n')) return true;
+  return false;
+}
+
+interface TerminalToolOutputProps {
+  toolName: string;
+  output: unknown;
+  isStreaming?: boolean;
+}
+
+function TerminalToolOutput({ toolName, output, isStreaming = false }: TerminalToolOutputProps) {
+  const text = typeof output === 'string' ? output : JSON.stringify(output, null, 2);
+  return (
+    <Terminal output={text} isStreaming={isStreaming}>
+      <TerminalHdr>
+        <TerminalTitle>{toolName}</TerminalTitle>
+        <div className="flex items-center gap-1">
+          <TerminalStatus />
+          <TerminalActions>
+            <TerminalCopyButton />
+          </TerminalActions>
+        </div>
+      </TerminalHdr>
+      <TerminalContent />
+    </Terminal>
+  );
+}
+
 function groupPartsForRender(parts: MessagePart[]): GroupedItem[] {
   const result: GroupedItem[] = [];
   let toolRun: Array<{ part: MessagePart; index: number }> = [];
@@ -332,9 +371,22 @@ function renderPart(
           (part.toolId ? p.toolId === part.toolId : p.name === part.name),
       );
       const toolInput = matchingStart?.input ?? part.input;
+      const toolName = part.name || 'Tool';
+      // Render bash/command tools with Terminal component for proper output formatting
+      if (BASH_TOOLS.has(toolName) || isTerminalOutput(part.output)) {
+        return (
+          <Tool key={index} defaultOpen>
+            <ToolHeader type="dynamic-tool" state="output-available" toolName={toolName} />
+            <ToolContent>
+              {toolInput && <ToolInput input={toolInput} />}
+              <TerminalToolOutput toolName={toolName} output={part.output} />
+            </ToolContent>
+          </Tool>
+        );
+      }
       return (
         <Tool key={index} defaultOpen>
-          <ToolHeader type="dynamic-tool" state="output-available" toolName={part.name || 'Tool'} />
+          <ToolHeader type="dynamic-tool" state="output-available" toolName={toolName} />
           <ToolContent>
             {toolInput && <ToolInput input={toolInput} />}
             <ToolOutput output={part.output} errorText={undefined} />
