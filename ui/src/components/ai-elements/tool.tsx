@@ -24,7 +24,7 @@ export type ToolProps = ComponentProps<typeof Collapsible>;
 
 export const Tool = ({ className, ...props }: ToolProps) => (
   <Collapsible
-    className={cn("group not-prose mb-4 w-full rounded-lg border border-border/40 bg-background/50", className)}
+    className={cn("group not-prose mb-4 w-full rounded-lg border border-border/40 bg-background", className)}
     {...props}
   />
 );
@@ -64,7 +64,7 @@ const statusIcons: Record<ToolPart["state"], ReactNode> = {
 };
 
 export const getStatusBadge = (status: ToolPart["state"]) => (
-  <span className="inline-flex items-center gap-1 rounded-full border border-border/30 bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+  <span className="inline-flex items-center gap-1 rounded-full border border-border/30 bg-muted/20 px-2 py-0.5 text-xs font-medium text-muted-foreground">
     {statusIcons[status]}
     {statusLabels[status]}
   </span>
@@ -91,7 +91,7 @@ export const ToolHeader = ({
     >
       <div className="flex items-center gap-2">
         <WrenchIcon className="size-4 text-muted-foreground" />
-        <span className="font-medium text-sm">{title ?? derivedName}</span>
+        <span className="font-medium">{title ?? derivedName}</span>
         {getStatusBadge(state)}
       </div>
       <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
@@ -117,7 +117,7 @@ export type ToolInputProps = ComponentProps<"div"> & {
 
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
   <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
-    <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+    <h4 className="font-medium text-muted-foreground text-xs uppercase">
       Parameters
     </h4>
     <div className="rounded-md bg-muted/30">
@@ -153,7 +153,7 @@ export const ToolOutput = ({
 
   return (
     <div className={cn("space-y-2", className)} {...props}>
-      <h4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+      <h4 className="font-medium text-muted-foreground text-xs uppercase">
         {errorText ? "Error" : "Result"}
       </h4>
       <div
