@@ -959,9 +959,7 @@ function QuickChatMessage({
         if (part.type === 'reasoning' && 'text' in part) {
           return (
             <Reasoning key={i} isStreaming={isLastAssistant && isStreaming}>
-              <ReasoningTrigger className="text-xs text-muted-foreground">
-                Thinking...
-              </ReasoningTrigger>
+              <ReasoningTrigger className="text-xs" />
               <ReasoningContent className="mt-2 text-xs">
                 {(part as { type: 'reasoning'; text: string }).text}
               </ReasoningContent>

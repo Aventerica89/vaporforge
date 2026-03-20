@@ -17,8 +17,9 @@ import type { BundledLanguage } from 'shiki';
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from '@/components/ai-elements/chain-of-thought';
 import { Shimmer } from '@/components/ai-elements/shimmer';
 import {
-  Commit, CommitHeader, CommitHash, CommitMessage as CommitMsg, CommitMetadata, CommitAuthor, CommitAuthorAvatar, CommitTimestamp,
+  Commit, CommitHeader, CommitHash, CommitMessage as CommitMsg, CommitMetadata, CommitInfo, CommitSeparator, CommitAuthor, CommitAuthorAvatar, CommitTimestamp,
   CommitContent, CommitFiles, CommitFile, CommitFileInfo, CommitFileStatus, CommitFileIcon, CommitFilePath, CommitFileChanges, CommitFileAdditions, CommitFileDeletions,
+  CommitActions, CommitCopyButton,
 } from '@/components/ai-elements/commit';
 import { TestResults, TestResultsHeader, TestResultsSummary, TestResultsContent, Test, TestError, TestErrorMessage } from '@/components/ai-elements/test-results';
 import { Checkpoint, CheckpointList } from '@/components/chat/checkpoint';
@@ -150,8 +151,7 @@ function CodeBlockWithCopy({ code, language, filename }: CodeBlockWithCopyProps)
     <CodeBlock code={code} language={(language || 'text') as BundledLanguage}>
       <CodeBlockHeader>
         <CodeBlockTitle>
-          <CodeBlockFilename>{language}</CodeBlockFilename>
-          {filename && <span className="text-xs text-zinc-400">{filename}</span>}
+          <CodeBlockFilename>{filename || language}</CodeBlockFilename>
         </CodeBlockTitle>
         <CodeBlockActions>
           <CodeBlockCopyButton />
@@ -271,7 +271,7 @@ function renderPart(
           estimatedSteps?: number;
         };
         return (
-          <Plan key={index} defaultOpen>
+          <Plan key={index} defaultOpen isStreaming={isStreaming}>
             <PlanHeader>
               <PlanTitle>{pi.title}</PlanTitle>
               <PlanTrigger />
@@ -292,8 +292,9 @@ function renderPart(
       // Hide tool-start in completed messages — tool-result renders the full state
       if (!isStreaming) return null;
       return (
-        <Tool key={index}>
+        <Tool key={index} defaultOpen>
           <ToolHeader type="dynamic-tool" state="input-streaming" toolName={part.name || 'Tool'} />
+          <ToolContent>{part.input && <ToolInput input={part.input} />}</ToolContent>
         </Tool>
       );
     }
@@ -310,7 +311,7 @@ function renderPart(
       );
       const toolInput = matchingStart?.input ?? part.input;
       return (
-        <Tool key={index}>
+        <Tool key={index} defaultOpen>
           <ToolHeader type="dynamic-tool" state="output-available" toolName={part.name || 'Tool'} />
           <ToolContent>
             {toolInput && <ToolInput input={toolInput} />}
@@ -352,7 +353,7 @@ function renderPart(
           </ChainOfThoughtHeader>
           <ChainOfThoughtContent>
             {part.steps.map((step) => (
-              <ChainOfThoughtStep key={step.title} label={step.title} />
+              <ChainOfThoughtStep key={step.title} label={step.title} status={step.status} />
             ))}
           </ChainOfThoughtContent>
         </ChainOfThought>
@@ -365,25 +366,34 @@ function renderPart(
       return (
         <Commit key={index}>
           <CommitHeader>
-            <CommitMetadata>
-              <CommitHash>{c.hash?.slice(0, 7)}</CommitHash>
-              <CommitMsg>{c.message}</CommitMsg>
-            </CommitMetadata>
-          </CommitHeader>
-          <CommitContent>
             {c.author && (
               <CommitAuthor>
                 <CommitAuthorAvatar initials={c.author.slice(0, 2).toUpperCase()} />
-                <span>{c.author}</span>
-                {c.date && <CommitTimestamp date={new Date(c.date)} />}
               </CommitAuthor>
             )}
+            <CommitInfo>
+              <CommitMsg>{c.message}</CommitMsg>
+              <CommitMetadata>
+                <CommitHash>{c.hash?.slice(0, 7)}</CommitHash>
+                {c.date && (
+                  <>
+                    <CommitSeparator />
+                    <CommitTimestamp date={new Date(c.date)} />
+                  </>
+                )}
+              </CommitMetadata>
+            </CommitInfo>
+            <CommitActions>
+              <CommitCopyButton hash={c.hash ?? ''} />
+            </CommitActions>
+          </CommitHeader>
+          <CommitContent>
             {c.files && c.files.length > 0 && (
               <CommitFiles>
                 {c.files.map((f) => (
                   <CommitFile key={f.path}>
                     <CommitFileInfo>
-                      <CommitFileStatus status={f.status as 'added' | 'modified' | 'deleted' | 'renamed'} />
+                      <CommitFileStatus status={f.status} />
                       <CommitFileIcon />
                       <CommitFilePath>{f.path}</CommitFilePath>
                     </CommitFileInfo>
@@ -508,7 +518,7 @@ export const MessageContent = memo(function MessageContent({ message }: MessageC
       {message.toolCalls && message.toolCalls.length > 0 && (
         <div className="mt-2 space-y-1 border-t border-border/30 pt-2">
           {message.toolCalls.map((tool) => (
-            <Tool key={tool.id}>
+            <Tool key={tool.id} defaultOpen>
               <ToolHeader type="dynamic-tool" state="output-available" toolName={tool.name} />
               <ToolContent>
                 {tool.input && <ToolInput input={tool.input} />}
