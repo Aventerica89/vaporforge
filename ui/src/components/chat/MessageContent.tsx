@@ -8,7 +8,7 @@ import { TaskPlanBlock } from './TaskPlanBlock';
 import { HandoffChain } from '@/components/elements/HandoffChain';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from '@/components/ai-elements/plan';
 import { QuestionFlow } from '@/components/ai-elements/QuestionFlow';
-import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from '@/components/ai-elements/confirmation';
+import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationAccepted, ConfirmationRejected, ConfirmationActions, ConfirmationAction } from '@/components/ai-elements/confirmation';
 import { parseTaskPlan } from '@/lib/parsers/task-plan-parser';
 import { useSandboxStore } from '@/hooks/useSandbox';
 import { Reasoning, ReasoningTrigger, ReasoningContent } from '@/components/ai-elements/reasoning';
@@ -124,14 +124,16 @@ function ConfirmationBlock({ part }: { part: MessagePart }) {
   return (
     <Confirmation state={state} approval={approval}>
       <ConfirmationTitle>
-        Allow <strong>{conf.toolName}</strong>?
+        <ConfirmationRequest>
+          Allow <strong>{conf.toolName}</strong>?
+        </ConfirmationRequest>
+        <ConfirmationAccepted>Approved</ConfirmationAccepted>
+        <ConfirmationRejected>Denied</ConfirmationRejected>
       </ConfirmationTitle>
-      <ConfirmationRequest>
-        <ConfirmationActions>
-          <ConfirmationAction onClick={handleApprove}>Approve</ConfirmationAction>
-          <ConfirmationAction variant="outline" onClick={handleDeny}>Deny</ConfirmationAction>
-        </ConfirmationActions>
-      </ConfirmationRequest>
+      <ConfirmationActions>
+        <ConfirmationAction variant="outline" onClick={handleDeny}>Deny</ConfirmationAction>
+        <ConfirmationAction onClick={handleApprove}>Approve</ConfirmationAction>
+      </ConfirmationActions>
     </Confirmation>
   );
 }

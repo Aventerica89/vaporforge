@@ -37,7 +37,7 @@ import { MessageActions } from './chat/MessageActions';
 import { Suggestions, Suggestion } from './ai-elements/suggestion';
 import { Shimmer } from './ai-elements/shimmer';
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './ai-elements/tool';
-import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from './ai-elements/confirmation';
+import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationAccepted, ConfirmationRejected, ConfirmationActions, ConfirmationAction } from './ai-elements/confirmation';
 import { QuestionFlow } from './ai-elements/QuestionFlow';
 import { Plan, PlanHeader, PlanTitle, PlanContent, PlanTrigger } from './ai-elements/plan';
 import { Sources, SourcesTrigger, SourcesContent } from './ai-elements/sources';
@@ -975,13 +975,17 @@ function QuickChatMessage({
           if (toolPart.state === 'approval-requested') {
             return (
               <Confirmation key={toolPart.toolCallId} state="approval-requested" approval={toolPart.approval}>
-                <ConfirmationTitle>Allow <strong>{toolPart.toolName}</strong>?</ConfirmationTitle>
-                <ConfirmationRequest>
-                  <ConfirmationActions>
-                    <ConfirmationAction onClick={() => onApprove(toolPart.approval.id)}>Approve</ConfirmationAction>
-                    <ConfirmationAction variant="outline" onClick={() => onDeny(toolPart.approval.id)}>Deny</ConfirmationAction>
-                  </ConfirmationActions>
-                </ConfirmationRequest>
+                <ConfirmationTitle>
+                  <ConfirmationRequest>
+                    Allow <strong>{toolPart.toolName}</strong>?
+                  </ConfirmationRequest>
+                  <ConfirmationAccepted>Approved</ConfirmationAccepted>
+                  <ConfirmationRejected>Denied</ConfirmationRejected>
+                </ConfirmationTitle>
+                <ConfirmationActions>
+                  <ConfirmationAction variant="outline" onClick={() => onDeny(toolPart.approval.id)}>Deny</ConfirmationAction>
+                  <ConfirmationAction onClick={() => onApprove(toolPart.approval.id)}>Approve</ConfirmationAction>
+                </ConfirmationActions>
               </Confirmation>
             );
           }
@@ -1073,13 +1077,17 @@ function QuickChatMessage({
           if (sp.state === 'approval-requested' && sp.approval) {
             return (
               <Confirmation key={sp.toolCallId} state="approval-requested" approval={sp.approval}>
-                <ConfirmationTitle>Allow <strong>{toolName}</strong>?</ConfirmationTitle>
-                <ConfirmationRequest>
-                  <ConfirmationActions>
-                    <ConfirmationAction onClick={() => onApprove(sp.approval!.id)}>Approve</ConfirmationAction>
-                    <ConfirmationAction variant="outline" onClick={() => onDeny(sp.approval!.id)}>Deny</ConfirmationAction>
-                  </ConfirmationActions>
-                </ConfirmationRequest>
+                <ConfirmationTitle>
+                  <ConfirmationRequest>
+                    Allow <strong>{toolName}</strong>?
+                  </ConfirmationRequest>
+                  <ConfirmationAccepted>Approved</ConfirmationAccepted>
+                  <ConfirmationRejected>Denied</ConfirmationRejected>
+                </ConfirmationTitle>
+                <ConfirmationActions>
+                  <ConfirmationAction variant="outline" onClick={() => onDeny(sp.approval!.id)}>Deny</ConfirmationAction>
+                  <ConfirmationAction onClick={() => onApprove(sp.approval!.id)}>Approve</ConfirmationAction>
+                </ConfirmationActions>
               </Confirmation>
             );
           }
