@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from 'react';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { nanoid } from 'nanoid';
 import { CheckIcon, XIcon, RefreshCcwIcon, CopyIcon, FileIcon } from 'lucide-react';
 
@@ -730,6 +731,7 @@ CheckpointSection.displayName = 'CheckpointSection';
 // ---------------------------------------------------------------------------
 
 export const Showcase = memo(() => (
+  <TooltipProvider>
   <div className="min-h-screen bg-background text-foreground">
     <div className="max-w-3xl mx-auto p-8 space-y-12">
       <header>
@@ -800,6 +802,7 @@ export const Showcase = memo(() => (
       </Section>
     </div>
   </div>
+  </TooltipProvider>
 ));
 
 Showcase.displayName = 'Showcase';
