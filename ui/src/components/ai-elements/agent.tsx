@@ -1,163 +1,141 @@
-import type { ComponentProps } from 'react';
+"use client";
 
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { BotIcon, ChevronRightIcon } from 'lucide-react';
-import { memo } from 'react';
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import type { Tool } from "ai";
+import { BotIcon } from "lucide-react";
+import type { ComponentProps } from "react";
+import { memo } from "react";
 
-import { CodeBlock } from './code-block';
+import { CodeBlock } from "./code-block";
 
-// ---------------------------------------------------------------------------
-// Agent — root container
-// ---------------------------------------------------------------------------
-
-export type AgentProps = ComponentProps<'div'>;
+export type AgentProps = ComponentProps<"div">;
 
 export const Agent = memo(({ className, ...props }: AgentProps) => (
-  <div className={cn('flex flex-col gap-4', className)} {...props} />
+  <div
+    className={cn("not-prose w-full rounded-md border", className)}
+    {...props}
+  />
 ));
 
-// ---------------------------------------------------------------------------
-// AgentHeader — name + optional model badge
-// ---------------------------------------------------------------------------
-
-export type AgentHeaderProps = ComponentProps<'div'> & {
+export type AgentHeaderProps = ComponentProps<"div"> & {
   name: string;
   model?: string;
 };
 
 export const AgentHeader = memo(
   ({ className, name, model, ...props }: AgentHeaderProps) => (
-    <div className={cn('flex items-center gap-2', className)} {...props}>
-      <BotIcon className="size-5 text-muted-foreground" />
-      <span className="font-semibold text-sm">{name}</span>
-      {model && <Badge variant="secondary">{model}</Badge>}
+    <div
+      className={cn(
+        "flex w-full items-center justify-between gap-4 p-3",
+        className
+      )}
+      {...props}
+    >
+      <div className="flex items-center gap-2">
+        <BotIcon className="size-4 text-muted-foreground" />
+        <span className="font-medium text-sm">{name}</span>
+        {model && (
+          <Badge className="font-mono text-xs" variant="secondary">
+            {model}
+          </Badge>
+        )}
+      </div>
     </div>
-  ),
+  )
 );
 
-// ---------------------------------------------------------------------------
-// AgentContent — body container
-// ---------------------------------------------------------------------------
-
-export type AgentContentProps = ComponentProps<'div'>;
+export type AgentContentProps = ComponentProps<"div">;
 
 export const AgentContent = memo(
   ({ className, ...props }: AgentContentProps) => (
-    <div className={cn('flex flex-col gap-4', className)} {...props} />
-  ),
+    <div className={cn("space-y-4 p-4 pt-0", className)} {...props} />
+  )
 );
 
-// ---------------------------------------------------------------------------
-// AgentInstructions — collapsible text block
-// ---------------------------------------------------------------------------
-
-export type AgentInstructionsProps = ComponentProps<typeof Collapsible> & {
+export type AgentInstructionsProps = ComponentProps<"div"> & {
   children: string;
 };
 
 export const AgentInstructions = memo(
   ({ className, children, ...props }: AgentInstructionsProps) => (
-    <Collapsible className={cn('border-b', className)} {...props}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 py-3 text-sm font-medium">
-        <ChevronRightIcon className="h-4 w-4 transition-transform duration-200 [[data-state=open]>*>&]:rotate-90" />
+    <div className={cn("space-y-2", className)} {...props}>
+      <span className="font-medium text-muted-foreground text-sm">
         Instructions
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in">
-        <p className="pb-3 text-sm text-muted-foreground">{children}</p>
-      </CollapsibleContent>
-    </Collapsible>
-  ),
+      </span>
+      <div className="rounded-md bg-muted/50 p-3 text-muted-foreground text-sm">
+        <p>{children}</p>
+      </div>
+    </div>
+  )
 );
 
-// ---------------------------------------------------------------------------
-// AgentTools — collapsible tools list
-// ---------------------------------------------------------------------------
+export type AgentToolsProps = ComponentProps<typeof Accordion>;
 
-export type AgentToolsProps = ComponentProps<typeof Collapsible>;
+export const AgentTools = memo(({ className, ...props }: AgentToolsProps) => (
+  <div className={cn("space-y-2", className)}>
+    <span className="font-medium text-muted-foreground text-sm">Tools</span>
+    <Accordion className="rounded-md border" {...props} />
+  </div>
+));
 
-export const AgentTools = memo(
-  ({ className, children, ...props }: AgentToolsProps) => (
-    <Collapsible className={cn('border-b', className)} {...props}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 py-3 text-sm font-medium">
-        <ChevronRightIcon className="h-4 w-4 transition-transform duration-200 [[data-state=open]>*>&]:rotate-90" />
-        Tools
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in">
-        <div className="space-y-2 pb-3">{children}</div>
-      </CollapsibleContent>
-    </Collapsible>
-  ),
-);
-
-// ---------------------------------------------------------------------------
-// AgentTool — individual tool with name, description, and schema
-// ---------------------------------------------------------------------------
-
-export type AgentToolProps = ComponentProps<typeof Collapsible> & {
-  name: string;
-  description?: string;
-  schema?: Record<string, unknown>;
+export type AgentToolProps = ComponentProps<typeof AccordionItem> & {
+  tool: Tool;
 };
 
 export const AgentTool = memo(
-  ({ className, name, description, schema, ...props }: AgentToolProps) => (
-    <Collapsible className={cn('rounded-md border', className)} {...props}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-xs font-medium">
-        <ChevronRightIcon className="h-3 w-3 flex-shrink-0 transition-transform duration-200 [[data-state=open]>*>&]:rotate-90" />
-        <span className="font-mono">{name}</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in">
-        <div className="flex flex-col gap-3 border-t px-3 py-2">
-          <p className="text-xs text-muted-foreground">
-            {description ?? 'No description'}
-          </p>
-          {schema && (
-            <CodeBlock language="json" code={JSON.stringify(schema, null, 2)} />
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  ),
+  ({ className, tool, value, ...props }: AgentToolProps) => {
+    const schema =
+      "jsonSchema" in tool && tool.jsonSchema
+        ? tool.jsonSchema
+        : tool.inputSchema;
+
+    return (
+      <AccordionItem
+        className={cn("border-b last:border-b-0", className)}
+        value={value}
+        {...props}
+      >
+        <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
+          {tool.description ?? "No description"}
+        </AccordionTrigger>
+        <AccordionContent className="px-3 pb-3">
+          <div className="rounded-md bg-muted/50">
+            <CodeBlock code={JSON.stringify(schema, null, 2)} language="json" />
+          </div>
+        </AccordionContent>
+      </AccordionItem>
+    );
+  }
 );
 
-// ---------------------------------------------------------------------------
-// AgentOutput — collapsible output schema display
-// ---------------------------------------------------------------------------
-
-export type AgentOutputProps = ComponentProps<typeof Collapsible> & {
+export type AgentOutputProps = ComponentProps<"div"> & {
   schema: string;
 };
 
 export const AgentOutput = memo(
   ({ className, schema, ...props }: AgentOutputProps) => (
-    <Collapsible className={cn('border-b', className)} {...props}>
-      <CollapsibleTrigger className="flex w-full items-center gap-2 py-3 text-sm font-medium">
-        <ChevronRightIcon className="h-4 w-4 transition-transform duration-200 [[data-state=open]>*>&]:rotate-90" />
+    <div className={cn("space-y-2", className)} {...props}>
+      <span className="font-medium text-muted-foreground text-sm">
         Output Schema
-      </CollapsibleTrigger>
-      <CollapsibleContent className="data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=open]:animate-in">
-        <div className="pb-3">
-          <CodeBlock language="json" code={schema} />
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  ),
+      </span>
+      <div className="rounded-md bg-muted/50">
+        <CodeBlock code={schema} language="typescript" />
+      </div>
+    </div>
+  )
 );
 
-// ---------------------------------------------------------------------------
-// displayName
-// ---------------------------------------------------------------------------
-
-Agent.displayName = 'Agent';
-AgentHeader.displayName = 'AgentHeader';
-AgentContent.displayName = 'AgentContent';
-AgentInstructions.displayName = 'AgentInstructions';
-AgentTools.displayName = 'AgentTools';
-AgentTool.displayName = 'AgentTool';
-AgentOutput.displayName = 'AgentOutput';
+Agent.displayName = "Agent";
+AgentHeader.displayName = "AgentHeader";
+AgentContent.displayName = "AgentContent";
+AgentInstructions.displayName = "AgentInstructions";
+AgentTools.displayName = "AgentTools";
+AgentTool.displayName = "AgentTool";
+AgentOutput.displayName = "AgentOutput";
