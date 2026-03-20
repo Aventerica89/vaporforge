@@ -39,7 +39,7 @@ export const Tool = ({ className, ...props }: ToolProps) => {
   return (
     <Collapsible
       className={cn(
-        "group not-prose mb-3 w-full overflow-hidden rounded border border-white/[0.06] bg-[#0d0d1a]/80 backdrop-blur-sm",
+        "group not-prose mb-3 w-full overflow-hidden rounded border border-white/[0.06] bg-[#0d0d1a]/80 backdrop-blur-sm transition-[border-color] duration-200 ease-out hover:border-white/[0.1]",
         className
       )}
       {...props}
@@ -112,7 +112,7 @@ export const ToolHeader = ({
   return (
     <CollapsibleTrigger
       className={cn(
-        "flex w-full items-center justify-between gap-3 border-l-2 px-3 py-2 text-sm transition-colors hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:bg-white/[0.05]",
+        "flex w-full items-center justify-between gap-3 border-l-2 px-3 py-2 text-sm transition-all duration-150 ease-out hover:bg-white/[0.03] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:scale-[0.995] active:bg-white/[0.05]",
         stateAccent[state] ?? "border-l-transparent",
         className
       )}
@@ -125,7 +125,7 @@ export const ToolHeader = ({
         </span>
         {getStatusBadge(state)}
       </div>
-      <ChevronDownIcon className="size-3.5 text-muted-foreground/40 transition-transform group-data-[state=open]:rotate-180" />
+      <ChevronDownIcon className="size-3.5 text-muted-foreground/40 transition-transform duration-200 ease-out group-data-[state=open]:rotate-180" />
     </CollapsibleTrigger>
   );
 };
